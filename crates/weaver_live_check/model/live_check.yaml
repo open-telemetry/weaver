@@ -220,6 +220,10 @@ attributes:
           value: "log"
           brief: "A log record or event"
           stability: development
+        - id: profile
+          value: "profile"
+          brief: "A profiling data sample"
+          stability: development
     brief: "The type of telemetry sample being validated"
     note: |
       This indicates what kind of OpenTelemetry data structure was analyzed.
@@ -245,6 +249,10 @@ attributes:
         - id: log
           value: "log"
           brief: "Log record or event signal"
+          stability: development
+        - id: profile
+          value: "profile"
+          brief: "Profiling data signal"
           stability: development
     brief: "The OpenTelemetry signal type that the finding applies to"
     note: |

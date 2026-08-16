@@ -196,6 +196,7 @@ the telemetry pipeline generated the issue.
 | `exponential_histogram_data_point` | ![Development](https://img.shields.io/badge/-development-blue) | An exponential histogram data point within a metric |
 | `exemplar` | ![Development](https://img.shields.io/badge/-development-blue) | An exemplar (sample measurement) attached to a metric data point |
 | `log` | ![Development](https://img.shields.io/badge/-development-blue) | A log record or event |
+| `profile` | ![Development](https://img.shields.io/badge/-development-blue) | A profiling data sample |
 
 
 ---
@@ -239,6 +240,7 @@ This helps correlate findings with specific parts of an observability system
 | `resource` | ![Development](https://img.shields.io/badge/-development-blue) | Resource describing the telemetry source |
 | `metric` | ![Development](https://img.shields.io/badge/-development-blue) | Numeric measurement signal |
 | `log` | ![Development](https://img.shields.io/badge/-development-blue) | Log record or event signal |
+| `profile` | ![Development](https://img.shields.io/badge/-development-blue) | Profiling data signal |
 
 
 ---

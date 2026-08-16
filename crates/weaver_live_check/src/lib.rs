@@ -14,6 +14,7 @@ use sample_metric::{
     SampleExemplar, SampleExponentialHistogramDataPoint, SampleHistogramDataPoint, SampleMetric,
     SampleNumberDataPoint,
 };
+use sample_profile::SampleProfile;
 use sample_resource::SampleResource;
 use sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink};
 use schemars::JsonSchema;
@@ -54,6 +55,8 @@ pub mod sample_instrumentation_scope;
 pub mod sample_log;
 /// The intermediary format for metrics
 pub mod sample_metric;
+/// The intermediary format for profiles
+pub mod sample_profile;
 /// An intermediary format for resources
 pub mod sample_resource;
 /// The intermediary format for spans
@@ -418,6 +421,8 @@ pub enum Sample {
     Metric(SampleMetric),
     /// A sample log
     Log(SampleLog),
+    /// A sample profile
+    Profile(SampleProfile),
 }
 
 /// Represents a sample entity with a reference to the inner type.
@@ -449,6 +454,8 @@ pub enum SampleRef<'a> {
     Exemplar(&'a SampleExemplar),
     /// A sample log
     Log(&'a SampleLog),
+    /// A sample profile
+    Profile(&'a SampleProfile),
 }
 
 impl SampleRef<'_> {
@@ -489,6 +496,7 @@ impl SampleRef<'_> {
             }
             SampleRef::Exemplar(_) => SampleType::Exemplar,
             SampleRef::Log(_) => SampleType::Log,
+            SampleRef::Profile(_) => SampleType::Profile,
         }
     }
 }
@@ -507,6 +515,7 @@ impl Sample {
             Sample::InstrumentationScope(_) => None,
             Sample::Metric(_) => Some(SignalType::Metric.to_string()),
             Sample::Log(_) => Some(SignalType::Log.to_string()),
+            Sample::Profile(_) => Some(SignalType::Profile.to_string()),
         }
     }
 
@@ -517,6 +526,7 @@ impl Sample {
             Sample::Span(s) => s.resource.as_deref(),
             Sample::Metric(m) => m.resource.as_deref(),
             Sample::Log(l) => l.resource.as_deref(),
+            Sample::Profile(p) => p.resource.as_deref(),
             _ => None,
         }
     }
@@ -528,6 +538,7 @@ impl Sample {
             Sample::Span(s) => s.instrumentation_scope.as_deref(),
             Sample::Metric(m) => m.instrumentation_scope.as_deref(),
             Sample::Log(l) => l.instrumentation_scope.as_deref(),
+            Sample::Profile(p) => p.instrumentation_scope.as_deref(),
             _ => None,
         }
     }
@@ -545,6 +556,7 @@ impl Sample {
             Sample::InstrumentationScope(_) => None,
             Sample::Metric(metric) => Some(metric.name.clone()),
             Sample::Log(log) => Some(log.event_name.clone()),
+            Sample::Profile(_) => None,
         }
     }
 }
@@ -582,6 +594,9 @@ impl LiveCheckRunner for Sample {
             }
             Sample::Log(log) => {
                 log.run_live_check(live_checker, stats, parent_group, parent_signal)
+            }
+            Sample::Profile(profile) => {
+                profile.run_live_check(live_checker, stats, parent_group, parent_signal)
             }
         }
     }
@@ -740,4 +755,51 @@ pub fn get_json_schema() -> Result<String, Error> {
     serde_json::to_string_pretty(&schema).map_err(|e| Error::OutputError {
         error: e.to_string(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sample_profile::SampleProfile;
+
+    fn make_sample_profile() -> SampleProfile {
+        SampleProfile {
+            original_payload_format: "pprof".to_owned(),
+            attributes: vec![],
+            instrumentation_scope: None,
+            live_check_result: None,
+            resource: None,
+        }
+    }
+
+    #[test]
+    fn test_sample_profile_signal_type() {
+        let sample = Sample::Profile(make_sample_profile());
+        assert_eq!(sample.signal_type(), Some(SignalType::Profile.to_string()));
+    }
+
+    #[test]
+    fn test_sample_profile_signal_name_is_none() {
+        let sample = Sample::Profile(make_sample_profile());
+        assert_eq!(sample.signal_name(), None);
+    }
+
+    #[test]
+    fn test_sample_profile_resource_is_none() {
+        let sample = Sample::Profile(make_sample_profile());
+        assert!(sample.resource().is_none());
+    }
+
+    #[test]
+    fn test_sample_profile_instrumentation_scope_is_none() {
+        let sample = Sample::Profile(make_sample_profile());
+        assert!(sample.instrumentation_scope().is_none());
+    }
+
+    #[test]
+    fn test_sample_ref_profile_sample_type() {
+        let profile = make_sample_profile();
+        let sample_ref = SampleRef::Profile(&profile);
+        assert_eq!(sample_ref.sample_type(), SampleType::Profile);
+    }
 }

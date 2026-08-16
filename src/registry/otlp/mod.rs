@@ -18,6 +18,12 @@ use grpc_stubs::proto::collector::metrics::v1::metrics_service_server::{
 use grpc_stubs::proto::collector::metrics::v1::{
     ExportMetricsServiceRequest, ExportMetricsServiceResponse,
 };
+use grpc_stubs::proto::collector::profiles::v1development::profiles_service_server::{
+    ProfilesService, ProfilesServiceServer,
+};
+use grpc_stubs::proto::collector::profiles::v1development::{
+    ExportProfilesServiceRequest, ExportProfilesServiceResponse,
+};
 use grpc_stubs::proto::collector::trace::v1::trace_service_server::{
     TraceService, TraceServiceServer,
 };
@@ -187,6 +193,24 @@ pub mod grpc_stubs {
                 #[path = "opentelemetry.proto.collector.trace.v1.rs"]
                 pub mod v1;
             }
+            #[path = ""]
+            pub mod profiles {
+                #[allow(unused_qualifications)]
+                #[allow(unused_results)]
+                #[allow(clippy::enum_variant_names)]
+                #[allow(rustdoc::invalid_html_tags)]
+                #[allow(dead_code)]
+                #[path = "opentelemetry.proto.collector.profiles.v1development.rs"]
+                pub mod v1development;
+            }
+        }
+
+        #[path = ""]
+        pub mod profiles {
+            #[allow(rustdoc::invalid_html_tags)]
+            #[allow(dead_code)]
+            #[path = "opentelemetry.proto.profiles.v1development.rs"]
+            pub mod v1development;
         }
 
         #[path = ""]
@@ -253,6 +277,7 @@ pub enum OtlpRequest {
     Logs(ExportLogsServiceRequest),
     Metrics(ExportMetricsServiceRequest),
     Traces(ExportTraceServiceRequest),
+    Profiles(ExportProfilesServiceRequest),
 
     Error(Error),
     Stop(StopSignal),
@@ -329,6 +354,10 @@ pub fn listen_otlp_requests(
         tx: tx.clone(),
         activity_tx: activity_tx.clone(),
     };
+    let profiles_service = ProfilesServiceImpl {
+        tx: tx.clone(),
+        activity_tx: activity_tx.clone(),
+    };
 
     let (ready_tx, ready_rx) = oneshot::channel();
 
@@ -373,6 +402,7 @@ pub fn listen_otlp_requests(
                     .add_service(LogsServiceServer::new(logs_service))
                     .add_service(MetricsServiceServer::new(metrics_service))
                     .add_service(TraceServiceServer::new(trace_service))
+                    .add_service(ProfilesServiceServer::new(profiles_service))
                     .serve_with_incoming(inbound);
 
                 ready_tx
@@ -641,6 +671,10 @@ pub struct TraceServiceImpl {
     tx: mpsc::Sender<OtlpRequest>,
     activity_tx: watch::Sender<Instant>,
 }
+pub struct ProfilesServiceImpl {
+    tx: mpsc::Sender<OtlpRequest>,
+    activity_tx: watch::Sender<Instant>,
+}
 
 #[tonic::async_trait]
 impl LogsService for LogsServiceImpl {
@@ -691,6 +725,23 @@ impl TraceService for TraceServiceImpl {
 
         forward_to_channel(&self.tx, request.into_inner(), OtlpRequest::Traces).await?;
         Ok(Response::new(ExportTraceServiceResponse {
+            partial_success: None,
+        }))
+    }
+}
+
+#[tonic::async_trait]
+impl ProfilesService for ProfilesServiceImpl {
+    async fn export(
+        &self,
+        request: Request<ExportProfilesServiceRequest>,
+    ) -> Result<Response<ExportProfilesServiceResponse>, Status> {
+        self.activity_tx
+            .send(Instant::now())
+            .map_err(|_| Status::internal("Failed to update activity timestamp"))?;
+
+        forward_to_channel(&self.tx, request.into_inner(), OtlpRequest::Profiles).await?;
+        Ok(Response::new(ExportProfilesServiceResponse {
             partial_success: None,
         }))
     }
