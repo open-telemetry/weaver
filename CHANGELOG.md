@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Live-check: rework attribute lookup so a matched signal's own definitions win, the registry under check is searched before its dependencies, and an attribute that only a dependency defines is no longer reported as missing. Adds the `seen_dependency_attributes` statistic for seen attributes outside the registry surface, which are excluded from `registry_coverage`. See [docs/attribute_lookup.md](crates/weaver_live_check/docs/attribute_lookup.md). ([#TBD](https://github.com/open-telemetry/weaver/pull/TBD) by @jerbly)
 - Report an `imports` pattern that matched nothing in any dependency, as a warning. A typo or a stale name was previously dropped in silence. ([#1701](https://github.com/open-telemetry/weaver/pull/1701) by @jerbly)
 - Fix a span imported from a v2 dependency losing the `sampling_relevant` setting on its attributes. This is per-span state, held on the span's attribute reference rather than on the catalog attribute, so the import path never read it. Refining such a span was unaffected. ([#1694](https://github.com/open-telemetry/weaver/pull/1694) by @jerbly)
 - Fix `imports` never matching a legacy `type: resource` entity in a dependency. Such a group sets no `name` and holds its entity type in the group id, so the matcher now matches the group id as well as the name. ([#1694](https://github.com/open-telemetry/weaver/pull/1694) by @jerbly)

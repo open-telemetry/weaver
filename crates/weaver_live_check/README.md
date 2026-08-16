@@ -91,8 +91,8 @@ As mentioned, a list of `PolicyFinding` is returned in the report for each sampl
 
 - `level`: _string_ - one of `violation`, `improvement` or `information` with that order of precedence. Weaver will return with a non-zero exit-code if there is any `violation` in the report.
 - `id`: _string_ - a simple machine readable string to group findings of a particular kind or type.
-- `signal_type`: _string_ - a type of the signal for which the finding is reported: `metric`, `span`, `log` or `resource`
-- `signal_name`: _string_ - a name of the signal for which the finding is reported: metric name, event name or span name
+- `signal_type`: _string_ - a type of the signal for which the finding is reported: `metric`, `span`, `log`, `profile` or `resource`
+- `signal_name`: _string_ - a name of the signal for which the finding is reported: metric name, event name or span name. Profiles have no name.
 - `context`: _any_ - a map that describes details about the finding in a structured way,
   for example `{ "attribute_key": "foo.bar", "attribute_value": "bar" }`.
 - `message`: _string_ - verbose string describing the finding. It contains the same details as `context` but
@@ -178,7 +178,7 @@ weaver registry json-schema --json-schema weaver-config -o weaver-config.schema.
 ### Live-check settings
 
 ```toml
-[live_check]
+[live-check]
 input_source = "otlp"
 input_format = "json"
 format = "ansi"
@@ -190,19 +190,23 @@ output = "reports"
 advice_policies = "policies"
 advice_preprocessor = "preprocessor.jq"
 
-[live_check.otlp]
+[live-check.otlp]
 grpc_address = "0.0.0.0"
 grpc_port = 4317
 admin_port = 4320
 inactivity_timeout = 10
 
-[live_check.emit]
+[live-check.emit]
 otlp_logs = false
 otlp_logs_endpoint = "http://localhost:4317"
 otlp_logs_stdout = false
 ```
 
 Every key is optional: omit anything you want to leave at its default (or set on the CLI).
+
+### Attribute lookup
+
+A sample attribute resolves against the matched signal first, then the registry, then the registry's dependencies. See [docs/attribute_lookup.md](docs/attribute_lookup.md) for the full order, the v1/v2 differences, and how the statistics follow from them.
 
 ### Finding filters
 
@@ -238,7 +242,7 @@ The `exclude_samples` and `sample_names` fields match by sample name: attribute 
 
 Level overrides are applied before finding filters, so a `min_level` filter evaluated afterwards sees the overridden level rather than the original one.
 
-Note that `signal_type` scopes by the _parent_ signal, not by what the finding is about — an attribute finding like `undefined_enum_variant` (which only ever fires on attribute values) still carries the `signal_type` of the span/metric/log/resource that attribute belongs to.
+Note that `signal_type` scopes by the _parent_ signal, not by what the finding is about — an attribute finding like `undefined_enum_variant` (which only ever fires on attribute values) still carries the `signal_type` of the span/metric/log/profile/resource that attribute belongs to.
 
 ```toml
 # undefined_enum_variant is information by default; treat it as a violation everywhere
@@ -318,12 +322,15 @@ These should be self-explanatory, but:
 - `highest_advice_level_counts` is a per advice level count of the highest advice level given to each sample
 - `no_advice_count` is the number of samples that received no advice
 - `seen_registry_attributes` is a record of how many times each attribute in the registry was seen in the samples
+- `seen_dependency_attributes` is a record of how many times each attribute outside the registry, that only a dependency defines, was seen in the samples
 - `seen_non_registry_attributes` is a record of how many times each non-registry attribute was seen in the samples
 - `seen_registry_metrics` is a record of how many times each metric in the registry was seen in the samples
 - `seen_non_registry_metrics` is a record of how many times each non-registry metric was seen in the samples
 - `seen_registry_events` is a record of how many times each event in the registry was seen in the samples
 - `seen_non_registry_events` is a record of how many times each non-registry event was seen in the samples
 - `registry_coverage` is the fraction of seen registry entities over the total registry entities
+
+The three attribute records are the answer to "is this registry responsible for the attribute?". An attribute counts as a registry attribute when a signal or entity of the registry declares it, or when it is in the registry's own definitions or one of its public attribute groups, wherever the definition itself came from. An attribute outside that surface, which only a dependency defines, is real and draws no `missing_attribute` finding, but this registry does not own it: it is counted in `seen_dependency_attributes` and left out of `registry_coverage`. Reference it from a local attribute group to count it. See [docs/attribute_lookup.md](docs/attribute_lookup.md).
 
 This could be parsed for a more sophisticated way to determine pass/fail in CI for example.
 

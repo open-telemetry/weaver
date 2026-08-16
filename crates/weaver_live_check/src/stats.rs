@@ -9,7 +9,10 @@
 use serde::Serialize;
 use std::collections::HashMap;
 
-use crate::{FindingLevel, LiveCheckResult, PolicyFinding, VersionedRegistry};
+use crate::{
+    attribute_group_attributes, AttributeSource, FindingLevel, LiveCheckResult, PolicyFinding,
+    VersionedRegistry,
+};
 use weaver_semconv::group::GroupType;
 
 /// Cumulative statistics that track all telemetry data
@@ -33,6 +36,9 @@ pub struct CumulativeStatistics {
     pub(crate) advice_message_counts: HashMap<String, usize>,
     /// The number of each attribute seen from the registry
     pub(crate) seen_registry_attributes: HashMap<String, usize>,
+    /// The number of each attribute seen that is outside the registry surface
+    /// but that a dependency defines
+    pub(crate) seen_dependency_attributes: HashMap<String, usize>,
     /// The number of each non-registry attribute seen
     pub(crate) seen_non_registry_attributes: HashMap<String, usize>,
     /// The number of each metric seen from the registry
@@ -63,6 +69,7 @@ impl CumulativeStatistics {
             advice_type_counts: HashMap::new(),
             advice_message_counts: HashMap::new(),
             seen_registry_attributes: seen_attributes,
+            seen_dependency_attributes: HashMap::new(),
             seen_non_registry_attributes: HashMap::new(),
             seen_registry_metrics: seen_metrics,
             seen_non_registry_metrics: HashMap::new(),
@@ -105,7 +112,39 @@ impl CumulativeStatistics {
                 }
             }
             VersionedRegistry::V2(reg) => {
-                for attribute in &reg.registry.attributes {
+                // The registry surface. See `docs/attribute_lookup.md`.
+                let registry = &reg.registry;
+                let declared = registry
+                    .attributes
+                    .iter()
+                    .chain(attribute_group_attributes(registry))
+                    .chain(
+                        registry
+                            .metrics
+                            .iter()
+                            .flat_map(|metric| metric.attributes.iter().map(|a| &a.base)),
+                    )
+                    // Spans count even though they are never matched signals.
+                    .chain(
+                        registry
+                            .spans
+                            .iter()
+                            .flat_map(|span| span.attributes.iter().map(|a| &a.base)),
+                    )
+                    .chain(
+                        registry
+                            .events
+                            .iter()
+                            .flat_map(|event| event.attributes.iter().map(|a| &a.base)),
+                    )
+                    .chain(registry.entities.iter().flat_map(|entity| {
+                        entity
+                            .identity
+                            .iter()
+                            .chain(entity.description.iter())
+                            .map(|a| &a.base)
+                    }));
+                for attribute in declared {
                     if attribute.common.deprecated.is_none() {
                         let _ = seen_attributes.insert(attribute.key.clone(), 0);
                     }
@@ -160,10 +199,24 @@ impl CumulativeStatistics {
     }
 
     /// Add attribute name to coverage
-    pub(crate) fn add_attribute_name_to_coverage(&mut self, seen_attribute_name: String) {
+    ///
+    /// Surface membership decides first, wherever the definition came from, so
+    /// that an importing registry can reach full coverage. `source` then splits
+    /// the rest. See `docs/attribute_lookup.md`.
+    pub(crate) fn add_attribute_name_to_coverage(
+        &mut self,
+        seen_attribute_name: String,
+        source: AttributeSource,
+    ) {
         if let Some(count) = self.seen_registry_attributes.get_mut(&seen_attribute_name) {
             // This is a registry attribute
             *count += 1;
+        } else if source == AttributeSource::Dependency {
+            // Outside the registry surface, but a dependency defines it
+            *self
+                .seen_dependency_attributes
+                .entry(seen_attribute_name)
+                .or_insert(0) += 1;
         } else {
             // This is a non-registry attribute
             *self
@@ -303,9 +356,13 @@ impl LiveCheckStatistics {
     }
 
     /// Add attribute name to coverage
-    pub fn add_attribute_name_to_coverage(&mut self, seen_attribute_name: String) {
+    pub fn add_attribute_name_to_coverage(
+        &mut self,
+        seen_attribute_name: String,
+        source: AttributeSource,
+    ) {
         if let Self::Cumulative(stats) = self {
-            stats.add_attribute_name_to_coverage(seen_attribute_name);
+            stats.add_attribute_name_to_coverage(seen_attribute_name, source);
         }
     }
 
@@ -364,8 +421,10 @@ mod tests {
         disabled_stats.inc_entity_count("test_entity");
         normal_stats.inc_entity_count("test_entity");
 
-        disabled_stats.add_attribute_name_to_coverage("test.attribute".to_owned());
-        normal_stats.add_attribute_name_to_coverage("test.attribute".to_owned());
+        disabled_stats
+            .add_attribute_name_to_coverage("test.attribute".to_owned(), AttributeSource::Registry);
+        normal_stats
+            .add_attribute_name_to_coverage("test.attribute".to_owned(), AttributeSource::Registry);
         disabled_stats.add_metric_name_to_coverage("test.metric".to_owned());
         normal_stats.add_metric_name_to_coverage("test.metric".to_owned());
         disabled_stats.add_event_name_to_coverage("test.event".to_owned());

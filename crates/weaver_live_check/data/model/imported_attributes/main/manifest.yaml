@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=../../../../../../schemas/definition-manifest.v2.json
+#
+# `registry_path` is resolved against the process working directory, which for
+# this crate's tests is `crates/weaver_live_check`.
+name: main
+description: Defines nothing; imports every signal from base.
+schema_url: https://example.com/main/0.1.0
+dependencies:
+  - name: base
+    schema_url: https://example.com/base/1.0.0
+    registry_path: data/model/imported_attributes/base

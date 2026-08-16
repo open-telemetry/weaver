@@ -11,8 +11,8 @@ use weaver_checker::FindingLevel;
 use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{
-    advice::FindingBuilder, live_checker::LiveChecker, Error, FindingId, LiveCheckResult,
-    LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef, VersionedSignal,
+    advice::FindingBuilder, live_checker::LiveChecker, AttributeSource, Error, FindingId,
+    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef, VersionedSignal,
     ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY,
 };
 
@@ -147,7 +147,7 @@ impl SampleAttribute {
         }
     }
 
-    fn update_stats(&mut self, stats: &mut LiveCheckStatistics) {
+    fn update_stats(&mut self, stats: &mut LiveCheckStatistics, source: AttributeSource) {
         stats.inc_entity_count("attribute");
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         let mut seen_attribute_name = self.name.clone();
@@ -165,7 +165,7 @@ impl SampleAttribute {
                 }
             }
         }
-        stats.add_attribute_name_to_coverage(seen_attribute_name);
+        stats.add_attribute_name_to_coverage(seen_attribute_name, source);
     }
 }
 
@@ -178,13 +178,34 @@ impl LiveCheckRunner for SampleAttribute {
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
-        // find the attribute in the registry
-        let semconv_attribute = {
-            if let Some(attribute) = live_checker.find_attribute(&self.name) {
-                Some(attribute)
-            } else {
-                live_checker.find_template(&self.name)
-            }
+        // Six steps, stopping at the first hit. See `docs/attribute_lookup.md`.
+        //
+        //   1 signal exact       2 signal template
+        //   3 registry exact     4 registry template
+        //   5 dependency exact   6 dependency template
+        let signal_attribute = parent_group.as_ref().and_then(|group| {
+            group
+                .find_attribute(&self.name)
+                .or_else(|| group.find_template(&self.name))
+        });
+        let (semconv_attribute, source) = match signal_attribute {
+            // Steps 1 and 2
+            Some(attribute) => (Some(Rc::new(attribute)), AttributeSource::Registry),
+            None => match live_checker
+                .find_attribute(&self.name)
+                .or_else(|| live_checker.find_template(&self.name))
+            {
+                // Steps 3 and 4
+                Some(attribute) => (Some(attribute), AttributeSource::Registry),
+                None => match live_checker
+                    .find_dependency_attribute(&self.name)
+                    .or_else(|| live_checker.find_dependency_template(&self.name))
+                {
+                    // Steps 5 and 6
+                    Some(attribute) => (Some(attribute), AttributeSource::Dependency),
+                    None => (None, AttributeSource::NotFound),
+                },
+            },
         };
         if semconv_attribute.is_none() {
             let sample_ref = SampleRef::Attribute(self);
@@ -241,7 +262,7 @@ impl LiveCheckRunner for SampleAttribute {
             );
         }
         self.live_check_result = Some(result);
-        self.update_stats(stats);
+        self.update_stats(stats, source);
         Ok(())
     }
 }

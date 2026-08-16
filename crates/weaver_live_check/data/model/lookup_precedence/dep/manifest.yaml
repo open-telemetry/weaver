@@ -1,0 +1,4 @@
+# yaml-language-server: $schema=../../../../../../schemas/definition-manifest.v2.json
+name: dep
+description: Holds the definitions that the local registry does not.
+schema_url: https://example.com/lookup-precedence-dep/1.0.0

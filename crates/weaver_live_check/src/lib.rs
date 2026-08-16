@@ -23,7 +23,10 @@ use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::{
     registry::{ResolvedGroup, ResolvedRegistry},
-    v2::registry::ForgeResolvedRegistry,
+    v2::{
+        attribute::Attribute as ForgeAttribute,
+        registry::{ForgeResolvedRegistry, Registry},
+    },
 };
 use weaver_semconv::{
     attribute::AttributeType, deprecated::Deprecated, group::InstrumentSpec, stability::Stability,
@@ -112,6 +115,47 @@ pub enum VersionedRegistry {
     V1(Box<ResolvedRegistry>),
     /// v2 ForgeResolvedRegistry
     V2(Box<ForgeResolvedRegistry>),
+}
+
+/// Where the definition used to check a sample attribute came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AttributeSource {
+    /// No definition was found for the attribute.
+    NotFound,
+    /// The matched signal, or the registry under check.
+    Registry,
+    /// Only a dependency of the registry under check defines the attribute.
+    Dependency,
+}
+
+/// A registry and its dependency closure, nearest first.
+///
+/// Depth-first: the registry, then each dependency, then that dependency's own
+/// dependencies.
+#[must_use]
+pub fn registries_nearest_first(registry: &ForgeResolvedRegistry) -> Vec<&ForgeResolvedRegistry> {
+    fn collect<'a>(registry: &'a ForgeResolvedRegistry, out: &mut Vec<&'a ForgeResolvedRegistry>) {
+        out.push(registry);
+        for dependency in &registry.dependencies {
+            collect(dependency, out);
+        }
+    }
+
+    let mut out = Vec::new();
+    collect(registry, &mut out);
+    out
+}
+
+/// The attributes of every attribute group of the registry.
+///
+/// A group is in a resolved registry only when it is public. An internal group
+/// exists to compose a signal, and its attributes reach a sample through that
+/// signal alone.
+pub fn attribute_group_attributes(registry: &Registry) -> impl Iterator<Item = &ForgeAttribute> {
+    registry
+        .attribute_groups
+        .iter()
+        .flat_map(|group| group.attributes.iter().map(|attribute| &attribute.base))
 }
 
 /// Versioned enum for the attribute
@@ -220,6 +264,83 @@ impl VersionedSignal {
             VersionedSignal::Event(_) => None,
         }
     }
+
+    /// Get the definition this signal declares for the attribute `key`,
+    /// including any refinement the signal applies for itself. Step 1 of the
+    /// lookup; see `docs/attribute_lookup.md`.
+    #[must_use]
+    pub fn find_attribute(&self, key: &str) -> Option<VersionedAttribute> {
+        match self {
+            VersionedSignal::Group(group) => group
+                .attributes
+                .iter()
+                .find(|attribute| attribute.name == key)
+                .map(|attribute| VersionedAttribute::V1(attribute.clone())),
+            VersionedSignal::Metric(metric) => find_v2_attribute(
+                metric.attributes.iter().map(|attribute| &attribute.base),
+                key,
+            ),
+            VersionedSignal::Span(span) => {
+                find_v2_attribute(span.attributes.iter().map(|attribute| &attribute.base), key)
+            }
+            VersionedSignal::Event(event) => find_v2_attribute(
+                event.attributes.iter().map(|attribute| &attribute.base),
+                key,
+            ),
+        }
+    }
+
+    /// Get the template definition this signal declares that `key` is an
+    /// instance of, longest first. Step 2 of the lookup, and the templated
+    /// counterpart of [`Self::find_attribute`].
+    #[must_use]
+    pub fn find_template(&self, key: &str) -> Option<VersionedAttribute> {
+        match self {
+            VersionedSignal::Group(group) => group
+                .attributes
+                .iter()
+                .filter(|attribute| is_template_for(&attribute.r#type, &attribute.name, key))
+                .max_by_key(|attribute| attribute.name.len())
+                .map(|attribute| VersionedAttribute::V1(attribute.clone())),
+            VersionedSignal::Metric(metric) => find_v2_template(
+                metric.attributes.iter().map(|attribute| &attribute.base),
+                key,
+            ),
+            VersionedSignal::Span(span) => {
+                find_v2_template(span.attributes.iter().map(|attribute| &attribute.base), key)
+            }
+            VersionedSignal::Event(event) => find_v2_template(
+                event.attributes.iter().map(|attribute| &attribute.base),
+                key,
+            ),
+        }
+    }
+}
+
+/// Whether `key` is an instance of the template declared as `template_key`.
+fn is_template_for(attribute_type: &AttributeType, template_key: &str, key: &str) -> bool {
+    matches!(attribute_type, AttributeType::Template(_)) && key.starts_with(template_key)
+}
+
+/// The declared v2 attribute whose key is exactly `key`.
+fn find_v2_attribute<'a>(
+    mut attributes: impl Iterator<Item = &'a ForgeAttribute>,
+    key: &str,
+) -> Option<VersionedAttribute> {
+    attributes
+        .find(|attribute| attribute.key == key)
+        .map(|attribute| VersionedAttribute::V2(attribute.clone()))
+}
+
+/// The longest declared v2 template that `key` is an instance of.
+fn find_v2_template<'a>(
+    attributes: impl Iterator<Item = &'a ForgeAttribute>,
+    key: &str,
+) -> Option<VersionedAttribute> {
+    attributes
+        .filter(|attribute| is_template_for(&attribute.r#type, &attribute.key, key))
+        .max_by_key(|attribute| attribute.key.len())
+        .map(|attribute| VersionedAttribute::V2(attribute.clone()))
 }
 
 /// Versioned enum for an entity definition

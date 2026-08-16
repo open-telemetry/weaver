@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=../../../../../../schemas/semconv.schema.v2.json
+#
+# The dependency half of the lookup precedence fixture. The attribute lookup
+# searches the whole of the registry under check, steps 3 and 4, before it
+# searches any dependency, steps 5 and 6. These two definitions prove it,
+# because each one would win if the two were searched together.
+file_format: definition/2
+
+attributes:
+  # An exact key that only the dependency defines. The local registry holds the
+  # `probe.a` template, which also matches this key. An exact key beats a
+  # template within a step pair, but this one is in a later pair, so the local
+  # template wins.
+  - key: probe.a.b
+    type: string
+    stability: stable
+    brief: An exact key held only by the dependency.
+    examples: ["x"]
+
+  # A template that only the dependency defines. It is longer than the local
+  # `probe.long` template, and the longest prefix wins within a step pair, but
+  # again this one is in a later pair, so the local template wins.
+  - key: probe.long.prefix
+    type: template[string]
+    stability: stable
+    brief: A long template held only by the dependency.
+    examples: ["x"]
+
+  # Defined in both registries, and deprecated only here. The registry under
+  # check holds a live definition of the same key, and that is the one the
+  # lookup uses, so the policies must see the live one too. The test
+  # `a_local_definition_wins_over_a_deprecated_dependency_one` records that.
+  - key: probe.dup
+    type: string
+    stability: stable
+    brief: The deprecated copy, held by the dependency.
+    examples: ["x"]
+    deprecated:
+      reason: obsoleted
+      note: Replaced by nothing; this copy exists to be shadowed.
