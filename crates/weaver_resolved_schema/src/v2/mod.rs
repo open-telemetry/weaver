@@ -153,11 +153,61 @@ impl TryFrom<crate::ResolvedTelemetrySchema> for ResolvedTelemetrySchema {
     }
 }
 
+/// Turns the name an association entry uses into an entity reference.
+struct EntityRefResolver<'a> {
+    /// Every entity and refinement of this registry, by the name an association
+    /// uses, and the registry each was declared in.
+    local: &'a HashMap<SignalId, Option<provenance::DependencyRef>>,
+    /// The dependency list, indexed by url.
+    dep_index: &'a HashMap<&'a SchemaUrl, provenance::DependencyRef>,
+    /// Where the associations of each group resolved.
+    origins: &'a crate::registry::EntityAssociationOrigins,
+}
+
+impl EntityRefResolver<'_> {
+    /// The reference one entry of one group becomes. Returns `None` when
+    /// nothing defines the name.
+    fn resolve(&self, group_id: &str, name: &str) -> Option<entity::EntityRef> {
+        let Some(origin) = self.origins.get(group_id).and_then(|g| g.get(name)) else {
+            // No origin recorded, so the entity is one this registry holds.
+            let name = SignalId::from(name.to_owned());
+            return self
+                .local
+                .contains_key(&name)
+                .then(|| entity::EntityRef::local(name));
+        };
+        let source = self.dep_index.get(origin).copied();
+        if source.is_none() {
+            // The resolver found the entity in a dependency, so its url belongs
+            // to the dependency closure that `dep_index` holds. An empty
+            // provenance would claim the entity is local.
+            log::warn!(
+                "Logic failure - entity `{name}` resolved to `{origin}`, which is not a dependency"
+            );
+        }
+        let name = SignalId::from(name.to_owned());
+        // This registry may hold an entity of the same name. It is the same
+        // definition only when the same registry declared it, and then the
+        // reference stays local. Otherwise the two merely share a name, and the
+        // reference must keep naming the one the association resolved to.
+        if self.local.get(&name) == Some(&source) {
+            return Some(entity::EntityRef::local(name));
+        }
+        Some(entity::EntityRef {
+            r#type: name,
+            provenance: provenance::Provenance {
+                source,
+                ..Default::default()
+            },
+        })
+    }
+}
+
 /// Turns the names in association expressions into entity references. The shape
 /// of an expression does not change, only its leaves.
 fn convert_entity_associations(
     associations: &[weaver_semconv::entity_association::EntityAssociation],
-    entity_refs: &HashMap<SignalId, entity::EntityRef>,
+    entity_refs: &EntityRefResolver<'_>,
     group_id: &str,
 ) -> Result<Vec<entity::EntityAssociation>, crate::error::Error> {
     use weaver_semconv::entity_association::EntityAssociation as SpecAssociation;
@@ -165,8 +215,7 @@ fn convert_entity_associations(
         .iter()
         .map(|assoc| match assoc {
             SpecAssociation::Ref(name) => entity_refs
-                .get(&SignalId::from(name.clone()))
-                .cloned()
+                .resolve(group_id, name)
                 .map(entity::EntityAssociation::Ref)
                 .ok_or_else(|| crate::error::Error::EntityAssociationNotFound {
                     group_id: group_id.to_owned(),
@@ -437,38 +486,22 @@ pub fn convert_v1_to_v2(
     // An association names an entity type or a refinement id, in the one
     // namespace that `extends` gives them. Read the names back off the
     // refinements: deriving them a second time here would let this map and that
-    // list disagree.
-    let mut entity_refs: HashMap<SignalId, entity::EntityRef> = entity_refinements
+    // list disagree. The value is the registry each entity was declared in,
+    // which tells one definition from another that merely shares a name.
+    let local_entities: HashMap<SignalId, Option<provenance::DependencyRef>> = entity_refinements
         .iter()
-        .map(|refinement| {
-            (
-                refinement.id.clone(),
-                entity::EntityRef::local(refinement.id.clone()),
-            )
-        })
+        .map(|refinement| (refinement.id.clone(), refinement.entity.provenance.source))
         .collect();
-    // An entity that a dependency defines and nothing imports has no group
-    // here, so the resolver recorded where it found it. A definition in this
-    // registry still wins.
-    for (name, origin) in r.entity_association_origins.iter() {
-        let mut provenance = provenance::Provenance::default();
-        match deps_list.iter().position(|url| url == origin) {
-            Some(index) => provenance.source = Some(provenance::DependencyRef(index as u32)),
-            // The resolver found the entity in a dependency, so its url belongs
-            // to the dependency closure that `deps_list` holds. An empty
-            // provenance would claim the entity is local.
-            None => log::warn!(
-                "Logic failure - entity `{name}` resolved to `{origin}`, which is not a dependency"
-            ),
-        }
-        let name = SignalId::from(name.clone());
-        _ = entity_refs
-            .entry(name.clone())
-            .or_insert(entity::EntityRef {
-                r#type: name,
-                provenance,
-            });
-    }
+    let dep_index: HashMap<&SchemaUrl, provenance::DependencyRef> = deps_list
+        .iter()
+        .enumerate()
+        .map(|(index, url)| (url, provenance::DependencyRef(index as u32)))
+        .collect();
+    let entity_refs = EntityRefResolver {
+        local: &local_entities,
+        dep_index: &dep_index,
+        origins: &r.entity_association_origins,
+    };
 
     for g in r.groups.iter() {
         match g.r#type {
@@ -1419,16 +1452,19 @@ mod tests {
             is_v2: true,
             span_name: None,
         };
-        let registry =
-            |groups: Vec<Group>, origins: BTreeMap<String, SchemaUrl>| crate::registry::Registry {
+        let registry = |groups: Vec<Group>, origins: crate::registry::EntityAssociationOrigins| {
+            crate::registry::Registry {
                 registry_url: "my.schema.url".to_owned(),
                 entity_association_origins: origins,
                 groups,
-            };
+            }
+        };
         let mut dependencies = BTreeSet::new();
         let _ = dependencies.insert(dep_url.clone());
+        let mut group_origins = BTreeMap::new();
+        let _ = group_origins.insert("host".to_owned(), dep_url);
         let mut origins = BTreeMap::new();
-        let _ = origins.insert("host".to_owned(), dep_url);
+        let _ = origins.insert("metric.my-metric".to_owned(), group_origins);
 
         let associations = vec![SpecAssociation::AllOf {
             all_of: vec![

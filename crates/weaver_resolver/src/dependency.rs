@@ -182,7 +182,23 @@ impl EntityLookup for V2Schema {
 
 impl EntityLookup for Vec<ResolvedDependency> {
     fn lookup_entity(&self, name: &str) -> Option<EntityLocation> {
-        self.iter().find_map(|d| d.lookup_entity(name))
+        // A private entity is no part of the surface a dependency offers, so
+        // pass over it and keep looking: another dependency may publish one of
+        // the same name. Stopping at the first hit would let the order of the
+        // manifest decide the answer.
+        let mut private = None;
+        for location in self.iter().filter_map(|d| d.lookup_entity(name)) {
+            if !location.excluded {
+                return Some(location);
+            }
+            if private.is_none() {
+                private = Some(location);
+            }
+        }
+        // Nothing publishes the name. Returning the private definition tells
+        // the caller the entity exists and is out of reach, which is a better
+        // report than "no such entity".
+        private
     }
 }
 

@@ -2364,6 +2364,21 @@ groups:
             duplicates.is_empty(),
             "an import of one definition by two paths is not a duplicate declaration: {duplicates:?}"
         );
+
+        // The imported metric brings an association that resolved to the `host`
+        // of `base`, and this registry imported that same definition. The two
+        // are one entity, so the reference stays local rather than pointing back
+        // out at a definition the registry already holds.
+        let [weaver_resolved_schema::v2::entity::EntityAssociation::Ref(host)] =
+            metric_associations(&top)
+        else {
+            panic!(
+                "expected one reference, got {:?}",
+                metric_associations(&top)
+            );
+        };
+        assert_eq!(&*host.r#type, "host");
+        assert_eq!(ref_source(&top, host), None);
     }
 
     /// An import that no dependency satisfies must be reported.
@@ -2580,6 +2595,74 @@ groups:
             ),
             "`base_excluded` keeps `host` private: {errors:?}"
         );
+    }
+
+    /// An association that resolved in one registry keeps pointing at the
+    /// definition it found when a consumer imports the signal.
+    ///
+    /// `middle_assoc_export` associates its metric with the `host` of `base`.
+    /// `top_rebind` imports the metric, and defines an unrelated entity that
+    /// happens to be called `host` too. The import carries a resolved
+    /// reference, so it must still name `base`. Re-reading it as a bare name
+    /// would silently re-point the metric at the local entity, which is a
+    /// different entity with different identity attributes.
+    #[test]
+    fn test_imported_association_keeps_the_entity_it_resolved_to() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        let (top, nfes) = resolve_entity_assoc_fixture("top_rebind");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+
+        let [EntityAssociation::Ref(host)] = metric_associations(&top) else {
+            panic!(
+                "expected one reference, got {:?}",
+                metric_associations(&top)
+            );
+        };
+        assert_eq!(&*host.r#type, "host");
+        assert_eq!(
+            ref_source(&top, host),
+            Some(BASE_URL),
+            "the imported metric is associated with the `host` of base, not \
+             with the unrelated `host` this registry defines"
+        );
+    }
+
+    /// A private entity in one dependency does not hide a public entity of the
+    /// same name in another.
+    ///
+    /// `top_private_first` and `top_public_first` list the same two
+    /// dependencies in opposite orders. One keeps its `host` private, the other
+    /// publishes one. A private entity is no part of a dependency's surface, so
+    /// the lookup must pass over it and keep looking. Both registries must
+    /// therefore resolve, and to the same entity.
+    #[test]
+    fn test_private_entity_does_not_shadow_a_public_one() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        const RIVAL_URL: &str = "https://rival.example.com/rival/1.0.0";
+
+        for fixture in ["top_private_first", "top_public_first"] {
+            let (top, nfes) = resolve_entity_assoc_fixture(fixture);
+            assert!(
+                nfes.is_empty(),
+                "unexpected errors in `{fixture}`: {nfes:?}"
+            );
+
+            let [EntityAssociation::Ref(host)] = metric_associations(&top) else {
+                panic!(
+                    "expected one reference in `{fixture}`, got {:?}",
+                    metric_associations(&top)
+                );
+            };
+            assert_eq!(&*host.r#type, "host");
+            assert_eq!(
+                ref_source(&top, host),
+                Some(RIVAL_URL),
+                "`{fixture}` must reach the one dependency that publishes \
+                 `host`, whichever order the two are listed in"
+            );
+        }
     }
 
     #[test]

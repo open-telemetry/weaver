@@ -25,6 +25,11 @@ use weaver_semconv::stability::Stability;
 use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
 use weaver_semconv::YamlValue;
 
+/// Where the `entity_associations` entries of each group resolved: group id, to
+/// the name an entry uses, to the registry that defines that entity.
+pub type EntityAssociationOrigins =
+    BTreeMap<String, BTreeMap<String, weaver_semconv::schema_url::SchemaUrl>>;
+
 /// A semantic convention registry.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -34,14 +39,19 @@ pub struct Registry {
     /// A list of semantic convention groups.
     pub groups: Vec<Group>,
 
-    /// The registry that defines each entity named in an `entity_associations`
-    /// clause, for the entities this registry does not hold itself.
+    /// Where each `entity_associations` entry resolved, by group id and then by
+    /// the name the entry uses.
     ///
     /// An association names an entity, and the definition may live in a
     /// dependency that nothing imports. No group records it, so the v2
     /// conversion reads the origin from here. Carried through the v1
     /// intermediate representation during resolution; it is omitted from v1
     /// serialization and the v1 json schema, as the other v2-only fields are.
+    ///
+    /// The map is keyed by group because a name is not enough. An imported
+    /// signal brings an association that resolved in the registry that declared
+    /// it, and the importing registry may define an unrelated entity of the same
+    /// name.
     ///
     /// A published `resolved/1.0` file therefore carries no origins, and
     /// converting one to v2 resolves an association against its own groups
@@ -50,7 +60,7 @@ pub struct Registry {
     #[serde(default)]
     #[serde(skip_serializing)]
     #[schemars(skip)]
-    pub entity_association_origins: BTreeMap<String, weaver_semconv::schema_url::SchemaUrl>,
+    pub entity_association_origins: EntityAssociationOrigins,
 }
 
 /// Statistics on a registry.

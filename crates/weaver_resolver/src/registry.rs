@@ -447,8 +447,19 @@ fn resolve_dependency_imports<C: crate::SchemaCacheLookup>(
     // Checked against what the imports produced, before the groups move into
     // the registry.
     errors.extend(crate::imports::unmatched_import_errors(imports, &groups)?);
-    for crate::imports::GroupWithProvenance { group, schema_url } in groups {
+    for crate::imports::GroupWithProvenance {
+        group,
+        schema_url,
+        association_origins,
+    } in groups
+    {
         let is_v2 = group.is_v2();
+        if !association_origins.is_empty() {
+            _ = ureg
+                .registry
+                .entity_association_origins
+                .insert(group.id.clone(), association_origins);
+        }
         let mut prov_url = if let Some(prov) = group.provenance() {
             prov.schema_url.clone()
         } else {
@@ -493,6 +504,11 @@ fn resolve_dependency_imports<C: crate::SchemaCacheLookup>(
 /// The entities of this registry need no record: the v1 to v2 conversion sees
 /// their groups. An entity that only a dependency defines has no group here, so
 /// the origin is recorded for the conversion to read.
+///
+/// An imported signal is left alone. Its association resolved once already, in
+/// the registry that declared it, and [`crate::imports`] carried that answer
+/// over. Asking the question again here would answer it in a registry where the
+/// same name may mean a different entity.
 fn resolve_entity_associations(ureg: &mut UnresolvedRegistry) -> Result<(), Error> {
     // Most registries associate nothing, and then there is no name to look up.
     if ureg
@@ -513,9 +529,12 @@ fn resolve_entity_associations(ureg: &mut UnresolvedRegistry) -> Result<(), Erro
         .filter_map(|g| v2_namespace_id(g).map(|id| id.to_string()))
         .collect();
 
-    let mut origins = BTreeMap::new();
+    let mut origins: weaver_resolved_schema::registry::EntityAssociationOrigins = BTreeMap::new();
     let mut errors = vec![];
+    // One lookup per name, however many groups name it.
+    let mut found: HashMap<String, SchemaUrl> = HashMap::new();
     for g in ureg.groups.iter() {
+        let imported = ureg.registry.entity_association_origins.get(&g.group.id);
         for name in g
             .group
             .entity_associations
@@ -523,7 +542,14 @@ fn resolve_entity_associations(ureg: &mut UnresolvedRegistry) -> Result<(), Erro
             .flat_map(|assoc| assoc.referenced_entities())
             .unique()
         {
-            if local.contains(name) || origins.contains_key(name) {
+            if local.contains(name) || imported.is_some_and(|m| m.contains_key(name)) {
+                continue;
+            }
+            if let Some(origin) = found.get(name) {
+                _ = origins
+                    .entry(g.group.id.clone())
+                    .or_default()
+                    .insert(name.to_owned(), origin.clone());
                 continue;
             }
             match ureg.dependencies.lookup_entity(name) {
@@ -535,7 +561,11 @@ fn resolve_entity_associations(ureg: &mut UnresolvedRegistry) -> Result<(), Erro
                     });
                 }
                 Some(location) => {
-                    _ = origins.insert(name.to_owned(), location.origin);
+                    _ = origins
+                        .entry(g.group.id.clone())
+                        .or_default()
+                        .insert(name.to_owned(), location.origin.clone());
+                    _ = found.insert(name.to_owned(), location.origin);
                 }
                 None => errors.push(Error::UnresolvedEntityAssociation {
                     group_id: g.group.id.clone(),
@@ -549,7 +579,13 @@ fn resolve_entity_associations(ureg: &mut UnresolvedRegistry) -> Result<(), Erro
     if !errors.is_empty() {
         return Err(Error::CompoundError(errors));
     }
-    ureg.registry.entity_association_origins = origins;
+    for (group_id, group_origins) in origins {
+        ureg.registry
+            .entity_association_origins
+            .entry(group_id)
+            .or_default()
+            .extend(group_origins);
+    }
     Ok(())
 }
 

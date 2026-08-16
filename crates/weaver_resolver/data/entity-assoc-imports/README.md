@@ -18,6 +18,10 @@ work. Each pull request in that series adds the fixtures that its tests need.
 | `middle_bad_assoc` | base | – | an association that nothing defines fails the resolve |
 | `base_excluded` | – | – | defines `host` and keeps it private |
 | `middle_excluded_assoc` | base_excluded | – | an association to a private entity fails the resolve |
+| `middle_assoc_export` | base | – | one metric, associated with `host` of base |
+| `top_rebind` | middle_assoc_export | `metrics: [middle.request.count]` | the imported association still names `host` of base |
+| `top_private_first` | base_excluded **then** rival_base | – | the association reaches the public `host` of rival |
+| `top_public_first` | rival_base **then** base_excluded | – | the same result, from the same two dependencies in the other order |
 
 ## An association is not an import
 
@@ -40,6 +44,22 @@ nothing to choose between and the entity appears once. `top_rival_import`
 reaches two definitions that merely share an id, so both are imported and the
 duplicate is reported. Collapsing those would drop a definition the registry
 asked for, and the author is the one who has to resolve it.
+
+## A resolved association travels with the signal
+
+`top_rebind` imports the metric of `middle_assoc_export` and defines its own
+`host`, which shares a name with the `host` of `base` and nothing else. The
+association resolved once, in `middle_assoc_export`, against `base`. Importing
+the metric must carry that answer over rather than ask the question again in a
+registry where the same name means something else.
+
+## A private entity is not in the surface
+
+`top_private_first` and `top_public_first` list the same two dependencies in
+opposite orders. `base_excluded` keeps its `host` private and `rival_base`
+publishes one, so exactly one `host` is reachable and the order the two are
+listed in says nothing about which. A lookup that stops at the first dependency
+holding the name would answer differently for the two.
 
 ## Imports are not transitive
 
