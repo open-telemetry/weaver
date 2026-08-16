@@ -135,6 +135,14 @@ count={{ data_point.count }}, sum={{ data_point.sum }}, min={{ data_point.min }}
 {%- endfor %}
 {%- endmacro %}
 
+{% macro display_profile(profile, indent=0) %}
+{{ " " * indent }}{{ ("Profile") | ansi_bright_cyan | ansi_bold }} {{ display_sample_header(profile.live_check_result.highest_advice_level, profile.original_payload_format) }}
+{{ display_advice(profile.live_check_result.all_advice, indent) }}
+{%- for attribute in profile.attributes %}
+{{ display_attribute(attribute, indent + 4) }}
+{%- endfor %}
+{%- endmacro %}
+
 {%- macro display_sample(sample, indent=0) -%}
 {%- if sample.span is defined -%}
 {{ " " * indent }}{{ ("Span") | ansi_bright_cyan | ansi_bold }} {{ display_sample_header(sample.span.live_check_result.highest_advice_level, sample.span.name) }} `{{ sample.span.kind }}`
@@ -162,6 +170,8 @@ count={{ data_point.count }}, sum={{ data_point.sum }}, min={{ data_point.min }}
 {{ display_metric(sample.metric, indent) }}
 {%- elif sample.log is defined -%}
 {{ display_log(sample.log, indent) }}
+{%- elif sample.profile is defined -%}
+{{ display_profile(sample.profile, indent) }}
 {%- endif -%}
 {%- endmacro -%}
 
