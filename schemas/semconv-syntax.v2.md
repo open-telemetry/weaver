@@ -412,6 +412,12 @@ entities:
         requirement_level: required
 ```
 
+The `type` is the name a signal uses to refer to the entity in
+[`entity_associations`](#entity-associations), and the name a dependent registry uses in `imports`. Two
+entity definitions cannot share it. Weaver also warns when two groups take the same entity name in the
+v2 output — a legacy group `entity.host` and an entity `host` both resolve to `host` — because one
+would otherwise replace the other silently.
+
 ### `entity_refinements` definition
 
 The entity refinements section contains a list of entity refinement definitions. An entity refinement allows adding or modifying attributes of an existing entity definition.
@@ -431,7 +437,7 @@ An entity refinement definition consists of the following properties:
 
 The `entity_associations` field on spans, metrics, and events (and their refinements) declares which [entities](#entities-definition) a signal is expected to be associated with. Each list element is an *entity association expression*, which is one of:
 
-- An **entity reference** — the `type` of an entity, written as a bare string.
+- An **entity reference** — the `type` of an entity, written as a bare string. See [rules for an entity reference](#rules-for-an-entity-reference) for what a reference may name and where the entity may be defined.
 - **`one_of`** — a map with a list of expressions; satisfied when *at least one* of them is satisfied.
 - **`all_of`** — a map with a list of expressions; satisfied when *every* one of them is satisfied.
 
@@ -463,11 +469,43 @@ entity_associations:
           - container
 ```
 
-Every entity named here must be defined by this registry or by one of its dependencies. Naming an
-entity does **not** import it: the definition stays in the registry that owns it, and the resolved
-schema records which registry that is. A reference that no registry in scope defines fails resolution,
-and so does a reference to an entity that its registry excludes with
-[`dependency_resolution`](#dependency-resolution-annotations).
+#### Rules for an entity reference
+
+Resolution has to turn each reference into exactly one entity definition. When it cannot, resolution
+fails — these are errors, not warnings, because a reference weaver cannot settle would otherwise reach
+your consumers as a broken pointer.
+
+**What the name may be.** Either the `type` of an entity, or the `id` of an
+[entity refinement](#entity_refinements-definition) with its leading `entity.` removed. Given an entity
+`host` and a refinement `entity.host.windows`, both `host` and `host.windows` are references. Nothing
+else is: a metric, span, or attribute group that happens to share the name is not an entity and does not
+satisfy a reference. In a legacy (v1) registry, the entity type of a `type: resource` group is its
+`name` field, not its group id — a group `resource.host` with `name: host` is referenced as `host`.
+
+**Where the entity may be defined.** In this registry, or in a registry listed in the `dependencies` of
+your manifest. A dependency's *own* dependencies are not in scope: if `a` depends on `b`, and `b`
+depends on `c`, then `a` can name an entity of `c` only if `b` imports it. Naming an entity does not
+pass it on either — an association is not a re-export, so an entity you name but do not import is not
+available to your consumers.
+
+**Naming is not importing.** The definition stays in the registry that owns it, and the resolved schema
+records which registry that is, so a consumer can follow the reference to it. Add the entity to
+[`imports`](#imports-definition) if you want the definition in your own registry.
+
+**One name, one entity.** If two dependencies each declare an *unrelated* entity under the same name,
+the reference is ambiguous and fails: nothing in the file says which you meant. Import the one you
+mean, or define the entity here — either settles it. Reaching one definition by two paths through the
+dependency graph is not ambiguous, and resolves normally.
+
+**Private entities.** An entity hidden with
+[`dependency_resolution`](#dependency-resolution-annotations) is out of reach from any registry that
+depends on it, an association included. In the registry that owns it, a private entity may be named
+only by a signal that is itself private — otherwise you publish a signal pointing at an entity your
+consumers cannot see. This is the same rule that governs an attribute `ref`.
+
+A reference is unaffected by where the signal came from. A signal you import keeps the entity its
+association resolved to in the registry that declared it, even if you define an unrelated entity of the
+same name.
 
 ### `events` definition
 
@@ -787,11 +825,15 @@ attributes:
 #### Dependency Resolution Annotations
 
 The `dependency_resolution` annotation hides an attribute, group, or signal from
-registries that consume this one as a dependency. The owning registry still
-sees the item normally - resolution, codegen, and docs are unaffected — but any
-dependent registry that references the item (via `ref`, `extends`,
-`include_groups`, `imports`, `entity_associations`, or a v2 refinement) fails to
-resolve.
+registries that consume this one as a dependency. Any dependent registry that
+references the item (via `ref`, `extends`, `include_groups`, `imports`,
+`entity_associations`, or a v2 refinement) fails to resolve.
+
+The owning registry still sees the item — resolution, codegen, and docs are
+unaffected — with one restriction: only a definition that is itself excluded may
+reference an excluded one. A public group referencing a hidden attribute, or a
+public signal naming a hidden entity, would publish a reference that no dependent
+can follow, so that fails to resolve too.
 
 This is intended for migrations where definitions move out of a parent registry
 into a new one. Marking the old definitions excluded prevents conflicts in
