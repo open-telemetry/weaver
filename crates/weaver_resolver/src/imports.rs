@@ -14,12 +14,15 @@
 //! in [`crate::dependency`].
 
 use globset::GlobSet;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use weaver_resolved_schema::attribute::{Attribute, AttributeRef};
 use weaver_resolved_schema::lineage::GroupLineage;
 use weaver_resolved_schema::registry::Group;
 use weaver_resolved_schema::v2::attribute::AttributeRef as V2AttributeRef;
 use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
+use weaver_resolved_schema::v2::entity::{
+    to_named_associations, EntityAssociation as V2EntityAssociation,
+};
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::v2::Signal;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
@@ -30,7 +33,7 @@ use weaver_semconv::schema_url::SchemaUrl;
 use crate::{
     attribute::{AttributeCatalog, AttributeSource},
     conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion},
-    dependency::{find_attribute_source, v2_source_url, ResolvedDependency},
+    dependency::{find_attribute_source, v2_source_url, EntityLookup, ResolvedDependency},
     dependency_resolution::is_excluded,
     Error,
 };
@@ -161,7 +164,7 @@ pub(crate) fn unmatched_import_errors(
 /// Two keys exist only to keep older registries resolving: the `registry.`
 /// prefix on an attribute group id, an older spelling that a v2 group can
 /// still carry, and the id of a v1 `resource` entity.
-fn import_match_keys(g: &Group) -> Vec<&str> {
+pub(crate) fn import_match_keys(g: &Group) -> Vec<&str> {
     let name = g.name.as_deref();
     let metric_name = g.metric_name.as_deref();
     if g.is_v2 {
@@ -268,6 +271,14 @@ pub struct GroupWithProvenance {
     pub group: Group,
     /// The schema URL of the registry it came from.
     pub schema_url: SchemaUrl,
+    /// The registry that defines each entity this group is associated with, by
+    /// the name the association uses.
+    ///
+    /// The association resolved in the registry that declared the group, and
+    /// that answer travels with it. The importing registry may define an
+    /// unrelated entity of the same name, and reading the name again there
+    /// would point the signal at it.
+    pub association_origins: BTreeMap<String, SchemaUrl>,
 }
 
 /// Allows importing dependencies
@@ -279,6 +290,36 @@ pub(crate) trait ImportableDependency {
         attribute_catalog: &mut AttributeCatalog,
         cache_lookup: &C,
     ) -> Result<Vec<GroupWithProvenance>, Error>;
+}
+
+/// Where each entity a v1 group is associated with is defined.
+///
+/// The dependency resolved its own associations, and the record survives in
+/// memory, so read it first: it is the only place that holds the answer for an
+/// entity the dependency named but does not itself hold. A published
+/// `resolved/1.0` file carries no such record, and then the group's own entities
+/// are all there is to go on.
+///
+/// A name the dependency cannot answer is left out, so the importing registry
+/// resolves it as it would any association of its own. So is a private entity:
+/// the dependency keeps it out of reach, and importing a signal is no way in.
+fn v1_association_origins(schema: &V1Schema, group: &Group) -> BTreeMap<String, SchemaUrl> {
+    let recorded = schema.registry.entity_association_origins.get(&group.id);
+    group
+        .entity_associations
+        .iter()
+        .flat_map(|assoc| assoc.referenced_entities())
+        .filter_map(|name| {
+            let origin = match recorded.and_then(|origins| origins.get(name)) {
+                Some(origin) => Some(origin.clone()),
+                None => schema
+                    .lookup_entity(name)
+                    .filter(|location| !location.excluded)
+                    .map(|location| location.origin),
+            };
+            origin.map(|origin| (name.to_owned(), origin))
+        })
+        .collect()
 }
 
 impl ImportableDependency for V1Schema {
@@ -356,9 +397,11 @@ impl ImportableDependency for V1Schema {
                     }
                 }
             }
+            let association_origins = v1_association_origins(self, &g);
             result.push(GroupWithProvenance {
                 group: g,
                 schema_url: g_url,
+                association_origins,
             });
         }
         if !exclusion_errors.is_empty() {
@@ -479,7 +522,7 @@ enum ImportDecision {
 }
 
 fn import_decision(
-    annotations: &std::collections::BTreeMap<String, weaver_semconv::YamlValue>,
+    annotations: &BTreeMap<String, weaver_semconv::YamlValue>,
     matched_explicitly: bool,
     id: &str,
     r#type: GroupType,
@@ -647,6 +690,33 @@ fn imported_v2_group(
     }
 }
 
+/// Where each entity a v2 signal is associated with is defined.
+///
+/// A resolved leaf that names a dependency already names the registry that
+/// declared the entity, because that is what the lookup recorded. A leaf with no
+/// provenance names an entity of this schema, which may itself have been
+/// imported, so read the origin off the entity.
+fn v2_association_origins(
+    schema: &V2Schema,
+    deps: &[SchemaUrl],
+    associations: &[V2EntityAssociation],
+) -> BTreeMap<String, SchemaUrl> {
+    associations
+        .iter()
+        .flat_map(|assoc| assoc.refs())
+        .filter_map(|entity_ref| {
+            let origin = match entity_ref.provenance.source {
+                Some(dep_ref) => deps.get(dep_ref.0 as usize).cloned(),
+                None => schema
+                    .lookup_entity(&entity_ref.r#type)
+                    .filter(|location| !location.excluded)
+                    .map(|location| location.origin),
+            };
+            origin.map(|origin| (entity_ref.r#type.to_string(), origin))
+        })
+        .collect()
+}
+
 impl ImportableDependency for V2Schema {
     fn import_groups<C: crate::SchemaCacheLookup>(
         &self,
@@ -656,6 +726,10 @@ impl ImportableDependency for V2Schema {
     ) -> Result<Vec<GroupWithProvenance>, Error> {
         let mut result = vec![];
         let mut exclusion_errors: Vec<Error> = vec![];
+        // Where the associations of each imported signal resolved, by group id.
+        // Collected here because a group holds only the names, and the leaves
+        // that hold the answer are read while the signal is converted.
+        let mut origins: HashMap<String, BTreeMap<String, SchemaUrl>> = HashMap::new();
         // The table a `DependencyRef` indexes into, materialised once.
         let deps: Vec<SchemaUrl> = self.dependencies.iter().cloned().collect();
 
@@ -714,7 +788,11 @@ impl ImportableDependency for V2Schema {
             group.metric_name = Some(m.name.to_string());
             group.instrument = Some(m.instrument.clone());
             group.unit = Some(m.unit.clone());
-            group.entity_associations = m.entity_associations.clone();
+            group.entity_associations = to_named_associations(&m.entity_associations);
+            _ = origins.insert(
+                group.id.clone(),
+                v2_association_origins(self, &deps, &m.entity_associations),
+            );
             result.push(group);
         }
 
@@ -740,7 +818,11 @@ impl ImportableDependency for V2Schema {
                 Some(GroupLineage::new(v2_provenance(self, &deps, &e.provenance))),
             );
             group.name = Some(e.name.to_string());
-            group.entity_associations = e.entity_associations.clone();
+            group.entity_associations = to_named_associations(&e.entity_associations);
+            _ = origins.insert(
+                group.id.clone(),
+                v2_association_origins(self, &deps, &e.entity_associations),
+            );
             result.push(group);
         }
 
@@ -802,7 +884,11 @@ impl ImportableDependency for V2Schema {
             group.span_kind = Some(s.kind.clone());
             group.span_name = Some(s.name.clone());
             group.name = Some(s.r#type.to_string());
-            group.entity_associations = s.entity_associations.clone();
+            group.entity_associations = to_named_associations(&s.entity_associations);
+            _ = origins.insert(
+                group.id.clone(),
+                v2_association_origins(self, &deps, &s.entity_associations),
+            );
             result.push(group);
         }
 
@@ -857,6 +943,7 @@ impl ImportableDependency for V2Schema {
         Ok(result
             .into_iter()
             .map(|group| GroupWithProvenance {
+                association_origins: origins.remove(&group.id).unwrap_or_default(),
                 group,
                 schema_url: g_url.clone(),
             })

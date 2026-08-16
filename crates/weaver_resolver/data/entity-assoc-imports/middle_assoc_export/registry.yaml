@@ -1,0 +1,11 @@
+file_format: definition/2
+metrics:
+  - name: middle.request.count
+    brief: Count of requests, defined in middle.
+    requirement_level: recommended
+    instrument: counter
+    unit: "{request}"
+    stability: stable
+    # Defined in base and not imported, so the reference names base.
+    entity_associations:
+      - host

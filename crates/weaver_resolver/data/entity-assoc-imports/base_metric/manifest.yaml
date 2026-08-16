@@ -1,0 +1,3 @@
+name: base
+description: Defines the `host` entity and a metric a dependent can refine.
+schema_url: https://example.com/base/1.0.0

@@ -1,0 +1,6 @@
+name: local_shapes
+description: >
+  Every expression shape in one registry, over entities it defines itself: a
+  bare name, a `one_of`, a nested `all_of`, and a name that is an entity
+  refinement id rather than an entity type.
+schema_url: https://example.com/local-shapes/1.0.0

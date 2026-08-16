@@ -963,6 +963,7 @@ mod tests {
             registry_id: "test-registry".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "v1-example".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             catalog: Catalog::new(vec![attr_v1], root_attributes),

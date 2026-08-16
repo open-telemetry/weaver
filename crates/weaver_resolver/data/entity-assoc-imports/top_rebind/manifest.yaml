@@ -1,0 +1,10 @@
+name: top_rebind
+description: >
+  Imports the metric of `middle_assoc_export` and defines an unrelated entity
+  that happens to be called `host`. The imported association already resolved
+  against base, and importing it must not re-point it at the local `host`.
+schema_url: https://example.com/top-rebind/1.0.0
+dependencies:
+  - name: middle
+    schema_url: https://example.com/middle/1.0.0
+    registry_path: data/entity-assoc-imports/middle_assoc_export

@@ -6,7 +6,10 @@ use serde::{Deserialize, Serialize};
 use weaver_common::result::WResult;
 use weaver_resolved_schema::{
     attribute::AttributeRef,
-    v2::{catalog::AttributeCatalog, entity::EntityAttributeRef},
+    v2::{
+        catalog::AttributeCatalog,
+        entity::{to_named_associations, EntityAttributeRef},
+    },
 };
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::schema_url::SchemaUrl;
@@ -152,7 +155,7 @@ impl ForgeResolvedRegistry {
                 instrument: metric.instrument,
                 unit: metric.unit,
                 attributes,
-                entity_associations: metric.entity_associations,
+                entity_associations: to_named_associations(&metric.entity_associations),
                 requirement_level: metric.requirement_level,
                 common: metric.common,
                 provenance: resolve_provenance(&metric.provenance),
@@ -193,7 +196,7 @@ impl ForgeResolvedRegistry {
                     instrument: metric.metric.instrument,
                     unit: metric.metric.unit,
                     attributes,
-                    entity_associations: metric.metric.entity_associations,
+                    entity_associations: to_named_associations(&metric.metric.entity_associations),
                     requirement_level: metric.metric.requirement_level,
                     common: metric.metric.common,
                     provenance: resolve_provenance(&metric.metric.provenance),
@@ -233,7 +236,7 @@ impl ForgeResolvedRegistry {
                 kind: span.kind,
                 name: span.name,
                 attributes,
-                entity_associations: span.entity_associations,
+                entity_associations: to_named_associations(&span.entity_associations),
                 requirement_level: span.requirement_level,
                 common: span.common,
                 provenance: resolve_provenance(&span.provenance),
@@ -274,7 +277,7 @@ impl ForgeResolvedRegistry {
                     kind: span.span.kind,
                     name: span.span.name,
                     attributes,
-                    entity_associations: span.span.entity_associations,
+                    entity_associations: to_named_associations(&span.span.entity_associations),
                     requirement_level: span.span.requirement_level,
                     common: span.span.common,
                     provenance: resolve_provenance(&span.span.provenance),
@@ -311,7 +314,7 @@ impl ForgeResolvedRegistry {
             events.push(Event {
                 name: event.name,
                 attributes,
-                entity_associations: event.entity_associations,
+                entity_associations: to_named_associations(&event.entity_associations),
                 requirement_level: event.requirement_level,
                 common: event.common,
                 provenance: resolve_provenance(&event.provenance),
@@ -351,7 +354,7 @@ impl ForgeResolvedRegistry {
                 event: Event {
                     name: event.event.name,
                     attributes,
-                    entity_associations: event.event.entity_associations,
+                    entity_associations: to_named_associations(&event.event.entity_associations),
                     requirement_level: event.event.requirement_level,
                     common: event.event.common,
                     provenance: resolve_provenance(&event.event.provenance),
@@ -681,7 +684,9 @@ mod tests {
                         ),
                         sampling_relevant: Some(true),
                     }],
-                    entity_associations: vec![EntityAssociation::Ref("my-entity".to_owned())],
+                    entity_associations: vec![entity::EntityAssociation::Ref(
+                        entity::EntityRef::local("my-entity".to_owned().into()),
+                    )],
                     requirement_level: Some(SignalRequirementLevel::OptIn),
                     common: CommonFields::default(),
                     provenance: provenance::Provenance {
@@ -699,7 +704,9 @@ mod tests {
                             BasicRequirementLevelSpec::Required,
                         ),
                     }],
-                    entity_associations: vec![EntityAssociation::Ref("my-entity".to_owned())],
+                    entity_associations: vec![entity::EntityAssociation::Ref(
+                        entity::EntityRef::local("my-entity".to_owned().into()),
+                    )],
                     requirement_level: Some(SignalRequirementLevel::OptIn),
                     common: CommonFields::default(),
                     provenance: Default::default(),
@@ -712,7 +719,9 @@ mod tests {
                             BasicRequirementLevelSpec::Required,
                         ),
                     }],
-                    entity_associations: vec![EntityAssociation::Ref("my-entity".to_owned())],
+                    entity_associations: vec![entity::EntityAssociation::Ref(
+                        entity::EntityRef::local("my-entity".to_owned().into()),
+                    )],
                     requirement_level: Some(SignalRequirementLevel::Recommended),
                     common: CommonFields::default(),
                     provenance: Default::default(),
@@ -1737,6 +1746,7 @@ mod tests {
             registry_id: "test".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "https://example.com/dep-v1".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             catalog: weaver_resolved_schema::catalog::Catalog::default(),
@@ -1796,6 +1806,7 @@ mod tests {
             registry_id: "test".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "invalid schema url with spaces".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             catalog: weaver_resolved_schema::catalog::Catalog::default(),

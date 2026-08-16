@@ -25,6 +25,8 @@ use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::stability::Stability;
 
 use crate::attribute::AttributeSource;
+use crate::dependency_resolution::is_excluded;
+use crate::imports::import_match_keys;
 
 /// Where a group lookup landed: in the local registry or in a dependency.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -107,6 +109,116 @@ impl ResolvedDependency {
             ResolvedDependency::V1(schema) => schema.lookup_group_summary(id),
             ResolvedDependency::V2(schema) => schema.lookup_group_summary(id),
         }
+    }
+
+    /// Looks up an entity by a name an `entity_associations` entry can use.
+    pub(crate) fn lookup_entity(&self, name: &str) -> Option<EntityLocation> {
+        match self {
+            ResolvedDependency::V1(schema) => schema.lookup_entity(name),
+            ResolvedDependency::V2(schema) => schema.lookup_entity(name),
+        }
+    }
+}
+
+/// Where an entity that an association names was found.
+#[derive(Debug, Clone)]
+pub(crate) struct EntityLocation {
+    /// The registry that declared the entity, which is the dependency itself
+    /// unless the dependency re-exports a definition of its own dependency.
+    pub origin: SchemaUrl,
+    /// True when the declaring registry hides the entity from its dependents.
+    pub excluded: bool,
+}
+
+/// Looking an entity up by association, as opposed to importing it.
+pub(crate) trait EntityLookup {
+    /// Looks up an entity by the type or refinement id that an
+    /// `entity_associations` entry can name. Returns `None` when this schema
+    /// holds no such entity.
+    fn lookup_entity(&self, name: &str) -> Option<EntityLocation>;
+}
+
+impl EntityLookup for V1Schema {
+    fn lookup_entity(&self, name: &str) -> Option<EntityLocation> {
+        let my_schema_url = SchemaUrl::try_from(self.schema_url.as_str()).ok()?;
+        self.registry
+            .groups
+            .iter()
+            .filter(|g| g.r#type == GroupType::Entity)
+            .find(|g| import_match_keys(g).contains(&name))
+            .map(|g| EntityLocation {
+                origin: g
+                    .provenance()
+                    .map(|prov| prov.schema_url)
+                    .unwrap_or(my_schema_url),
+                excluded: g.annotations.as_ref().is_some_and(is_excluded),
+            })
+    }
+}
+
+impl EntityLookup for V2Schema {
+    fn lookup_entity(&self, name: &str) -> Option<EntityLocation> {
+        let deps: Vec<_> = self.dependencies.iter().cloned().collect();
+        // A base entity answers to its type, a refinement to its id. Weaver
+        // holds the two in one namespace, so an association names either.
+        let entity = self
+            .registry
+            .entities
+            .iter()
+            .find(|e| &*e.r#type == name)
+            .or_else(|| {
+                self.refinements
+                    .entities
+                    .iter()
+                    .find(|r| &*r.id == name)
+                    .map(|r| &r.entity)
+            })?;
+        Some(EntityLocation {
+            origin: v2_source_url(self, &deps, entity.provenance.source),
+            excluded: is_excluded(&entity.common.annotations),
+        })
+    }
+}
+
+/// What the dependencies answer when an association names an entity.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum EntityResolution {
+    /// One registry declares the entity, and it is the one named here.
+    Found(SchemaUrl),
+    /// Every registry that holds the name keeps the entity private.
+    Private,
+    /// Two or more registries declare unrelated entities under the name, and
+    /// nothing says which one is meant.
+    Ambiguous(Vec<SchemaUrl>),
+    /// No dependency holds the name.
+    Unknown,
+}
+
+/// Looks an association name up across every dependency at once.
+///
+/// The order the manifest lists dependencies in says nothing about which one an
+/// association means, so every dependency is asked and the answers are weighed
+/// together rather than the first hit being taken.
+///
+/// Candidates are counted by the registry that declared the entity, as importing
+/// does. One definition reached by two paths through the dependency graph is
+/// still one definition. Two definitions that merely share a name are not.
+pub(crate) fn resolve_entity(deps: &[ResolvedDependency], name: &str) -> EntityResolution {
+    let mut origins: Vec<SchemaUrl> = vec![];
+    let mut private = false;
+    for location in deps.iter().filter_map(|d| d.lookup_entity(name)) {
+        if location.excluded {
+            // A private entity is no part of the surface a dependency offers.
+            private = true;
+        } else if !origins.contains(&location.origin) {
+            origins.push(location.origin);
+        }
+    }
+    match origins.len() {
+        0 if private => EntityResolution::Private,
+        0 => EntityResolution::Unknown,
+        1 => EntityResolution::Found(origins.swap_remove(0)),
+        _ => EntityResolution::Ambiguous(origins),
     }
 }
 
@@ -471,6 +583,7 @@ pub(crate) mod tests {
             registry_id: "test-registry".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "v1-example".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![
                     weaver_resolved_schema::registry::Group {
                         id: "a".to_owned(),
@@ -585,9 +698,13 @@ pub(crate) mod tests {
                     instrument: weaver_semconv::group::InstrumentSpec::Counter,
                     unit: "1".to_owned(),
                     attributes: vec![],
-                    entity_associations: vec![weaver_semconv::entity_association::EntityAssociation::Ref(
-                        "entity.c".to_owned(),
-                    )],
+                    entity_associations: vec![
+                        weaver_resolved_schema::v2::entity::EntityAssociation::Ref(
+                            weaver_resolved_schema::v2::entity::EntityRef::local(
+                                "entity.c".to_owned().into(),
+                            ),
+                        ),
+                    ],
                     requirement_level: None,
                     common: Default::default(),
                     provenance: Default::default(),
