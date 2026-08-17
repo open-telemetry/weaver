@@ -5,7 +5,10 @@
 use serde_json::json;
 use std::{collections::HashSet, rc::Rc};
 use weaver_checker::{FindingLevel, PolicyFinding};
-use weaver_forge::v2::{event::EventAttribute, metric::MetricAttribute};
+use weaver_forge::v2::{
+    entity::EntityAssociation as V2EntityAssociation, event::EventAttribute,
+    metric::MetricAttribute,
+};
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_semconv::attribute::{
     AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
@@ -162,6 +165,59 @@ pub(crate) fn check_entity_resource_attributes(
     advice_list
 }
 
+/// One node of an entity association expression: a named entity, or the
+/// children of a combinator.
+pub(crate) enum AssocNode<'a, A> {
+    Ref(&'a str),
+    OneOf(&'a [A]),
+    AllOf(&'a [A]),
+}
+
+/// An association expression the live checker can walk.
+///
+/// A v1 group holds the authored shape, where a leaf is a name. A v2 signal
+/// holds a reference, which names the registry that defines the entity as well.
+/// The walk is the same either way, so it is written once.
+pub(crate) trait AssocExpr: Sized {
+    /// The parts of this node.
+    fn node(&self) -> AssocNode<'_, Self>;
+}
+
+impl AssocExpr for EntityAssociation {
+    fn node(&self) -> AssocNode<'_, Self> {
+        match self {
+            EntityAssociation::Ref(name) => AssocNode::Ref(name),
+            EntityAssociation::OneOf { one_of } => AssocNode::OneOf(one_of),
+            EntityAssociation::AllOf { all_of } => AssocNode::AllOf(all_of),
+        }
+    }
+}
+
+impl AssocExpr for V2EntityAssociation {
+    fn node(&self) -> AssocNode<'_, Self> {
+        match self {
+            V2EntityAssociation::Ref(entity_ref) => AssocNode::Ref(&entity_ref.r#type),
+            V2EntityAssociation::OneOf { one_of } => AssocNode::OneOf(one_of),
+            V2EntityAssociation::AllOf { all_of } => AssocNode::AllOf(all_of),
+        }
+    }
+}
+
+/// Every entity named anywhere in these expressions, in the order they appear.
+fn referenced_entities<A: AssocExpr>(associations: &[A]) -> Vec<&str> {
+    let mut names = Vec::new();
+    let mut stack: Vec<&A> = associations.iter().rev().collect();
+    while let Some(node) = stack.pop() {
+        match node.node() {
+            AssocNode::Ref(name) => names.push(name),
+            AssocNode::OneOf(children) | AssocNode::AllOf(children) => {
+                stack.extend(children.iter().rev());
+            }
+        }
+    }
+    names
+}
+
 /// The outcome of evaluating an entity association expression against the resource.
 struct AssocEval {
     /// Whether the expression is satisfied (all required attributes of the chosen path present).
@@ -174,8 +230,8 @@ struct AssocEval {
 ///
 /// The top-level list is an implicit `one_of`: the telemetry must satisfy at least one entry.
 /// `one_of`/`all_of` combinators may be nested arbitrarily.
-pub(crate) fn check_entity_associations(
-    associations: &[EntityAssociation],
+pub(crate) fn check_entity_associations<A: AssocExpr>(
+    associations: &[A],
     live_checker: &LiveChecker,
     resource_attributes: &[SampleAttribute],
     parent_signal: &Sample,
@@ -193,14 +249,14 @@ pub(crate) fn check_entity_associations(
 }
 
 /// Recursively evaluates a single entity association expression.
-fn evaluate_association(
-    assoc: &EntityAssociation,
+fn evaluate_association<A: AssocExpr>(
+    assoc: &A,
     live_checker: &LiveChecker,
     resource_attributes: &[SampleAttribute],
     parent_signal: &Sample,
 ) -> AssocEval {
-    match assoc {
-        EntityAssociation::Ref(name) => match live_checker.find_entity(name) {
+    match assoc.node() {
+        AssocNode::Ref(name) => match live_checker.find_entity(name) {
             Some(entity) => {
                 let findings =
                     check_entity_resource_attributes(&entity, resource_attributes, parent_signal);
@@ -219,18 +275,18 @@ fn evaluate_association(
                 findings: Vec::new(),
             },
         },
-        EntityAssociation::OneOf { one_of } => {
-            evaluate_one_of(one_of, live_checker, resource_attributes, parent_signal)
+        AssocNode::OneOf(children) => {
+            evaluate_one_of(children, live_checker, resource_attributes, parent_signal)
         }
-        EntityAssociation::AllOf { all_of } => {
-            evaluate_all_of(all_of, live_checker, resource_attributes, parent_signal)
+        AssocNode::AllOf(children) => {
+            evaluate_all_of(children, live_checker, resource_attributes, parent_signal)
         }
     }
 }
 
 /// Evaluates an `all_of` group: every child must be satisfied; all child findings are surfaced.
-fn evaluate_all_of(
-    children: &[EntityAssociation],
+fn evaluate_all_of<A: AssocExpr>(
+    children: &[A],
     live_checker: &LiveChecker,
     resource_attributes: &[SampleAttribute],
     parent_signal: &Sample,
@@ -251,8 +307,8 @@ fn evaluate_all_of(
 /// Evaluates a `one_of` group: at least one child must be satisfied. When satisfied, only the
 /// satisfied branches' improvement findings are surfaced; when none are satisfied, a single
 /// aggregate finding naming the candidate entities is emitted.
-fn evaluate_one_of(
-    children: &[EntityAssociation],
+fn evaluate_one_of<A: AssocExpr>(
+    children: &[A],
     live_checker: &LiveChecker,
     resource_attributes: &[SampleAttribute],
     parent_signal: &Sample,
@@ -280,15 +336,14 @@ fn evaluate_one_of(
 }
 
 /// Builds the aggregate finding emitted when no branch of a `one_of` group is satisfied.
-fn entity_association_not_satisfied(
-    children: &[EntityAssociation],
+fn entity_association_not_satisfied<A: AssocExpr>(
+    children: &[A],
     parent_signal: &Sample,
 ) -> PolicyFinding {
     // Collect the candidate entity names, de-duplicated while preserving order.
     let mut seen = HashSet::new();
-    let entities: Vec<&str> = children
-        .iter()
-        .flat_map(EntityAssociation::referenced_entities)
+    let entities: Vec<&str> = referenced_entities(children)
+        .into_iter()
         .filter(|name| seen.insert(*name))
         .collect();
     let message = format!(
