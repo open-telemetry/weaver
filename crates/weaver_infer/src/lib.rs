@@ -248,6 +248,7 @@ impl AccumulatedSamples {
                     },
                     attributes,
                     entity_associations: vec![],
+                    links: vec![],
                     requirement_level: None,
                     common: inferred_common_fields(),
                 }

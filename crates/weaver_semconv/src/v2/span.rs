@@ -8,7 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    attribute::AttributeSpec,
+    attribute::{AttributeSpec, RequirementLevel},
     deprecated::Deprecated,
     entity_association::EntityAssociation,
     group::{GroupSpec, GroupType, SpanKindSpec},
@@ -59,6 +59,35 @@ pub fn split_span_attributes_and_groups(
     (attribute_refs, groups)
 }
 
+/// Declares a link from this span to another span.
+///
+/// Span links model relations that do not fit the parent/child tree,
+/// for example a batch consumer span that links to the producer span
+/// of each message it processes.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub struct SpanLink {
+    /// The span type this link points to.
+    pub r#ref: SignalId,
+    /// The requirement level of the link. Uses the attribute requirement
+    /// levels ("required", "conditionally_required", "recommended",
+    /// "opt_in") because a link, unlike a signal, can be required.
+    /// Defaults to 'recommended' when omitted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requirement_level: Option<RequirementLevel>,
+    /// Refines the brief description of the link.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brief: Option<String>,
+    /// Refines the more elaborate description of the link.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    /// List of attributes expected on the link itself.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub attributes: Vec<SpanAttributeOrGroupRef>,
+}
+
 /// Defines a new Span signal.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -82,6 +111,10 @@ pub struct Span {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<EntityAssociation>,
+    /// Declares links from this span to other spans.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub links: Vec<SpanLink>,
     /// The requirement level of the span. Defaults to 'recommended' when omitted.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub requirement_level: Option<SignalRequirementLevel>,
@@ -380,6 +413,64 @@ span_name:
   note: "{gen_ai.operation.name} {gen_ai.request.model}"
 "#,
         );
+    }
+
+    #[test]
+    fn test_span_links_deserialization() {
+        // A span with two links: one minimal, one full.
+        let span: Span = serde_yaml::from_str(
+            r#"type: messaging.consumer.process
+name:
+  note: "process {messaging.destination.name}"
+stability: stable
+kind: consumer
+brief: Processes a batch of messages.
+links:
+  - ref: messaging.producer.publish
+  - ref: messaging.producer.publish
+    requirement_level: required
+    brief: One link per message in the batch.
+    attributes:
+      - ref: messaging.message.id
+"#,
+        )
+        .expect("Failed to parse span with links");
+
+        assert_eq!(span.links.len(), 2);
+
+        // The minimal link: only `ref`; everything else defaults.
+        let minimal = &span.links[0];
+        assert_eq!(minimal.r#ref.to_string(), "messaging.producer.publish");
+        assert!(minimal.requirement_level.is_none());
+        assert!(minimal.brief.is_none());
+        assert!(minimal.attributes.is_empty());
+
+        // The full link carries a level, a brief, and one attribute ref.
+        let full = &span.links[1];
+        assert_eq!(
+            full.requirement_level,
+            Some(RequirementLevel::Basic(
+                crate::attribute::BasicRequirementLevelSpec::Required
+            ))
+        );
+        assert_eq!(
+            full.brief.as_deref(),
+            Some("One link per message in the batch.")
+        );
+        assert_eq!(full.attributes.len(), 1);
+
+        // A span without a `links` key parses to an empty list.
+        let without: Span = serde_yaml::from_str(
+            r#"type: my_span
+name:
+  note: "{some} {name}"
+stability: stable
+kind: client
+brief: Test span
+"#,
+        )
+        .expect("Failed to parse span without links");
+        assert!(without.links.is_empty());
     }
 
     #[test]
