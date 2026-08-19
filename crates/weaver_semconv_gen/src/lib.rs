@@ -9,6 +9,7 @@ use serde::Serialize;
 use std::{fmt, fs};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
+use weaver_common::result::WResult;
 use weaver_diff::diff_output;
 
 mod parser;
@@ -66,6 +67,18 @@ pub enum Error {
         header: String,
     },
 
+    /// Thrown when a snippet-looking marker is not supported.
+    #[error("Suspicious markdown snippet marker in {path}:{line}: {marker}")]
+    #[diagnostic(severity(Warning))]
+    InvalidSnippetMarker {
+        /// Markdown file path.
+        path: String,
+        /// One-based line number.
+        line: usize,
+        /// The invalid marker line.
+        marker: String,
+    },
+
     /// Thrown when a snippet lookup id is not valid.
     #[error("Could not parse snippet id: [{id}]")]
     InvalidSnippetId {
@@ -119,14 +132,36 @@ pub trait MarkdownSnippetGenerator {
         dry_run: bool,
         attribute_registry_base_url: Option<&str>,
     ) -> Result<(), Error> {
-        let original_markdown = fs::read_to_string(file)
-            .map_err(|e| Error::StdIoError(e.to_string()))?
-            .replace("\r\n", "\n");
-        let updated_markdown =
-            self.update_markdown_contents(&original_markdown, attribute_registry_base_url)?;
-        if !dry_run {
-            fs::write(file, updated_markdown).map_err(|e| Error::StdIoError(e.to_string()))?;
-            Ok(())
+        match self.update_markdown_with_diagnostics(file, dry_run, attribute_registry_base_url) {
+            WResult::Ok(result) | WResult::OkWithNFEs(result, _) => Ok(result),
+            WResult::FatalErr(error) => Err(error),
+        }
+    }
+
+    /// Update a markdown file and return non-fatal marker diagnostics found while processing it.
+    fn update_markdown_with_diagnostics(
+        &self,
+        file: &str,
+        dry_run: bool,
+        attribute_registry_base_url: Option<&str>,
+    ) -> WResult<(), Error> {
+        let original_markdown = match fs::read_to_string(file) {
+            Ok(contents) => contents.replace("\r\n", "\n"),
+            Err(error) => return WResult::FatalErr(Error::StdIoError(error.to_string())),
+        };
+        let (updated_markdown, marker_warnings) = match self
+            .update_markdown_contents_with_diagnostics(
+                file,
+                &original_markdown,
+                attribute_registry_base_url,
+            )
+            .into_result_with_non_fatal()
+        {
+            Ok(result) => result,
+            Err(error) => return WResult::FatalErr(error),
+        };
+        let result = if !dry_run {
+            fs::write(file, updated_markdown).map_err(|e| Error::StdIoError(e.to_string()))
         } else if original_markdown != updated_markdown {
             Err(Error::MarkdownIsNotEqual {
                 original: original_markdown,
@@ -134,6 +169,10 @@ pub trait MarkdownSnippetGenerator {
             })
         } else {
             Ok(())
+        };
+        match result {
+            Ok(()) => WResult::with_non_fatal_errors((), marker_warnings),
+            Err(error) => WResult::FatalErr(error),
         }
     }
 
@@ -147,47 +186,80 @@ pub trait MarkdownSnippetGenerator {
         contents: &str,
         attribute_registry_base_url: Option<&str>,
     ) -> Result<String, Error> {
+        match self.update_markdown_contents_with_diagnostics(
+            "<memory>",
+            contents,
+            attribute_registry_base_url,
+        ) {
+            WResult::Ok(result) | WResult::OkWithNFEs(result, _) => Ok(result),
+            WResult::FatalErr(error) => Err(error),
+        }
+    }
+
+    /// Update markdown contents and return non-fatal marker diagnostics found in the same pass.
+    fn update_markdown_contents_with_diagnostics(
+        &self,
+        file: &str,
+        contents: &str,
+        attribute_registry_base_url: Option<&str>,
+    ) -> WResult<String, Error> {
         let mut result = String::new();
         let mut snippet_context: Option<SnippetType> = None;
-        for line in contents.lines() {
-            match snippet_context {
-                Some(SnippetType::Semconv) => {
-                    if parser::is_semconv_trailer(line) {
+        let mut marker_warnings = Vec::new();
+        let update_result = (|| {
+            for (index, line) in contents.lines().enumerate() {
+                if parser::looks_like_snippet_marker(line) && !parser::is_valid_snippet_marker(line)
+                {
+                    marker_warnings.push(Error::InvalidSnippetMarker {
+                        path: file.to_owned(),
+                        line: index + 1,
+                        marker: line.to_owned(),
+                    });
+                }
+                match snippet_context {
+                    Some(SnippetType::Semconv) => {
+                        if parser::is_semconv_trailer(line) {
+                            result.push_str(line);
+                            result.push('\n');
+                            snippet_context = None;
+                        }
+                    }
+                    Some(SnippetType::Weaver) => {
+                        if parser::is_weaver_trailer(line) {
+                            result.push_str(line);
+                            result.push('\n');
+                            snippet_context = None;
+                        }
+                    }
+                    None => {
+                        // Always push this line.
                         result.push_str(line);
                         result.push('\n');
-                        snippet_context = None;
-                    }
-                }
-                Some(SnippetType::Weaver) => {
-                    if parser::is_weaver_trailer(line) {
-                        result.push_str(line);
-                        result.push('\n');
-                        snippet_context = None;
-                    }
-                }
-                None => {
-                    // Always push this line.
-                    result.push_str(line);
-                    // TODO - don't do this on last line.
-                    result.push('\n');
-                    // Check to see if line matches snippet request.
-                    // If so, generate the snippet and continue.
-                    if parser::is_markdown_snippet_directive(line) {
-                        snippet_context = Some(SnippetType::Semconv);
-                        let arg = parser::parse_markdown_snippet_directive(line)?;
-                        let snippet =
-                            self.generate_markdown_snippet(arg, attribute_registry_base_url)?;
-                        result.push_str(&snippet);
-                    } else if parser::is_weaver_directive(line) {
-                        snippet_context = Some(SnippetType::Weaver);
-                        let arg = parser::parse_weaver_snippet_directive(line)?;
-                        let snippet = self.generate_weaver_snippet(arg)?;
-                        result.push_str(&snippet);
+                        // Check to see if line matches snippet request.
+                        // If so, generate the snippet and continue.
+                        if parser::is_markdown_snippet_directive(line) {
+                            snippet_context = Some(SnippetType::Semconv);
+                            let arg = parser::parse_markdown_snippet_directive(line)?;
+                            let snippet =
+                                self.generate_markdown_snippet(arg, attribute_registry_base_url)?;
+                            result.push_str(&snippet);
+                        } else if parser::is_weaver_directive(line) {
+                            snippet_context = Some(SnippetType::Weaver);
+                            let arg = parser::parse_weaver_snippet_directive(line)?;
+                            let snippet = self.generate_weaver_snippet(arg)?;
+                            result.push_str(&snippet);
+                        }
                     }
                 }
             }
+            Ok(result)
+        })();
+        match update_result {
+            Ok(updated_markdown) => {
+                WResult::with_non_fatal_errors(updated_markdown, marker_warnings)
+            }
+            Err(error) => WResult::FatalErr(error),
         }
-        Ok(result)
     }
 
     /// Generates a markdown snippet for a given parsed argument.
