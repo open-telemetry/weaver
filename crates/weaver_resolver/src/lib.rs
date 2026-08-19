@@ -1558,6 +1558,50 @@ groups:
     }
 
     #[test]
+    fn test_dep_exclusion_migration_redefine_ref_before_def() {
+        // Test that when a consumer references a redefined attribute (via ref) in a group,
+        // it resolves against the local definition rather than falling back to the dependency's
+        // excluded definition.
+        let consumer_yaml = r#"
+file_format: definition/2
+metrics:
+  - name: moved.metric
+    requirement_level: recommended
+    instrument: counter
+    unit: "1"
+    stability: stable
+    brief: Redefined metric.
+    attributes:
+      - ref: moved.attr
+        requirement_level: required
+attributes:
+  - key: moved.attr
+    type: string
+    stability: stable
+    brief: Redefined attribute (same name as the deprecated parent item).
+"#;
+        let result = resolve_inline_with_parent(
+            consumer_yaml,
+            "data/registry-test-dep-exclusion/migration_parent",
+        );
+        let resolved = match result {
+            WResult::Ok(s) | WResult::OkWithNFEs(s, _) => s,
+            WResult::FatalErr(e) => panic!("expected success; got {e:?}"),
+        };
+
+        let metric = resolved
+            .groups(GroupType::Metric)
+            .get("metric.moved.metric")
+            .cloned()
+            .expect("metric.moved.metric should be present");
+        let attr = resolved
+            .catalog
+            .attribute(&metric.attributes[0])
+            .expect("attribute should exist in catalog");
+        assert_eq!(attr.name, "moved.attr");
+    }
+
+    #[test]
     fn test_within_registry_leak_v2_refinement() {
         // V2: a public metric_refinement targets an excluded base metric in
         // the same registry. Exercises the `extends` exclusion path on V2.
