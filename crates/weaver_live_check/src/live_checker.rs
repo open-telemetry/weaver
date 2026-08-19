@@ -207,6 +207,7 @@ mod tests {
     use std::collections::BTreeMap;
     use weaver_checker::{FindingLevel, PolicyFinding};
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
+    use weaver_forge::v2::entity::{EntityAssociation as V2EntityAssociation, EntityRef};
     use weaver_forge::v2::{
         attribute::Attribute as V2Attribute,
         event::{Event as V2Event, EventAttribute},
@@ -2215,7 +2216,9 @@ mod tests {
                         requirement_level: None,
                         name: "deployment.started".to_owned().into(),
                         attributes: vec![],
-                        entity_associations: vec![EntityAssociation::Ref("deployment".to_owned())],
+                        entity_associations: vec![V2EntityAssociation::Ref(EntityRef::local(
+                            "deployment".to_owned().into(),
+                        ))],
                         common: CommonFields {
                             brief: "A deployment has started".to_owned(),
                             note: "".to_owned(),
@@ -3104,7 +3107,9 @@ mod tests {
                         unit: "s".to_owned(),
                         requirement_level: None,
                         attributes: vec![],
-                        entity_associations: vec![EntityAssociation::Ref("host".to_owned())],
+                        entity_associations: vec![V2EntityAssociation::Ref(EntityRef::local(
+                            "host".to_owned().into(),
+                        ))],
                         common: CommonFields {
                             brief: "System uptime".to_owned(),
                             note: "".to_owned(),
