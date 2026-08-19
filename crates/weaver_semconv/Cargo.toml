@@ -34,10 +34,11 @@ url.workspace = true
 semver.workspace = true
 
 glob.workspace = true
-jsonschema = "0.46.4"        # JSON Schema validation used to enhance error messages
+# Local JSON Schema validation is used to enhance error messages. HTTP and file
+# resolvers are not needed, so keep jsonschema's TLS/provider defaults disabled.
+jsonschema = { version = "0.46.4", default-features = false }
 saphyr = "0.0.11"             # YAML parser preserving span information (location in file)
 utoipa = { workspace = true, optional = true }
 
 [features]
 openapi = ["utoipa"]
-

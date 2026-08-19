@@ -11,6 +11,11 @@ rust-version.workspace = true
 [lints]
 workspace = true
 
+[package.metadata.cargo-machete]
+# This dependency exists to feature-unify gix's private reqwest dependency with
+# `rustls-no-provider`; it is intentionally not referenced from Rust code.
+ignored = ["gix-reqwest"]
+
 [dependencies]
 paris = { version = "1.5.15", features = ["macros"] }
 serde.workspace = true
@@ -28,23 +33,19 @@ tempfile.workspace = true
 dirs.workspace = true
 gix = { version = "0.85.0", default-features = false, features = [
     "comfort",
-    "blocking-http-transport-reqwest-native-tls",
+    "blocking-http-transport-reqwest",
     "max-performance-safe",
     "worktree-mutation",
     "sha1",
 ] }
+gix-reqwest.workspace = true
 flate2 = "1.1.4"
 tar = "0.4.43"
 zip.workspace = true
 
-# Use vendored OpenSSL on non-Windows platforms to avoid system OpenSSL deps
-# This enables the "vendored" feature for the openssl crate when building on
-# non-Windows targets.
-[target.'cfg(not(windows))'.dependencies]
-openssl.workspace = true
-
 [dev-dependencies]
 axum.workspace = true
+rustls = { version = "0.23.40", default-features = false, features = ["ring", "std", "tls12"] }
 tokio.workspace = true
 tower-http = { version = "0.6", features = ["fs"] }
 ureq.workspace = true

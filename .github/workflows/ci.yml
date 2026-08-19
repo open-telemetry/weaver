@@ -73,8 +73,15 @@ jobs:
       # [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
       #      - name: All features
       #        run: cargo test --workspace --all-features
-      - name: No-default features
-        run: cargo test --workspace --no-default-features
+      - name: Provider-free Weaver
+        run: cargo check -p weaver --no-default-features
+      - name: Alternative crypto providers
+        if: runner.os == 'Linux'
+        run: |
+          cargo check -p weaver --no-default-features --features crypto-aws-lc
+          cargo check -p weaver --no-default-features --features crypto-openssl
+          cargo check -p weaver --no-default-features --features crypto-openssl-vendored
+          cargo check -p weaver --no-default-features --features crypto-symcrypt
       - name: History check
         run: cargo xtask history
       - name: Schema compat check
