@@ -20,6 +20,7 @@ use crate::cli::{Cli, Commands};
 use crate::diagnostic::DEFAULT_DIAGNOSTIC_TEMPLATES;
 
 mod cli;
+mod crypto;
 mod diagnostic;
 mod registry;
 mod serve;
@@ -111,7 +112,12 @@ impl CmdResult {
     }
 }
 
-fn main() {
+fn main() -> Result<(), String> {
+    // Reusable crates deliberately leave Rustls's process-wide crypto provider
+    // unspecified. The CLI owns that decision, so install the provider selected
+    // by its crypto-* feature before any HTTP or Git client can initialize.
+    crypto::install_crypto_provider()?;
+
     let cli = Cli::parse();
 
     let start = std::time::Instant::now();
