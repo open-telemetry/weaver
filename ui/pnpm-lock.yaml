@@ -37,7 +37,7 @@ importers:
         version: 3.10.1(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react-is@16.13.1)(react@19.2.8)(redux@5.0.1)
       swagger-ui-react:
         specifier: ^5.32.8
-        version: 5.32.12(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 5.32.13(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       yaml:
         specifier: ^2.8.2
         version: 2.9.0
@@ -67,8 +67,8 @@ importers:
         specifier: 6.0.5
         version: 6.0.5(vite@8.1.5(@types/node@25.9.5)(jiti@2.7.0)(yaml@2.9.0))
       daisyui:
-        specifier: 5.7.16
-        version: 5.7.16
+        specifier: 5.7.17
+        version: 5.7.17
       eslint:
         specifier: 10.8.1
         version: 10.8.1(jiti@2.7.0)
@@ -995,8 +995,8 @@ packages:
     resolution: {integrity: sha512-ndfJ/JxxMd3nw31uyKoY2naivF+r29V+Lc0svZxe1JvvIRmi8hUsrMvdOwgS1o6uBHmiz91geQ0ylPP0aj1VUA==}
     engines: {node: '>=12'}
 
-  daisyui@5.7.16:
-    resolution: {integrity: sha512-V9CJxvrWIXTDuP/0tpijjWaKaKJNYo2IrULJfTWs3/DjW9rPqswk1n8NCLQRLrTutmlG2Ech7nkJDpCnF+6Dzw==}
+  daisyui@5.7.17:
+    resolution: {integrity: sha512-w5U5FdL9hH4/zh8eLXytWQt3c0DgHS1WDw+1yuQykT8nSIE9Vc5wkJVeDymD1JlRDLANDawvN4iIGVaxgV6Cjw==}
 
   debug@4.4.3:
     resolution: {integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==}
@@ -1358,8 +1358,8 @@ packages:
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
-  js-yaml@4.3.0:
-    resolution: {integrity: sha512-1td788aAnnZ5qs7V2QIRl1owjtYpbKt749Y3xauqQgwIIGF/xXWz1wMTEBx5O3LK3lXLVuqXPdPxj2BoFHaW9Q==}
+  js-yaml@4.3.1:
+    resolution: {integrity: sha512-CY6crGq313MX8GkwvB7tzgp99vjQxY1++5y10/BKN/GUfHqWaOGQMNZkBvqSzsZKWk/ijwHlWzzkLulsGHhjWQ==}
     hasBin: true
 
   jsesc@3.1.0:
@@ -1529,15 +1529,15 @@ packages:
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
 
-  neotraverse@0.6.18:
-    resolution: {integrity: sha512-Z4SmBUweYa09+o6pG+eASabEpP6QkQ70yHj351pQoEXIs8uHbaU2DWVmzBANKgflPa47A50PtB2+NgRpQvr7vA==}
+  neotraverse@1.0.1:
+    resolution: {integrity: sha512-WmmLty1YWwJl9yZi77v2dVIV6X2kuYV8YYBI/G3LWGKdGHmHUvL1z7FW0iDvEvGAwNEoc5x1tOOOyDnf5jJw/w==}
     engines: {node: '>= 10'}
 
   node-abort-controller@3.1.1:
     resolution: {integrity: sha512-AGK2yQKIjRuqnc6VkX2Xj5d+QW8xZ87pa1UK6yA6ouUyuxfHuMP6umE5QK7UmTeOAymo+Zx1Fxiuw9rVx8taHQ==}
 
-  node-addon-api@8.9.1:
-    resolution: {integrity: sha512-4eUQWVPCUUUiBjLnHS3cXWeC6ryoPUc0U3rP7IuzapoGbzMqd/r6KKO0clr0b+snQhsrueFEhCZDdK+LK7hxKg==}
+  node-addon-api@8.9.2:
+    resolution: {integrity: sha512-VijLXbi3UACN69I0JVXJsX4tjACjNoQDgv2gTF6sx2wWEi8tkSg2eX8p5gSIFi8z2+DL3oHmY6OyKce38SDolg==}
     engines: {node: ^18 || ^20 || >= 21}
 
   node-gyp-build@4.8.4:
@@ -1816,12 +1816,12 @@ packages:
   state-local@1.0.7:
     resolution: {integrity: sha512-HTEHMNieakEnoe33shBYcZ7NX83ACUjCu8c40iOGEZsngj9zRnkqS9j1pqQPXwobB0ZcVTk27REb7COQ0UR59w==}
 
-  swagger-client@3.37.8:
-    resolution: {integrity: sha512-uoKwfq+8DvWVDhoALDrEtex9f26Yi2VkvEFjsrMHd8Gl+TcApJkVXtNiE35p5JQjMsvwkvr1eLVlOFNF4GL1bQ==}
+  swagger-client@3.38.0:
+    resolution: {integrity: sha512-n7aykm1BEdQ3fKePJJx63UGjYe8/5fuxFMi3qZP4OJGZvzljKvmhxNwIF/MB71sF/lop9NeWZReKvPib9CY+2g==}
     engines: {node: '>=22'}
 
-  swagger-ui-react@5.32.12:
-    resolution: {integrity: sha512-WCdkNOQyMTZDu+z356FpwVWHf1dwZgQPUjdQPh1L4r7jULaJTKKlIItXq6WsZdYeXvsHndMdxxccEQXOAroUHQ==}
+  swagger-ui-react@5.32.13:
+    resolution: {integrity: sha512-XIDl+Ny6kE1N8wpSPiOFrjPfAevs4GR4XmV6BT6NLMikkMFIbIVocWbA8pnKYyYXQe8Rccfli5o2zDfySw0FnQ==}
     peerDependencies:
       react: '>=16.8.0 <20'
       react-dom: '>=16.8.0 <20'
@@ -2896,7 +2896,7 @@ snapshots:
 
   '@tree-sitter-grammars/tree-sitter-yaml@0.7.1(tree-sitter@0.22.4)':
     dependencies:
-      node-addon-api: 8.9.1
+      node-addon-api: 8.9.2
       node-gyp-build: 4.8.4
     optionalDependencies:
       tree-sitter: 0.22.4
@@ -3231,7 +3231,7 @@ snapshots:
 
   d3-timer@3.0.1: {}
 
-  daisyui@5.7.16: {}
+  daisyui@5.7.17: {}
 
   debug@4.4.3:
     dependencies:
@@ -3570,7 +3570,7 @@ snapshots:
 
   js-tokens@4.0.0: {}
 
-  js-yaml@4.3.0:
+  js-yaml@4.3.1:
     dependencies:
       argparse: 2.0.1
 
@@ -3698,11 +3698,11 @@ snapshots:
 
   natural-compare@1.4.0: {}
 
-  neotraverse@0.6.18: {}
+  neotraverse@1.0.1: {}
 
   node-abort-controller@3.1.1: {}
 
-  node-addon-api@8.9.1:
+  node-addon-api@8.9.2:
     optional: true
 
   node-gyp-build@4.8.4:
@@ -3979,7 +3979,7 @@ snapshots:
 
   state-local@1.0.7: {}
 
-  swagger-client@3.37.8:
+  swagger-client@3.38.0:
     dependencies:
       '@babel/runtime-corejs3': 7.29.7
       '@scarf/scarf': 1.4.0
@@ -3992,8 +3992,8 @@ snapshots:
       '@swaggerexpert/cookie': 2.0.2
       deepmerge: 4.3.1
       fast-json-patch: 3.1.1
-      js-yaml: 4.3.0
-      neotraverse: 0.6.18
+      js-yaml: 4.3.1
+      neotraverse: 1.0.1
       node-abort-controller: 3.1.1
       openapi-path-templating: 2.2.1
       openapi-server-url-templating: 1.3.0
@@ -4025,7 +4025,7 @@ snapshots:
       - debug
       - supports-color
 
-  swagger-ui-react@5.32.12(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  swagger-ui-react@5.32.13(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
       '@babel/runtime-corejs3': 7.29.7
       '@scarf/scarf': 1.4.0
@@ -4038,7 +4038,7 @@ snapshots:
       ieee754: 1.2.1
       immutable: 4.3.9
       js-file-download: 0.4.12
-      js-yaml: 4.3.0
+      js-yaml: 4.3.1
       lodash: 4.18.1
       prop-types: 15.8.1
       randexp: 0.5.3
@@ -4058,7 +4058,7 @@ snapshots:
       reselect: 5.2.0
       serialize-error: 8.1.0
       sha.js: 2.4.12
-      swagger-client: 3.37.8
+      swagger-client: 3.38.0
       url-parse: 1.5.10
       xml: 1.0.1
       xml-but-prettier: 1.0.1
@@ -4089,7 +4089,7 @@ snapshots:
 
   tree-sitter-json@0.24.8(tree-sitter@0.21.1):
     dependencies:
-      node-addon-api: 8.9.1
+      node-addon-api: 8.9.2
       node-gyp-build: 4.8.4
     optionalDependencies:
       tree-sitter: 0.21.1
@@ -4097,13 +4097,13 @@ snapshots:
 
   tree-sitter@0.21.1:
     dependencies:
-      node-addon-api: 8.9.1
+      node-addon-api: 8.9.2
       node-gyp-build: 4.8.4
     optional: true
 
   tree-sitter@0.22.4:
     dependencies:
-      node-addon-api: 8.9.1
+      node-addon-api: 8.9.2
       node-gyp-build: 4.8.4
     optional: true
 
