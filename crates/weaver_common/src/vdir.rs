@@ -618,33 +618,38 @@ impl VirtualDirectory {
         let vdir = match vdir_path {
             LocalFolder { path } => {
                 let local_path = Path::new(path);
-                if local_path.exists() {
-                    Ok(Self {
+                match local_path.try_exists() {
+                    Ok(true) => Ok(Self {
                         vdir_path: vdir_path_repr,
                         path: path.into(),
                         tmp_dir: Arc::new(None),
-                    })
-                } else {
-                    let error = if local_path.is_relative() {
-                        let joinable = local_path.strip_prefix(".").unwrap_or(local_path);
-                        let resolved = std::env::current_dir()
-                            .map(|cwd| cwd.join(joinable).display().to_string())
-                            .unwrap_or_else(|_| path.clone());
-                        format!(
-                            "local path does not exist (resolved to `{resolved}` against the \
-                             current working directory). Relative paths — including \
-                             `registry_path` entries in a registry manifest — resolve against \
-                             the current working directory, not the location of the file that \
-                             declares them; run weaver from the directory the path is relative \
-                             to, or use an absolute path"
-                        )
-                    } else {
-                        "local path does not exist".to_owned()
-                    };
-                    Err(Error::InvalidVirtualDirectory {
+                    }),
+                    Err(e) => Err(Error::InvalidVirtualDirectory {
                         path: vdir_path_repr,
-                        error,
-                    })
+                        error: format!("local path could not be checked: {e}"),
+                    }),
+                    Ok(false) => {
+                        let error = if local_path.is_relative() {
+                            let joinable = local_path.strip_prefix(".").unwrap_or(local_path);
+                            let resolved = std::env::current_dir()
+                                .map(|cwd| cwd.join(joinable).display().to_string())
+                                .unwrap_or_else(|_| path.clone());
+                            format!(
+                                "local path does not exist (resolved to `{resolved}` against the \
+                                 current working directory). Relative paths — including \
+                                 `registry_path` entries in a registry manifest — resolve against \
+                                 the current working directory, not the location of the file that \
+                                 declares them; run weaver from the directory the path is relative \
+                                 to, or use an absolute path"
+                            )
+                        } else {
+                            "local path does not exist".to_owned()
+                        };
+                        Err(Error::InvalidVirtualDirectory {
+                            path: vdir_path_repr,
+                            error,
+                        })
+                    }
                 }
             }
             GitRepo {
