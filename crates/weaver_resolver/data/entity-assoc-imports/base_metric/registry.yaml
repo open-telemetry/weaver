@@ -1,0 +1,21 @@
+file_format: definition/2
+attributes:
+  - key: host.id
+    type: string
+    stability: stable
+    brief: Unique host ID, defined in base.
+    examples: ["abc123"]
+entities:
+  - type: host
+    requirement_level: recommended
+    stability: stable
+    brief: A host, defined in base.
+    identity:
+      - ref: host.id
+metrics:
+  - name: base.request.count
+    brief: Count of requests, defined in base.
+    requirement_level: recommended
+    instrument: counter
+    unit: "{request}"
+    stability: stable

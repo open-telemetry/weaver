@@ -1,0 +1,10 @@
+name: top
+description: >
+  This registry imports an entity that no declared dependency offers.
+  `middle_reexport` does export `host`. So the import fails for one reason only.
+  No entity has the name `no.such.entity`.
+schema_url: https://example.com/top/1.0.0
+dependencies:
+  - name: middle
+    schema_url: https://example.com/middle/1.0.0
+    registry_path: data/entity-assoc-imports/middle_reexport

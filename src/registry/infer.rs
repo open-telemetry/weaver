@@ -15,8 +15,8 @@ use weaver_live_check::Sample;
 use weaver_semconv::semconv::Versioned;
 
 use super::otlp::conversion::{
-    otlp_log_record_to_sample_log, otlp_metric_to_sample, sample_attribute_from_key_value,
-    span_kind_from_otlp_kind, status_from_otlp_status,
+    otlp_log_record_to_sample_log, otlp_metric_to_sample, otlp_profile_to_sample,
+    sample_attribute_from_key_value, span_kind_from_otlp_kind, status_from_otlp_status,
 };
 use super::otlp::grpc_stubs::proto::resource::v1::Resource;
 use super::otlp::{listen_otlp_requests, OtlpRequest};
@@ -121,6 +121,7 @@ fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSampl
                             attributes: Vec::new(),
                             span_events: Vec::new(),
                             span_links: Vec::new(),
+                            instrumentation_scope: None,
                             live_check_result: None,
                             resource: None,
                         };
@@ -143,6 +144,20 @@ fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSampl
                             sample_span.span_events.push(sample_event);
                         }
                         accumulator.add_sample(Sample::Span(sample_span));
+                    }
+                }
+            }
+            true
+        }
+        OtlpRequest::Profiles(profiles) => {
+            let dictionary = profiles.dictionary;
+            for resource_profile in profiles.resource_profiles {
+                accumulate_resource(resource_profile.resource, accumulator);
+
+                for scope_profile in resource_profile.scope_profiles {
+                    for profile in &scope_profile.profiles {
+                        let sample_profile = otlp_profile_to_sample(profile, dictionary.as_ref());
+                        accumulator.add_sample(Sample::Profile(sample_profile));
                     }
                 }
             }

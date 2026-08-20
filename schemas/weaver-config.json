@@ -248,6 +248,13 @@
             "$ref": "#/$defs/FindingFilter"
           }
         },
+        "finding_level_overrides": {
+          "description": "Rules that override the level of matching findings instead of dropping\nthem (e.g. promote `undefined_enum_variant` from `information` to\n`violation`). Scoped the same way as `finding_filters` (optional\n`signal_type` and `sample_names`). Applied before `finding_filters`,\nso a subsequent `min_level` filter sees the overridden level.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FindingLevelOverride"
+          }
+        },
         "format": {
           "description": "Format used to render the report.\nBuiltin formats: `json`, `yaml`, `jsonl`. Other values are template names\n(e.g. `ansi` selects the ansi templates).",
           "type": "string",
@@ -417,6 +424,20 @@
         }
       }
     },
+    "resolve": {
+      "description": "Resolution configuration — how dependencies and schema URLs are resolved.",
+      "type": "object",
+      "properties": {
+        "schema_url_overrides": {
+          "description": "Explicit overrides mapping a requested schema URL to an alternative\ndirectory, Git repository, or archive path.\n\n```toml\n[resolve.schema_url_overrides]\n\"https://opentelemetry.io/schemas/1.25.0\" = \"path/to/local/1.25.0\"\n\"https://opentelemetry.io/schemas/1.26.0\" = \"https://github.com/my-fork/semconv.git[model]\"\n```",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        }
+      }
+    },
     "serve": {
       "description": "Serve a resolved registry over a local HTTP API for browsing and search.",
       "type": "object",
@@ -504,7 +525,7 @@
           "default": null
         },
         "dry_run": {
-          "description": "Whether or not to run updates in dry-run mode.\n[default: false]",
+          "description": "Whether or not to run updates in dry-run mode.\nA bare `--dry-run` means `true`; when passing an explicit value, the\n`=` form is required (e.g. `--dry-run=false`).\n[default: false]",
           "type": "boolean",
           "default": false
         },
@@ -559,7 +580,7 @@
       ]
     },
     "FindingFilter": {
-      "description": "A filter that drops findings by ID exclusion or minimum level.\nOptional `signal_type` scopes the filter to a specific signal type.",
+      "description": "A filter that drops findings by ID exclusion or minimum level.\nOptional `signal_type` and `sample_names` scope the filter to a specific\nsignal type and/or set of sample names.",
       "type": "object",
       "properties": {
         "exclude": {
@@ -573,7 +594,7 @@
           }
         },
         "exclude_samples": {
-          "description": "Drop all findings for samples with these names.\nFor attribute samples, this matches the attribute key — e.g.\n`[\"trace.parent_id\", \"trace.span_id\"]` suppresses all findings\n(e.g. `missing_attribute`) for those attribute keys.",
+          "description": "Drop all findings for samples with these names (supports glob\nwildcards, e.g. `\"trace.*\"`).\nFor attribute samples, this matches the attribute key — e.g.\n`[\"trace.parent_id\", \"trace.span_id\"]` suppresses all findings\n(e.g. `missing_attribute`) for those attribute keys.",
           "type": "array",
           "default": [],
           "items": {
@@ -590,6 +611,14 @@
               "type": "null"
             }
           ]
+        },
+        "sample_names": {
+          "description": "Optional sample name scope (supports glob wildcards, e.g. `\"http.*\"`).\nWhen set, this filter only applies to samples whose name matches one\nof these patterns, in addition to any `signal_type` scope.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
         },
         "signal_type": {
           "description": "Optional signal type scope. When set, this filter only applies to\nfindings with a matching signal_type.",
@@ -618,6 +647,44 @@
           "type": "string",
           "const": "violation"
         }
+      ]
+    },
+    "FindingLevelOverride": {
+      "description": "A rule that overrides the level of matching findings instead of dropping\nthem. Optional `signal_type` and `sample_names` scope the rule the same\nway as `FindingFilter`.",
+      "type": "object",
+      "properties": {
+        "ids": {
+          "description": "Override the level of findings with these IDs. When unset, applies to\nany finding ID within scope.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "level": {
+          "description": "The level to set on matching findings.",
+          "$ref": "#/$defs/FindingLevel"
+        },
+        "sample_names": {
+          "description": "Optional sample name scope (supports glob wildcards, e.g. `\"http.*\"`).\nWhen set, this rule only applies to samples whose name matches one of\nthese patterns, in addition to any `signal_type` scope.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "signal_type": {
+          "description": "Optional signal type scope. When set, this rule only applies to\nfindings with a matching signal_type.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "level"
       ]
     },
     "LiveCheckEmitConfig": {

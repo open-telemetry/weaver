@@ -14,10 +14,11 @@ use weaver_live_check::{
 
 use super::{
     conversion::{
-        otlp_log_record_to_sample_log, otlp_metric_to_sample, sample_attribute_from_key_value,
-        span_kind_from_otlp_kind, status_from_otlp_status,
+        otlp_instrumentation_scope_to_sample, otlp_log_record_to_sample_log, otlp_metric_to_sample,
+        otlp_profile_to_sample, sample_attribute_from_key_value, span_kind_from_otlp_kind,
+        status_from_otlp_status,
     },
-    listen_otlp_requests, AdminReportSender, OtlpRequest,
+    listen_otlp_requests, OtlpRequest, ShutdownCoordinator,
 };
 
 /// An ingester for OTLP data
@@ -68,16 +69,19 @@ impl OtlpIterator {
                     };
 
                     for scope_log in resource_log.scope_logs {
-                        if let Some(scope) = scope_log.scope {
-                            for attribute in scope.attributes {
-                                self.buffer.push(Sample::Attribute(
-                                    sample_attribute_from_key_value(&attribute),
-                                ));
-                            }
+                        let instrumentation_scope = otlp_instrumentation_scope_to_sample(
+                            scope_log.scope.as_ref(),
+                            &scope_log.schema_url,
+                        )
+                        .map(Rc::new);
+                        if let Some(scope) = &instrumentation_scope {
+                            self.buffer
+                                .push(Sample::InstrumentationScope((**scope).clone()));
                         }
 
                         for log_record in scope_log.log_records {
                             let mut sample_log = otlp_log_record_to_sample_log(&log_record);
+                            sample_log.instrumentation_scope = instrumentation_scope.clone();
                             sample_log.resource = rc_resource.clone();
                             self.buffer.push(Sample::Log(sample_log));
                         }
@@ -105,17 +109,19 @@ impl OtlpIterator {
                     };
 
                     for scope_metric in resource_metric.scope_metrics {
-                        if let Some(scope) = scope_metric.scope {
-                            // TODO SampleInstrumentationScope?
-                            for attribute in scope.attributes {
-                                self.buffer.push(Sample::Attribute(
-                                    sample_attribute_from_key_value(&attribute),
-                                ));
-                            }
+                        let instrumentation_scope = otlp_instrumentation_scope_to_sample(
+                            scope_metric.scope.as_ref(),
+                            &scope_metric.schema_url,
+                        )
+                        .map(Rc::new);
+                        if let Some(scope) = &instrumentation_scope {
+                            self.buffer
+                                .push(Sample::InstrumentationScope((**scope).clone()));
                         }
 
                         for metric in scope_metric.metrics {
                             let mut sample_metric = otlp_metric_to_sample(metric);
+                            sample_metric.instrumentation_scope = instrumentation_scope.clone();
                             sample_metric.resource = rc_resource.clone();
                             self.buffer.push(Sample::Metric(sample_metric));
                         }
@@ -143,13 +149,14 @@ impl OtlpIterator {
                     };
 
                     for scope_span in resource_span.scope_spans {
-                        if let Some(scope) = scope_span.scope {
-                            // TODO SampleInstrumentationScope?
-                            for attribute in scope.attributes {
-                                self.buffer.push(Sample::Attribute(
-                                    sample_attribute_from_key_value(&attribute),
-                                ));
-                            }
+                        let instrumentation_scope = otlp_instrumentation_scope_to_sample(
+                            scope_span.scope.as_ref(),
+                            &scope_span.schema_url,
+                        )
+                        .map(Rc::new);
+                        if let Some(scope) = &instrumentation_scope {
+                            self.buffer
+                                .push(Sample::InstrumentationScope((**scope).clone()));
                         }
 
                         for span in scope_span.spans {
@@ -161,6 +168,7 @@ impl OtlpIterator {
                                 attributes: Vec::new(),
                                 span_events: Vec::new(),
                                 span_links: Vec::new(),
+                                instrumentation_scope: instrumentation_scope.clone(),
                                 live_check_result: None,
                                 resource: rc_resource.clone(),
                             };
@@ -200,6 +208,48 @@ impl OtlpIterator {
                 }
                 Some(self.buffer.len())
             }
+            OtlpRequest::Profiles(profiles) => {
+                let dictionary = profiles.dictionary;
+                for resource_profile in profiles.resource_profiles {
+                    let rc_resource = if let Some(resource) = resource_profile.resource {
+                        let mut sample_resource = SampleResource {
+                            attributes: Vec::new(),
+                            live_check_result: None,
+                        };
+                        for attribute in resource.attributes {
+                            sample_resource
+                                .attributes
+                                .push(sample_attribute_from_key_value(&attribute));
+                        }
+                        let rc = Rc::new(sample_resource);
+                        self.buffer.push(Sample::Resource((*rc).clone()));
+                        Some(rc)
+                    } else {
+                        None
+                    };
+
+                    for scope_profile in resource_profile.scope_profiles {
+                        let instrumentation_scope = otlp_instrumentation_scope_to_sample(
+                            scope_profile.scope.as_ref(),
+                            &scope_profile.schema_url,
+                        )
+                        .map(Rc::new);
+                        if let Some(scope) = &instrumentation_scope {
+                            self.buffer
+                                .push(Sample::InstrumentationScope((**scope).clone()));
+                        }
+
+                        for profile in scope_profile.profiles {
+                            let mut sample_profile =
+                                otlp_profile_to_sample(&profile, dictionary.as_ref());
+                            sample_profile.instrumentation_scope = instrumentation_scope.clone();
+                            sample_profile.resource = rc_resource.clone();
+                            self.buffer.push(Sample::Profile(sample_profile));
+                        }
+                    }
+                }
+                Some(self.buffer.len())
+            }
             OtlpRequest::Stop(_reason) => None,
             OtlpRequest::Error(_error) => None,
         }
@@ -224,14 +274,15 @@ impl Iterator for OtlpIterator {
 }
 
 impl OtlpIngester {
-    /// Ingest OTLP data and return both the sample iterator and the admin report sender.
+    /// Ingest OTLP data and return both the sample iterator and the shutdown coordinator.
     ///
-    /// The `AdminReportSender` can be used to send a formatted report back through
-    /// the `/stop` HTTP endpoint when `--output http` is used.
+    /// The `ShutdownCoordinator` can be used to send a formatted report back through
+    /// the `/stop` HTTP endpoint when `--output http` is used, and to wait for the
+    /// admin server to finish delivering that response before exiting.
     pub fn ingest_otlp(
         &self,
-    ) -> Result<(Box<dyn Iterator<Item = Sample>>, AdminReportSender), Error> {
-        let (otlp_requests, report_sender) = listen_otlp_requests(
+    ) -> Result<(Box<dyn Iterator<Item = Sample>>, ShutdownCoordinator), Error> {
+        let (otlp_requests, coordinator) = listen_otlp_requests(
             self.otlp_grpc_address.as_str(),
             self.otlp_grpc_port,
             self.admin_port,
@@ -262,14 +313,336 @@ impl OtlpIngester {
 
         Ok((
             Box::new(OtlpIterator::new(Box::new(otlp_requests))),
-            report_sender,
+            coordinator,
         ))
     }
 }
 
 impl Ingester for OtlpIngester {
     fn ingest(&self) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
-        let (iterator, _report_sender) = self.ingest_otlp()?;
+        let (iterator, _coordinator) = self.ingest_otlp()?;
         Ok(iterator)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::registry::otlp::grpc_stubs::proto::{
+        collector::{
+            logs::v1::ExportLogsServiceRequest, metrics::v1::ExportMetricsServiceRequest,
+            trace::v1::ExportTraceServiceRequest,
+        },
+        common::v1::{any_value, AnyValue, InstrumentationScope, KeyValue},
+        logs::v1::{LogRecord, ResourceLogs, ScopeLogs},
+        metrics::v1::{Metric, ResourceMetrics, ScopeMetrics},
+        resource::v1::Resource,
+        trace::v1::{ResourceSpans, ScopeSpans, Span},
+    };
+
+    fn string_attribute(name: &str, value: &str) -> KeyValue {
+        KeyValue {
+            key: name.to_owned(),
+            value: Some(AnyValue {
+                value: Some(any_value::Value::StringValue(value.to_owned())),
+            }),
+        }
+    }
+
+    fn scope(name: &str) -> InstrumentationScope {
+        InstrumentationScope {
+            name: name.to_owned(),
+            version: "1.2.3".to_owned(),
+            attributes: vec![string_attribute("scope.environment", "test")],
+            dropped_attributes_count: 2,
+        }
+    }
+
+    fn collect(requests: Vec<OtlpRequest>) -> Vec<Sample> {
+        OtlpIterator::new(Box::new(requests.into_iter())).collect()
+    }
+
+    #[test]
+    fn same_named_spans_keep_distinct_instrumentation_scopes() {
+        let request = OtlpRequest::Traces(ExportTraceServiceRequest {
+            resource_spans: vec![ResourceSpans {
+                scope_spans: vec![
+                    ScopeSpans {
+                        scope: Some(scope("library-a")),
+                        spans: vec![Span {
+                            name: "shared-operation".to_owned(),
+                            ..Default::default()
+                        }],
+                        schema_url: "https://example.test/schema/a".to_owned(),
+                    },
+                    ScopeSpans {
+                        scope: Some(scope("library-b")),
+                        spans: vec![Span {
+                            name: "shared-operation".to_owned(),
+                            ..Default::default()
+                        }],
+                        schema_url: "https://example.test/schema/b".to_owned(),
+                    },
+                ],
+                ..Default::default()
+            }],
+        });
+
+        let scopes: Vec<_> = collect(vec![request])
+            .into_iter()
+            .filter_map(|sample| match sample {
+                Sample::Span(span) => span.instrumentation_scope,
+                _ => None,
+            })
+            .collect();
+
+        assert_eq!(scopes.len(), 2);
+        assert_eq!(scopes[0].name, "library-a");
+        assert_eq!(scopes[0].schema_url, "https://example.test/schema/a");
+        assert_eq!(scopes[1].name, "library-b");
+        assert_eq!(scopes[1].schema_url, "https://example.test/schema/b");
+    }
+
+    #[test]
+    fn spans_from_the_same_otlp_scope_share_context() {
+        let request = OtlpRequest::Traces(ExportTraceServiceRequest {
+            resource_spans: vec![ResourceSpans {
+                scope_spans: vec![ScopeSpans {
+                    scope: Some(scope("shared-library")),
+                    spans: vec![
+                        Span {
+                            name: "first-operation".to_owned(),
+                            ..Default::default()
+                        },
+                        Span {
+                            name: "second-operation".to_owned(),
+                            ..Default::default()
+                        },
+                    ],
+                    schema_url: "https://example.test/schema".to_owned(),
+                }],
+                ..Default::default()
+            }],
+        });
+
+        let scopes: Vec<_> = collect(vec![request])
+            .into_iter()
+            .filter_map(|sample| match sample {
+                Sample::Span(span) => span.instrumentation_scope,
+                _ => None,
+            })
+            .collect();
+
+        assert_eq!(scopes.len(), 2);
+        assert!(
+            Rc::ptr_eq(&scopes[0], &scopes[1]),
+            "signals in one OTLP scope must reuse the same context allocation"
+        );
+    }
+
+    #[test]
+    fn instrumentation_scope_reaches_spans_metrics_and_logs() {
+        let requests = vec![
+            OtlpRequest::Traces(ExportTraceServiceRequest {
+                resource_spans: vec![ResourceSpans {
+                    scope_spans: vec![ScopeSpans {
+                        scope: Some(scope("trace-library")),
+                        spans: vec![Span {
+                            name: "operation".to_owned(),
+                            ..Default::default()
+                        }],
+                        schema_url: "https://example.test/trace".to_owned(),
+                    }],
+                    ..Default::default()
+                }],
+            }),
+            OtlpRequest::Metrics(ExportMetricsServiceRequest {
+                resource_metrics: vec![ResourceMetrics {
+                    scope_metrics: vec![ScopeMetrics {
+                        scope: Some(scope("metric-library")),
+                        metrics: vec![Metric {
+                            name: "requests".to_owned(),
+                            ..Default::default()
+                        }],
+                        schema_url: "https://example.test/metric".to_owned(),
+                    }],
+                    ..Default::default()
+                }],
+            }),
+            OtlpRequest::Logs(ExportLogsServiceRequest {
+                resource_logs: vec![ResourceLogs {
+                    scope_logs: vec![ScopeLogs {
+                        scope: Some(scope("log-library")),
+                        log_records: vec![LogRecord {
+                            event_name: "request.completed".to_owned(),
+                            ..Default::default()
+                        }],
+                        schema_url: "https://example.test/log".to_owned(),
+                    }],
+                    ..Default::default()
+                }],
+            }),
+        ];
+
+        let samples = collect(requests);
+        let span_scope = samples.iter().find_map(|sample| match sample {
+            Sample::Span(span) => span.instrumentation_scope.as_ref(),
+            _ => None,
+        });
+        let metric_scope = samples.iter().find_map(|sample| match sample {
+            Sample::Metric(metric) => metric.instrumentation_scope.as_ref(),
+            _ => None,
+        });
+        let log_scope = samples.iter().find_map(|sample| match sample {
+            Sample::Log(log) => log.instrumentation_scope.as_ref(),
+            _ => None,
+        });
+        let emitted_scope_names: Vec<_> = samples
+            .iter()
+            .filter_map(|sample| match sample {
+                Sample::InstrumentationScope(scope) => Some(scope.name.as_str()),
+                _ => None,
+            })
+            .collect();
+
+        assert_eq!(span_scope.expect("span scope").name, "trace-library");
+        assert_eq!(metric_scope.expect("metric scope").name, "metric-library");
+        assert_eq!(log_scope.expect("log scope").name, "log-library");
+        assert_eq!(
+            emitted_scope_names,
+            ["trace-library", "metric-library", "log-library"]
+        );
+    }
+
+    #[test]
+    fn missing_scope_stays_absent_but_schema_only_scope_is_preserved() {
+        let request = OtlpRequest::Traces(ExportTraceServiceRequest {
+            resource_spans: vec![ResourceSpans {
+                scope_spans: vec![
+                    ScopeSpans {
+                        scope: None,
+                        spans: vec![Span {
+                            name: "unknown-owner".to_owned(),
+                            ..Default::default()
+                        }],
+                        schema_url: String::new(),
+                    },
+                    ScopeSpans {
+                        scope: None,
+                        spans: vec![Span {
+                            name: "schema-owned".to_owned(),
+                            ..Default::default()
+                        }],
+                        schema_url: "https://example.test/schema-only".to_owned(),
+                    },
+                ],
+                ..Default::default()
+            }],
+        });
+
+        let samples = collect(vec![request]);
+        let spans: Vec<_> = samples
+            .iter()
+            .filter_map(|sample| match sample {
+                Sample::Span(span) => Some(span),
+                _ => None,
+            })
+            .collect();
+        let emitted_scopes: Vec<_> = samples
+            .iter()
+            .filter_map(|sample| match sample {
+                Sample::InstrumentationScope(scope) => Some(scope),
+                _ => None,
+            })
+            .collect();
+
+        assert!(spans[0].instrumentation_scope.is_none());
+        let schema_only = spans[1]
+            .instrumentation_scope
+            .as_ref()
+            .expect("schema URL is ownership metadata even when scope is absent");
+        assert_eq!(schema_only.name, "");
+        assert_eq!(schema_only.schema_url, "https://example.test/schema-only");
+        assert_eq!(emitted_scopes.len(), 1);
+        assert_eq!(
+            emitted_scopes[0].schema_url,
+            "https://example.test/schema-only"
+        );
+    }
+
+    #[test]
+    fn instrumentation_scope_is_emitted_once_and_attached_to_its_signal() {
+        let request = OtlpRequest::Traces(ExportTraceServiceRequest {
+            resource_spans: vec![ResourceSpans {
+                resource: Some(Resource {
+                    attributes: vec![string_attribute("service.name", "checkout")],
+                    ..Default::default()
+                }),
+                scope_spans: vec![ScopeSpans {
+                    scope: Some(scope("trace-library")),
+                    spans: vec![Span {
+                        name: "operation".to_owned(),
+                        ..Default::default()
+                    }],
+                    schema_url: "https://example.test/trace".to_owned(),
+                }],
+                ..Default::default()
+            }],
+        });
+
+        let samples = collect(vec![request]);
+        let emitted_scopes: Vec<_> = samples
+            .iter()
+            .filter_map(|sample| {
+                let value = serde_json::to_value(sample).expect("sample serializes");
+                value.get("instrumentation_scope").cloned()
+            })
+            .collect();
+        assert_eq!(emitted_scopes.len(), 1);
+        assert_eq!(emitted_scopes[0]["name"], "trace-library");
+        assert_eq!(
+            emitted_scopes[0]["attributes"][0]["name"],
+            "scope.environment"
+        );
+        assert!(
+            samples.iter().all(
+                |sample| !matches!(sample, Sample::Attribute(attribute) if attribute.name == "scope.environment")
+            ),
+            "scope attributes should be grouped under the scope sample"
+        );
+        let resource_position = samples
+            .iter()
+            .position(|sample| matches!(sample, Sample::Resource(_)))
+            .expect("resource sample");
+        let scope_position = samples
+            .iter()
+            .position(|sample| matches!(sample, Sample::InstrumentationScope(_)))
+            .expect("instrumentation scope sample");
+        let span_position = samples
+            .iter()
+            .position(|sample| matches!(sample, Sample::Span(_)))
+            .expect("span sample");
+        assert!(resource_position < scope_position);
+        assert!(scope_position < span_position);
+
+        let span = samples
+            .iter()
+            .find_map(|sample| match sample {
+                Sample::Span(span) => Some(span),
+                _ => None,
+            })
+            .expect("span sample");
+        assert_eq!(
+            span.resource.as_ref().expect("resource").attributes[0].name,
+            "service.name"
+        );
+        assert_eq!(
+            span.instrumentation_scope
+                .as_ref()
+                .expect("scope")
+                .attributes[0]
+                .name,
+            "scope.environment"
+        );
     }
 }

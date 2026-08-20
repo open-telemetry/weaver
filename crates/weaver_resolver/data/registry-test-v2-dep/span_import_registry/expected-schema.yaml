@@ -1,0 +1,69 @@
+file_format: resolved/2.0
+schema_url: https://span-import-consumer.example.com/schemas/1.0.0
+attribute_catalog:
+- key: server.address
+  type: string
+  examples:
+  - example.com
+  brief: Different brief
+  note: Different note
+  stability: stable
+  provenance:
+    source: 0
+- key: server.port
+  type: int
+  examples:
+  - 80
+  - 443
+  brief: Server port.
+  stability: stable
+  provenance:
+    source: 0
+registry:
+  attributes:
+  - 0
+  - 1
+  attribute_groups: []
+  spans:
+  - type: server.request
+    kind: server
+    name:
+      note: Server request span name.
+    attributes:
+    # The dependency declares `sampling_relevant: true` on this ref. It is
+    # per-span state, held on the ref rather than on the catalog attribute,
+    # so importing the span has to carry it across.
+    - base: 0
+      requirement_level: required
+      sampling_relevant: true
+    - base: 1
+      requirement_level: recommended
+    brief: A server request span.
+    stability: stable
+    provenance:
+      source: 0
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans:
+  - id: server.request
+    type: server.request
+    kind: server
+    name:
+      note: Server request span name.
+    attributes:
+    - base: 0
+      requirement_level: required
+      sampling_relevant: true
+    - base: 1
+      requirement_level: recommended
+    brief: A server request span.
+    stability: stable
+    provenance:
+      source: 0
+  metrics: []
+  events: []
+  entities: []
+dependencies:
+- https://server.example.com/schemas/1.0.0

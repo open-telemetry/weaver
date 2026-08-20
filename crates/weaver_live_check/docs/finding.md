@@ -189,12 +189,14 @@ the telemetry pipeline generated the issue.
 | `span_event` | ![Development](https://img.shields.io/badge/-development-blue) | An event attached to a span |
 | `span_link` | ![Development](https://img.shields.io/badge/-development-blue) | A link between spans |
 | `resource` | ![Development](https://img.shields.io/badge/-development-blue) | A resource describing the telemetry source |
+| `instrumentation_scope` | ![Development](https://img.shields.io/badge/-development-blue) | An instrumentation scope that produced telemetry signals |
 | `metric` | ![Development](https://img.shields.io/badge/-development-blue) | A metric measurement |
 | `number_data_point` | ![Development](https://img.shields.io/badge/-development-blue) | A numeric data point within a metric |
 | `histogram_data_point` | ![Development](https://img.shields.io/badge/-development-blue) | A histogram data point within a metric |
 | `exponential_histogram_data_point` | ![Development](https://img.shields.io/badge/-development-blue) | An exponential histogram data point within a metric |
 | `exemplar` | ![Development](https://img.shields.io/badge/-development-blue) | An exemplar (sample measurement) attached to a metric data point |
 | `log` | ![Development](https://img.shields.io/badge/-development-blue) | A log record or event |
+| `profile` | ![Development](https://img.shields.io/badge/-development-blue) | A profiling data sample |
 
 
 ---
@@ -238,6 +240,7 @@ This helps correlate findings with specific parts of an observability system
 | `resource` | ![Development](https://img.shields.io/badge/-development-blue) | Resource describing the telemetry source |
 | `metric` | ![Development](https://img.shields.io/badge/-development-blue) | Numeric measurement signal |
 | `log` | ![Development](https://img.shields.io/badge/-development-blue) | Log record or event signal |
+| `profile` | ![Development](https://img.shields.io/badge/-development-blue) | Profiling data signal |
 
 
 ---

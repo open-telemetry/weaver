@@ -1,0 +1,5 @@
+name: legacy_by_id
+description: >
+  A legacy `type: resource` group holds its entity type in `name`. An
+  association that names the group id instead names no entity type.
+schema_url: https://example.com/legacy-by-id/1.0.0

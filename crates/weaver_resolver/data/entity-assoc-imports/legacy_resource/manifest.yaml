@@ -1,0 +1,6 @@
+name: legacy_resource
+description: >
+  A v1 registry with a legacy `type: resource` group. Such a group carries its
+  entity type in the id and leaves `name` unset. A metric in the same registry
+  is associated with it by that id.
+schema_url: https://example.com/legacy-resource/1.0.0

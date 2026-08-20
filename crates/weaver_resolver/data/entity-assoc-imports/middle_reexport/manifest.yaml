@@ -1,0 +1,9 @@
+name: middle
+description: >
+  The same as `middle`, but this registry imports the `host` entity from base.
+  It therefore re-exports the entity to its own consumers.
+schema_url: https://example.com/middle/1.0.0
+dependencies:
+  - name: base
+    schema_url: https://example.com/base/1.0.0
+    registry_path: data/entity-assoc-imports/base

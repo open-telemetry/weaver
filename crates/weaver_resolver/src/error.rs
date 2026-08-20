@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 use weaver_common::log_error;
+use weaver_semconv::attribute::AttributeRole;
 use weaver_semconv::provenance::Provenance;
 
 /// An error that can occur while resolving a telemetry schema.
@@ -43,6 +44,16 @@ pub enum Error {
     /// Failed to resolve the schema URL for a registry.
     #[error("Schema URL is missing in the manifest and cannot be constructed from the registry name and version.")]
     FailToResolveSchemaUrl {},
+
+    /// A registry is declared more than once and at least one declaration has no version.
+    #[error("Registry '{name}' is declared by more than one dependency, but at least one declaration is unversioned")]
+    #[diagnostic(help(
+        "Use a `schema_url` with a semantic version, e.g. https://example.com/{name}/1.0.0."
+    ))]
+    UnversionedDependencyConflict {
+        /// The registry declared more than once.
+        name: String,
+    },
 
     /// An invalid URL.
     #[error("Invalid URL `{url:?}`, error: {error:?})")]
@@ -99,6 +110,34 @@ pub enum Error {
         provenance: Option<Box<Provenance>>,
     },
 
+    /// An `entity_associations` entry that names an entity nothing defines.
+    #[error("The following entity association is not resolved for the group '{group_id}'.\nEntity association: {entity_type}\nProvenance: {provenance:?}")]
+    #[diagnostic(help(
+        "Check the spelling. Define the entity in this registry, or depend on a registry that defines it."
+    ))]
+    UnresolvedEntityAssociation {
+        /// The id of the group that holds the association.
+        group_id: String,
+        /// The entity type that nothing defines.
+        entity_type: String,
+        /// The provenance of the group (URL or path).
+        provenance: Option<Box<Provenance>>,
+    },
+
+    /// An `entity_associations` entry that two dependencies both answer to.
+    #[error("The entity association '{entity_type}' of group '{group_id}' is ambiguous.\nDeclared by: {}", registries.join(", "))]
+    #[diagnostic(help(
+        "These registries declare unrelated entities under one name. Import the one you mean, or define the entity in this registry."
+    ))]
+    AmbiguousEntityAssociation {
+        /// The id of the group that holds the association.
+        group_id: String,
+        /// The entity type that more than one registry declares.
+        entity_type: String,
+        /// The registries that declare an entity under that name.
+        registries: Vec<String>,
+    },
+
     /// An unresolved `extends` clause reference.
     #[error("The following `extends` clause reference is not resolved for the group '{group_id}'.\n`extends` clause reference: {extends_ref}\nProvenance: {provenance:?}")]
     UnresolvedExtendsRef {
@@ -135,6 +174,19 @@ pub enum Error {
         // TODO: plumb provenance?
     },
 
+    /// An import pattern that named nothing in any dependency.
+    #[error("The import `{pattern}` under `{signal}` matched nothing in any dependency")]
+    #[diagnostic(severity(Warning))]
+    #[diagnostic(help(
+        "Check the spelling, and check that a dependency exports it. Imports are not transitive: a registry further down the chain is reachable only when the registry in between re-exports it."
+    ))]
+    UnmatchedImport {
+        /// The pattern that matched nothing.
+        pattern: String,
+        /// The `imports` field the pattern is under.
+        signal: String,
+    },
+
     /// An invalid Schema path.
     #[error("Invalid Schema path: {path}")]
     InvalidSchemaPath {
@@ -149,6 +201,21 @@ pub enum Error {
         /// The group id.
         group_id: String,
         /// The provenances where this group is duplicated.
+        provenances: Vec<Provenance>,
+    },
+
+    /// Two groups with different ids that take one id in the v2 output.
+    #[error("The groups {group_ids:?} all become `{signal_id}` in the v2 output, so one of them replaces the others:\n{provenances:?}")]
+    #[diagnostic(severity(Warning))]
+    #[diagnostic(help(
+        "A v2 signal id drops the group-type prefix, so `entity.host` and `host` name one entity. Give each group an id that differs by more than that prefix."
+    ))]
+    CollidingV2SignalId {
+        /// The id the groups share in the v2 output.
+        signal_id: String,
+        /// The ids of the groups that collide, in order.
+        group_ids: Vec<String>,
+        /// The provenances of those groups.
         provenances: Vec<Provenance>,
     },
 
@@ -183,6 +250,25 @@ pub enum Error {
         refinement_type: String,
         /// The type of the refined signal.
         signal_type: String,
+    },
+
+    /// Entity refinement changes identity.
+    #[error("Entity refinement `{refinement_id}` changes the identity of `{ref}` by referencing `{attribute_id}` under `{role:?}`.\nProvenance: {provenance:?}")]
+    #[diagnostic(help(
+        "A refinement must preserve the base entity's identity: keep base attributes under the same section (`identity` or `description`) as the base, and do not add new `identity` attributes."
+    ))]
+    EntityRefinementChangedIdentity {
+        /// The id of the refinement with the issue.
+        refinement_id: String,
+        /// The entity being refined, as written in the refinement's `ref`.
+        r#ref: String,
+        /// The attribute whose identity role the refinement changes.
+        attribute_id: String,
+        /// The section the refinement lists the attribute under
+        /// (`identity` or `description`).
+        role: AttributeRole,
+        /// The provenance of the refinement (URL or path).
+        provenance: Option<Box<Provenance>>,
     },
 
     /// A duplicate attribute id error.

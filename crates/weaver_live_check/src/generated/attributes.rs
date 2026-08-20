@@ -173,6 +173,8 @@ pub enum SampleType {
     SpanLink,
     /// A resource describing the telemetry source
     Resource,
+    /// An instrumentation scope that produced telemetry signals
+    InstrumentationScope,
     /// A metric measurement
     Metric,
     /// A numeric data point within a metric
@@ -185,6 +187,8 @@ pub enum SampleType {
     Exemplar,
     /// A log record or event
     Log,
+    /// A profiling data sample
+    Profile,
 }
 
 /// The OpenTelemetry signal type that the finding applies to
@@ -215,4 +219,6 @@ pub enum SignalType {
     Metric,
     /// Log record or event signal
     Log,
+    /// Profiling data signal
+    Profile,
 }

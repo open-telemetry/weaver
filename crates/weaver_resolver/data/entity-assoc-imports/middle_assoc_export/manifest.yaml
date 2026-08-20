@@ -1,0 +1,10 @@
+name: middle
+description: >
+  Defines one metric, associated with the `host` entity of base, and imports
+  nothing. A consumer that imports the metric therefore imports an association
+  that already resolved against base.
+schema_url: https://example.com/middle/1.0.0
+dependencies:
+  - name: base
+    schema_url: https://example.com/base/1.0.0
+    registry_path: data/entity-assoc-imports/base

@@ -1,0 +1,13 @@
+name: top_private_first
+description: >
+  Depends on two unrelated registries that each define their own `host`. The
+  one listed first keeps its `host` private, so only the second offers the
+  entity. The association must find it.
+schema_url: https://example.com/top-shadowed/1.0.0
+dependencies:
+  - name: base
+    schema_url: https://example.com/base/1.0.0
+    registry_path: data/entity-assoc-imports/base_excluded
+  - name: rival
+    schema_url: https://rival.example.com/rival/1.0.0
+    registry_path: data/entity-assoc-imports/rival_base

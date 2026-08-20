@@ -129,3 +129,16 @@ refinements:
       requirement_level: recommended
     brief: A server error event.
     stability: stable
+  entities:
+  - id: host
+    type: host
+    identity:
+    - base: 3
+      requirement_level: required
+    - base: 5
+      requirement_level: recommended
+    description:
+    - base: 4
+      requirement_level: recommended
+    brief: A host.
+    stability: stable

@@ -1,0 +1,5 @@
+name: rival
+description: >
+  An unrelated registry that happens to define its own `host` entity. It shares
+  no history with `base`: different origin, different attributes.
+schema_url: https://rival.example.com/rival/1.0.0

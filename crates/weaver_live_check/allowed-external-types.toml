@@ -15,6 +15,7 @@ allowed_external_types = [
     "weaver_semconv::*",
     "weaver_checker::*",
     "weaver_config::live_check::FindingFilter",
+    "weaver_config::live_check::FindingLevelOverride",
     "weaver_config::live_check::LiveCheckConfig",
     "opentelemetry::common::Key",
     "opentelemetry::logs::record::*",

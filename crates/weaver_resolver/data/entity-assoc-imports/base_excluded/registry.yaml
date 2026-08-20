@@ -1,0 +1,24 @@
+file_format: definition/2
+attributes:
+  - key: host.id
+    type: string
+    stability: stable
+    brief: Unique host ID, defined in base.
+    examples: ["abc123"]
+  - key: host.name
+    type: string
+    stability: stable
+    brief: Host name, defined in base.
+    examples: ["myhost"]
+entities:
+  - type: host
+    requirement_level: recommended
+    stability: stable
+    brief: A host, defined in base and kept private.
+    annotations:
+      dependency_resolution:
+        exclude: true
+    identity:
+      - ref: host.id
+    description:
+      - ref: host.name

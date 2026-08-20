@@ -209,4 +209,30 @@ mod tests {
         force_print_error(generator.update_markdown(test, true, Some(attribute_registry_url)));
         Ok(())
     }
+
+    #[test]
+    fn test_v2_to_v1_refinement_rendering() -> Result<(), Error> {
+        let loader = FileSystemFileLoader::try_new("templates/registry".into(), "markdown")?;
+        let config = WeaverConfig::try_from_loader(&loader)?;
+        let params = Params::default();
+        let output =
+            OutputProcessor::from_template_config(config, loader, params, OutputTarget::Stdout)?;
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data_v2_to_v1".to_owned(),
+        };
+        let mut diag_msgs = DiagnosticMessages::empty();
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let generator = SnippetGenerator::try_from_registry_repo(
+            &registry_repo,
+            output,
+            &mut diag_msgs,
+            false,
+            false,
+        )?;
+        let attribute_registry_url = "/docs/attributes-registry";
+        let test = "data_v2_to_v1/templates.md";
+        println!("--- Running template engine test for V2 to V1 refinements: {test} ---");
+        force_print_error(generator.update_markdown(test, true, Some(attribute_registry_url)));
+        Ok(())
+    }
 }

@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 use weaver_semconv::group::SpanKindSpec;
 
 use crate::{
-    live_checker::LiveChecker, sample_attribute::SampleAttribute, sample_resource::SampleResource,
+    live_checker::LiveChecker, sample_attribute::SampleAttribute,
+    sample_instrumentation_scope::SampleInstrumentationScope, sample_resource::SampleResource,
     Advisable, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
     VersionedSignal,
 };
@@ -53,6 +54,9 @@ pub struct SampleSpan {
     /// SpanLinks
     #[serde(default)]
     pub span_links: Vec<SampleSpanLink>,
+    /// Shared instrumentation scope that produced this span (not serialized).
+    #[serde(skip)]
+    pub instrumentation_scope: Option<Rc<SampleInstrumentationScope>>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
     /// Reference to the parent resource (not serialized)

@@ -5,7 +5,10 @@
 use serde::{Deserialize, Serialize};
 
 use crate::attribute::AttributeRef;
-use crate::error::Error::{AttributeNotFound, CompoundError, EventNameNotFound, InvalidSchemaUrl};
+use crate::error::Error::{
+    AttributeNotFound, CompoundError, EntityAssociationNotFound, EventNameNotFound,
+    InvalidSchemaUrl, RefinementBaseNotFound,
+};
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug, Clone, Deserialize, Serialize)]
@@ -24,6 +27,22 @@ pub enum Error {
     EventNameNotFound {
         /// Group id.
         group_id: String,
+    },
+
+    /// A refinement group does not reference the base group it extends.
+    #[error("Refinement group {group_id} does not reference a base group to extend. This is not supported in V2 schema!")]
+    RefinementBaseNotFound {
+        /// Group id.
+        group_id: String,
+    },
+
+    /// An entity association names an entity that nothing in scope defines.
+    #[error("Group {group_id} is associated with entity {entity_type}, which neither this registry nor any of its dependencies defines")]
+    EntityAssociationNotFound {
+        /// Group id.
+        group_id: String,
+        /// The entity type that nothing defines.
+        entity_type: String,
     },
 
     /// Cannot convert from V1 to V2 schema due to invalid schema URL.
@@ -63,6 +82,8 @@ impl Error {
                     CompoundError(errors) => errors,
                     e @ AttributeNotFound { .. } => vec![e],
                     e @ EventNameNotFound { .. } => vec![e],
+                    e @ RefinementBaseNotFound { .. } => vec![e],
+                    e @ EntityAssociationNotFound { .. } => vec![e],
                     e @ InvalidSchemaUrl { .. } => vec![e],
                 })
                 .collect(),

@@ -19,7 +19,7 @@ use crate::Error::{
     RegistryManifestNotFound,
 };
 use schemars::JsonSchema;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use weaver_common::vdir::VirtualDirectoryPath;
 
 /// The file format version of the publication manifest.
@@ -30,7 +30,7 @@ pub const PUBLICATION_MANIFEST_FILE_FORMAT: &str = "manifest/2.0";
 /// This is used when developing a registry before it is published.
 /// See [`PublicationRegistryManifest`] for the stricter publication form produced
 /// by `weaver registry package`.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Debug, Clone, JsonSchema)]
 pub struct DefinitionRegistryManifest {
     /// The schema URL for this registry.
     /// This URL is populated before registry is published and is used as
@@ -48,8 +48,6 @@ pub struct DefinitionRegistryManifest {
     pub description: Option<String>,
 
     /// List of the registry's dependencies.
-    /// Note: In the current phase, we only support zero or one dependency.
-    /// See this GH issue for more details: <https://github.com/open-telemetry/weaver/issues/604>
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub dependencies: Vec<Dependency>,
 
@@ -92,7 +90,7 @@ impl DefinitionRegistryManifest {
 }
 
 /// Represents a dependency of a semantic convention registry.
-#[derive(Serialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct Dependency {
     /// The schema URL for the dependency (required).
     /// It must follow OTel schema URL format, which is: `http[s]://server[:port]/path/<version>`.
@@ -108,40 +106,63 @@ pub struct Dependency {
     /// This can be either:
     /// - A manifest of a published registry
     /// - A directory containing the raw definition.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub registry_path: Option<VirtualDirectoryPath>,
 }
 
-impl<'de> Deserialize<'de> for Dependency {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        struct DependencyHelper {
-            name: Option<String>,
-            schema_url: Option<SchemaUrl>,
-            registry_path: Option<VirtualDirectoryPath>,
-        }
-
-        let helper = DependencyHelper::deserialize(deserializer)?;
-
-        let schema_url = match (helper.schema_url, helper.name) {
-            (Some(url), _) => url,
-            (None, Some(name)) => SchemaUrl::try_from_name_version(&name, "unknown")
-                .map_err(serde::de::Error::custom)?,
-            (None, None) => {
-                return Err(serde::de::Error::custom(
-                    "Either 'schema_url' or 'name' must be provided for a dependency",
-                ))
-            }
-        };
-
-        Ok(Dependency {
-            schema_url,
-            registry_path: helper.registry_path,
-        })
+impl Dependency {
+    /// Whether the declaration pins a version. A dependency declared by `name` (v1 manifests
+    /// only) does not: it names a registry without saying which version of it, so it cannot be
+    /// reconciled with any other declaration of the same registry.
+    ///
+    /// Detected by the version segment, so a `schema_url` an author wrote as `.../unknown`
+    /// counts as unversioned too. That is the intent: it says no more about which version is
+    /// wanted than the minted placeholder does. Any other segment is treated as a version,
+    /// valid semver or not.
+    #[must_use]
+    pub fn is_versioned(&self) -> bool {
+        self.schema_url.version() != UNKNOWN_VERSION
     }
+}
+
+const SCHEMA_URL_HELP: &str = "The schema_url uniquely identifies the dependency registry \
+                               and its version, e.g. https://example.com/my-registry/1.0.0";
+
+/// The version given to a dependency declared by `name`, which carries none.
+const UNKNOWN_VERSION: &str = "unknown";
+
+/// Parses a dependency declaration, discriminating on which identifying field it declares.
+///
+/// `strict` is set for v2 manifests, which require `schema_url`. A v1 manifest may instead
+/// declare a dependency by `name`, which then gets a placeholder, unversioned schema URL minted
+/// from that name.
+fn parse_dependency(value: serde_yaml::Value, strict: bool) -> Result<Dependency, String> {
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct NamedDependency {
+        name: String,
+        registry_path: VirtualDirectoryPath,
+    }
+
+    if value.get("schema_url").is_some() {
+        return serde_yaml::from_value(value).map_err(|e| e.to_string());
+    }
+    let name = value.get("name").and_then(serde_yaml::Value::as_str);
+    if strict || name.is_none() {
+        let subject = name.map_or_else(
+            || "a dependency".to_owned(),
+            |name| format!("dependency '{name}'"),
+        );
+        return Err(format!(
+            "{subject} is missing the required field 'schema_url'. {SCHEMA_URL_HELP}"
+        ));
+    }
+
+    let named: NamedDependency = serde_yaml::from_value(value).map_err(|e| e.to_string())?;
+    Ok(Dependency {
+        schema_url: SchemaUrl::try_from_name_version(&named.name, UNKNOWN_VERSION)?,
+        registry_path: Some(named.registry_path),
+    })
 }
 
 /// Raw helper for deserializing a manifest before validation.
@@ -155,8 +176,10 @@ struct RawManifestFields {
     semconv_version: Option<String>,
     #[allow(deprecated)]
     schema_base_url: Option<String>,
+    /// Parsed once the manifest version is known: only v1 manifests may declare a dependency
+    /// by `name`.
     #[serde(default)]
-    dependencies: Vec<Dependency>,
+    dependencies: Vec<serde_yaml::Value>,
     #[serde(default)]
     stability: Stability,
     resolved_registry_uri: Option<String>,
@@ -173,6 +196,15 @@ impl RawManifestFields {
                 .ok_or_else(|| Error::InvalidPublicationManifest {
                     path: path.to_path_buf(),
                     details: "missing required field 'schema_url'".into(),
+                })?;
+            let dependencies = self
+                .dependencies
+                .into_iter()
+                .map(|value| parse_dependency(value, true))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|details| Error::InvalidPublicationManifest {
+                    path: path.to_path_buf(),
+                    details,
                 })?;
             let mut warnings = vec![];
             let resolved_registry_uri = match (self.resolved_registry_uri, self.resolved_schema_uri)
@@ -196,7 +228,7 @@ impl RawManifestFields {
                 file_format: PUBLICATION_MANIFEST_FILE_FORMAT.to_owned(),
                 schema_url,
                 description: self.description,
-                dependencies: self.dependencies,
+                dependencies,
                 stability: self.stability,
                 resolved_registry_uri,
                 deserialization_warnings: warnings,
@@ -211,6 +243,9 @@ impl RawManifestFields {
                     ),
                 });
             }
+            // Only v1 manifests -- those identified by `schema_base_url` + `semconv_version`
+            // rather than `schema_url` -- may declare dependencies by `name`.
+            let is_v1 = self.schema_url.is_none();
             let schema_url = if let Some(url) = self.schema_url {
                 url
             } else {
@@ -235,10 +270,19 @@ impl RawManifestFields {
                     }
                 })?
             };
+            let dependencies = self
+                .dependencies
+                .into_iter()
+                .map(|value| parse_dependency(value, !is_v1))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|error| InvalidRegistryManifest {
+                    path: path.to_path_buf(),
+                    error,
+                })?;
             Ok(RegistryManifest::Definition(DefinitionRegistryManifest {
                 schema_url,
                 description: self.description,
-                dependencies: self.dependencies,
+                dependencies,
                 stability: self.stability,
                 deserialization_warnings: warnings,
             }))
@@ -353,7 +397,7 @@ impl RegistryManifest {
 /// This is produced by `weaver registry package` and describes the contents of
 /// a self-contained registry artifact, including the URI of the resolved
 /// registry artifact (`resolved.yaml`).
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Debug, Clone, JsonSchema)]
 pub struct PublicationRegistryManifest {
     /// The file format version of this publication manifest.
     /// Always `"manifest/2.0"`in this version.
@@ -387,20 +431,40 @@ pub struct PublicationRegistryManifest {
 impl PublicationRegistryManifest {
     /// Creates a `PublicationRegistryManifest` from a `DefinitionRegistryManifest` and a
     /// `resolved_registry_uri` pointing to where the resolved registry will be published.
-    #[must_use]
+    ///
+    /// Dependencies are reduced to their `schema_url`: `registry_path` points at the author's
+    /// machine and means nothing to a consumer of the published registry, who locates the
+    /// dependency by its schema URL. That URL must pin a version, which rules out dependencies
+    /// declared by `name`.
     pub fn try_from_registry_manifest(
         registry_manifest: &DefinitionRegistryManifest,
         resolved_registry_uri: String,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, Error> {
+        let dependencies = registry_manifest
+            .dependencies
+            .iter()
+            .map(|dependency| {
+                if !dependency.is_versioned() {
+                    return Err(Error::UnversionedDependencyInPublication {
+                        schema_url: dependency.schema_url.to_string(),
+                        registry_path: dependency.registry_path.as_ref().map(ToString::to_string),
+                    });
+                }
+                Ok(Dependency {
+                    schema_url: dependency.schema_url.clone(),
+                    registry_path: None,
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Self {
             file_format: PUBLICATION_MANIFEST_FILE_FORMAT.to_owned(),
             schema_url: registry_manifest.schema_url.clone(),
             description: registry_manifest.description.clone(),
-            dependencies: registry_manifest.dependencies.clone(),
+            dependencies,
             stability: registry_manifest.stability.clone(),
             resolved_registry_uri,
             deserialization_warnings: vec![],
-        }
+        })
     }
 }
 
@@ -462,26 +526,46 @@ mod tests {
     }
 
     // Dependency tests
+    /// Parses as a v1 manifest would: both dependency shapes are accepted.
+    fn dep_from_yaml_lenient(yaml: &str) -> Result<Dependency, String> {
+        parse_dependency(serde_yaml::from_str(yaml).expect("invalid YAML"), false)
+    }
+
+    /// Parses as a v2 manifest would: only the `schema_url` shape is accepted.
+    fn dep_from_yaml_strict(yaml: &str) -> Result<Dependency, String> {
+        parse_dependency(serde_yaml::from_str(yaml).expect("invalid YAML"), true)
+    }
+
+    fn dep(schema_url: &str, registry_path: Option<&str>) -> Dependency {
+        Dependency {
+            schema_url: schema_url.try_into().unwrap(),
+            registry_path: registry_path.map(|path| VirtualDirectoryPath::LocalFolder {
+                path: path.to_owned(),
+            }),
+        }
+    }
+
     #[test]
     fn test_dependency_deserialize_with_schema_url() {
-        let yaml = r#"
-schema_url: "https://opentelemetry.io/schemas/1.0.0"
-"#;
-        let dep: Dependency = serde_yaml::from_str(yaml).expect("Failed to deserialize");
+        let dep = dep_from_yaml_lenient(r#"schema_url: "https://opentelemetry.io/schemas/1.0.0""#)
+            .expect("Failed to deserialize");
         assert_eq!(
             dep.schema_url.as_str(),
             "https://opentelemetry.io/schemas/1.0.0"
         );
         assert!(dep.registry_path.is_none());
+        assert!(dep.is_versioned());
     }
 
     #[test]
     fn test_dependency_deserialize_with_registry_path() {
-        let yaml = r#"
+        let dep = dep_from_yaml_lenient(
+            r#"
 schema_url: "https://opentelemetry.io/schemas/1.0.0"
 registry_path: "./registry"
-"#;
-        let dep: Dependency = serde_yaml::from_str(yaml).expect("Failed to deserialize");
+"#,
+        )
+        .expect("Failed to deserialize");
         assert_eq!(
             dep.schema_url.as_str(),
             "https://opentelemetry.io/schemas/1.0.0"
@@ -490,21 +574,67 @@ registry_path: "./registry"
     }
 
     #[test]
-    fn test_dependency_deserialize_with_deprecated_name() {
-        let yaml = r#"
+    fn test_v1_dependency_accepts_name_and_registry_path() {
+        let dep = dep_from_yaml_lenient(
+            r#"
 name: "acme-registry"
-"#;
-        let dep: Dependency = serde_yaml::from_str(yaml).expect("Failed to deserialize");
+registry_path: "./registry"
+"#,
+        )
+        .expect("v1 manifests must keep supporting dependencies declared by name");
         assert_eq!(dep.schema_url.as_str(), "https://acme-registry/unknown");
+        assert!(
+            !dep.is_versioned(),
+            "a dependency declared without 'schema_url' carries no version"
+        );
+    }
+
+    /// A version segment that is not semver is still a version the author supplied, so it must
+    /// not be mistaken for the placeholder minted from a `name`.
+    #[test]
+    fn test_non_semver_schema_url_is_versioned() {
+        let dep = dep_from_yaml_lenient(r#"schema_url: "https://example.com/dep/1.0""#)
+            .expect("Failed to deserialize");
+        assert!(dep.schema_url.semver().is_err());
+        assert!(dep.is_versioned());
+    }
+
+    #[test]
+    fn test_v1_dependency_name_without_registry_path_is_rejected() {
+        // A dependency declared by `name` has no `schema_url` to locate the files with,
+        // so `registry_path` is required.
+        let err = dep_from_yaml_lenient(r#"name: "acme-registry""#)
+            .expect_err("a dependency with no identity and no path cannot be located");
+        assert!(
+            err.contains("registry_path"),
+            "error should report the missing 'registry_path'; got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_v2_dependency_name_only_is_rejected() {
+        let err = dep_from_yaml_strict(
+            r#"
+name: "acme-registry"
+registry_path: "./registry"
+"#,
+        )
+        .expect_err("a v2 manifest must reject a dependency declared by name");
+        assert!(
+            err.contains("schema_url") && err.contains("acme-registry"),
+            "error should name the dependency missing 'schema_url'; got: {err}"
+        );
     }
 
     #[test]
     fn test_dependency_deserialize_schema_url_takes_precedence() {
-        let yaml = r#"
+        let dep = dep_from_yaml_lenient(
+            r#"
 schema_url: "https://opentelemetry.io/schemas/1.0.0"
 name: "ignored-name"
-"#;
-        let dep: Dependency = serde_yaml::from_str(yaml).expect("Failed to deserialize");
+"#,
+        )
+        .expect("Failed to deserialize");
         assert_eq!(
             dep.schema_url.as_str(),
             "https://opentelemetry.io/schemas/1.0.0"
@@ -513,69 +643,41 @@ name: "ignored-name"
 
     #[test]
     fn test_dependency_deserialize_missing_both_fields() {
-        let yaml = r#"
-registry_path: "./registry"
-"#;
-        let result: Result<Dependency, _> = serde_yaml::from_str(yaml);
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(err
-            .to_string()
-            .contains("Either 'schema_url' or 'name' must be provided"));
+        for result in [
+            dep_from_yaml_lenient(r#"registry_path: "./registry""#),
+            dep_from_yaml_strict(r#"registry_path: "./registry""#),
+        ] {
+            let err = result.expect_err("a dependency with no identity must be rejected");
+            assert!(err.contains("schema_url"), "got: {err}");
+        }
     }
 
     #[test]
     fn test_dependency_serialize() {
-        let dep = Dependency {
-            schema_url: "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap(),
-            registry_path: None,
-        };
-
-        let yaml = serde_yaml::to_string(&dep).expect("Failed to serialize");
-        // Verify schema_url is serialized
+        let yaml = serde_yaml::to_string(&dep("https://opentelemetry.io/schemas/1.0.0", None))
+            .expect("Failed to serialize");
         assert!(yaml.contains("schema_url"));
         assert!(yaml.contains("https://opentelemetry.io/schemas/1.0.0"));
-        // Verify name is NOT serialized (skip_serializing)
-        assert!(!yaml.contains("name:"));
+        // `registry_path` is skipped when None.
+        assert!(!yaml.contains("registry_path"));
     }
 
     #[test]
     fn test_dependency_serialize_with_registry_path() {
-        let dep = Dependency {
-            schema_url: "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap(),
-            registry_path: Some(VirtualDirectoryPath::LocalFolder {
-                path: "./registry".to_owned(),
-            }),
-        };
-
-        let yaml = serde_yaml::to_string(&dep).expect("Failed to serialize");
+        let yaml = serde_yaml::to_string(&dep(
+            "https://opentelemetry.io/schemas/1.0.0",
+            Some("./registry"),
+        ))
+        .expect("Failed to serialize");
         assert!(yaml.contains("schema_url"));
         assert!(yaml.contains("registry_path"));
     }
 
     #[test]
-    fn test_dependency_serialize_without_optional_path() {
-        let dep = Dependency {
-            schema_url: "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap(),
-            registry_path: None,
-        };
-
-        let yaml = serde_yaml::to_string(&dep).expect("Failed to serialize");
-        // registry_path should not be serialized when None (skip_serializing_if)
-        assert!(!yaml.contains("registry_path"));
-    }
-
-    #[test]
     fn test_dependency_roundtrip_serialization() {
-        let original = Dependency {
-            schema_url: "https://example.com/schemas/1.0.0".try_into().unwrap(),
-            registry_path: Some(VirtualDirectoryPath::LocalFolder {
-                path: "./test/registry".to_owned(),
-            }),
-        };
-
+        let original = dep("https://example.com/schemas/1.0.0", Some("./test/registry"));
         let yaml = serde_yaml::to_string(&original).expect("Failed to serialize");
-        let deserialized: Dependency = serde_yaml::from_str(&yaml).expect("Failed to deserialize");
+        let deserialized = dep_from_yaml_lenient(&yaml).expect("Failed to deserialize");
 
         assert_eq!(original.schema_url, deserialized.schema_url);
         assert!(deserialized.registry_path.is_some());
@@ -715,7 +817,8 @@ stability: stable
         let publication = PublicationRegistryManifest::try_from_registry_manifest(
             &definition,
             resolved_registry_uri.clone(),
-        );
+        )
+        .expect("Failed to build the publication manifest");
 
         assert_eq!(publication.file_format, PUBLICATION_MANIFEST_FILE_FORMAT);
         assert_eq!(
@@ -726,6 +829,81 @@ stability: stable
         assert_eq!(publication.stability, Stability::Stable);
         assert!(publication.dependencies.is_empty());
         assert_eq!(publication.resolved_registry_uri, resolved_registry_uri);
+    }
+
+    /// The local `registry_path` of a dependency is not published: consumers locate the
+    /// dependency by its schema URL, and the path only exists on the author's machine.
+    #[test]
+    fn test_from_registry_manifest_drops_dependency_registry_path() {
+        let manifest = manifest_from_yaml(
+            r#"
+schema_url: "https://example.com/schemas/1.0.0"
+dependencies:
+  - schema_url: "https://example.com/dep/2.0.0"
+    registry_path: "/home/author/dep/registry"
+"#,
+            &mut vec![],
+        )
+        .expect("Failed to load RegistryManifest");
+
+        let RegistryManifest::Definition(definition) = manifest else {
+            panic!("Expected a Definition manifest");
+        };
+
+        let publication = PublicationRegistryManifest::try_from_registry_manifest(
+            &definition,
+            "https://example.com/resolved/1.0.0/resolved.yaml".to_owned(),
+        )
+        .expect("Failed to build the publication manifest");
+
+        let [dependency] = publication.dependencies.as_slice() else {
+            panic!("expected exactly one dependency");
+        };
+        assert_eq!(
+            dependency.schema_url.as_str(),
+            "https://example.com/dep/2.0.0"
+        );
+        assert!(dependency.registry_path.is_none());
+
+        // The result must round-trip through the publication manifest reader.
+        let yaml = serde_yaml::to_string(&publication).expect("Failed to serialize");
+        let reparsed =
+            manifest_from_yaml(&yaml, &mut vec![]).expect("publication manifest is not readable");
+        assert!(matches!(reparsed, RegistryManifest::Publication(_)));
+    }
+
+    /// A dependency declared with the v1 `name` syntax carries no version, so it cannot be
+    /// published; packaging must fail rather than emit a manifest the reader rejects.
+    #[test]
+    fn test_from_registry_manifest_rejects_v1_dependency() {
+        let manifest = manifest_from_yaml(
+            r#"
+schema_base_url: "https://example.com/schemas"
+semconv_version: "1.0.0"
+dependencies:
+  - name: "acme-registry"
+    registry_path: "/home/author/dep/registry"
+"#,
+            &mut vec![],
+        )
+        .expect("Failed to load RegistryManifest");
+
+        let RegistryManifest::Definition(definition) = manifest else {
+            panic!("Expected a Definition manifest");
+        };
+
+        let result = PublicationRegistryManifest::try_from_registry_manifest(
+            &definition,
+            "https://example.com/resolved/1.0.0/resolved.yaml".to_owned(),
+        );
+        assert!(matches!(
+            result,
+            Err(Error::UnversionedDependencyInPublication {
+                schema_url,
+                registry_path,
+            }) if schema_url == "https://acme-registry/unknown"
+                && registry_path.as_deref() == Some("/home/author/dep/registry")
+        ));
     }
 
     #[test]

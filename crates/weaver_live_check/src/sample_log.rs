@@ -7,12 +7,12 @@ use std::rc::Rc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_checker::FindingLevel;
-use weaver_semconv::entity_association::EntityAssociation;
 
 use crate::{
     advice::{check_entity_associations, emit_findings, FindingBuilder},
     live_checker::LiveChecker,
     sample_attribute::SampleAttribute,
+    sample_instrumentation_scope::SampleInstrumentationScope,
     sample_resource::SampleResource,
     Error, FindingId, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
     VersionedSignal,
@@ -36,6 +36,9 @@ pub struct SampleLog {
     pub trace_id: Option<String>,
     /// Span ID if the event is correlated with a span
     pub span_id: Option<String>,
+    /// Shared instrumentation scope that produced this log record (not serialized).
+    #[serde(skip)]
+    pub instrumentation_scope: Option<Rc<SampleInstrumentationScope>>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
     /// Reference to the parent resource (not serialized)
@@ -96,17 +99,23 @@ impl LiveCheckRunner for SampleLog {
             .resource()
             .map(|r| r.attributes.as_slice())
             .unwrap_or(&[]);
-        let entity_associations: &[EntityAssociation] = match semconv_event.as_deref() {
-            Some(VersionedSignal::Group(g)) => &g.entity_associations,
-            Some(VersionedSignal::Event(e)) => &e.entity_associations,
-            _ => &[],
+        // A v1 group and a v2 event hold the same expression in two shapes, so
+        // each arm calls the check with the shape it holds.
+        let findings = match semconv_event.as_deref() {
+            Some(VersionedSignal::Group(g)) => check_entity_associations(
+                &g.entity_associations,
+                live_checker,
+                resource_attributes,
+                parent_signal,
+            ),
+            Some(VersionedSignal::Event(e)) => check_entity_associations(
+                &e.entity_associations,
+                live_checker,
+                resource_attributes,
+                parent_signal,
+            ),
+            _ => Vec::new(),
         };
-        let findings = check_entity_associations(
-            entity_associations,
-            live_checker,
-            resource_attributes,
-            parent_signal,
-        );
         if !findings.is_empty() {
             let sample_ref = SampleRef::Log(self);
             emit_findings(

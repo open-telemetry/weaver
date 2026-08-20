@@ -101,6 +101,9 @@ impl AccumulatedSamples {
             Sample::Metric(metric) => self.add_metric(metric),
             Sample::Log(log) => self.add_event(log.event_name, log.attributes),
             Sample::Attribute(attr) => accumulate_attribute(&mut self.resources, attr),
+            Sample::InstrumentationScope(_) => {
+                // Scope metadata is not part of the inferred resource or signal schema.
+            }
             other => {
                 // This shouldn't happen since we control when add_sample is called.
                 // Adding anyway just in case.
@@ -1024,6 +1027,7 @@ mod tests {
             }],
             span_events: vec![],
             span_links: vec![],
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         };
@@ -1058,6 +1062,7 @@ mod tests {
                 live_check_result: None,
             }],
             span_links: vec![],
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         };
@@ -1135,6 +1140,7 @@ mod tests {
             attributes: vec![],
             span_events: vec![],
             span_links: vec![],
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         }));
@@ -1143,6 +1149,7 @@ mod tests {
             instrument: SampleInstrument::Supported(InstrumentSpec::Counter),
             unit: "{request}".to_owned(),
             data_points: None,
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         }));
@@ -1154,6 +1161,7 @@ mod tests {
             attributes: vec![],
             trace_id: None,
             span_id: None,
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         }));
@@ -1184,6 +1192,7 @@ mod tests {
             instrument: SampleInstrument::Unsupported("Summary".to_owned()),
             unit: String::new(),
             data_points: None,
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });
@@ -1212,6 +1221,7 @@ mod tests {
                 exemplars: vec![],
                 live_check_result: None,
             }])),
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });
@@ -1236,6 +1246,7 @@ mod tests {
                 exemplars: vec![],
                 live_check_result: None,
             }])),
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });
@@ -1265,6 +1276,7 @@ mod tests {
                     live_check_result: None,
                 },
             ])),
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });
@@ -1335,6 +1347,7 @@ mod tests {
             }],
             span_events: vec![],
             span_links: vec![],
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });
@@ -1365,6 +1378,7 @@ mod tests {
             instrument: SampleInstrument::Supported(InstrumentSpec::Histogram),
             unit: "ms".to_owned(),
             data_points: None,
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         };
@@ -1390,6 +1404,7 @@ mod tests {
             instrument: SampleInstrument::Supported(InstrumentSpec::Counter),
             unit: String::new(), // Empty unit
             data_points: None,
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         };
@@ -1451,6 +1466,7 @@ mod tests {
                 live_check_result: None,
             }],
             span_links: vec![],
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });
@@ -1575,6 +1591,7 @@ mod tests {
                 live_check_result: None,
             }],
             span_links: vec![],
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         });

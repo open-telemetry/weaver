@@ -192,6 +192,10 @@ attributes:
           value: "resource"
           brief: "A resource describing the telemetry source"
           stability: development
+        - id: instrumentation_scope
+          value: "instrumentation_scope"
+          brief: "An instrumentation scope that produced telemetry signals"
+          stability: development
         - id: metric
           value: "metric"
           brief: "A metric measurement"
@@ -215,6 +219,10 @@ attributes:
         - id: log
           value: "log"
           brief: "A log record or event"
+          stability: development
+        - id: profile
+          value: "profile"
+          brief: "A profiling data sample"
           stability: development
     brief: "The type of telemetry sample being validated"
     note: |
@@ -241,6 +249,10 @@ attributes:
         - id: log
           value: "log"
           brief: "Log record or event signal"
+          stability: development
+        - id: profile
+          value: "profile"
+          brief: "Profiling data signal"
           stability: development
     brief: "The OpenTelemetry signal type that the finding applies to"
     note: |

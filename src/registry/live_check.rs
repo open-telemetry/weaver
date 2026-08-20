@@ -37,7 +37,7 @@ use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_config::WeaverCommand;
 
 use super::otlp::otlp_ingester::OtlpIngester;
-use super::otlp::AdminReportSender;
+use super::otlp::ShutdownCoordinator;
 
 /// Embedded default live check templates
 pub(crate) static DEFAULT_LIVE_CHECK_TEMPLATES: Dir<'_> =
@@ -81,7 +81,7 @@ impl From<String> for InputFormat {
 #[weaver_command(
     section = "live-check",
     config_type = "::weaver_config::LiveCheckConfig",
-    extra_config_only = "finding_filters"
+    extra_config_only = "finding_filters,finding_level_overrides"
 )]
 #[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryLiveCheckArgs {
@@ -287,7 +287,7 @@ pub(crate) fn command(
     info!("Resolving registry `{}`", registry_args.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&registry_args, &policy_args, auth);
+    let weaver = WeaverEngine::new(&registry_args, &policy_args, &cmd_config.resolve, auth);
     let resolved_registry = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let registry = match resolved_registry {
         crate::weaver::Resolved::V2(resolved_v2) => {
@@ -302,7 +302,8 @@ pub(crate) fn command(
     // Create the live checker with advisors
     let mut live_checker = LiveChecker::new(Arc::new(registry), default_advisors());
 
-    live_checker.finding_modifier = FindingModifier::from_filters(&config.finding_filters);
+    live_checker.finding_modifier =
+        FindingModifier::from_rules(&config.finding_filters, &config.finding_level_overrides)?;
 
     let rego_advisor = RegoAdvisor::new(
         &live_checker,
@@ -313,7 +314,7 @@ pub(crate) fn command(
     live_checker.add_advisor(Box::new(rego_advisor));
 
     // Prepare the ingester
-    let mut admin_report_sender: Option<AdminReportSender> = None;
+    let mut shutdown_coordinator: Option<ShutdownCoordinator> = None;
     let ingester = match (&input_source, &input_format) {
         (InputSource::File(path), InputFormat::Text) => TextFileIngester::new(path).ingest()?,
 
@@ -330,13 +331,11 @@ pub(crate) fn command(
                 admin_port: config.otlp.admin_port,
                 inactivity_timeout: config.otlp.inactivity_timeout,
             };
-            let (iter, sender) = otlp.ingest_otlp()?;
+            let (iter, coordinator) = otlp.ingest_otlp()?;
             if is_http_output {
-                sender
-                    .expect_report
-                    .store(true, std::sync::atomic::Ordering::Relaxed);
+                coordinator.set_expect_report(true);
             }
-            admin_report_sender = Some(sender);
+            shutdown_coordinator = Some(coordinator);
             iter
         }
     };
@@ -422,12 +421,9 @@ pub(crate) fn command(
     }
 
     if is_http_output {
-        let admin_waiting = admin_report_sender.as_ref().is_some_and(|s| {
-            s.sender
-                .lock()
-                .expect("Failed to acquire lock on admin report sender")
-                .is_some()
-        });
+        let admin_waiting = shutdown_coordinator
+            .as_ref()
+            .is_some_and(ShutdownCoordinator::is_report_pending);
 
         if admin_waiting {
             // Format report and send through admin channel
@@ -462,15 +458,11 @@ pub(crate) fn command(
                     .generate_to_string(&report)
                     .map_err(DiagnosticMessages::from)?
             };
-            if let Some(report) = admin_report_sender.take() {
-                if let Some(sender) = report
-                    .sender
-                    .lock()
-                    .expect("Failed to acquire lock on admin report sender")
-                    .take()
-                {
-                    let _ = sender.send((content_type, body));
-                }
+            if let Some(coordinator) = shutdown_coordinator.take() {
+                coordinator.deliver_report(content_type, body);
+                // Don't let the process exit until the admin server has
+                // actually finished writing the /stop response.
+                coordinator.wait_for_admin_shutdown();
             }
         } else {
             // No HTTP client waiting (SIGINT/inactivity stop), fall back to stdout
@@ -505,11 +497,64 @@ pub(crate) fn command(
 
 #[cfg(test)]
 mod tests {
-    use super::RegistryLiveCheckArgs;
+    use serde_json::json;
+    use weaver_forge::{OutputProcessor, OutputTarget};
+    use weaver_live_check::{
+        sample_attribute::SampleAttribute,
+        sample_instrumentation_scope::SampleInstrumentationScope, LiveCheckResult, Sample,
+    };
+
+    use super::{RegistryLiveCheckArgs, DEFAULT_LIVE_CHECK_TEMPLATES};
     use crate::registry::tests::assert_config_cli_consistency;
 
     #[test]
     fn config_fields_match_cli_args() {
         assert_config_cli_consistency::<RegistryLiveCheckArgs>();
+    }
+
+    #[test]
+    fn ansi_output_displays_instrumentation_scope_through_the_normal_sample_path() {
+        let output = OutputProcessor::new(
+            "ansi",
+            "live_check",
+            Some(&DEFAULT_LIVE_CHECK_TEMPLATES),
+            None,
+            OutputTarget::Stdout,
+        )
+        .expect("ANSI output processor should load");
+
+        let sample = Sample::InstrumentationScope(SampleInstrumentationScope {
+            name: "scope-name".to_owned(),
+            version: "1.2.3".to_owned(),
+            schema_url: "https://example.test/schema".to_owned(),
+            attributes: vec![SampleAttribute {
+                name: "scope.environment".to_owned(),
+                value: Some(json!("test")),
+                r#type: None,
+                live_check_result: Some(LiveCheckResult::new()),
+            }],
+            dropped_attributes_count: 2,
+            live_check_result: Some(LiveCheckResult::new()),
+        });
+
+        let rendered = output
+            .generate_to_string(&sample)
+            .expect("ANSI sample should render");
+
+        assert_eq!(
+            rendered.matches("Instrumentation scope").count(),
+            1,
+            "{rendered}"
+        );
+        assert!(
+            rendered.contains("\x1b[92mscope-name\x1b[0m"),
+            "scope name should use the finding-level sample header colour: {rendered}"
+        );
+        assert!(rendered.contains("1.2.3"), "{rendered}");
+        assert!(
+            rendered.contains("https://example.test/schema"),
+            "{rendered}"
+        );
+        assert!(rendered.contains("scope.environment"), "{rendered}");
     }
 }

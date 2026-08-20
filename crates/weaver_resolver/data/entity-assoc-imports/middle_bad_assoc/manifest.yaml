@@ -1,0 +1,9 @@
+name: middle
+description: >
+  The metric is associated with an entity that exists nowhere in the dependency
+  graph. Resolution must fail.
+schema_url: https://example.com/middle/1.0.0
+dependencies:
+  - name: base
+    schema_url: https://example.com/base/1.0.0
+    registry_path: data/entity-assoc-imports/base

@@ -28,6 +28,7 @@ opentelemetry-otlp.workspace = true
 opentelemetry-stdout.workspace = true
 tokio.workspace = true
 strum = { version = "0.27.2", features = ["derive"] }
+globset.workspace = true
 
 [dev-dependencies]
 weaver_test_support = { path = "../weaver_test_support" }
@@ -37,6 +38,7 @@ serde_yaml.workspace = true
 serial_test = "3.4.0"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 ureq.workspace = true
+reqwest.workspace = true
 
 [lints]
 workspace = true

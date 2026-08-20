@@ -3,7 +3,7 @@
 #![doc = include_str!("../README.md")]
 
 use lru::LruCache;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 use weaver_common::http_auth::HttpAuthResolver;
@@ -11,6 +11,7 @@ use weaver_common::result::WResult;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::group::ImportsWithProvenance;
+use weaver_semconv::manifest::Dependency;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::semconv::SemConvSpecWithProvenance;
@@ -24,6 +25,7 @@ pub(crate) mod conflict_strategy;
 mod dependency;
 mod dependency_resolution;
 mod error;
+mod imports;
 mod loader;
 pub(crate) mod merge;
 mod registry;
@@ -92,7 +94,7 @@ pub struct WeaverResolverConfig {
 
     /// Explicit overrides mapping a requested SchemaUrl to an alternative VirtualDirectoryPath.
     /// Used to redirect dependency graph requests to local clones, forks, or custom archives.
-    pub schema_url_overrides: HashMap<SchemaUrl, weaver_common::vdir::VirtualDirectoryPath>,
+    pub schema_url_overrides: BTreeMap<SchemaUrl, weaver_common::vdir::VirtualDirectoryPath>,
 }
 
 impl Default for WeaverResolverConfig {
@@ -102,7 +104,7 @@ impl Default for WeaverResolverConfig {
             follow_symlinks: false,
             include_unreferenced: false,
             auth: HttpAuthResolver::empty(),
-            schema_url_overrides: HashMap::new(),
+            schema_url_overrides: BTreeMap::new(),
         }
     }
 }
@@ -243,6 +245,37 @@ impl WeaverResolver {
     }
 }
 
+/// Trait for resolving schemas on demand from cache or remote repositories.
+pub trait SchemaResolver {
+    /// Resolves a schema by its SchemaUrl, returning the resolved bundle along with any non-fatal errors.
+    fn resolve_schema(
+        &mut self,
+        schema_url: &SchemaUrl,
+    ) -> WResult<Arc<WeaverResolvedSchema>, Error>;
+}
+
+impl SchemaResolver for WeaverResolver {
+    fn resolve_schema(
+        &mut self,
+        schema_url: &SchemaUrl,
+    ) -> WResult<Arc<WeaverResolvedSchema>, Error> {
+        self.resolve_schema(schema_url)
+    }
+}
+
+/// A no-op schema resolver that returns a fatal error indicating schema URL resolution failure.
+#[derive(Debug, Clone, Default)]
+pub struct NullSchemaResolver;
+
+impl SchemaResolver for NullSchemaResolver {
+    fn resolve_schema(
+        &mut self,
+        _schema_url: &SchemaUrl,
+    ) -> WResult<Arc<WeaverResolvedSchema>, Error> {
+        WResult::FatalErr(Error::FailToResolveSchemaUrl {})
+    }
+}
+
 /// Abstraction for querying chosen dependency versions and resolved schemas from cache during resolution.
 pub(crate) trait SchemaCacheLookup {
     /// Returns the highest chosen SchemaUrl across the current graph for a given registry name.
@@ -366,6 +399,7 @@ impl WeaverResolver {
         };
         let mut attr_catalog = AttributeCatalog::default();
 
+        // Every registry this schema was built from, direct and transitive.
         let mut dependencies = std::collections::BTreeSet::new();
         for d in &resolved_dependencies {
             match d {
@@ -373,9 +407,11 @@ impl WeaverResolver {
                     if let Ok(url) = SchemaUrl::try_from(schema.schema_url.as_str()) {
                         _ = dependencies.insert(url);
                     }
+                    dependencies.extend(schema.dependencies.iter().cloned());
                 }
                 ResolvedDependency::V2(schema) => {
                     _ = dependencies.insert(schema.schema_url.clone());
+                    dependencies.extend(schema.dependencies.iter().cloned());
                 }
             }
         }
@@ -491,7 +527,7 @@ impl WeaverResolver {
                 Err(e) => return WResult::FatalErr(Error::FailToResolveDefinition(e)),
             }
         } else {
-            let dep = weaver_semconv::manifest::Dependency {
+            let dep = Dependency {
                 schema_url: schema_url.clone(),
                 registry_path: None,
             };
@@ -909,6 +945,17 @@ mod tests {
         assert_resolved_v2_schema("data/registry-test-v2-dep/span_registry")
     }
 
+    /// End-to-end test for a span imported from a v2 dependency.
+    ///
+    /// `sampling_relevant` is declared on the span's attribute ref, not on the
+    /// catalog attribute, so importing the span has to carry it across from
+    /// the ref. Refining the span already does (see the test above).
+    #[test]
+    fn test_v2_dependency_span_import_preserves_sampling_relevant(
+    ) -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/span_import_registry")
+    }
+
     /// End-to-end test for an event refinement over a v2 dependency
     #[test]
     fn test_v2_dependency_event_refinement_inherits_attributes() -> Result<(), weaver_semconv::Error>
@@ -917,17 +964,106 @@ mod tests {
     }
 
     /// End-to-end test for an entity refinement over a v2 dependency
-    ///
-    /// TODO: ignored until entity refinement inheritance preserves the
-    /// attribute role. Currently the dependency lookup drops the role (see
-    /// `attr_spec` in dependency.rs), so the base entity's identity
-    /// attributes collapse into `description` and this test fails. Re-enable
-    /// once that is fixed and generate the expected schema.
     #[test]
-    #[ignore = "entity refinement drops identity/description role; see attr_spec TODO"]
-    fn test_v2_dependency_entity_refinement_inherits_attributes(
-    ) -> Result<(), weaver_semconv::Error> {
+    fn test_v2_dependency_entity_refinement_preserves_roles() -> Result<(), weaver_semconv::Error> {
         assert_resolved_v2_schema("data/registry-test-v2-dep/entity_registry")
+    }
+
+    /// Refinements over two dependencies, where the attributes of one of them
+    /// are defined a level deeper. Provenance must name the registry that
+    /// defines an attribute, not the one it was reached through.
+    #[test]
+    fn test_v2_transitive_dependency_attribute_provenance() -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/deep_registry")
+    }
+
+    /// An attribute a dependency inherited rather than defined reaches this
+    /// registry only through the signals that carry it. Refining such a signal
+    /// must not turn the attribute into something a bare `ref` can resolve
+    /// against - that would resolve to the refinement's own copy.
+    #[test]
+    fn test_inherited_attribute_is_not_a_definition() -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/inherited-ref-test/user".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+
+        match resolver
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .into_result_failing_non_fatal()
+        {
+            Ok(_) => panic!("expected `base.attr` to be unresolvable in `user.metric`"),
+            Err(e) => {
+                let msg = e.to_string();
+                assert!(
+                    msg.contains("metric.user.metric") && msg.contains("base.attr"),
+                    "Expected an unresolved attribute reference, got: {msg}"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// Same as above, but resolving the dependency from source rather than from
+    /// a published artifact. Both forms must refuse the reference - otherwise a
+    /// registry resolves differently depending on how it was delivered.
+    #[test]
+    fn test_inherited_attribute_is_not_a_definition_from_source(
+    ) -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/inherited-ref-test/refiner_user".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+
+        match resolver
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .into_result_failing_non_fatal()
+        {
+            Ok(_) => panic!("expected `base.attr` to be unresolvable in `refiner.user.metric`"),
+            Err(e) => {
+                let msg = e.to_string();
+                assert!(
+                    msg.contains("metric.refiner.user.metric") && msg.contains("base.attr"),
+                    "Expected an unresolved attribute reference, got: {msg}"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// Refinement over a v1 dependency: attributes defined by the dependency
+    /// and attributes it inherited from its own dependency must be attributed
+    /// to different registries.
+    #[test]
+    fn test_v1_dependency_attribute_provenance() -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/v1_dep_registry")
+    }
+
+    /// Can't demote an identity attribute of a base entity.
+    #[test]
+    fn test_v2_dependency_entity_identity_demotion_rejected() -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-v2-dep/entity_demote_registry/registry".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+
+        match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(_) | WResult::OkWithNFEs(_, _) => {
+                panic!("Expected resolution to fail with an identity demotion error")
+            }
+            WResult::FatalErr(e) => {
+                let msg = e.to_string();
+                assert!(
+                    msg.contains("Entity refinement `demoted.host` changes the identity of")
+                        && msg.contains("referencing `host.id` under `Descriptive`"),
+                    "Expected identity demotion error, got: {msg}"
+                );
+            }
+        }
+        Ok(())
     }
 
     #[test]
@@ -1422,6 +1558,50 @@ groups:
     }
 
     #[test]
+    fn test_dep_exclusion_migration_redefine_ref_before_def() {
+        // Test that when a consumer references a redefined attribute (via ref) in a group,
+        // it resolves against the local definition rather than falling back to the dependency's
+        // excluded definition.
+        let consumer_yaml = r#"
+file_format: definition/2
+metrics:
+  - name: moved.metric
+    requirement_level: recommended
+    instrument: counter
+    unit: "1"
+    stability: stable
+    brief: Redefined metric.
+    attributes:
+      - ref: moved.attr
+        requirement_level: required
+attributes:
+  - key: moved.attr
+    type: string
+    stability: stable
+    brief: Redefined attribute (same name as the deprecated parent item).
+"#;
+        let result = resolve_inline_with_parent(
+            consumer_yaml,
+            "data/registry-test-dep-exclusion/migration_parent",
+        );
+        let resolved = match result {
+            WResult::Ok(s) | WResult::OkWithNFEs(s, _) => s,
+            WResult::FatalErr(e) => panic!("expected success; got {e:?}"),
+        };
+
+        let metric = resolved
+            .groups(GroupType::Metric)
+            .get("metric.moved.metric")
+            .cloned()
+            .expect("metric.moved.metric should be present");
+        let attr = resolved
+            .catalog
+            .attribute(&metric.attributes[0])
+            .expect("attribute should exist in catalog");
+        assert_eq!(attr.name, "moved.attr");
+    }
+
+    #[test]
     fn test_within_registry_leak_v2_refinement() {
         // V2: a public metric_refinement targets an excluded base metric in
         // the same registry. Exercises the `extends` exclusion path on V2.
@@ -1429,6 +1609,180 @@ groups:
             resolve_at("data/registry-test-dep-exclusion/within_registry_v2_leak_ref"),
             &[("metric.parent.base", "child.refined")],
         );
+    }
+
+    #[test]
+    fn test_v2_refinement_attribute_precedence() {
+        // Precedence for an attribute a refinement inherits from its parent,
+        // re-declares via `ref_group`, and overrides inline must be:
+        // inline `ref:` > `ref_group` > parent.
+        //   - test.a: parent + ref_group -> ref_group wins.
+        //   - test.b: parent + ref_group + inline -> inline wins.
+        let registry_spec = r#"
+file_format: definition/2
+attributes:
+  - key: test.a
+    type: string
+    brief: Base a
+    stability: stable
+  - key: test.b
+    type: string
+    brief: Base b
+    stability: stable
+attribute_groups:
+  - id: parent.group
+    visibility: public
+    brief: Parent group
+    stability: stable
+    attributes:
+      - ref: test.a
+        brief: parent a
+      - ref: test.b
+        brief: parent b
+  - id: override.group
+    visibility: public
+    brief: Override group
+    stability: stable
+    attributes:
+      - ref: test.a
+        brief: override a
+      - ref: test.b
+        brief: override b
+spans:
+  - type: base.span
+    requirement_level: recommended
+    kind: client
+    name:
+      note: base span
+    brief: Base span
+    stability: stable
+    attributes:
+      - ref_group: parent.group
+span_refinements:
+  - id: span.refined
+    ref: base.span
+    brief: Refined span
+    attributes:
+      - ref_group: override.group
+      - ref: test.b
+        brief: inline b
+"#;
+        let loaded = LoadedSemconvRegistry::create_from_string(registry_spec)
+            .expect("Failed to load semconv spec");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let resolved = match resolver.resolve_loaded(loaded) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => {
+                Arc::unwrap_or_clone(r).into_v1().unwrap()
+            }
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+
+        let refined = resolved
+            .group("span.refined")
+            .expect("span.refined not found");
+        let mut briefs = HashMap::new();
+        for attr_ref in &refined.attributes {
+            let attr = resolved
+                .catalog
+                .attribute(attr_ref)
+                .expect("Failed to resolve attribute ref");
+            _ = briefs.insert(attr.name.clone(), attr.brief.clone());
+        }
+        assert_eq!(
+            briefs.get("test.a").map(String::as_str),
+            Some("override a"),
+            "ref_group must override the parent-inherited attribute"
+        );
+        assert_eq!(
+            briefs.get("test.b").map(String::as_str),
+            Some("inline b"),
+            "inline `ref:` must override both ref_group and parent"
+        );
+    }
+
+    #[test]
+    fn test_v2_unresolved_ref_group() {
+        // A `ref_group` pointing at a group that does not exist reports
+        // `UnresolvedIncludeRef` (not the `extends`-flavored error).
+        let result = create_registry_from_string(
+            r#"
+file_format: definition/2
+spans:
+  - type: base.span
+    requirement_level: recommended
+    kind: client
+    name:
+      note: base span
+    brief: Base span
+    stability: stable
+    attributes:
+      - ref_group: missing.group
+"#,
+        );
+        match result.into_result_failing_non_fatal() {
+            Ok(_) => panic!("expected an unresolved include error"),
+            Err(Error::CompoundError(errors)) => {
+                assert!(
+                    errors.iter().any(|e| matches!(
+                        e,
+                        Error::UnresolvedIncludeRef { group_id, include_ref, .. }
+                            if group_id == "span.base.span" && include_ref == "missing.group"
+                    )),
+                    "expected UnresolvedIncludeRef on span.base.span, got {errors:#?}"
+                );
+            }
+            Err(e) => panic!("expected CompoundError, got {e:?}"),
+        }
+    }
+
+    #[test]
+    fn test_v2_excluded_ref_group() {
+        // A public span pulling in an excluded group via `ref_group` leaks it —
+        // the include path must trip the same exclusion check as `extends`.
+        let result = create_registry_from_string(
+            r#"
+file_format: definition/2
+attributes:
+  - key: test.attr
+    type: string
+    brief: attr
+    stability: stable
+attribute_groups:
+  - id: attrs.excluded
+    visibility: public
+    brief: Excluded group.
+    stability: stable
+    annotations:
+      dependency_resolution:
+        exclude: true
+    attributes:
+      - ref: test.attr
+spans:
+  - type: leaky.span
+    requirement_level: recommended
+    kind: internal
+    name:
+      note: leaky
+    brief: Public span that pulls in an excluded group.
+    stability: stable
+    attributes:
+      - ref_group: attrs.excluded
+"#,
+        );
+        match result.into_result_failing_non_fatal() {
+            Ok(_) => panic!("expected an exclusion error"),
+            Err(Error::CompoundError(errors)) => {
+                assert!(
+                    errors.iter().any(|e| matches!(
+                        e,
+                        Error::ExcludedFromDependencyResolution { id, used_in, .. }
+                            if id == "attrs.excluded" && used_in == "span.leaky.span"
+                    )),
+                    "expected ExcludedFromDependencyResolution on span.leaky.span, got {errors:#?}"
+                );
+            }
+            Err(e) => panic!("expected CompoundError, got {e:?}"),
+        }
     }
 
     #[test]
@@ -1566,6 +1920,152 @@ groups:
     }
 
     #[test]
+    fn test_imported_attribute_keeps_origin_provenance() -> Result<(), weaver_semconv::Error> {
+        // `main` imports one metric from `base` and one from `middle`; both
+        // use `host.id`, which is defined only in `base` (a dependency of
+        // `middle`). Middle's re-export of `host.id` must keep base's
+        // provenance so both paths agree on the attribute's origin and the
+        // schema resolves cleanly.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/correct-provenance/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let config = WeaverResolverConfig::default();
+        let mut resolver = WeaverResolver::new(config);
+
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+
+        let (attr, _) = resolved
+            .catalog
+            .root_attribute("host.id")
+            .expect("host.id not found in catalog");
+        assert_eq!(attr.brief, "Unique host ID.");
+        Ok(())
+    }
+
+    #[test]
+    fn test_upgraded_group_keeps_winning_version_provenance() -> Result<(), weaver_semconv::Error> {
+        // `main` imports `c.metric.1` via A (which pins C v1.1) and
+        // `c.span.2` via B (which pins C v1.2). The compatible version
+        // conflict resolves in favor of C v1.2 and the attribute catalog is
+        // upgraded accordingly (`c.attr1` reports the v1.2 brief, as covered
+        // by test_standalone_vs_graph_provenance_immutability). The group
+        // must be upgraded consistently: `metric.c.metric.1` should carry
+        // C v1.2's definition and provenance.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/compatible-version-conflict/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let config = WeaverResolverConfig::default();
+        let mut resolver = WeaverResolver::new(config);
+
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+
+        let metrics = resolved.groups(GroupType::Metric);
+        let metric = metrics
+            .get("metric.c.metric.1")
+            .expect("metric.c.metric.1 not found");
+        let provenance = metric
+            .provenance()
+            .expect("metric.c.metric.1 has no lineage");
+        assert_eq!(
+            provenance.schema_url.to_string(),
+            "https://example.com/c/1.2.0"
+        );
+        assert_eq!(metric.brief, "Metric 1 in C v1.2 (updated)");
+        Ok(())
+    }
+
+    #[test]
+    fn test_upgraded_group_keeps_winning_version_provenance_published(
+    ) -> Result<(), weaver_semconv::Error> {
+        // Same shape as test_upgraded_group_keeps_winning_version_provenance,
+        // but A is a *published* (resolved/2.0) registry whose embedded copy
+        // of `c.metric.1` was resolved against C v1.1. B (a definition
+        // registry) pins C v1.2, which wins the version conflict. The metric
+        // imported through the published V2 path must also be upgraded to
+        // C v1.2's definition and provenance.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/compatible-version-conflict-published/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let config = WeaverResolverConfig::default();
+        let mut resolver = WeaverResolver::new(config);
+
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+
+        let metrics = resolved.groups(GroupType::Metric);
+        let metric = metrics
+            .values()
+            .find(|g| g.metric_name.as_deref() == Some("c.metric.1"))
+            .expect("metric c.metric.1 not found");
+        let provenance = metric.provenance().expect("c.metric.1 has no lineage");
+        assert_eq!(
+            provenance.schema_url.to_string(),
+            "https://example.com/c/1.2.0"
+        );
+        assert_eq!(metric.brief, "Metric 1 in C v1.2 (updated)");
+        Ok(())
+    }
+
+    #[test]
+    fn test_v1_manifest_resolves_dependency_declared_by_name() {
+        // `main` is a v1 manifest, where `name` + `registry_path` stays supported.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/v1-dependency-syntax/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("a v1 manifest may declare dependencies by name");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+        assert!(
+            resolved
+                .groups(GroupType::Metric)
+                .values()
+                .any(|g| g.metric_name.as_deref() == Some("dep.uptime")),
+            "expected the imported metric from the dependency to resolve"
+        );
+    }
+
+    #[test]
+    fn test_dependency_without_schema_url_is_rejected() {
+        // `main` is a v2 manifest (it declares its own `schema_url`) but declares its
+        // dependency with only `name` and `registry_path`. `schema_url` is mandatory there --
+        // it is the identity provenance and version-conflict resolution key on.
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/mandatory-schema-url/main".to_owned(),
+        };
+        let err_msg = match RegistryRepo::try_new(None, &registry_path, &mut vec![]) {
+            Err(e) => e.to_string(),
+            Ok(registry_repo) => {
+                let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+                match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+                    WResult::Ok(_) | WResult::OkWithNFEs(_, _) => panic!(
+                        "expected an error for the dependency missing 'schema_url', but resolution succeeded"
+                    ),
+                    WResult::FatalErr(e) => e.to_string(),
+                }
+            }
+        };
+        assert!(
+            err_msg.contains("schema_url") && err_msg.contains("dep"),
+            "error should name the dependency missing 'schema_url'; got: {err_msg}"
+        );
+    }
+
+    #[test]
     fn test_standalone_vs_graph_provenance_immutability() -> Result<(), weaver_semconv::Error> {
         // 1. Setup a single WeaverResolver instance with overrides pointing to compatible-version-conflict.
         let mut config = WeaverResolverConfig::default();
@@ -1639,6 +2139,20 @@ groups:
         let url_b = SchemaUrl::try_from("https://example.com/b/0.1.0").unwrap();
         assert!(v1_main.dependencies.contains(&url_a));
         assert!(v1_main.dependencies.contains(&url_b));
+        // `dependencies` is the table `DependencyRef` provenance indexes into,
+        // so it must also name the registries reached *through* A and B —
+        // otherwise elements inherited from C have nothing to point at and are
+        // reported as locally defined.
+        assert!(
+            v1_main.dependencies.contains(&url_c_v1_1),
+            "transitive dependency C v1.1 missing from {:?}",
+            v1_main.dependencies
+        );
+        assert!(
+            v1_main.dependencies.contains(&url_c_v1_2),
+            "transitive dependency C v1.2 missing from {:?}",
+            v1_main.dependencies
+        );
 
         // 4. Check the cached A schema in isolation once again.
         // It MUST remain completely untouched and still report C v1.1.
@@ -1660,6 +2174,791 @@ groups:
         Ok(())
     }
 
+    /// An element reaching a registry through a dependency-of-a-dependency must
+    /// be attributed to the registry that defined it.
+    ///
+    /// The `transitive-provenance` fixture is a plain three-level chain:
+    /// `base <- middle <- main`, where `middle` only re-exports base's metric and
+    /// `main` depends on `middle` alone. `base` is therefore reachable solely
+    /// through `middle`.
+    ///
+    /// Provenance is a `DependencyRef` index into the resolved schema's
+    /// `dependencies` set. If that set records only the direct dependencies,
+    /// `base` has no entry for the metric to point at, its `source` is left
+    /// empty, and the metric is reported as defined by `main` itself — even
+    /// though its recorded path names a file in `base`.
+    #[test]
+    fn test_transitive_dependency_provenance_resolves() -> Result<(), Error> {
+        use weaver_resolved_schema::v2::catalog::AttributeCatalog;
+
+        const BASE: &str = "https://example.com/base/1.0.0";
+
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/transitive-provenance/main".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("failed to create registry repo");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Failed to resolve main: {e}"),
+        };
+        let v1 = resolved.as_v1().expect("Expected a V1 schema for main");
+        let v2: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+            v1.clone().try_into().expect("v1 -> v2 conversion");
+
+        // `base` is not a direct dependency of `main`, so it is only in the set
+        // if transitive dependencies are recorded.
+        let base_url: SchemaUrl = BASE.try_into().expect("valid schema url");
+        assert!(
+            v2.dependencies.contains(&base_url),
+            "transitive dependency `base` missing from {:?}",
+            v2.dependencies
+        );
+
+        let deps: Vec<&SchemaUrl> = v2.dependencies.iter().collect();
+        let metric = v2
+            .registry
+            .metrics
+            .iter()
+            .find(|m| &*m.name == "base.uptime")
+            .expect("main imported base.uptime");
+
+        assert!(
+            !metric.provenance.is_empty(),
+            "`base.uptime` came from `base` but is reported as defined by `main`"
+        );
+        let source = metric
+            .provenance
+            .source
+            .and_then(|r| deps.get(r.0 as usize))
+            .expect("metric provenance resolves to a dependency");
+        assert_eq!(source.as_str(), BASE, "attributed to the wrong registry");
+
+        // The attribute it carries came from `base` too, not from `middle`.
+        let attr_ref = metric
+            .attributes
+            .first()
+            .expect("base.uptime has attributes");
+        let attr = v2
+            .attribute_catalog
+            .attribute(&attr_ref.base)
+            .expect("attribute in catalog");
+        let attr_source = attr
+            .provenance
+            .source
+            .and_then(|r| deps.get(r.0 as usize))
+            .expect("attribute provenance resolves to a dependency");
+        assert_eq!(attr_source.as_str(), BASE);
+
+        Ok(())
+    }
+
+    /// True for the "`definition/2` is not yet stable" warning. Every file in
+    /// these fixtures gives this warning, and these tests ignore it.
+    fn is_unstable_format_warning(e: &Error) -> bool {
+        matches!(
+            e,
+            Error::FailToResolveDefinition(weaver_semconv::Error::UnstableFileFormat { .. })
+        )
+    }
+
+    fn load_entity_assoc_fixture(name: &str) -> WResult<WeaverResolvedSchema, Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: format!("data/entity-assoc-imports/{name}"),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("failed to create registry repo");
+        WeaverResolver::new(WeaverResolverConfig::default())
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+    }
+
+    /// Resolves one of the `entity-assoc-imports` registries. Returns the
+    /// resolved schema and the non-fatal errors.
+    fn resolve_entity_assoc_fixture(name: &str) -> (V2Schema, Vec<Error>) {
+        let (resolved, nfes) = match load_entity_assoc_fixture(name) {
+            WResult::Ok(r) => (r, vec![]),
+            WResult::OkWithNFEs(r, nfes) => (r, nfes),
+            WResult::FatalErr(e) => panic!("Failed to resolve `{name}`: {e}"),
+        };
+        let v1 = resolved
+            .as_v1()
+            .unwrap_or_else(|| panic!("Expected a V1 schema for `{name}`"))
+            .clone();
+        let v2: V2Schema = v1
+            .try_into()
+            .unwrap_or_else(|e| panic!("v1 -> v2 conversion for `{name}`: {e}"));
+        let nfes = nfes
+            .into_iter()
+            .filter(|e| !is_unstable_format_warning(e))
+            .collect();
+        (v2, nfes)
+    }
+
+    /// The non-fatal errors of one of the `entity-assoc-imports` registries.
+    fn entity_assoc_fixture_errors(name: &str) -> Vec<Error> {
+        resolve_entity_assoc_fixture(name).1
+    }
+
+    /// The errors of an `entity-assoc-imports` registry that must not resolve.
+    fn entity_assoc_fixture_fatal_errors(name: &str) -> Vec<Error> {
+        match load_entity_assoc_fixture(name) {
+            WResult::FatalErr(Error::CompoundError(errors)) => errors,
+            WResult::FatalErr(e) => vec![e],
+            _ => panic!("`{name}` must fail to resolve"),
+        }
+    }
+
+    /// The association expressions of the one metric in a fixture registry.
+    fn metric_associations(
+        schema: &V2Schema,
+    ) -> &[weaver_resolved_schema::v2::entity::EntityAssociation] {
+        let [metric] = schema.registry.metrics.as_slice() else {
+            panic!("expected one metric, got {:?}", schema.registry.metrics);
+        };
+        &metric.entity_associations
+    }
+
+    /// The schema url an entity reference points at. Returns `None` when the
+    /// reference names an entity of this registry.
+    fn ref_source<'a>(
+        schema: &'a V2Schema,
+        entity_ref: &weaver_resolved_schema::v2::entity::EntityRef,
+    ) -> Option<&'a str> {
+        let deps: Vec<&SchemaUrl> = schema.dependencies.iter().collect();
+        entity_ref
+            .provenance
+            .source
+            .and_then(|r| deps.get(r.0 as usize))
+            .map(|url| url.as_str())
+    }
+
+    /// The registry that defines the `host` entity.
+    const BASE_URL: &str = "https://example.com/base/1.0.0";
+
+    /// Entity types in the resolved registry, in registry order.
+    fn entity_types(schema: &V2Schema) -> Vec<&str> {
+        schema
+            .registry
+            .entities
+            .iter()
+            .map(|e| e.r#type.as_ref())
+            .collect()
+    }
+
+    /// The schema url of the registry that defines an entity. Returns `None`
+    /// when the resolver reports the entity as local to this registry.
+    fn entity_source<'a>(schema: &'a V2Schema, entity_type: &str) -> Option<&'a str> {
+        let deps: Vec<&SchemaUrl> = schema.dependencies.iter().collect();
+        let entity = schema
+            .registry
+            .entities
+            .iter()
+            .find(|e| &*e.r#type == entity_type)
+            .expect("entity is in the resolved registry");
+        entity
+            .provenance
+            .source
+            .and_then(|r| deps.get(r.0 as usize))
+            .map(|url| url.as_str())
+    }
+
+    /// A dependent registry must import a legacy `type: resource` entity. The
+    /// group has no name, so a pattern can use only the id. The id holds the
+    /// entity type.
+    #[test]
+    fn test_legacy_resource_entity_can_be_imported() {
+        let (schema, nfes) = resolve_entity_assoc_fixture("top_legacy_import");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+        assert_eq!(
+            entity_types(&schema),
+            ["browser"],
+            "the import must reach the legacy resource group of the dependency"
+        );
+    }
+
+    /// A definition that two dependency paths reach must be imported one time.
+    ///
+    /// `top_diamond` reaches `host` directly from `base`, and also through
+    /// `middle_reexport`. Both paths lead to the same definition in `base`.
+    /// There is no conflict to resolve and nothing to report. The entity must
+    /// appear one time only, with `base` as its source.
+    #[test]
+    fn test_entity_reachable_by_two_paths_is_imported_once() {
+        let (top, nfes) = resolve_entity_assoc_fixture("top_diamond");
+
+        assert_eq!(
+            entity_types(&top),
+            ["host"],
+            "two paths reach one definition in `base`, so the result is still \
+             one entity"
+        );
+        assert_eq!(entity_source(&top, "host"), Some(BASE_URL));
+
+        let duplicates: Vec<&Error> = nfes
+            .iter()
+            .filter(|e| {
+                matches!(
+                    e,
+                    Error::DuplicateGroupId { .. } | Error::DuplicateGroupName { .. }
+                )
+            })
+            .collect();
+        assert!(
+            duplicates.is_empty(),
+            "an import of one definition by two paths is not a duplicate declaration: {duplicates:?}"
+        );
+
+        // The imported metric brings an association that resolved to the `host`
+        // of `base`, and this registry imported that same definition. The two
+        // are one entity, so the reference stays local rather than pointing back
+        // out at a definition the registry already holds.
+        let [weaver_resolved_schema::v2::entity::EntityAssociation::Ref(host)] =
+            metric_associations(&top)
+        else {
+            panic!(
+                "expected one reference, got {:?}",
+                metric_associations(&top)
+            );
+        };
+        assert_eq!(&*host.r#type, "host");
+        assert_eq!(ref_source(&top, host), None);
+    }
+
+    /// An import that no dependency satisfies must be reported.
+    ///
+    /// `top_bad_import` depends on `middle_reexport`, which does export `host`.
+    /// The import asks for `no.such.entity`. So the import fails for one reason
+    /// only: no dependency offers anything with that name.
+    #[test]
+    fn test_import_that_binds_to_nothing_is_reported() {
+        let errors = entity_assoc_fixture_errors("top_bad_import");
+        assert!(
+            matches!(
+                errors.as_slice(),
+                [Error::UnmatchedImport { pattern, signal }]
+                    if pattern == "no.such.entity" && signal == "entities"
+            ),
+            "no dependency offers `no.such.entity`, and the resolver must report \
+             this import: {errors:?}"
+        );
+    }
+
+    /// Every `imports` field is checked, not only `entities`.
+    ///
+    /// `top_bad_imports_all_types` asks for one name of each signal type that
+    /// no dependency offers. It also asks for a metric and an entity that
+    /// `middle_reexport` does export, so a report of those would be wrong.
+    #[test]
+    fn test_unmatched_imports_are_reported_for_every_signal_type() {
+        let errors = entity_assoc_fixture_errors("top_bad_imports_all_types");
+        let mut reported: Vec<(&str, &str)> = errors
+            .iter()
+            .map(|e| match e {
+                Error::UnmatchedImport { pattern, signal } => (pattern.as_str(), signal.as_str()),
+                other => panic!("unexpected error: {other:?}"),
+            })
+            .collect();
+        reported.sort_unstable();
+        assert_eq!(
+            reported,
+            [
+                ("no.such.attribute_group", "attribute_groups"),
+                ("no.such.entity", "entities"),
+                ("no.such.event", "events"),
+                ("no.such.metric", "metrics"),
+                ("no.such.span", "spans"),
+            ],
+            "each signal type must report its own unmatched import, and the \
+             imports that do bind must stay silent"
+        );
+    }
+
+    /// Two unrelated dependencies that each declare their own group with the
+    /// same id are a genuine conflict, not a diamond.
+    ///
+    /// `base` and `rival_base` share no history: different origin registries,
+    /// different identity attributes, one `host` entity each. Deduplication
+    /// buckets candidates by origin, so it must not collapse these two into
+    /// one — picking a winner silently would drop a definition the registry
+    /// asked for. Both are imported and the clash is reported, so the author
+    /// can resolve it.
+    #[test]
+    fn test_same_entity_from_unrelated_dependencies_is_reported() {
+        let (top, nfes) = resolve_entity_assoc_fixture("top_rival_import");
+
+        assert_eq!(
+            entity_types(&top),
+            ["host", "host"],
+            "unrelated definitions must not be silently deduplicated"
+        );
+
+        let duplicates: Vec<&Error> = nfes
+            .iter()
+            .filter(|e| {
+                matches!(
+                    e,
+                    Error::DuplicateGroupId { .. } | Error::DuplicateGroupName { .. }
+                )
+            })
+            .collect();
+        assert_eq!(
+            duplicates.len(),
+            2,
+            "the clash must be reported by id and by name: {nfes:?}"
+        );
+    }
+
+    /// An association resolves against a dependency without importing the
+    /// entity, and the reference says where the definition lives.
+    ///
+    /// `middle` defines `service`, and names both `service` and the `host` of
+    /// `base` in one `all_of`. The tree keeps its shape. The local leaf carries
+    /// no provenance, the leaf from `base` names `base`, and `host` stays in
+    /// `base`: there is one definition, in one place.
+    #[test]
+    fn test_association_resolves_against_a_dependency_without_importing() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        let (middle, nfes) = resolve_entity_assoc_fixture("middle");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+        assert_eq!(
+            entity_types(&middle),
+            ["service"],
+            "an association must not import the entity it names"
+        );
+
+        let [EntityAssociation::AllOf { all_of }] = metric_associations(&middle) else {
+            panic!(
+                "expected one `all_of`, got {:?}",
+                metric_associations(&middle)
+            );
+        };
+        let [EntityAssociation::Ref(service), EntityAssociation::Ref(host)] = all_of.as_slice()
+        else {
+            panic!("expected two references, got {all_of:?}");
+        };
+        assert_eq!(&*service.r#type, "service");
+        assert_eq!(
+            ref_source(&middle, service),
+            None,
+            "an entity of this registry has no provenance"
+        );
+        assert_eq!(&*host.r#type, "host");
+        assert_eq!(
+            ref_source(&middle, host),
+            Some(BASE_URL),
+            "the reference must name the registry that defines `host`"
+        );
+    }
+
+    /// A legacy `resource` group holds its entity type in `name`, and its id
+    /// carries a `resource.` prefix that is no part of the type. Every such
+    /// group in semconv v1.33.0 has this shape, and each one is named by its
+    /// type in an association.
+    #[test]
+    fn test_association_names_a_legacy_resource_entity_by_its_name() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        let (schema, nfes) = resolve_entity_assoc_fixture("legacy_resource");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+
+        let mut types = entity_types(&schema);
+        types.sort_unstable();
+        assert_eq!(
+            types,
+            ["browser", "device"],
+            "the entity type comes from `name`, and falls back to the id when \
+             the group has none"
+        );
+
+        let device = schema
+            .registry
+            .metrics
+            .iter()
+            .find(|m| &*m.name == "legacy.device.count")
+            .expect("the metric is in the resolved registry");
+        let [EntityAssociation::Ref(entity_ref)] = device.entity_associations.as_slice() else {
+            panic!(
+                "expected one reference, got {:?}",
+                device.entity_associations
+            );
+        };
+        assert_eq!(&*entity_ref.r#type, "device");
+        assert_eq!(ref_source(&schema, entity_ref), None);
+    }
+
+    /// An import satisfies an association, and the entity is then local.
+    #[test]
+    fn test_association_to_an_imported_entity_is_local() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        let (middle, nfes) = resolve_entity_assoc_fixture("middle_reexport");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+        assert_eq!(entity_types(&middle), ["host"]);
+
+        let [EntityAssociation::Ref(host)] = metric_associations(&middle) else {
+            panic!(
+                "expected one reference, got {:?}",
+                metric_associations(&middle)
+            );
+        };
+        assert_eq!(&*host.r#type, "host");
+        assert_eq!(
+            ref_source(&middle, host),
+            None,
+            "the import put `host` in this registry, so the reference is local"
+        );
+    }
+
+    /// An association that no registry in scope satisfies fails the resolve, as
+    /// an attribute `ref` that resolves to nothing does.
+    #[test]
+    fn test_association_that_nothing_defines_fails_the_resolve() {
+        let errors = entity_assoc_fixture_fatal_errors("middle_bad_assoc");
+        assert!(
+            matches!(
+                errors.as_slice(),
+                [Error::UnresolvedEntityAssociation { entity_type, .. }]
+                    if entity_type == "no.such.entity"
+            ),
+            "nothing defines `no.such.entity`: {errors:?}"
+        );
+    }
+
+    /// A private entity is out of reach by every route, an association
+    /// included.
+    #[test]
+    fn test_association_to_a_private_entity_fails_the_resolve() {
+        let errors = entity_assoc_fixture_fatal_errors("middle_excluded_assoc");
+        assert!(
+            matches!(
+                errors.as_slice(),
+                [Error::ExcludedFromDependencyResolution { id, used_in, .. }]
+                    if id == "host" && used_in == "metric.middle.request.count"
+            ),
+            "`base_excluded` keeps `host` private: {errors:?}"
+        );
+    }
+
+    /// An association that resolved in one registry keeps pointing at the
+    /// definition it found when a consumer imports the signal.
+    ///
+    /// `middle_assoc_export` associates its metric with the `host` of `base`.
+    /// `top_rebind` imports the metric, and defines an unrelated entity that
+    /// happens to be called `host` too. The import carries a resolved
+    /// reference, so it must still name `base`. Re-reading it as a bare name
+    /// would silently re-point the metric at the local entity, which is a
+    /// different entity with different identity attributes.
+    #[test]
+    fn test_imported_association_keeps_the_entity_it_resolved_to() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        let (top, nfes) = resolve_entity_assoc_fixture("top_rebind");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+
+        let [EntityAssociation::Ref(host)] = metric_associations(&top) else {
+            panic!(
+                "expected one reference, got {:?}",
+                metric_associations(&top)
+            );
+        };
+        assert_eq!(&*host.r#type, "host");
+        assert_eq!(
+            ref_source(&top, host),
+            Some(BASE_URL),
+            "the imported metric is associated with the `host` of base, not \
+             with the unrelated `host` this registry defines"
+        );
+    }
+
+    /// A private entity in one dependency does not hide a public entity of the
+    /// same name in another.
+    ///
+    /// `top_private_first` and `top_public_first` list the same two
+    /// dependencies in opposite orders. One keeps its `host` private, the other
+    /// publishes one. A private entity is no part of a dependency's surface, so
+    /// the lookup must pass over it and keep looking. Both registries must
+    /// therefore resolve, and to the same entity.
+    #[test]
+    fn test_private_entity_does_not_shadow_a_public_one() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        const RIVAL_URL: &str = "https://rival.example.com/rival/1.0.0";
+
+        for fixture in ["top_private_first", "top_public_first"] {
+            let (top, nfes) = resolve_entity_assoc_fixture(fixture);
+            assert!(
+                nfes.is_empty(),
+                "unexpected errors in `{fixture}`: {nfes:?}"
+            );
+
+            let [EntityAssociation::Ref(host)] = metric_associations(&top) else {
+                panic!(
+                    "expected one reference in `{fixture}`, got {:?}",
+                    metric_associations(&top)
+                );
+            };
+            assert_eq!(&*host.r#type, "host");
+            assert_eq!(
+                ref_source(&top, host),
+                Some(RIVAL_URL),
+                "`{fixture}` must reach the one dependency that publishes \
+                 `host`, whichever order the two are listed in"
+            );
+        }
+    }
+
+    /// Two dependencies that each declare their own entity under one name leave
+    /// an association with no answer.
+    ///
+    /// `top_ambiguous_assoc` depends on `base` and `rival_base`, which share a
+    /// name and nothing else, and imports neither. Picking one would make the
+    /// order of the manifest decide which entity the metric belongs to. The
+    /// author is the one who has to say.
+    #[test]
+    fn test_association_that_two_dependencies_answer_is_reported() {
+        let errors = entity_assoc_fixture_fatal_errors("top_ambiguous_assoc");
+        let [Error::AmbiguousEntityAssociation {
+            entity_type,
+            registries,
+            ..
+        }] = errors.as_slice()
+        else {
+            panic!("expected one ambiguity, got {errors:?}");
+        };
+        assert_eq!(entity_type, "host");
+        let mut registries = registries.clone();
+        registries.sort();
+        assert_eq!(
+            registries,
+            [BASE_URL, "https://rival.example.com/rival/1.0.0"],
+            "the report must name every registry that declares the entity"
+        );
+    }
+
+    /// One definition reached by two paths is not ambiguous.
+    ///
+    /// `top_diamond_assoc` reaches `host` through `middle_reexport` and again
+    /// through its own dependency on `base`. Both paths lead to the definition
+    /// in `base`, so there is nothing to choose between, and the association
+    /// resolves to it. This is the case that separates a diamond from a clash.
+    #[test]
+    fn test_association_reachable_by_two_paths_resolves() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        let (top, nfes) = resolve_entity_assoc_fixture("top_diamond_assoc");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+
+        let [EntityAssociation::Ref(host)] = metric_associations(&top) else {
+            panic!(
+                "expected one reference, got {:?}",
+                metric_associations(&top)
+            );
+        };
+        assert_eq!(ref_source(&top, host), Some(BASE_URL));
+    }
+
+    /// An association is not a re-export.
+    ///
+    /// `middle_assoc_export` names the `host` of `base` and does not import it,
+    /// so `host` is no part of what `middle_assoc_export` offers.
+    /// `top_transitive_assoc` depends on it alone and cannot reach `host`, as it
+    /// could not reach it through an `imports` block either.
+    #[test]
+    fn test_association_does_not_re_export_the_entity_it_names() {
+        let errors = entity_assoc_fixture_fatal_errors("top_transitive_assoc");
+        assert!(
+            matches!(
+                errors.as_slice(),
+                [Error::UnresolvedEntityAssociation { entity_type, .. }]
+                    if entity_type == "host"
+            ),
+            "naming an entity does not pass it on: {errors:?}"
+        );
+    }
+
+    /// Every expression shape resolves, on every signal type that has one, and a
+    /// leaf may name an entity refinement as well as an entity type.
+    #[test]
+    fn test_association_expression_shapes_resolve() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        let (schema, nfes) = resolve_entity_assoc_fixture("local_shapes");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+
+        // `all_of: [service, one_of: [host, host.windows]]`, where `host` is an
+        // entity type and `host.windows` refines it.
+        let [EntityAssociation::AllOf { all_of }] = metric_associations(&schema) else {
+            panic!(
+                "expected one `all_of`, got {:?}",
+                metric_associations(&schema)
+            );
+        };
+        let [EntityAssociation::Ref(service), EntityAssociation::OneOf { one_of }] =
+            all_of.as_slice()
+        else {
+            panic!("expected a reference and a `one_of`, got {all_of:?}");
+        };
+        assert_eq!(&*service.r#type, "service");
+        let [EntityAssociation::Ref(host), EntityAssociation::Ref(windows)] = one_of.as_slice()
+        else {
+            panic!("expected two references, got {one_of:?}");
+        };
+        assert_eq!(&*host.r#type, "host");
+        assert_eq!(
+            &*windows.r#type, "host.windows",
+            "a leaf may name an entity refinement by its id"
+        );
+        for entity_ref in [service, host, windows] {
+            assert_eq!(ref_source(&schema, entity_ref), None);
+        }
+
+        // A span and an event carry associations too, not metrics alone.
+        let [span] = schema.registry.spans.as_slice() else {
+            panic!("expected one span, got {:?}", schema.registry.spans);
+        };
+        assert!(
+            matches!(
+                span.entity_associations.as_slice(),
+                [EntityAssociation::OneOf { one_of }] if one_of.len() == 2
+            ),
+            "a span keeps its expression: {:?}",
+            span.entity_associations
+        );
+        let [event] = schema.registry.events.as_slice() else {
+            panic!("expected one event, got {:?}", schema.registry.events);
+        };
+        assert!(
+            matches!(
+                event.entity_associations.as_slice(),
+                [EntityAssociation::Ref(r)] if &*r.r#type == "service"
+            ),
+            "an event keeps its expression: {:?}",
+            event.entity_associations
+        );
+    }
+
+    /// A leaf may name an entity refinement that a dependency declares, and the
+    /// reference says which registry to read it from.
+    #[test]
+    fn test_association_names_a_refinement_of_a_dependency() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        let (middle, nfes) = resolve_entity_assoc_fixture("middle_refinement_assoc");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+        assert!(
+            entity_types(&middle).is_empty(),
+            "an association must not import the entity it names"
+        );
+
+        let [EntityAssociation::Ref(windows)] = metric_associations(&middle) else {
+            panic!(
+                "expected one reference, got {:?}",
+                metric_associations(&middle)
+            );
+        };
+        assert_eq!(&*windows.r#type, "host.windows");
+        assert_eq!(ref_source(&middle, windows), Some(BASE_URL));
+    }
+
+    /// A signal refinement declares associations of its own, and they resolve
+    /// against the dependencies as a signal's do.
+    #[test]
+    fn test_refinement_association_resolves_against_a_dependency() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        let (middle, nfes) = resolve_entity_assoc_fixture("middle_refined_signal");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+
+        let [refinement] = middle.refinements.metrics.as_slice() else {
+            panic!(
+                "expected one metric refinement, got {:?}",
+                middle.refinements.metrics
+            );
+        };
+        let [EntityAssociation::Ref(host)] = refinement.metric.entity_associations.as_slice()
+        else {
+            panic!(
+                "expected one reference, got {:?}",
+                refinement.metric.entity_associations
+            );
+        };
+        assert_eq!(&*host.r#type, "host");
+        assert_eq!(ref_source(&middle, host), Some(BASE_URL));
+    }
+
+    /// An entity is looked for among the entities. A signal of another kind
+    /// that happens to share the name does not satisfy an association.
+    #[test]
+    fn test_association_does_not_match_a_signal_of_another_kind() {
+        let errors = entity_assoc_fixture_fatal_errors("middle_name_clash");
+        assert!(
+            matches!(
+                errors.as_slice(),
+                [Error::UnresolvedEntityAssociation { entity_type, .. }]
+                    if entity_type == "host"
+            ),
+            "a metric called `host` is no entity: {errors:?}"
+        );
+    }
+
+    /// A legacy `type: resource` group holds its entity type in `name`, and an
+    /// association names the type. The group id is another thing, and an
+    /// `imports` pattern that may use it does not make it an entity type.
+    #[test]
+    fn test_association_to_a_legacy_resource_by_group_id_fails() {
+        let errors = entity_assoc_fixture_fatal_errors("legacy_by_id");
+        assert!(
+            matches!(
+                errors.as_slice(),
+                [Error::UnresolvedEntityAssociation { entity_type, .. }]
+                    if entity_type == "resource.device"
+            ),
+            "the entity type is `device`, not the group id: {errors:?}"
+        );
+    }
+
+    /// A public signal must not name an entity its own registry keeps private.
+    ///
+    /// `dependency_resolution.exclude` keeps the entity out of the surface
+    /// offered to dependents, while the metric stays in it. A dependent that
+    /// imports the metric gets an association it cannot follow, and the same
+    /// name may mean an unrelated entity there. An attribute `ref` and an
+    /// `extends` clause both refuse this already.
+    #[test]
+    fn test_public_signal_associated_with_a_private_entity_is_reported() {
+        let errors = entity_assoc_fixture_fatal_errors("local_private_assoc");
+        assert!(
+            matches!(
+                errors.as_slice(),
+                [Error::ExcludedFromDependencyResolution { id, used_in, .. }]
+                    if id == "host" && used_in == "metric.private.request.count"
+            ),
+            "a public metric must not export a reference to a private entity: {errors:?}"
+        );
+    }
+
+    /// A private signal may name a private entity: neither is in the surface
+    /// offered to dependents, so nothing dangling leaves the registry. This is
+    /// the pass an excluded group gets for an excluded attribute too.
+    #[test]
+    fn test_private_signal_may_associate_with_a_private_entity() {
+        use weaver_resolved_schema::v2::entity::EntityAssociation;
+
+        let (schema, nfes) = resolve_entity_assoc_fixture("local_private_pair");
+        assert!(nfes.is_empty(), "unexpected errors: {nfes:?}");
+
+        let [EntityAssociation::Ref(host)] = metric_associations(&schema) else {
+            panic!(
+                "expected one reference, got {:?}",
+                metric_associations(&schema)
+            );
+        };
+        assert_eq!(&*host.r#type, "host");
+        assert_eq!(ref_source(&schema, host), None);
+    }
+
     #[test]
     fn test_three_layer_transitive_diamond_upgrade() -> Result<(), Error> {
         // Test that collect_chosen_versions traverses deeply nested multi-layer dependencies.
@@ -1672,6 +2971,7 @@ groups:
             registry_id: "base".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "https://example.com/base/1.0.0".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             catalog: weaver_resolved_schema::catalog::Catalog::default(),
@@ -1688,6 +2988,7 @@ groups:
             registry_id: "base".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "https://example.com/base/1.1.0".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             catalog: weaver_resolved_schema::catalog::Catalog::default(),
@@ -1704,6 +3005,7 @@ groups:
             registry_id: "layer1_a".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "https://example.com/layer1_a/0.1.0".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             catalog: weaver_resolved_schema::catalog::Catalog::default(),
@@ -1720,6 +3022,7 @@ groups:
             registry_id: "layer1_b".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "https://example.com/layer1_b/0.1.0".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             catalog: weaver_resolved_schema::catalog::Catalog::default(),
@@ -1762,6 +3065,7 @@ groups:
             registry_id: "c".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "https://example.com/c/1.2.0".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             catalog: weaver_resolved_schema::catalog::Catalog::default(),
@@ -1807,6 +3111,7 @@ groups:
         let orig_aws = AttributeWithSource {
             attribute: attr.clone(),
             source: orig_source.clone(),
+            is_definition: true,
         };
 
         let result_aws = AttributeCatalog::upgrade_attribute_with_source(orig_aws, &lookup_ctx)?;

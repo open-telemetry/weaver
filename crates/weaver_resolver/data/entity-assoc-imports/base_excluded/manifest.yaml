@@ -1,0 +1,5 @@
+name: base
+description: >
+  The same as `base`, but the `host` entity is excluded from dependency
+  resolution. A dependent must not reach it by any route.
+schema_url: https://example.com/base/1.0.0

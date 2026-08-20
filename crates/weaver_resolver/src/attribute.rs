@@ -8,7 +8,7 @@ use serde::Deserialize;
 
 use weaver_resolved_schema::attribute::AttributeRef;
 use weaver_resolved_schema::attribute::{self};
-use weaver_resolved_schema::catalog::Catalog;
+use weaver_resolved_schema::catalog::{Catalog, RootAttribute};
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
@@ -48,6 +48,10 @@ pub struct AttributeWithSource {
     pub attribute: attribute::Attribute,
     /// The source.
     pub source: AttributeSource,
+    /// Whether this is a definition a reference may resolve against. An
+    /// attribute inherited through a refinement is recorded for its provenance
+    /// but is an instance of a definition owned by another registry.
+    pub is_definition: bool,
 }
 
 impl AttributeCatalog {
@@ -142,19 +146,26 @@ impl AttributeCatalog {
         let mut new_attr = AttributeWithSource {
             attribute: attr,
             source,
+            is_definition: true,
         };
         // Make sure we pick the attribute from the *correct* version of a transitive dependency.
         new_attr = Self::upgrade_attribute_with_source(new_attr, cache_lookup)?;
 
-        // If we have a version conflict - resolve it.
-        let winning_attr = if let Some(existing) = self.root_attributes.get(&attr_name) {
+        // Return a ref to this group's own copy of the attribute. Different
+        // groups may reference the same attribute with different
+        // `requirement_level` or `role`, so we must not return a variant
+        // registered earlier by another group.
+        let attr_ref = self.attribute_ref(new_attr.attribute.clone());
+
+        // Separately, keep `root_attributes` (one entry per attribute name,
+        // used for provenance lookups) up to date. If the name was already
+        // registered, `resolve_conflict` decides which source wins.
+        let root_attr = if let Some(existing) = self.root_attributes.get(&attr_name) {
             resolve_conflict(&attr_name, new_attr, existing.clone())?
         } else {
             new_attr
         };
-
-        let attr_ref = self.attribute_ref(winning_attr.attribute.clone());
-        let _ = self.root_attributes.insert(attr_name, winning_attr);
+        let _ = self.root_attributes.insert(attr_name, root_attr);
 
         Ok(attr_ref)
     }
@@ -182,6 +193,20 @@ fn resolve_conflict(
     m: AttributeWithSource,
     existing: AttributeWithSource,
 ) -> Result<AttributeWithSource, Error> {
+    let m_excluded = m.attribute.annotations.as_ref().is_some_and(is_excluded);
+    let existing_excluded = existing
+        .attribute
+        .annotations
+        .as_ref()
+        .is_some_and(is_excluded);
+    if m_excluded != existing_excluded {
+        return Ok(if m_excluded { existing } else { m });
+    }
+    match (m.is_definition, existing.is_definition) {
+        (true, false) => return Ok(m),
+        (false, true) => return Ok(existing),
+        _ => {}
+    }
     match (&m.source, &existing.source) {
         (AttributeSource::Local { .. }, AttributeSource::Local { .. }) => Ok(existing),
         // Prefer Dependency over Local to preserve original SchemaUrl provenance:
@@ -277,6 +302,7 @@ impl AttributeCatalog {
         group_prefix: &str,
         group_excluded: bool,
         attr: &AttributeSpec,
+        origin: Option<&SchemaUrl>,
         lineage: Option<&mut GroupLineage>,
         dependencies: &Vec<ResolvedDependency>,
         cache_lookup: &C,
@@ -297,7 +323,10 @@ impl AttributeCatalog {
                 role,
             } => {
                 let name;
-                let mut root_attr: Option<&AttributeWithSource> = self.root_attributes.get(r#ref);
+                let mut root_attr: Option<&AttributeWithSource> = self
+                    .root_attributes
+                    .get(r#ref)
+                    .filter(|root| root.is_definition);
                 // If we fail to find an attribute, check dependencies first.
                 if root_attr.is_none() {
                     if let Some(at) = dependencies.lookup_attribute(r#ref)? {
@@ -391,6 +420,7 @@ impl AttributeCatalog {
                                 source: AttributeSource::Local {
                                     group_id: group_id.to_owned(),
                                 },
+                                is_definition: true,
                             },
                         );
                     }
@@ -443,15 +473,27 @@ impl AttributeCatalog {
                     role: role.clone(),
                 };
 
-                _ = self.root_attributes.insert(
-                    id.to_owned(),
-                    AttributeWithSource {
-                        attribute: attr.clone(),
-                        source: AttributeSource::Local {
-                            group_id: group_id.to_owned(),
-                        },
+                let source = match origin {
+                    Some(schema_url) => AttributeSource::Dependency {
+                        schema_url: schema_url.clone(),
                     },
-                );
+                    None => AttributeSource::Local {
+                        group_id: group_id.to_owned(),
+                    },
+                };
+                let root_attr = AttributeWithSource {
+                    attribute: attr.clone(),
+                    source,
+                    // An `Id` spec carrying an origin is an attribute inherited
+                    // from a dependency through a refinement, not a definition
+                    // this registry owns.
+                    is_definition: origin.is_none(),
+                };
+                let root_attr = match self.root_attributes.get(id) {
+                    Some(existing) => resolve_conflict(id, root_attr, existing.clone())?,
+                    None => root_attr,
+                };
+                _ = self.root_attributes.insert(id.to_owned(), root_attr);
                 Ok(Some(self.attribute_ref(attr)))
             }
         }
@@ -470,7 +512,14 @@ impl From<AttributeCatalog> for Catalog {
                         format!("v2_dependency.{}", schema_url.name())
                     }
                 };
-                (k, (v.attribute, source_str))
+                (
+                    k,
+                    RootAttribute {
+                        attribute: v.attribute,
+                        source_group: source_str,
+                        is_definition: v.is_definition,
+                    },
+                )
             })
             .collect();
         let mut attributes: Vec<(attribute::Attribute, AttributeRef)> =
@@ -554,41 +603,60 @@ impl AttributeLookup for ResolvedDependency {
 
 impl AttributeLookup for V1Schema {
     fn lookup_attribute(&self, key: &str) -> Result<Option<AttributeWithSource>, Error> {
-        if let Some((attr, group_id)) = self.catalog.root_attribute(key) {
+        if let Some((attr, group_id)) = self.catalog.root_attribute_definition(key) {
             // We encode pure schema_url dependencies with magic strings in V1.
-            let group = if let Some(schema_name) = group_id.strip_prefix("v2_dependency.") {
-                self.registry.groups.iter().find(|g| {
-                    if let Some(prov) = g.provenance() {
-                        prov.schema_url.name() == schema_name
-                    } else {
-                        false
-                    }
-                })
-            } else {
-                self.registry.groups.iter().find(|g| g.id == group_id)
-            };
-            let source = if let Some(g) = group {
-                if let Some(prov) = g.provenance() {
-                    AttributeSource::Dependency {
-                        schema_url: prov.schema_url.clone(),
-                    }
-                } else {
-                    AttributeSource::Local {
+            let source = if let Some(schema_name) = group_id.strip_prefix("v2_dependency.") {
+                // The attribute originates in one of this schema's own
+                // dependencies. That registry may not have contributed any
+                // whole group to this schema (e.g. only an attribute was
+                // referenced), so recover the full schema URL from the
+                // dependency list first and only fall back to the provenance
+                // of an imported group.
+                self.dependencies
+                    .iter()
+                    .find(|url| url.name() == schema_name)
+                    .cloned()
+                    .or_else(|| {
+                        self.registry.groups.iter().find_map(|g| {
+                            g.provenance()
+                                .filter(|prov| prov.schema_url.name() == schema_name)
+                                .map(|prov| prov.schema_url)
+                        })
+                    })
+                    .map(|schema_url| AttributeSource::Dependency { schema_url })
+                    .unwrap_or_else(|| AttributeSource::Local {
                         group_id: group_id.to_owned(),
-                    }
-                }
+                    })
             } else {
-                AttributeSource::Local {
-                    group_id: group_id.to_owned(),
-                }
+                self.registry
+                    .groups
+                    .iter()
+                    .find(|g| g.id == group_id)
+                    .and_then(|g| g.provenance())
+                    .map(|prov| AttributeSource::Dependency {
+                        schema_url: prov.schema_url,
+                    })
+                    .unwrap_or_else(|| AttributeSource::Local {
+                        group_id: group_id.to_owned(),
+                    })
             };
             return Ok(Some(AttributeWithSource {
                 attribute: attr.clone(),
                 source,
+                is_definition: true,
             }));
         }
 
-        // Fallback: search in all groups for the attribute
+        // This schema knows the attribute but does not define it - it arrived
+        // through a refinement and belongs to another registry. Scanning the
+        // groups below would find it on the refinement and hand it out as if
+        // this schema defined it.
+        if self.catalog.root_attribute(key).is_some() {
+            return Ok(None);
+        }
+
+        // Fallback for schemas without root attributes, e.g. ones deserialized
+        // from a published artifact: search in all groups for the attribute.
         for group in self.registry.groups.iter() {
             for attr_ref in group.attributes.iter() {
                 if let Some(a) = self.catalog.attribute(attr_ref) {
@@ -605,6 +673,7 @@ impl AttributeLookup for V1Schema {
                         return Ok(Some(AttributeWithSource {
                             attribute: a.clone(),
                             source,
+                            is_definition: true,
                         }));
                     }
                 }
@@ -640,6 +709,7 @@ impl AttributeLookup for V2Schema {
                         value: None,
                         role: None,
                     },
+                    is_definition: true,
                     source: AttributeSource::Dependency {
                         schema_url: if let Some(dep_ref) = &attr.provenance.source {
                             self.dependencies
@@ -819,6 +889,7 @@ mod tests {
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],
+                entities: vec![],
             },
             dependencies: Default::default(),
         };
@@ -839,6 +910,7 @@ mod tests {
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],
+                entities: vec![],
             },
             dependencies: Default::default(),
         };
@@ -885,7 +957,14 @@ mod tests {
             value: None,
             role: None,
         };
-        _ = root_attributes.insert(attr_name.to_owned(), (attr_v1.clone(), "group1".to_owned()));
+        _ = root_attributes.insert(
+            attr_name.to_owned(),
+            RootAttribute {
+                attribute: attr_v1.clone(),
+                source_group: "group1".to_owned(),
+                is_definition: true,
+            },
+        );
 
         let schema_v1 = V1Schema {
             file_format: "resolved/1.0".to_owned(),
@@ -893,6 +972,7 @@ mod tests {
             registry_id: "test-registry".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "v1-example".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             catalog: Catalog::new(vec![attr_v1], root_attributes),
@@ -928,6 +1008,7 @@ mod tests {
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],
+                entities: vec![],
             },
             dependencies: Default::default(),
         };
@@ -994,6 +1075,7 @@ mod tests {
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],
+                entities: vec![],
             },
             dependencies: Default::default(),
         }

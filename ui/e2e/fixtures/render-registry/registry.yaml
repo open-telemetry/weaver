@@ -99,7 +99,6 @@ attributes:
     deprecated:
       reason: renamed
       renamed_to: render.attr.string_single_example
-      note: Replaced by `render.attr.string_single_example`.
 
   - key: render.attr.deprecated_obsoleted
     type: string
@@ -208,7 +207,6 @@ metrics:
     deprecated:
       reason: renamed
       renamed_to: render.metric.counter
-      note: Replaced by `render.metric.counter`.
 
 spans:
   - type: render.span.client
