@@ -1,0 +1,12 @@
+name: top_public_first
+description: >
+  `top_private_first` with the two dependencies swapped, and nothing else
+  changed. The result must not depend on the order they are listed in.
+schema_url: https://example.com/top-shadowed/1.0.0
+dependencies:
+  - name: rival
+    schema_url: https://rival.example.com/rival/1.0.0
+    registry_path: data/entity-assoc-imports/rival_base
+  - name: base
+    schema_url: https://example.com/base/1.0.0
+    registry_path: data/entity-assoc-imports/base_excluded

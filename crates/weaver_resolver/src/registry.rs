@@ -4,8 +4,9 @@
 
 use crate::attribute::AttributeCatalog;
 use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
-use crate::dependency::{ImportableDependency, ResolvedDependency};
+use crate::dependency::{resolve_entity, EntityResolution, ResolvedDependency};
 use crate::dependency_resolution::{is_excluded, is_group_excluded};
+use crate::imports::ImportableDependency;
 use crate::Error;
 use crate::Error::{DuplicateGroupId, DuplicateGroupName, DuplicateMetricName};
 use itertools::Itertools;
@@ -17,6 +18,7 @@ use weaver_common::result::WResult;
 use weaver_resolved_schema::attribute::{AttributeRef, UnresolvedAttribute};
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::registry::{Group, Registry};
+use weaver_resolved_schema::v2::v2_namespace_id;
 use weaver_semconv::attribute::AttributeSpec;
 use weaver_semconv::group::{
     GroupSpecWithProvenance, GroupType, GroupWildcard, ImportsWithProvenance,
@@ -161,7 +163,13 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
     }
 
     // We need to *import* objects from the dependencies as required.
-    if let Err(e) = resolve_dependency_imports(&mut ureg, attr_catalog, cache_lookup) {
+    if let Err(e) = resolve_dependency_imports(&mut ureg, attr_catalog, cache_lookup, &mut errors) {
+        return WResult::FatalErr(e);
+    }
+
+    // After the imports, because a signal can arrive from a dependency with
+    // associations of its own, and because an import satisfies an association.
+    if let Err(e) = resolve_entity_associations(&mut ureg) {
         return WResult::FatalErr(e);
     }
 
@@ -220,8 +228,48 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
         },
     );
     check_root_attribute_id_duplicates(&result, &attr_name_index, &mut errors);
+    check_v2_signal_id_collisions(&result, &mut errors);
 
     WResult::OkWithNFEs(result, errors)
+}
+
+/// Checks for groups whose ids differ but that take one id in the v2 output.
+///
+/// A v2 signal id drops the group-type prefix, so the groups `entity.host` and
+/// `host` both name the entity `host`. The second then replaces the first, and
+/// a definition is lost without a word.
+///
+/// Groups that share a raw id are left to `DuplicateGroupId`, which already
+/// reports them.
+fn check_v2_signal_id_collisions(registry: &Registry, errors: &mut Vec<Error>) {
+    // Keyed on the signal type as well as the id: each type has a namespace of
+    // its own in v2, so a span and an entity may share a name.
+    // A `BTreeMap` keeps the reports in a stable order.
+    let mut by_signal: BTreeMap<(String, String), Vec<&Group>> = BTreeMap::new();
+    for group in registry.groups.iter() {
+        if let Some(signal_id) = v2_namespace_id(group) {
+            by_signal
+                .entry((group.r#type.to_string(), signal_id.to_string()))
+                .or_default()
+                .push(group);
+        }
+    }
+
+    for ((_, signal_id), groups) in by_signal {
+        let group_ids: Vec<String> = groups.iter().map(|g| g.id.clone()).unique().collect();
+        if group_ids.len() < 2 {
+            continue;
+        }
+        errors.push(Error::CollidingV2SignalId {
+            signal_id,
+            group_ids,
+            provenances: groups
+                .iter()
+                .filter_map(|g| g.provenance())
+                .unique()
+                .collect(),
+        });
+    }
 }
 
 /// Generic function to check for duplicate keys in the given registry.
@@ -384,17 +432,34 @@ fn resolve_prefix_on_attributes(ureg: &mut UnresolvedRegistry) -> Result<(), Err
 }
 
 /// Resolves imports defined on dependencies.
+///
+/// A pattern that named nothing is reported into `errors`.
 fn resolve_dependency_imports<C: crate::SchemaCacheLookup>(
     ureg: &mut UnresolvedRegistry,
     attribute_catalog: &mut AttributeCatalog,
     cache_lookup: &C,
+    errors: &mut Vec<Error>,
 ) -> Result<(), Error> {
     // Import from our dependencies, and add to the final registry.
     let imports = &ureg.imports;
     let dependencies = &ureg.dependencies;
     let groups = dependencies.import_groups(imports, attribute_catalog, cache_lookup)?;
-    for crate::dependency::GroupWithProvenance { group, schema_url } in groups {
+    // Checked against what the imports produced, before the groups move into
+    // the registry.
+    errors.extend(crate::imports::unmatched_import_errors(imports, &groups)?);
+    for crate::imports::GroupWithProvenance {
+        group,
+        schema_url,
+        association_origins,
+    } in groups
+    {
         let is_v2 = group.is_v2();
+        if !association_origins.is_empty() {
+            _ = ureg
+                .registry
+                .entity_association_origins
+                .insert(group.id.clone(), association_origins);
+        }
         let mut prov_url = if let Some(prov) = group.provenance() {
             prov.schema_url.clone()
         } else {
@@ -429,6 +494,135 @@ fn resolve_dependency_imports<C: crate::SchemaCacheLookup>(
     Ok(())
 }
 
+/// Resolves the entity associations of every signal in the registry, and records
+/// where each one resolved.
+///
+/// A name is looked for in this registry first, then in the dependencies. A name
+/// that neither holds is an error, as an unresolved attribute `ref` is. So is a
+/// name that resolves to an entity its own registry keeps private.
+///
+/// The entities of this registry need no record: the v1 to v2 conversion sees
+/// their groups. An entity that only a dependency defines has no group here, so
+/// the origin is recorded for the conversion to read.
+///
+/// An imported signal is left alone. Its association resolved once already, in
+/// the registry that declared it, and [`crate::imports`] carried that answer
+/// over. Asking the question again here would answer it in a registry where the
+/// same name may mean a different entity.
+///
+/// A private entity of this registry satisfies an association only for a signal
+/// that is private too. Otherwise the registry publishes a signal that names an
+/// entity no dependent can reach. This is the rule an attribute `ref` and an
+/// `extends` clause already follow, in [`excluded_parent_error`].
+fn resolve_entity_associations(ureg: &mut UnresolvedRegistry) -> Result<(), Error> {
+    // Most registries associate nothing, and then there is no name to look up.
+    if ureg
+        .groups
+        .iter()
+        .all(|g| g.group.entity_associations.is_empty())
+    {
+        return Ok(());
+    }
+
+    // The name an association uses is the id the entity takes in the v2 output,
+    // so the lookup and the conversion agree by construction. The value says
+    // whether this registry keeps the entity from its dependents.
+    let local: HashMap<String, bool> = ureg
+        .groups
+        .iter()
+        .filter(|g| g.group.r#type == GroupType::Entity)
+        .filter_map(|g| {
+            let excluded =
+                is_group_excluded(&g.group.annotations, g.visibility.as_ref(), &g.group.r#type);
+            v2_namespace_id(&g.group).map(|id| (id.to_string(), excluded))
+        })
+        .collect();
+
+    let mut origins: weaver_resolved_schema::registry::EntityAssociationOrigins = BTreeMap::new();
+    let mut errors = vec![];
+    // One lookup per name, however many groups name it.
+    let mut found: HashMap<String, SchemaUrl> = HashMap::new();
+    for g in ureg.groups.iter() {
+        let imported = ureg.registry.entity_association_origins.get(&g.group.id);
+        let group_excluded =
+            is_group_excluded(&g.group.annotations, g.visibility.as_ref(), &g.group.r#type);
+        for name in g
+            .group
+            .entity_associations
+            .iter()
+            .flat_map(|assoc| assoc.referenced_entities())
+            .unique()
+        {
+            // An imported signal is asked first: it brought its own answer, and
+            // a local entity of the same name is a different entity.
+            if imported.is_some_and(|m| m.contains_key(name)) {
+                continue;
+            }
+            match local.get(name) {
+                Some(false) => continue,
+                // Private, and reachable only from a signal that is private too.
+                Some(true) if group_excluded => continue,
+                Some(true) => {
+                    errors.push(Error::ExcludedFromDependencyResolution {
+                        id: name.to_owned(),
+                        r#type: GroupType::Entity.to_string(),
+                        used_in: g.group.id.clone(),
+                    });
+                    continue;
+                }
+                None => {}
+            }
+            if let Some(origin) = found.get(name) {
+                _ = origins
+                    .entry(g.group.id.clone())
+                    .or_default()
+                    .insert(name.to_owned(), origin.clone());
+                continue;
+            }
+            match resolve_entity(&ureg.dependencies, name) {
+                EntityResolution::Found(origin) => {
+                    _ = origins
+                        .entry(g.group.id.clone())
+                        .or_default()
+                        .insert(name.to_owned(), origin.clone());
+                    _ = found.insert(name.to_owned(), origin);
+                }
+                EntityResolution::Private => {
+                    errors.push(Error::ExcludedFromDependencyResolution {
+                        id: name.to_owned(),
+                        r#type: GroupType::Entity.to_string(),
+                        used_in: g.group.id.clone(),
+                    });
+                }
+                EntityResolution::Ambiguous(registries) => {
+                    errors.push(Error::AmbiguousEntityAssociation {
+                        group_id: g.group.id.clone(),
+                        entity_type: name.to_owned(),
+                        registries: registries.iter().map(|url| url.to_string()).collect(),
+                    });
+                }
+                EntityResolution::Unknown => errors.push(Error::UnresolvedEntityAssociation {
+                    group_id: g.group.id.clone(),
+                    entity_type: name.to_owned(),
+                    provenance: g.provenance.clone().map(Box::new),
+                }),
+            }
+        }
+    }
+
+    if !errors.is_empty() {
+        return Err(Error::CompoundError(errors));
+    }
+    for (group_id, group_origins) in origins {
+        ureg.registry
+            .entity_association_origins
+            .entry(group_id)
+            .or_default()
+            .extend(group_origins);
+    }
+    Ok(())
+}
+
 /// Resolves attribute references in the given registry.
 /// The resolution process is iterative. The process stops when all the
 /// attribute references are resolved or when no attribute reference could
@@ -443,11 +637,51 @@ fn resolve_attribute_references<C: crate::SchemaCacheLookup>(
     attr_catalog: &mut AttributeCatalog,
     cache_lookup: &C,
 ) -> Result<(), Error> {
-    // TODO - Right now the attribute registry does NOT have any of the
-    // attributes from dependencies. We expect to resolve all groups in the current
-    // algorithm, instead we need to *pre-register* those attributes here.
+    // First, resolve all attribute definitions (AttributeSpec::Id) across all groups.
+    // This populates the catalog with all local and refinement attribute definitions
+    // before resolving attribute references (AttributeSpec::Ref), preventing dependency
+    // lookups from preempting local definitions.
+    let mut init_errors = vec![];
+    for unresolved_group in ureg.groups.iter_mut() {
+        let mut resolved_attr = vec![];
+        let mut still_unresolved = vec![];
+        let group_excluded = is_group_excluded(
+            &unresolved_group.group.annotations,
+            unresolved_group.visibility.as_ref(),
+            &unresolved_group.group.r#type,
+        );
+        for attr in unresolved_group.attributes.drain(..) {
+            if matches!(attr.spec, AttributeSpec::Id { .. }) {
+                match attr_catalog.resolve(
+                    &unresolved_group.group.id,
+                    &unresolved_group.group.prefix,
+                    group_excluded,
+                    &attr.spec,
+                    attr.origin.as_ref(),
+                    unresolved_group.group.lineage.as_mut(),
+                    &ureg.dependencies,
+                    cache_lookup,
+                ) {
+                    Ok(Some(attr_ref)) => {
+                        resolved_attr.push(attr_ref);
+                    }
+                    Ok(None) => still_unresolved.push(attr),
+                    Err(e @ Error::ExcludedFromDependencyResolution { .. }) => {
+                        init_errors.push(e);
+                        still_unresolved.push(attr);
+                    }
+                    Err(e) => return Err(e),
+                }
+            } else {
+                still_unresolved.push(attr);
+            }
+        }
+        unresolved_group.attributes = still_unresolved;
+        unresolved_group.group.attributes.extend(resolved_attr);
+    }
+
     loop {
-        let mut errors = vec![];
+        let mut errors = init_errors.clone();
         let mut resolved_attr_count = 0;
 
         // Iterate over all groups and resolve the attributes.
@@ -1203,6 +1437,97 @@ mod tests {
         output_v2: bool,
     }
 
+    /// A group for the collision check: only the id, the type and the
+    /// provenance path matter to it.
+    fn collision_group(id: &str, group_type: GroupType, path: &str) -> Group {
+        Group {
+            id: id.to_owned(),
+            r#type: group_type,
+            brief: Default::default(),
+            note: Default::default(),
+            prefix: Default::default(),
+            extends: Default::default(),
+            stability: Default::default(),
+            deprecated: Default::default(),
+            attributes: vec![],
+            span_kind: Default::default(),
+            events: Default::default(),
+            metric_name: Default::default(),
+            instrument: Default::default(),
+            unit: Default::default(),
+            requirement_level: Default::default(),
+            name: Default::default(),
+            lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
+                Provenance {
+                    schema_url: SchemaUrl::new_unknown(),
+                    path: path.to_owned(),
+                },
+            )),
+            display_name: Default::default(),
+            body: Default::default(),
+            annotations: Default::default(),
+            entity_associations: Default::default(),
+            visibility: Default::default(),
+            is_v2: true,
+            span_name: None,
+        }
+    }
+
+    fn collision_errors(groups: Vec<Group>) -> Vec<crate::Error> {
+        let registry = Registry {
+            registry_url: "test".to_owned(),
+            entity_association_origins: Default::default(),
+            groups,
+        };
+        let mut errors = vec![];
+        super::check_v2_signal_id_collisions(&registry, &mut errors);
+        errors
+    }
+
+    /// A v2 signal id drops the group-type prefix, so two groups whose ids
+    /// differ only by that prefix become one entry in the v2 output. The second
+    /// replaces the first, so this must not pass in silence.
+    #[test]
+    fn test_groups_that_take_one_v2_id_are_reported() {
+        let errors = collision_errors(vec![
+            collision_group("entity.host", GroupType::Entity, "base.yaml"),
+            collision_group("host", GroupType::Entity, "refinement.yaml"),
+        ]);
+        let [crate::Error::CollidingV2SignalId {
+            signal_id,
+            group_ids,
+            provenances,
+        }] = errors.as_slice()
+        else {
+            panic!("expected one collision, got {errors:?}");
+        };
+        assert_eq!(signal_id, "host");
+        assert_eq!(group_ids, &["entity.host".to_owned(), "host".to_owned()]);
+        assert_eq!(provenances.len(), 2, "both locations are named");
+    }
+
+    /// Each signal type has a namespace of its own in v2, so a span and an
+    /// entity that share a name do not collide.
+    #[test]
+    fn test_one_name_in_two_signal_types_is_not_a_collision() {
+        let errors = collision_errors(vec![
+            collision_group("entity.host", GroupType::Entity, "entity.yaml"),
+            collision_group("host", GroupType::Span, "span.yaml"),
+        ]);
+        assert!(errors.is_empty(), "unexpected collisions: {errors:?}");
+    }
+
+    /// Two groups that share a raw id are already reported as a duplicate
+    /// declaration. Reporting them here as well would say one fault twice.
+    #[test]
+    fn test_groups_that_share_a_raw_id_are_left_to_the_duplicate_check() {
+        let errors = collision_errors(vec![
+            collision_group("host", GroupType::Entity, "one.yaml"),
+            collision_group("host", GroupType::Entity, "two.yaml"),
+        ]);
+        assert!(errors.is_empty(), "unexpected collisions: {errors:?}");
+    }
+
     const TEST_SETTINGS_FILE: &str = "settings.yaml";
     const EXPECTED_ERRORS_FILE: &str = "expected-errors.json";
     const EXPECTED_V1_CATALOG_FILE: &str = "expected-attribute-catalog.json";
@@ -1616,6 +1941,7 @@ groups:
         let ureg = UnresolvedRegistry {
             registry: Registry {
                 registry_url: "test".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             groups: vec![UnresolvedGroup {
@@ -1715,6 +2041,7 @@ groups:
         let ureg = UnresolvedRegistry {
             registry: Registry {
                 registry_url: "test".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             groups: vec![

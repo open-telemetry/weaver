@@ -1,0 +1,5 @@
+name: base
+description: >
+  Defines the `host` entity and a refinement of it. A dependent may associate
+  with either.
+schema_url: https://example.com/base/1.0.0

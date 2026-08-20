@@ -8,7 +8,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use weaver_checker::FindingLevel;
-use weaver_semconv::entity_association::EntityAssociation;
 use weaver_semconv::group::InstrumentSpec;
 
 use crate::{
@@ -344,17 +343,23 @@ impl LiveCheckRunner for SampleMetric {
             .resource()
             .map(|r| r.attributes.as_slice())
             .unwrap_or(&[]);
-        let entity_associations: &[EntityAssociation] = match semconv_metric.as_deref() {
-            Some(VersionedSignal::Group(g)) => &g.entity_associations,
-            Some(VersionedSignal::Metric(m)) => &m.entity_associations,
-            _ => &[],
+        // A v1 group and a v2 metric hold the same expression in two shapes, so
+        // each arm calls the check with the shape it holds.
+        let findings = match semconv_metric.as_deref() {
+            Some(VersionedSignal::Group(g)) => check_entity_associations(
+                &g.entity_associations,
+                live_checker,
+                resource_attributes,
+                parent_signal,
+            ),
+            Some(VersionedSignal::Metric(m)) => check_entity_associations(
+                &m.entity_associations,
+                live_checker,
+                resource_attributes,
+                parent_signal,
+            ),
+            _ => Vec::new(),
         };
-        let findings = check_entity_associations(
-            entity_associations,
-            live_checker,
-            resource_attributes,
-            parent_signal,
-        );
         if !findings.is_empty() {
             let sample_ref = SampleRef::Metric(self);
             emit_findings(

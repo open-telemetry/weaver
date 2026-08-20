@@ -121,8 +121,21 @@ export interface AttributeResponse {
   examples?: unknown[] | unknown;
 }
 
+/**
+ * A reference to an entity, from an `entity_associations` clause. `provenance`
+ * names the registry that defines the entity; it is absent when this registry
+ * defines it.
+ */
+export interface EntityRef {
+  type: string;
+  provenance?: {
+    source?: string;
+    path?: string;
+  };
+}
+
 export type EntityAssociation =
-  | string
+  | EntityRef
   | { one_of: EntityAssociation[] }
   | { all_of: EntityAssociation[] };
 

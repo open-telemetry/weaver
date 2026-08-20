@@ -1,0 +1,12 @@
+name: top
+description: >
+  This registry is `top_reexport` plus a direct dependency on `base`. That one
+  extra line is the whole difference. `host` becomes reachable by two paths.
+schema_url: https://example.com/top/1.0.0
+dependencies:
+  - name: middle
+    schema_url: https://example.com/middle/1.0.0
+    registry_path: data/entity-assoc-imports/middle_reexport
+  - name: base
+    schema_url: https://example.com/base/1.0.0
+    registry_path: data/entity-assoc-imports/base

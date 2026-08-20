@@ -1,0 +1,9 @@
+name: top_transitive
+description: >
+  Depends on `middle_assoc_export`, which names the `host` of base but does not
+  import it. An association is no re-export, so `host` is out of reach here.
+schema_url: https://example.com/top-transitive/1.0.0
+dependencies:
+  - name: middle
+    schema_url: https://example.com/middle/1.0.0
+    registry_path: data/entity-assoc-imports/middle_assoc_export

@@ -1,0 +1,6 @@
+name: local_private_pair
+description: >
+  Both the `host` entity and the metric associated with it are kept out of the
+  surface offered to dependents. Nothing dangling is exported, so the
+  association is sound.
+schema_url: https://example.com/local-private-pair/1.0.0

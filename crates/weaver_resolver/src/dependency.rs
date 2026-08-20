@@ -1,29 +1,32 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! Helpers to handle reading from dependencies.
+//!
+//! A dependency holds definitions that the local registry looks up: a
+//! refinement or an `extends` clause names a group, and this module answers
+//! with a [`GroupSummary`] regardless of whether the dependency is a v1 or a
+//! v2 schema.
+//!
+//! Pulling definitions in through an `imports` block lives in
+//! [`crate::imports`], which resolves an attribute's origin registry with the
+//! same helpers used here.
 
-use globset::GlobSet;
-use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::registry::Group;
-use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
 use weaver_resolved_schema::v2::entity::Entity;
+use weaver_resolved_schema::v2::provenance::DependencyRef;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_resolved_schema::{attribute::UnresolvedAttribute, v2::Signal};
 use weaver_semconv::attribute::{AttributeRole, RequirementLevel};
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
-use weaver_semconv::group::{GroupWildcard, ImportsWithProvenance};
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::stability::Stability;
 
-use crate::{
-    attribute::{AttributeCatalog, AttributeSource},
-    conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion},
-    dependency_resolution::is_excluded,
-    Error,
-};
+use crate::attribute::AttributeSource;
+use crate::dependency_resolution::is_excluded;
+use crate::imports::import_match_keys;
 
 /// Where a group lookup landed: in the local registry or in a dependency.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -107,414 +110,168 @@ impl ResolvedDependency {
             ResolvedDependency::V2(schema) => schema.lookup_group_summary(id),
         }
     }
+
+    /// Looks up an entity by a name an `entity_associations` entry can use.
+    pub(crate) fn lookup_entity(&self, name: &str) -> Option<EntityLocation> {
+        match self {
+            ResolvedDependency::V1(schema) => schema.lookup_entity(name),
+            ResolvedDependency::V2(schema) => schema.lookup_entity(name),
+        }
+    }
 }
 
-/// A group with its source provenance.
-pub struct GroupWithProvenance {
-    /// The group definition.
-    pub group: Group,
-    /// The schema URL of the registry it came from.
-    pub schema_url: SchemaUrl,
+/// Where an entity that an association names was found.
+#[derive(Debug, Clone)]
+pub(crate) struct EntityLocation {
+    /// The registry that declared the entity, which is the dependency itself
+    /// unless the dependency re-exports a definition of its own dependency.
+    pub origin: SchemaUrl,
+    /// True when the declaring registry hides the entity from its dependents.
+    pub excluded: bool,
 }
 
-/// Allows importing dependencies
-pub(crate) trait ImportableDependency {
-    /// Imports groups from the given dependency using the flags provided.
-    fn import_groups<C: crate::SchemaCacheLookup>(
-        &self,
-        imports: &[ImportsWithProvenance],
-        attribute_catalog: &mut AttributeCatalog,
-        cache_lookup: &C,
-    ) -> Result<Vec<GroupWithProvenance>, Error>;
+/// Looking an entity up by association, as opposed to importing it.
+pub(crate) trait EntityLookup {
+    /// Looks up an entity by the type or refinement id that an
+    /// `entity_associations` entry can name. Returns `None` when this schema
+    /// holds no such entity.
+    fn lookup_entity(&self, name: &str) -> Option<EntityLocation>;
 }
 
-impl ImportableDependency for V1Schema {
-    fn import_groups<C: crate::SchemaCacheLookup>(
-        &self,
-        imports: &[ImportsWithProvenance],
-        attribute_catalog: &mut AttributeCatalog,
-        cache_lookup: &C,
-    ) -> Result<Vec<GroupWithProvenance>, Error> {
-        let explicit_imports: Vec<&ImportsWithProvenance> = imports
+impl EntityLookup for V1Schema {
+    fn lookup_entity(&self, name: &str) -> Option<EntityLocation> {
+        let my_schema_url = SchemaUrl::try_from(self.schema_url.as_str()).ok()?;
+        self.registry
+            .groups
             .iter()
-            .filter(|i| i.provenance.path != "--include-unreferenced")
-            .collect();
+            .filter(|g| g.r#type == GroupType::Entity)
+            .find(|g| import_match_keys(g).contains(&name))
+            .map(|g| EntityLocation {
+                origin: g
+                    .provenance()
+                    .map(|prov| prov.schema_url)
+                    .unwrap_or(my_schema_url),
+                excluded: g.annotations.as_ref().is_some_and(is_excluded),
+            })
+    }
+}
 
-        let explicit_metrics_matcher = build_globset(
-            explicit_imports
-                .iter()
-                .flat_map(|i| i.imports.metrics.as_deref().unwrap_or_default()),
-        )?;
-        let all_metrics_matcher = build_globset(
-            imports
-                .iter()
-                .flat_map(|i| i.imports.metrics.as_deref().unwrap_or_default()),
-        )?;
-
-        let explicit_events_matcher = build_globset(
-            explicit_imports
-                .iter()
-                .flat_map(|i| i.imports.events.as_deref().unwrap_or_default()),
-        )?;
-        let all_events_matcher = build_globset(
-            imports
-                .iter()
-                .flat_map(|i| i.imports.events.as_deref().unwrap_or_default()),
-        )?;
-
-        let explicit_entities_matcher = build_globset(
-            explicit_imports
-                .iter()
-                .flat_map(|i| i.imports.entities.as_deref().unwrap_or_default()),
-        )?;
-        let all_entities_matcher = build_globset(
-            imports
-                .iter()
-                .flat_map(|i| i.imports.entities.as_deref().unwrap_or_default()),
-        )?;
-
-        let explicit_spans_matcher = build_globset(
-            explicit_imports
-                .iter()
-                .flat_map(|i| i.imports.spans.as_deref().unwrap_or_default()),
-        )?;
-        let all_spans_matcher = build_globset(
-            imports
-                .iter()
-                .flat_map(|i| i.imports.spans.as_deref().unwrap_or_default()),
-        )?;
-
-        let explicit_attribute_groups_matcher = build_globset(
-            explicit_imports
-                .iter()
-                .flat_map(|i| i.imports.attribute_groups.as_deref().unwrap_or_default()),
-        )?;
-        let all_attribute_groups_matcher = build_globset(
-            imports
-                .iter()
-                .flat_map(|i| i.imports.attribute_groups.as_deref().unwrap_or_default()),
-        )?;
-
-        let matches_explicitly = move |g: &Group| {
-            if g.is_v2 {
-                match g.r#type {
-                    GroupType::AttributeGroup => {
-                        explicit_attribute_groups_matcher.is_match(&g.id)
-                            || g.id
-                                .strip_prefix("registry.")
-                                .is_some_and(|s| explicit_attribute_groups_matcher.is_match(s))
-                            || g.id
-                                .strip_prefix("attribute_group.")
-                                .is_some_and(|s| explicit_attribute_groups_matcher.is_match(s))
-                    }
-                    GroupType::Span => {
-                        explicit_spans_matcher.is_match(&g.id)
-                            || g.name
-                                .as_ref()
-                                .is_some_and(|name| explicit_spans_matcher.is_match(name.as_str()))
-                            || g.id
-                                .strip_prefix("span.")
-                                .is_some_and(|s| explicit_spans_matcher.is_match(s))
-                    }
-                    GroupType::Event => {
-                        explicit_events_matcher.is_match(&g.id)
-                            || g.name
-                                .as_ref()
-                                .is_some_and(|name| explicit_events_matcher.is_match(name.as_str()))
-                            || g.id
-                                .strip_prefix("event.")
-                                .is_some_and(|s| explicit_events_matcher.is_match(s))
-                    }
-                    GroupType::Metric | GroupType::MetricGroup => {
-                        explicit_metrics_matcher.is_match(&g.id)
-                            || g.metric_name.as_ref().is_some_and(|metric_name| {
-                                explicit_metrics_matcher.is_match(metric_name.as_str())
-                            })
-                            || g.id
-                                .strip_prefix("metric.")
-                                .is_some_and(|s| explicit_metrics_matcher.is_match(s))
-                    }
-                    GroupType::Entity => {
-                        explicit_entities_matcher.is_match(&g.id)
-                            || g.name.as_ref().is_some_and(|name| {
-                                explicit_entities_matcher.is_match(name.as_str())
-                            })
-                            || g.id
-                                .strip_prefix("entity.")
-                                .is_some_and(|s| explicit_entities_matcher.is_match(s))
-                    }
-                    GroupType::Scope => false,
-                    GroupType::Undefined => false,
-                }
-            } else {
-                match g.r#type {
-                    GroupType::AttributeGroup => explicit_attribute_groups_matcher.is_match(&g.id),
-                    GroupType::Span => explicit_spans_matcher.is_match(&g.id),
-                    GroupType::Event => g
-                        .name
-                        .as_ref()
-                        .is_some_and(|name| explicit_events_matcher.is_match(name.as_str())),
-                    GroupType::Metric => g.metric_name.as_ref().is_some_and(|metric_name| {
-                        explicit_metrics_matcher.is_match(metric_name.as_str())
-                    }),
-                    GroupType::MetricGroup => false,
-                    GroupType::Entity => g
-                        .name
-                        .as_ref()
-                        .is_some_and(|name| explicit_entities_matcher.is_match(name.as_str())),
-                    GroupType::Scope => false,
-                    GroupType::Undefined => false,
-                }
-            }
-        };
-
-        let matches_by_any = move |g: &Group| {
-            if g.is_v2 {
-                match g.r#type {
-                    GroupType::AttributeGroup => {
-                        all_attribute_groups_matcher.is_match(&g.id)
-                            || g.id
-                                .strip_prefix("registry.")
-                                .is_some_and(|s| all_attribute_groups_matcher.is_match(s))
-                            || g.id
-                                .strip_prefix("attribute_group.")
-                                .is_some_and(|s| all_attribute_groups_matcher.is_match(s))
-                    }
-                    GroupType::Span => {
-                        all_spans_matcher.is_match(&g.id)
-                            || g.name
-                                .as_ref()
-                                .is_some_and(|name| all_spans_matcher.is_match(name.as_str()))
-                            || g.id
-                                .strip_prefix("span.")
-                                .is_some_and(|s| all_spans_matcher.is_match(s))
-                    }
-                    GroupType::Event => {
-                        all_events_matcher.is_match(&g.id)
-                            || g.name
-                                .as_ref()
-                                .is_some_and(|name| all_events_matcher.is_match(name.as_str()))
-                            || g.id
-                                .strip_prefix("event.")
-                                .is_some_and(|s| all_events_matcher.is_match(s))
-                    }
-                    GroupType::Metric | GroupType::MetricGroup => {
-                        all_metrics_matcher.is_match(&g.id)
-                            || g.metric_name.as_ref().is_some_and(|metric_name| {
-                                all_metrics_matcher.is_match(metric_name.as_str())
-                            })
-                            || g.id
-                                .strip_prefix("metric.")
-                                .is_some_and(|s| all_metrics_matcher.is_match(s))
-                    }
-                    GroupType::Entity => {
-                        all_entities_matcher.is_match(&g.id)
-                            || g.name
-                                .as_ref()
-                                .is_some_and(|name| all_entities_matcher.is_match(name.as_str()))
-                            || g.id
-                                .strip_prefix("entity.")
-                                .is_some_and(|s| all_entities_matcher.is_match(s))
-                    }
-                    GroupType::Scope => false,
-                    GroupType::Undefined => false,
-                }
-            } else {
-                match g.r#type {
-                    GroupType::AttributeGroup => all_attribute_groups_matcher.is_match(&g.id),
-                    GroupType::Span => all_spans_matcher.is_match(&g.id),
-                    GroupType::Event => g
-                        .name
-                        .as_ref()
-                        .is_some_and(|name| all_events_matcher.is_match(name.as_str())),
-                    GroupType::Metric => g.metric_name.as_ref().is_some_and(|metric_name| {
-                        all_metrics_matcher.is_match(metric_name.as_str())
-                    }),
-                    GroupType::MetricGroup => false,
-                    GroupType::Entity => g
-                        .name
-                        .as_ref()
-                        .is_some_and(|name| all_entities_matcher.is_match(name.as_str())),
-                    GroupType::Scope => false,
-                    GroupType::Undefined => false,
-                }
-            }
-        };
-
-        let mut exclusion_errors: Vec<Error> = vec![];
-        let mut result: Vec<GroupWithProvenance> = vec![];
-        let my_schema_url =
-            SchemaUrl::try_from(self.schema_url.as_str()).map_err(|e| Error::InvalidUrl {
-                url: self.schema_url.to_string(),
-                error: e,
-            })?;
-
-        for g in self.registry.groups.iter() {
-            let matched_explicitly = matches_explicitly(g);
-            let matched_by_any = matches_by_any(g);
-            if !matched_by_any {
-                continue;
-            }
-            let decision = g
-                .annotations
-                .as_ref()
-                .map(|a| import_decision(a, matched_explicitly, &g.id, g.r#type.clone()))
-                .unwrap_or(ImportDecision::Include);
-            match decision {
-                ImportDecision::Include => {}
-                ImportDecision::Skip => continue,
-                ImportDecision::Error(e) => {
-                    exclusion_errors.push(e);
-                    continue;
-                }
-            }
-            let g = if let Some(upgraded) =
-                upgrade_imported_group(g, &my_schema_url, attribute_catalog, cache_lookup)?
-            {
-                upgraded
-            } else {
-                let mut g = g.clone();
-                let mut attributes = vec![];
-                for a in g
-                    .attributes
+impl EntityLookup for V2Schema {
+    fn lookup_entity(&self, name: &str) -> Option<EntityLocation> {
+        let deps: Vec<_> = self.dependencies.iter().cloned().collect();
+        // A base entity answers to its type, a refinement to its id. Weaver
+        // holds the two in one namespace, so an association names either.
+        let entity = self
+            .registry
+            .entities
+            .iter()
+            .find(|e| &*e.r#type == name)
+            .or_else(|| {
+                self.refinements
+                    .entities
                     .iter()
-                    .filter_map(|ar| self.catalog().attribute(ar))
-                {
-                    let source = find_attribute_source(self, &a.name, &my_schema_url);
-                    let ar = attribute_catalog.attribute_ref_with_provenance(
-                        a.clone(),
-                        source,
-                        cache_lookup,
-                    )?;
-                    attributes.push(ar);
-                }
-                g.attributes = attributes;
-                g
-            };
-            let mut g_url = my_schema_url.clone();
-            if let Some(chosen_url) = cache_lookup.chosen_version(g_url.name()) {
-                if chosen_url != &g_url {
-                    if let Ok(winning_url) =
-                        UseLatestMajorVersion.resolve_conflict(&g_url, chosen_url)
-                    {
-                        g_url = winning_url;
-                    }
-                }
-            }
-            result.push(GroupWithProvenance {
-                group: g,
-                schema_url: g_url,
-            });
-        }
-        if !exclusion_errors.is_empty() {
-            return Err(Error::CompoundError(exclusion_errors));
-        }
-        Ok(result)
+                    .find(|r| &*r.id == name)
+                    .map(|r| &r.entity)
+            })?;
+        Some(EntityLocation {
+            origin: v2_source_url(self, &deps, entity.provenance.source),
+            excluded: is_excluded(&entity.common.annotations),
+        })
     }
 }
 
-/// If an imported group's origin registry (recorded in its lineage
-/// provenance, which may point at a transitive dependency rather than the
-/// immediate one) was upgraded to a newer compatible version by graph-wide
-/// version conflict resolution, returns the group's definition from the
-/// chosen registry so its body, lineage, and attributes stay consistent
-/// with the upgraded attribute catalog — mirroring what
-/// `upgrade_attribute_with_source` does for attributes.
+/// What the dependencies answer when an association names an entity.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum EntityResolution {
+    /// One registry declares the entity, and it is the one named here.
+    Found(SchemaUrl),
+    /// Every registry that holds the name keeps the entity private.
+    Private,
+    /// Two or more registries declare unrelated entities under the name, and
+    /// nothing says which one is meant.
+    Ambiguous(Vec<SchemaUrl>),
+    /// No dependency holds the name.
+    Unknown,
+}
+
+/// Looks an association name up across every dependency at once.
 ///
-/// Returns `None` when no upgrade applies, or when the chosen registry does
-/// not define the group; the caller then keeps the copy it has.
-fn upgrade_imported_group<C: crate::SchemaCacheLookup>(
-    group: &Group,
-    fallback_url: &SchemaUrl,
-    attribute_catalog: &mut AttributeCatalog,
-    cache_lookup: &C,
-) -> Result<Option<Group>, Error> {
-    let origin_url = group
-        .provenance()
-        .map(|prov| prov.schema_url)
-        .unwrap_or_else(|| fallback_url.clone());
-    let Some(chosen_url) = cache_lookup.chosen_version(origin_url.name()) else {
-        return Ok(None);
-    };
-    if *chosen_url == origin_url {
-        return Ok(None);
-    }
-    let Ok(winning_url) = UseLatestMajorVersion.resolve_conflict(&origin_url, chosen_url) else {
-        return Ok(None);
-    };
-    if winning_url != *chosen_url {
-        return Ok(None);
-    }
-    let Some(chosen_schema) = cache_lookup.lookup_schema(chosen_url) else {
-        return Ok(None);
-    };
-    // TODO: also look up the group when the chosen registry is a published
-    // resolved V2 schema.
-    let Some(chosen_v1) = chosen_schema.as_v1() else {
-        return Ok(None);
-    };
-    let Some(upgraded) = chosen_v1
-        .registry
-        .groups
-        .iter()
-        .find(|candidate| is_same_imported_group(group, candidate))
-    else {
-        return Ok(None);
-    };
-    let mut upgraded = upgraded.clone();
-    let mut attributes = vec![];
-    for a in upgraded
-        .attributes
-        .iter()
-        .filter_map(|ar| chosen_v1.catalog().attribute(ar))
-    {
-        let source = find_attribute_source(chosen_v1, &a.name, chosen_url);
-        attributes.push(attribute_catalog.attribute_ref_with_provenance(
-            a.clone(),
-            source,
-            cache_lookup,
-        )?);
-    }
-    upgraded.attributes = attributes;
-    Ok(Some(upgraded))
-}
-
-/// Whether `candidate` (a group in a chosen upgraded registry) defines the
-/// same signal as `group` (an imported group). Group ids may differ in their
-/// `<type>.` prefix between the definition (V1) and published (V2) import
-/// paths, so signals are matched by type and name where available.
-fn is_same_imported_group(group: &Group, candidate: &Group) -> bool {
-    if group.r#type != candidate.r#type {
-        return false;
-    }
-    if group.metric_name.is_some() || candidate.metric_name.is_some() {
-        return group.metric_name == candidate.metric_name;
-    }
-    if group.name.is_some() || candidate.name.is_some() {
-        return group.name == candidate.name;
-    }
-    strip_group_type_prefix(&group.id) == strip_group_type_prefix(&candidate.id)
-}
-
-/// Strips a group-type id prefix, if present.
-fn strip_group_type_prefix(id: &str) -> &str {
-    for prefix in [
-        "metric.",
-        "event.",
-        "entity.",
-        "span.",
-        "attribute_group.",
-        "registry.",
-    ] {
-        if let Some(rest) = id.strip_prefix(prefix) {
-            return rest;
+/// The order the manifest lists dependencies in says nothing about which one an
+/// association means, so every dependency is asked and the answers are weighed
+/// together rather than the first hit being taken.
+///
+/// Candidates are counted by the registry that declared the entity, as importing
+/// does. One definition reached by two paths through the dependency graph is
+/// still one definition. Two definitions that merely share a name are not.
+pub(crate) fn resolve_entity(deps: &[ResolvedDependency], name: &str) -> EntityResolution {
+    let mut origins: Vec<SchemaUrl> = vec![];
+    let mut private = false;
+    for location in deps.iter().filter_map(|d| d.lookup_entity(name)) {
+        if location.excluded {
+            // A private entity is no part of the surface a dependency offers.
+            private = true;
+        } else if !origins.contains(&location.origin) {
+            origins.push(location.origin);
         }
     }
-    id
+    match origins.len() {
+        0 if private => EntityResolution::Private,
+        0 => EntityResolution::Unknown,
+        1 => EntityResolution::Found(origins.swap_remove(0)),
+        _ => EntityResolution::Ambiguous(origins),
+    }
 }
 
-/// Finds the attribute source for a V1 attribute.
-fn find_attribute_source(
+/// Helper trait for abstracting over V1 and V2 schema.
+pub(crate) trait GroupRefinementLookup {
+    /// Looks up a group summary on this repo.
+    /// id: The group id to find
+    /// return: The summary of the group, or None if the group was not found.
+    fn lookup_group_summary(&self, id: &str) -> Option<GroupSummary>;
+}
+
+impl GroupRefinementLookup for V1Schema {
+    fn lookup_group_summary(&self, id: &str) -> Option<GroupSummary> {
+        let my_schema_url = SchemaUrl::try_from(self.schema_url.as_str()).ok();
+        self.group(id).map(|g| {
+            let attributes: Vec<UnresolvedAttribute> = g
+                .attributes
+                .iter()
+                .filter_map(|ar| self.catalog.attribute(ar))
+                .map(|a| UnresolvedAttribute {
+                    origin: my_schema_url.as_ref().map(|url| {
+                        match find_attribute_source(self, &a.name, url) {
+                            AttributeSource::Dependency { schema_url } => schema_url,
+                            AttributeSource::Local { .. } => url.clone(),
+                        }
+                    }),
+                    spec: weaver_semconv::attribute::AttributeSpec::Id {
+                        id: a.name.clone(),
+                        r#type: a.r#type.clone(),
+                        brief: Some(a.brief.clone()),
+                        examples: a.examples.clone(),
+                        tag: a.tag.clone(),
+                        requirement_level: a.requirement_level.clone(),
+                        sampling_relevant: a.sampling_relevant,
+                        note: a.note.clone(),
+                        stability: a.stability.clone(),
+                        deprecated: a.deprecated.clone(),
+                        annotations: a.annotations.clone(),
+                        role: a.role.clone(),
+                    },
+                })
+                .collect();
+            let mut summary = GroupSummary::from_without_attributes(g, GroupSource::Dependency);
+            summary.attributes = attributes;
+            summary
+        })
+    }
+}
+
+/// Finds the attribute source for a V1 attribute: the registry that declared
+/// it, recovered from the catalog's root-attribute table or, failing that, from
+/// the provenance of a group that references it.
+pub(crate) fn find_attribute_source(
     schema: &V1Schema,
     attr_name: &str,
     my_schema_url: &SchemaUrl,
@@ -574,638 +331,19 @@ fn find_attribute_source(
     }
 }
 
-/// Outcome of an import decision for a candidate dep item.
-enum ImportDecision {
-    /// Item is visible — proceed with the normal import path.
-    Include,
-    /// Item is excluded and only matched via `include_all`. Silently dropped:
-    /// excluded items are invisible to dependents and shouldn't surface as
-    /// errors when the consumer never explicitly asked for them.
-    Skip,
-    /// Item is excluded and was matched by an explicit `imports:` pattern.
-    /// Surfaces as a hard error because the consumer asked for it by name.
-    Error(Error),
-}
-
-fn import_decision(
-    annotations: &std::collections::BTreeMap<String, weaver_semconv::YamlValue>,
-    matched_explicitly: bool,
-    id: &str,
-    r#type: GroupType,
-) -> ImportDecision {
-    if !is_excluded(annotations) {
-        return ImportDecision::Include;
-    }
-    if matched_explicitly {
-        ImportDecision::Error(Error::ExcludedFromDependencyResolution {
-            id: id.to_owned(),
-            r#type: r#type.to_string(),
-            used_in: "imports".to_owned(),
-        })
-    } else {
-        ImportDecision::Skip
-    }
-}
-
-/// Converts a V2 attribute (with no requirement level) to a v1 attribute.
-fn convert_v2_attribute(
-    attr: &weaver_resolved_schema::v2::attribute::Attribute,
-    requirement_level: RequirementLevel,
-    role: Option<AttributeRole>,
-) -> Attribute {
-    Attribute {
-        name: attr.key.clone(),
-        r#type: attr.r#type.clone(),
-        brief: attr.common.brief.clone(),
-        examples: attr.examples.clone(),
-        tag: None,
-        requirement_level,
-        sampling_relevant: None,
-        note: attr.common.note.clone(),
-        stability: Some(attr.common.stability.clone()),
-        deprecated: attr.common.deprecated.clone(),
-        prefix: false,
-        tags: None,
-        annotations: Some(attr.common.annotations.clone()),
-        value: None,
-        role,
-    }
-}
-impl ImportableDependency for V2Schema {
-    fn import_groups<C: crate::SchemaCacheLookup>(
-        &self,
-        imports: &[ImportsWithProvenance],
-        attribute_catalog: &mut AttributeCatalog,
-        cache_lookup: &C,
-    ) -> Result<Vec<GroupWithProvenance>, Error> {
-        let mut result = vec![];
-        let mut exclusion_errors: Vec<Error> = vec![];
-        let deps: Vec<_> = self.dependencies.iter().cloned().collect();
-
-        // Helper to map V2 provenance to V1 provenance.
-        let get_source_provenance = |prov: &weaver_resolved_schema::v2::provenance::Provenance| -> weaver_semconv::provenance::Provenance {
-            let url = if let Some(dep_ref) = &prov.source {
-                deps.get(dep_ref.0 as usize).cloned().unwrap_or_else(|| self.schema_url.clone())
-            } else {
-                self.schema_url.clone()
-            };
-            weaver_semconv::provenance::Provenance::new(url, &prov.path)
-        };
-
-        // Helper to get attribute source based on provenance.
-        let get_attribute_source =
-            |attr: &weaver_resolved_schema::v2::attribute::Attribute| -> AttributeSource {
-                if let Some(dep_ref) = &attr.provenance.source {
-                    AttributeSource::Dependency {
-                        schema_url: deps
-                            .get(dep_ref.0 as usize)
-                            .cloned()
-                            .unwrap_or_else(|| self.schema_url.clone()),
-                    }
-                } else {
-                    AttributeSource::Dependency {
-                        schema_url: self.schema_url.clone(),
-                    }
-                }
-            };
-
-        let explicit_imports: Vec<&ImportsWithProvenance> = imports
-            .iter()
-            .filter(|i| i.provenance.path != "--include-unreferenced")
-            .collect();
-
-        let explicit_metrics_matcher = build_globset(
-            explicit_imports
-                .iter()
-                .flat_map(|i| i.imports.metrics.as_deref().unwrap_or_default()),
-        )?;
-        let all_metrics_matcher = build_globset(
-            imports
-                .iter()
-                .flat_map(|i| i.imports.metrics.as_deref().unwrap_or_default()),
-        )?;
-
-        let explicit_events_matcher = build_globset(
-            explicit_imports
-                .iter()
-                .flat_map(|i| i.imports.events.as_deref().unwrap_or_default()),
-        )?;
-        let all_events_matcher = build_globset(
-            imports
-                .iter()
-                .flat_map(|i| i.imports.events.as_deref().unwrap_or_default()),
-        )?;
-
-        let explicit_entities_matcher = build_globset(
-            explicit_imports
-                .iter()
-                .flat_map(|i| i.imports.entities.as_deref().unwrap_or_default()),
-        )?;
-        let all_entities_matcher = build_globset(
-            imports
-                .iter()
-                .flat_map(|i| i.imports.entities.as_deref().unwrap_or_default()),
-        )?;
-
-        let explicit_spans_matcher = build_globset(
-            explicit_imports
-                .iter()
-                .flat_map(|i| i.imports.spans.as_deref().unwrap_or_default()),
-        )?;
-        let all_spans_matcher = build_globset(
-            imports
-                .iter()
-                .flat_map(|i| i.imports.spans.as_deref().unwrap_or_default()),
-        )?;
-
-        let explicit_attribute_groups_matcher = build_globset(
-            explicit_imports
-                .iter()
-                .flat_map(|i| i.imports.attribute_groups.as_deref().unwrap_or_default()),
-        )?;
-        let all_attribute_groups_matcher = build_globset(
-            imports
-                .iter()
-                .flat_map(|i| i.imports.attribute_groups.as_deref().unwrap_or_default()),
-        )?;
-
-        // First import metrics.  These are *by name* and come from the registry.
-        // This is the closest to V1 ref syntax we have.
-        for m in self.registry.metrics.iter() {
-            let metric_name: &str = &m.name;
-            let matched_explicitly = explicit_metrics_matcher.is_match(metric_name);
-            let matched_by_any = all_metrics_matcher.is_match(metric_name);
-            if !matched_by_any {
-                continue;
-            }
-            match import_decision(
-                &m.common.annotations,
-                matched_explicitly,
-                m.id(),
-                GroupType::Metric,
-            ) {
-                ImportDecision::Include => {}
-                ImportDecision::Skip => continue,
-                ImportDecision::Error(e) => {
-                    exclusion_errors.push(e);
-                    continue;
-                }
-            }
-            let mut attributes = vec![];
-            for ar in m.attributes.iter() {
-                let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
-                    Error::InvalidRegistryAttributeRef {
-                        registry_name: self.schema_url.name().to_owned(),
-                        attribute_ref: ar.base.0,
-                    },
-                )?;
-                let source = get_attribute_source(attr);
-                attributes.push(attribute_catalog.attribute_ref_with_provenance(
-                    convert_v2_attribute(attr, ar.requirement_level.clone(), None),
-                    source,
-                    cache_lookup,
-                )?);
-            }
-            result.push(Group {
-                id: m.id().to_owned(),
-                r#type: GroupType::Metric,
-                brief: m.common.brief.clone(),
-                note: m.common.note.clone(),
-                prefix: "".to_owned(),
-                extends: None,
-                stability: Some(m.common.stability.clone()),
-                deprecated: m.common.deprecated.clone(),
-                attributes,
-                span_kind: None,
-                events: vec![],
-                metric_name: Some(m.name.to_string()),
-                instrument: Some(m.instrument.clone()),
-                unit: Some(m.unit.clone()),
-                requirement_level: None,
-                name: None,
-                lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
-                    get_source_provenance(&m.provenance),
-                )),
-                display_name: None,
-                body: None,
-                annotations: Some(m.common.annotations.clone()),
-                entity_associations: m.entity_associations.clone(),
-                visibility: None,
-                is_v2: true,
-                span_name: None,
-            });
-        }
-
-        // Now event imports.
-        for e in self.registry.events.iter() {
-            let event_name: &str = &e.name;
-            let matched_explicitly = explicit_events_matcher.is_match(event_name);
-            let matched_by_any = all_events_matcher.is_match(event_name);
-            if !matched_by_any {
-                continue;
-            }
-            match import_decision(
-                &e.common.annotations,
-                matched_explicitly,
-                e.id(),
-                GroupType::Event,
-            ) {
-                ImportDecision::Include => {}
-                ImportDecision::Skip => continue,
-                ImportDecision::Error(err) => {
-                    exclusion_errors.push(err);
-                    continue;
-                }
-            }
-            let mut attributes = vec![];
-            for ar in e.attributes.iter() {
-                let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
-                    Error::InvalidRegistryAttributeRef {
-                        registry_name: self.schema_url.name().to_owned(),
-                        attribute_ref: ar.base.0,
-                    },
-                )?;
-                let source = get_attribute_source(attr);
-                attributes.push(attribute_catalog.attribute_ref_with_provenance(
-                    convert_v2_attribute(attr, ar.requirement_level.clone(), None),
-                    source,
-                    cache_lookup,
-                )?);
-            }
-            result.push(Group {
-                id: e.id().to_owned(),
-                r#type: GroupType::Event,
-                brief: e.common.brief.clone(),
-                note: e.common.note.clone(),
-                prefix: "".to_owned(),
-                extends: None,
-                stability: Some(e.common.stability.clone()),
-                deprecated: e.common.deprecated.clone(),
-                attributes,
-                span_kind: None,
-                events: vec![],
-                metric_name: None,
-                instrument: None,
-                unit: None,
-                requirement_level: None,
-                name: Some(e.name.to_string()),
-                lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
-                    get_source_provenance(&e.provenance),
-                )),
-                display_name: None,
-                body: None,
-                annotations: Some(e.common.annotations.clone()),
-                entity_associations: e.entity_associations.clone(),
-                visibility: None,
-                is_v2: true,
-                span_name: None,
-            });
-        }
-
-        // Now Entity imports.
-        for e in self.registry.entities.iter() {
-            let entity_type: &str = &e.r#type;
-            let matched_explicitly = explicit_entities_matcher.is_match(entity_type);
-            let matched_by_any = all_entities_matcher.is_match(entity_type);
-            if !matched_by_any {
-                continue;
-            }
-            match import_decision(
-                &e.common.annotations,
-                matched_explicitly,
-                e.id(),
-                GroupType::Entity,
-            ) {
-                ImportDecision::Include => {}
-                ImportDecision::Skip => continue,
-                ImportDecision::Error(err) => {
-                    exclusion_errors.push(err);
-                    continue;
-                }
-            }
-            let mut attributes = vec![];
-            for ar in e.identity.iter() {
-                // TODO - this should be non-panic errors.
-                let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
-                    Error::InvalidRegistryAttributeRef {
-                        registry_name: self.schema_url.name().to_owned(),
-                        attribute_ref: ar.base.0,
-                    },
-                )?;
-                let source = get_attribute_source(attr);
-                attributes.push(attribute_catalog.attribute_ref_with_provenance(
-                    convert_v2_attribute(
-                        attr,
-                        ar.requirement_level.clone(),
-                        Some(AttributeRole::Identifying),
-                    ),
-                    source,
-                    cache_lookup,
-                )?);
-            }
-            for ar in e.description.iter() {
-                // TODO - this should be non-panic errors.
-                let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
-                    Error::InvalidRegistryAttributeRef {
-                        registry_name: self.schema_url.name().to_owned(),
-                        attribute_ref: ar.base.0,
-                    },
-                )?;
-                let source = get_attribute_source(attr);
-                attributes.push(attribute_catalog.attribute_ref_with_provenance(
-                    convert_v2_attribute(
-                        attr,
-                        ar.requirement_level.clone(),
-                        Some(AttributeRole::Descriptive),
-                    ),
-                    source,
-                    cache_lookup,
-                )?);
-            }
-            result.push(Group {
-                id: e.id().to_owned(),
-                r#type: GroupType::Entity,
-                brief: e.common.brief.clone(),
-                note: e.common.note.clone(),
-                prefix: "".to_owned(),
-                extends: None,
-                stability: Some(e.common.stability.clone()),
-                deprecated: e.common.deprecated.clone(),
-                attributes,
-                span_kind: None,
-                events: vec![],
-                metric_name: None,
-                instrument: None,
-                unit: None,
-                requirement_level: None,
-                name: Some(e.r#type.to_string()),
-                lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
-                    get_source_provenance(&e.provenance),
-                )),
-                display_name: None,
-                body: None,
-                annotations: Some(e.common.annotations.clone()),
-                entity_associations: vec![],
-                visibility: None,
-                is_v2: true,
-                span_name: None,
-            });
-        }
-
-        // Now Span imports.
-        for s in self.registry.spans.iter() {
-            let span_name: &str = &s.r#type;
-            let matched_explicitly = explicit_spans_matcher.is_match(span_name);
-            let matched_by_any = all_spans_matcher.is_match(span_name);
-            if !matched_by_any {
-                continue;
-            }
-            match import_decision(
-                &s.common.annotations,
-                matched_explicitly,
-                s.id(),
-                GroupType::Span,
-            ) {
-                ImportDecision::Include => {}
-                ImportDecision::Skip => continue,
-                ImportDecision::Error(err) => {
-                    exclusion_errors.push(err);
-                    continue;
-                }
-            }
-            let mut attributes = vec![];
-            for ar in s.attributes.iter() {
-                let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
-                    Error::InvalidRegistryAttributeRef {
-                        registry_name: self.schema_url.name().to_owned(),
-                        attribute_ref: ar.base.0,
-                    },
-                )?;
-                let source = get_attribute_source(attr);
-                attributes.push(attribute_catalog.attribute_ref_with_provenance(
-                    convert_v2_attribute(attr, ar.requirement_level.clone(), None),
-                    source,
-                    cache_lookup,
-                )?);
-            }
-            result.push(Group {
-                id: s.id().to_owned(),
-                r#type: GroupType::Span,
-                brief: s.common.brief.clone(),
-                note: s.common.note.clone(),
-                prefix: "".to_owned(),
-                extends: None,
-                stability: Some(s.common.stability.clone()),
-                deprecated: s.common.deprecated.clone(),
-                attributes,
-                span_kind: Some(s.kind.clone()),
-                events: vec![],
-                metric_name: None,
-                instrument: None,
-                unit: None,
-                requirement_level: None,
-                name: Some(s.r#type.to_string()),
-                lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
-                    get_source_provenance(&s.provenance),
-                )),
-                display_name: None,
-                body: None,
-                annotations: Some(s.common.annotations.clone()),
-                entity_associations: s.entity_associations.clone(),
-                visibility: None,
-                is_v2: true,
-                span_name: Some(s.name.clone()),
-            });
-        }
-
-        // Now AttributeGroup imports.
-        for ag in self.registry.attribute_groups.iter() {
-            let ag_id: &str = &ag.id;
-            let matched_explicitly = explicit_attribute_groups_matcher.is_match(ag_id);
-            let matched_by_any = all_attribute_groups_matcher.is_match(ag_id);
-            if !matched_by_any {
-                continue;
-            }
-            match import_decision(
-                &ag.common.annotations,
-                matched_explicitly,
-                ag.id(),
-                GroupType::AttributeGroup,
-            ) {
-                ImportDecision::Include => {}
-                ImportDecision::Skip => continue,
-                ImportDecision::Error(err) => {
-                    exclusion_errors.push(err);
-                    continue;
-                }
-            }
-            let mut attributes = vec![];
-            for ar in ag.attributes.iter() {
-                let attr = self.attribute_catalog.attribute(&ar.base).ok_or(
-                    Error::InvalidRegistryAttributeRef {
-                        registry_name: self.schema_url.name().to_owned(),
-                        attribute_ref: ar.base.0,
-                    },
-                )?;
-                let source = get_attribute_source(attr);
-                attributes.push(attribute_catalog.attribute_ref_with_provenance(
-                    convert_v2_attribute(attr, ar.requirement_level.clone(), None),
-                    source,
-                    cache_lookup,
-                )?);
-            }
-            result.push(Group {
-                id: ag.id().to_owned(),
-                r#type: GroupType::AttributeGroup,
-                brief: ag.common.brief.clone(),
-                note: ag.common.note.clone(),
-                prefix: "".to_owned(),
-                extends: None,
-                stability: Some(ag.common.stability.clone()),
-                deprecated: ag.common.deprecated.clone(),
-                attributes,
-                span_kind: None,
-                events: vec![],
-                metric_name: None,
-                instrument: None,
-                unit: None,
-                requirement_level: None,
-                name: None,
-                lineage: None,
-                display_name: None,
-                body: None,
-                annotations: Some(ag.common.annotations.clone()),
-                entity_associations: vec![],
-                visibility: None,
-                is_v2: true,
-                span_name: None,
-            });
-        }
-        if !exclusion_errors.is_empty() {
-            return Err(Error::CompoundError(exclusion_errors));
-        }
-
-        // The imported groups may originate in transitive dependencies that
-        // graph-wide version conflict resolution upgraded; substitute the
-        // chosen version's definition where that applies.
-        for group in result.iter_mut() {
-            if let Some(upgraded) =
-                upgrade_imported_group(group, &self.schema_url, attribute_catalog, cache_lookup)?
-            {
-                *group = upgraded;
-            }
-        }
-
-        let mut g_url = self.schema_url.clone();
-        if let Some(chosen_url) = cache_lookup.chosen_version(g_url.name()) {
-            if chosen_url != &g_url {
-                if let Ok(winning_url) = UseLatestMajorVersion.resolve_conflict(&g_url, chosen_url)
-                {
-                    g_url = winning_url;
-                }
-            }
-        }
-        Ok(result
-            .into_iter()
-            .map(|group| GroupWithProvenance {
-                group,
-                schema_url: g_url.clone(),
-            })
-            .collect())
-    }
-}
-
-impl ImportableDependency for ResolvedDependency {
-    fn import_groups<C: crate::SchemaCacheLookup>(
-        &self,
-        imports: &[ImportsWithProvenance],
-        attribute_catalog: &mut AttributeCatalog,
-        cache_lookup: &C,
-    ) -> Result<Vec<GroupWithProvenance>, Error> {
-        match self {
-            ResolvedDependency::V1(schema) => {
-                schema.import_groups(imports, attribute_catalog, cache_lookup)
-            }
-            ResolvedDependency::V2(schema) => {
-                schema.import_groups(imports, attribute_catalog, cache_lookup)
-            }
-        }
-    }
-}
-
-// Allows importing across all dependencies.
-impl ImportableDependency for Vec<ResolvedDependency> {
-    fn import_groups<C: crate::SchemaCacheLookup>(
-        &self,
-        imports: &[ImportsWithProvenance],
-        attribute_catalog: &mut AttributeCatalog,
-        cache_lookup: &C,
-    ) -> Result<Vec<GroupWithProvenance>, Error> {
-        self.iter()
-            .map(|d| d.import_groups(imports, attribute_catalog, cache_lookup))
-            .try_fold(vec![], |mut result, next| {
-                result.extend(next?);
-                Ok(result)
-            })
-    }
-}
-
-/// Helper trait for abstracting over V1 and V2 schema.
-pub(crate) trait GroupRefinementLookup {
-    /// Looks up a group summary on this repo.
-    /// id: The group id to find
-    /// return: The summary of the group, or None if the group was not found.
-    fn lookup_group_summary(&self, id: &str) -> Option<GroupSummary>;
-}
-
-impl GroupRefinementLookup for V1Schema {
-    fn lookup_group_summary(&self, id: &str) -> Option<GroupSummary> {
-        let my_schema_url = SchemaUrl::try_from(self.schema_url.as_str()).ok();
-        self.group(id).map(|g| {
-            let attributes: Vec<UnresolvedAttribute> = g
-                .attributes
-                .iter()
-                .filter_map(|ar| self.catalog.attribute(ar))
-                .map(|a| UnresolvedAttribute {
-                    origin: my_schema_url.as_ref().map(|url| {
-                        match find_attribute_source(self, &a.name, url) {
-                            AttributeSource::Dependency { schema_url } => schema_url,
-                            AttributeSource::Local { .. } => url.clone(),
-                        }
-                    }),
-                    spec: weaver_semconv::attribute::AttributeSpec::Id {
-                        id: a.name.clone(),
-                        r#type: a.r#type.clone(),
-                        brief: Some(a.brief.clone()),
-                        examples: a.examples.clone(),
-                        tag: a.tag.clone(),
-                        requirement_level: a.requirement_level.clone(),
-                        sampling_relevant: a.sampling_relevant,
-                        note: a.note.clone(),
-                        stability: a.stability.clone(),
-                        deprecated: a.deprecated.clone(),
-                        annotations: a.annotations.clone(),
-                        role: a.role.clone(),
-                    },
-                })
-                .collect();
-            let mut summary = GroupSummary::from_without_attributes(g, GroupSource::Dependency);
-            summary.attributes = attributes;
-            summary
-        })
-    }
-}
-
-/// The registry that defines a v2 attribute: one of `schema`'s own dependencies
-/// when the attribute was inherited, otherwise `schema` itself.
-fn attr_origin(
+/// The registry a v2 signal or attribute came from: one of `schema`'s own
+/// dependencies when its provenance names one, otherwise `schema` itself.
+///
+/// `deps` is `schema.dependencies` as a slice — the table a [`DependencyRef`]
+/// indexes into. Callers materialise it once per schema rather than walking
+/// the set on every lookup.
+pub(crate) fn v2_source_url(
     schema: &V2Schema,
     deps: &[SchemaUrl],
-    a: &weaver_resolved_schema::v2::attribute::Attribute,
+    source: Option<DependencyRef>,
 ) -> SchemaUrl {
-    a.provenance
-        .source
-        .and_then(|dep| deps.get(dep.0 as usize).cloned())
+    source
+        .and_then(|dep_ref| deps.get(dep_ref.0 as usize).cloned())
         .unwrap_or_else(|| schema.schema_url.clone())
 }
 
@@ -1221,7 +359,7 @@ fn attr_spec(
     role: Option<AttributeRole>,
 ) -> UnresolvedAttribute {
     UnresolvedAttribute {
-        origin: Some(attr_origin(schema, deps, a)),
+        origin: Some(v2_source_url(schema, deps, a.provenance.source)),
         spec: weaver_semconv::attribute::AttributeSpec::Id {
             id: a.key.clone(),
             r#type: a.r#type.clone(),
@@ -1405,19 +543,8 @@ impl From<V2Schema> for ResolvedDependency {
     }
 }
 
-// Constructs a globset from a set of wildcards.
-fn build_globset<'a>(wildcards: impl Iterator<Item = &'a GroupWildcard>) -> Result<GlobSet, Error> {
-    let mut builder = GlobSet::builder();
-    for wildcard in wildcards {
-        _ = builder.add(wildcard.0.clone());
-    }
-    builder.build().map_err(|e| Error::InvalidWildcard {
-        error: e.to_string(),
-    })
-}
-
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use itertools::Itertools;
     use std::{collections::HashMap, error::Error};
     use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
@@ -1449,13 +576,14 @@ mod tests {
         Ok(())
     }
 
-    fn example_v1_schema() -> V1Schema {
+    pub(crate) fn example_v1_schema() -> V1Schema {
         V1Schema {
             file_format: "resolved/1.0.0".to_owned(),
             schema_url: "http://test/schemas/1.0.0".to_owned(),
             registry_id: "test-registry".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "v1-example".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![
                     weaver_resolved_schema::registry::Group {
                         id: "a".to_owned(),
@@ -1541,7 +669,7 @@ mod tests {
         }
     }
 
-    fn example_v2_schema() -> weaver_resolved_schema::v2::ResolvedTelemetrySchema {
+    pub(crate) fn example_v2_schema() -> weaver_resolved_schema::v2::ResolvedTelemetrySchema {
         weaver_resolved_schema::v2::ResolvedTelemetrySchema {
             file_format: "resolved/2.0".to_owned(),
             schema_url: "http://test/schemas/2.0.0".try_into().unwrap(),
@@ -1570,7 +698,13 @@ mod tests {
                     instrument: weaver_semconv::group::InstrumentSpec::Counter,
                     unit: "1".to_owned(),
                     attributes: vec![],
-                    entity_associations: vec![],
+                    entity_associations: vec![
+                        weaver_resolved_schema::v2::entity::EntityAssociation::Ref(
+                            weaver_resolved_schema::v2::entity::EntityRef::local(
+                                "entity.c".to_owned().into(),
+                            ),
+                        ),
+                    ],
                     requirement_level: None,
                     common: Default::default(),
                     provenance: Default::default(),
@@ -1597,23 +731,51 @@ mod tests {
                 }],
                 entities: vec![weaver_resolved_schema::v2::entity::Entity {
                     r#type: "entity.c".to_owned().into(),
-                    identity: vec![],
-                    description: vec![],
+                    // An identity and a description attribute, so importing
+                    // the entity has to tag each one with its role.
+                    identity: vec![weaver_resolved_schema::v2::entity::EntityAttributeRef {
+                        base: weaver_resolved_schema::v2::attribute::AttributeRef(1),
+                        requirement_level: Default::default(),
+                    }],
+                    description: vec![weaver_resolved_schema::v2::entity::EntityAttributeRef {
+                        base: weaver_resolved_schema::v2::attribute::AttributeRef(2),
+                        requirement_level: Default::default(),
+                    }],
                     requirement_level: None,
                     common: Default::default(),
                     provenance: Default::default(),
                 }],
                 attributes: vec![],
             },
-            attribute_catalog: vec![weaver_resolved_schema::v2::attribute::Attribute {
-                key: "attr.in.group".to_owned(),
-                r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                    weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
-                ),
-                examples: None,
-                common: Default::default(),
-                provenance: Default::default(),
-            }],
+            attribute_catalog: vec![
+                weaver_resolved_schema::v2::attribute::Attribute {
+                    key: "attr.in.group".to_owned(),
+                    r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                        weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                    ),
+                    examples: None,
+                    common: Default::default(),
+                    provenance: Default::default(),
+                },
+                weaver_resolved_schema::v2::attribute::Attribute {
+                    key: "entity.c.id".to_owned(),
+                    r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                        weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                    ),
+                    examples: None,
+                    common: Default::default(),
+                    provenance: Default::default(),
+                },
+                weaver_resolved_schema::v2::attribute::Attribute {
+                    key: "entity.c.label".to_owned(),
+                    r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
+                        weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                    ),
+                    examples: None,
+                    common: Default::default(),
+                    provenance: Default::default(),
+                },
+            ],
             refinements: weaver_resolved_schema::v2::refinements::Refinements {
                 spans: vec![],
                 metrics: vec![],
@@ -1670,190 +832,6 @@ mod tests {
         assert!(
             d.lookup_group_summary("does.not.exist").is_none(),
             "Should not find an unknown group id"
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_import_groups_v1() -> Result<(), Box<dyn Error>> {
-        use crate::dependency::ImportableDependency;
-        let d = example_v1_schema();
-        let mut catalog = crate::attribute::AttributeCatalog::default();
-        let schema_url =
-            weaver_semconv::schema_url::SchemaUrl::try_from_name_version("main", "1.0.0")
-                .expect("Failed to create schema_url");
-        let imports = vec![weaver_semconv::group::ImportsWithProvenance {
-            provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file"),
-            imports: weaver_semconv::semconv::Imports {
-                metrics: None,
-                events: None,
-                entities: None,
-                spans: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("span.v1")?,
-                )]),
-                attribute_groups: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("a")?,
-                )]),
-            },
-        }];
-
-        // By default V1 example schema has an AttributeGroup and a Span.
-        let result = d.import_groups(&imports, &mut catalog, &())?;
-        assert_eq!(
-            result.len(),
-            2,
-            "Attribute group and span should be imported"
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_import_groups_v2() -> Result<(), Box<dyn Error>> {
-        use crate::dependency::ImportableDependency;
-        let d = example_v2_schema();
-        let mut catalog = crate::attribute::AttributeCatalog::default();
-        let schema_url =
-            weaver_semconv::schema_url::SchemaUrl::try_from_name_version("main", "1.0.0")
-                .expect("Failed to create schema_url");
-        let imports = vec![weaver_semconv::group::ImportsWithProvenance {
-            provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file"),
-            imports: weaver_semconv::semconv::Imports {
-                metrics: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("metric.a")?,
-                )]),
-                events: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("event.b")?,
-                )]),
-                entities: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("entity.c")?,
-                )]),
-                spans: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("span.d")?,
-                )]),
-                attribute_groups: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("attribute_group.e")?,
-                )]),
-            },
-        }];
-
-        let result = d.import_groups(&imports, &mut catalog, &())?;
-        assert_eq!(
-            result.len(),
-            5,
-            "Should import metric, event, entity, span and attribute_group"
-        );
-
-        // The imported public attribute group must preserve the per-attribute
-        // requirement level authored on its ref (rather than resetting it to
-        // the default).
-        let group = result
-            .iter()
-            .find(|g| g.group.id == "attribute_group.e")
-            .expect("attribute_group.e should be imported")
-            .group
-            .clone();
-        assert_eq!(group.attributes.len(), 1);
-        let attr = catalog
-            .attribute(&group.attributes[0])
-            .expect("imported attribute should exist in the catalog");
-        assert_eq!(
-            attr.requirement_level,
-            weaver_semconv::attribute::RequirementLevel::Basic(
-                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
-            )
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_import_groups_vec() -> Result<(), Box<dyn Error>> {
-        use crate::dependency::ImportableDependency;
-        let deps = vec![
-            ResolvedDependency::V1(Box::new(example_v1_schema())),
-            ResolvedDependency::V2(Box::new(example_v2_schema())),
-        ];
-        let mut catalog = crate::attribute::AttributeCatalog::default();
-        let schema_url =
-            weaver_semconv::schema_url::SchemaUrl::try_from_name_version("main", "1.0.0")
-                .expect("Failed to create schema_url");
-        let imports = vec![weaver_semconv::group::ImportsWithProvenance {
-            provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file"),
-            imports: weaver_semconv::semconv::Imports {
-                metrics: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("metric.a")?,
-                )]),
-                events: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("event.b")?,
-                )]),
-                entities: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("entity.c")?,
-                )]),
-                spans: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("span.d")?,
-                )]),
-                attribute_groups: Some(vec![weaver_semconv::group::GroupWildcard(
-                    globset::Glob::new("attribute_group.e")?,
-                )]),
-            },
-        }];
-
-        let result = deps.import_groups(&imports, &mut catalog, &())?;
-        // V1 schema has AttributeGroup, which returns false unless include_all.
-        // V2 schema has metric, event, entity, span, and attribute_group that match.
-        assert_eq!(result.len(), 5);
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_import_groups_combine_blocks() -> Result<(), Box<dyn Error>> {
-        use crate::dependency::ImportableDependency;
-        let d = example_v2_schema();
-        let mut catalog = crate::attribute::AttributeCatalog::default();
-        let schema_url =
-            weaver_semconv::schema_url::SchemaUrl::try_from_name_version("main", "1.0.0")
-                .expect("Failed to create schema_url");
-
-        let imports = vec![
-            weaver_semconv::group::ImportsWithProvenance {
-                provenance: weaver_semconv::provenance::Provenance::new(
-                    schema_url.clone(),
-                    "file1",
-                ),
-                imports: weaver_semconv::semconv::Imports {
-                    metrics: Some(vec![weaver_semconv::group::GroupWildcard(
-                        globset::Glob::new("metric.a")?,
-                    )]),
-                    events: None,
-                    entities: None,
-                    spans: None,
-                    attribute_groups: None,
-                },
-            },
-            weaver_semconv::group::ImportsWithProvenance {
-                provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file2"),
-                imports: weaver_semconv::semconv::Imports {
-                    metrics: Some(vec![weaver_semconv::group::GroupWildcard(
-                        globset::Glob::new("metric.b")?,
-                    )]),
-                    events: Some(vec![weaver_semconv::group::GroupWildcard(
-                        globset::Glob::new("event.b")?,
-                    )]),
-                    entities: None,
-                    spans: None,
-                    attribute_groups: None,
-                },
-            },
-        ];
-
-        let result = d.import_groups(&imports, &mut catalog, &())?;
-        assert_eq!(
-            result.len(),
-            2,
-            "Should successfully combine import blocks and import both metric.a and event.b"
         );
 
         Ok(())

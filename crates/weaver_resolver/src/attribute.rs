@@ -193,6 +193,15 @@ fn resolve_conflict(
     m: AttributeWithSource,
     existing: AttributeWithSource,
 ) -> Result<AttributeWithSource, Error> {
+    let m_excluded = m.attribute.annotations.as_ref().is_some_and(is_excluded);
+    let existing_excluded = existing
+        .attribute
+        .annotations
+        .as_ref()
+        .is_some_and(is_excluded);
+    if m_excluded != existing_excluded {
+        return Ok(if m_excluded { existing } else { m });
+    }
     match (m.is_definition, existing.is_definition) {
         (true, false) => return Ok(m),
         (false, true) => return Ok(existing),
@@ -963,6 +972,7 @@ mod tests {
             registry_id: "test-registry".to_owned(),
             registry: weaver_resolved_schema::registry::Registry {
                 registry_url: "v1-example".to_owned(),
+                entity_association_origins: Default::default(),
                 groups: vec![],
             },
             catalog: Catalog::new(vec![attr_v1], root_attributes),

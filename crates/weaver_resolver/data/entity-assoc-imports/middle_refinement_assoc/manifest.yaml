@@ -1,0 +1,9 @@
+name: middle
+description: >
+  Associates a metric with an entity refinement that base defines, naming it by
+  its refinement id. The entity is not imported.
+schema_url: https://example.com/middle/1.0.0
+dependencies:
+  - name: base
+    schema_url: https://example.com/base/1.0.0
+    registry_path: data/entity-assoc-imports/base_refined
