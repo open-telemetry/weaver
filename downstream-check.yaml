@@ -13,7 +13,7 @@
 # overrides the default per-check timeout.
 
 repos:
-  - url: https://github.com/open-telemetry/semantic-conventions.git@main
+  - url: https://github.com/open-telemetry/semantic-conventions.git@v1.44.0
     # WEAVER_CONTAINER is a plain make variable, so the command line wins over
     # the version pinned in dependencies.Dockerfile.
     checks:
@@ -38,6 +38,7 @@ repos:
           git add -A .github/ISSUE_TEMPLATE &&
           git diff --cached --exit-code -- .github/ISSUE_TEMPLATE
 
+  # TODO: pin to a release tag once one exists.
   - url: https://github.com/open-telemetry/semantic-conventions-genai.git@main
     # Passing WEAVER bypasses the Makefile's "fall back to the pinned container
     # if the local weaver is older than the pin" logic, which would otherwise
@@ -53,6 +54,7 @@ repos:
           git add -A ./docs &&
           git diff --cached --exit-code -- ./docs
 
+  # TODO: pin to a release tag once one exists.
   - url: https://github.com/open-telemetry/opentelemetry-weaver-packages.git@main
     # The buildscripts pick weaver up from $WEAVER.
     checks:
@@ -61,6 +63,7 @@ repos:
       - name: test-policies
         run: make test-policies
 
+  # TODO: pin to a release tag once one exists.
   - url: https://github.com/open-telemetry/opentelemetry-weaver-examples.git@main
     # The Makefiles call a bare `weaver`, which resolves to ours via PATH.
     # TODO: `resolve` and `live-check otlp` below are spelled out here because
@@ -118,7 +121,7 @@ repos:
         dir: custom_advisor
         run: make test
 
-  - url: https://github.com/open-telemetry/opentelemetry-rust.git@main
+  - url: https://github.com/open-telemetry/opentelemetry-rust.git@opentelemetry-semantic-conventions-0.32.1
     # Regenerates the semconv crate and compiles it, which is the only downstream
     # check that catches weaver emitting code that does not build.
     #
