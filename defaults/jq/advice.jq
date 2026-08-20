@@ -21,6 +21,10 @@
     reduce .[] as $template ({}; . + {($template): true})
   ),
   
+  # The entity definitions, keyed by entity type or refinement id. A policy
+  # reads `data.entities[type]` to test for an entity and to read its attributes.
+  "entities": .semconv_entities,
+
   # Extract all possible namespaces from attributes
   "namespaces_to_check_set": (
     .semconv_attributes | keys | 

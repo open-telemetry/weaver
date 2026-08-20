@@ -5,8 +5,10 @@
 use serde_json::json;
 use std::{collections::HashSet, rc::Rc};
 use weaver_checker::{FindingLevel, PolicyFinding};
+use weaver_forge::registry::ResolvedGroup;
 use weaver_forge::v2::{
-    entity::EntityAssociation as V2EntityAssociation, event::EventAttribute,
+    entity::{Entity as V2Entity, EntityAssociation as V2EntityAssociation, EntityRef},
+    event::EventAttribute,
     metric::MetricAttribute,
 };
 use weaver_resolved_schema::attribute::Attribute;
@@ -78,11 +80,31 @@ impl CheckableAttribute for EventAttribute {
     }
 }
 
+/// An entity definition borrowed from the registry that holds it.
+///
+/// A v1 definition is a group, and a v2 definition is an entity. Neither is
+/// cloned: a definition is read once per sample.
+pub(crate) enum EntityDef<'a> {
+    /// A v1 entity group.
+    V1(&'a ResolvedGroup),
+    /// A v2 entity.
+    V2(&'a V2Entity),
+}
+
+impl<'a> From<&'a VersionedEntity> for EntityDef<'a> {
+    fn from(entity: &'a VersionedEntity) -> Self {
+        match entity {
+            VersionedEntity::V1(group) => EntityDef::V1(group),
+            VersionedEntity::V2(entity) => EntityDef::V2(entity),
+        }
+    }
+}
+
 /// Checks resource attributes against an entity definition's requirements.
 ///
 /// Findings use entity-specific `FindingId` variants and include `entity_type` in context.
 pub(crate) fn check_entity_resource_attributes(
-    entity: &VersionedEntity,
+    entity: EntityDef<'_>,
     resource_attributes: &[SampleAttribute],
     parent_signal: &Sample,
 ) -> Vec<PolicyFinding> {
@@ -138,7 +160,7 @@ pub(crate) fn check_entity_resource_attributes(
     };
 
     match entity {
-        VersionedEntity::V1(group) => {
+        EntityDef::V1(group) => {
             let entity_type = group.name.as_deref().unwrap_or("");
             for attr in &group.attributes {
                 check_attr(
@@ -149,7 +171,7 @@ pub(crate) fn check_entity_resource_attributes(
                 );
             }
         }
-        VersionedEntity::V2(entity) => {
+        EntityDef::V2(entity) => {
             let entity_type = entity.r#type.to_string();
             for attr in entity.identity.iter().chain(entity.description.iter()) {
                 check_attr(
@@ -165,10 +187,10 @@ pub(crate) fn check_entity_resource_attributes(
     advice_list
 }
 
-/// One node of an entity association expression: a named entity, or the
-/// children of a combinator.
-pub(crate) enum AssocNode<'a, A> {
-    Ref(&'a str),
+/// One node of an entity association expression: a leaf that names an entity,
+/// or the children of a combinator.
+pub(crate) enum AssocNode<'a, A: AssocExpr> {
+    Ref(&'a A::Leaf),
     OneOf(&'a [A]),
     AllOf(&'a [A]),
 }
@@ -179,11 +201,46 @@ pub(crate) enum AssocNode<'a, A> {
 /// holds a reference, which names the registry that defines the entity as well.
 /// The walk is the same either way, so it is written once.
 pub(crate) trait AssocExpr: Sized {
+    /// The leaf shape of this expression.
+    type Leaf: AssocLeaf;
+
     /// The parts of this node.
     fn node(&self) -> AssocNode<'_, Self>;
 }
 
+/// The leaf of an association expression: the entity it names, and where the
+/// definition of that entity lives.
+pub(crate) trait AssocLeaf {
+    /// The entity type, or refinement id, that the leaf names.
+    fn entity_type(&self) -> &str;
+
+    /// The definition, read from the registry the leaf points at.
+    fn lookup<'a>(&self, live_checker: &'a LiveChecker) -> Option<EntityDef<'a>>;
+}
+
+impl AssocLeaf for String {
+    fn entity_type(&self) -> &str {
+        self
+    }
+
+    fn lookup<'a>(&self, live_checker: &'a LiveChecker) -> Option<EntityDef<'a>> {
+        live_checker.find_entity(self).map(EntityDef::from)
+    }
+}
+
+impl AssocLeaf for EntityRef {
+    fn entity_type(&self) -> &str {
+        &self.r#type
+    }
+
+    fn lookup<'a>(&self, live_checker: &'a LiveChecker) -> Option<EntityDef<'a>> {
+        live_checker.lookup_entity(self).map(EntityDef::V2)
+    }
+}
+
 impl AssocExpr for EntityAssociation {
+    type Leaf = String;
+
     fn node(&self) -> AssocNode<'_, Self> {
         match self {
             EntityAssociation::Ref(name) => AssocNode::Ref(name),
@@ -194,9 +251,11 @@ impl AssocExpr for EntityAssociation {
 }
 
 impl AssocExpr for V2EntityAssociation {
+    type Leaf = EntityRef;
+
     fn node(&self) -> AssocNode<'_, Self> {
         match self {
-            V2EntityAssociation::Ref(entity_ref) => AssocNode::Ref(&entity_ref.r#type),
+            V2EntityAssociation::Ref(entity_ref) => AssocNode::Ref(entity_ref),
             V2EntityAssociation::OneOf { one_of } => AssocNode::OneOf(one_of),
             V2EntityAssociation::AllOf { all_of } => AssocNode::AllOf(all_of),
         }
@@ -209,7 +268,7 @@ fn referenced_entities<A: AssocExpr>(associations: &[A]) -> Vec<&str> {
     let mut stack: Vec<&A> = associations.iter().rev().collect();
     while let Some(node) = stack.pop() {
         match node.node() {
-            AssocNode::Ref(name) => names.push(name),
+            AssocNode::Ref(leaf) => names.push(leaf.entity_type()),
             AssocNode::OneOf(children) | AssocNode::AllOf(children) => {
                 stack.extend(children.iter().rev());
             }
@@ -256,10 +315,10 @@ fn evaluate_association<A: AssocExpr>(
     parent_signal: &Sample,
 ) -> AssocEval {
     match assoc.node() {
-        AssocNode::Ref(name) => match live_checker.find_entity(name) {
+        AssocNode::Ref(leaf) => match leaf.lookup(live_checker) {
             Some(entity) => {
                 let findings =
-                    check_entity_resource_attributes(&entity, resource_attributes, parent_signal);
+                    check_entity_resource_attributes(entity, resource_attributes, parent_signal);
                 // Satisfied when no required (Violation-level) attribute is missing. Any
                 // remaining recommended/opt-in/conditional findings are surfaced as improvements.
                 let satisfied = !findings.iter().any(|f| f.level == FindingLevel::Violation);

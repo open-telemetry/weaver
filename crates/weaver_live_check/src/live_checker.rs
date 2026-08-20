@@ -12,6 +12,7 @@ use crate::{
     advice::Advisor, finding_modifier::FindingModifier, otlp_logger::OtlpEmitter,
     VersionedAttribute, VersionedEntity, VersionedRegistry, VersionedSignal,
 };
+use weaver_forge::v2::entity::{Entity as V2Entity, EntityRef};
 
 #[cfg(test)]
 use crate::CumulativeStatistics;
@@ -25,8 +26,7 @@ pub struct LiveChecker {
     semconv_templates: HashMap<String, Rc<VersionedAttribute>>,
     semconv_metrics: HashMap<String, Rc<VersionedSignal>>,
     semconv_events: HashMap<String, Rc<VersionedSignal>>,
-    #[serde(skip)]
-    semconv_entities: HashMap<String, Rc<VersionedEntity>>,
+    semconv_entities: HashMap<String, VersionedEntity>,
     /// The advisors to run
     #[serde(skip)]
     pub advisors: Vec<Box<dyn Advisor>>,
@@ -38,6 +38,22 @@ pub struct LiveChecker {
     /// Optional finding modifier for overriding/filtering findings
     #[serde(skip)]
     pub finding_modifier: Option<FindingModifier>,
+}
+
+/// Adds a v2 entity to the name index, unless the name is already taken.
+///
+/// The index is keyed by name alone, so when two registries define one name only
+/// the first indexed is reachable. The caller indexes this registry before its
+/// dependencies. A v2 association is unaffected either way: it resolves through
+/// [`LiveChecker::lookup_entity`], which reads the registry the reference names.
+fn index_v2_entity(
+    entities: &mut HashMap<String, VersionedEntity>,
+    name: String,
+    entity: &V2Entity,
+) {
+    let _ = entities
+        .entry(name)
+        .or_insert_with(|| VersionedEntity::V2(Box::new(entity.clone())));
 }
 
 impl LiveChecker {
@@ -72,8 +88,10 @@ impl LiveChecker {
                     }
                     if group.r#type == GroupType::Entity {
                         if let Some(entity_name) = &group.name {
-                            let entity_rc = Rc::new(VersionedEntity::V1(Box::new(group.clone())));
-                            let _ = semconv_entities.insert(entity_name.clone(), entity_rc);
+                            let _ = semconv_entities.insert(
+                                entity_name.clone(),
+                                VersionedEntity::V1(Box::new(group.clone())),
+                            );
                         }
                     }
                     for attribute in &group.attributes {
@@ -104,10 +122,21 @@ impl LiveChecker {
                     let event_rc = Rc::new(VersionedSignal::Event(event.clone()));
                     let _ = semconv_events.insert(event_name, event_rc);
                 }
-                for entity in &registry.registry.entities {
-                    let entity_type = entity.r#type.to_string();
-                    let entity_rc = Rc::new(VersionedEntity::V2(Box::new(entity.clone())));
-                    let _ = semconv_entities.insert(entity_type, entity_rc);
+                // The Rego data document is built from this index, so it holds
+                // every entity a policy may read: those of this registry and of
+                // each dependency, and the refinements, whose ids share the
+                // namespace of an entity type.
+                for source in std::iter::once(registry.as_ref()).chain(&registry.dependencies) {
+                    for entity in &source.registry.entities {
+                        index_v2_entity(&mut semconv_entities, entity.r#type.to_string(), entity);
+                    }
+                    for refinement in &source.refinements.entities {
+                        index_v2_entity(
+                            &mut semconv_entities,
+                            refinement.id.to_string(),
+                            &refinement.entity,
+                        );
+                    }
                 }
                 for attribute in &registry.registry.attributes {
                     let attribute_rc = Rc::new(VersionedAttribute::V2(attribute.clone()));
@@ -164,10 +193,27 @@ impl LiveChecker {
         self.semconv_events.get(name).map(Rc::clone)
     }
 
-    /// Find an entity in the registry by type name
+    /// Find an entity by type name, or by refinement id
+    ///
+    /// The index is by name alone, so two registries that define the same name
+    /// leave one of the two definitions unreachable. Use [`Self::lookup_entity`]
+    /// for a v2 association, which says which registry defines the entity.
     #[must_use]
-    pub fn find_entity(&self, entity_type: &str) -> Option<Rc<VersionedEntity>> {
-        self.semconv_entities.get(entity_type).map(Rc::clone)
+    pub fn find_entity(&self, entity_type: &str) -> Option<&VersionedEntity> {
+        self.semconv_entities.get(entity_type)
+    }
+
+    /// Find the entity that a v2 association reference names
+    ///
+    /// The reference says which registry defines the entity, so this reads that
+    /// one registry. `None` means no registry in scope answers the reference, or
+    /// the registry under check is v1 and holds no such reference.
+    #[must_use]
+    pub fn lookup_entity(&self, entity_ref: &EntityRef) -> Option<&V2Entity> {
+        match self.registry.as_ref() {
+            VersionedRegistry::V2(registry) => registry.lookup_entity(entity_ref).ok(),
+            VersionedRegistry::V1(_) => None,
+        }
     }
 
     /// Find a template in the registry
@@ -207,7 +253,10 @@ mod tests {
     use std::collections::BTreeMap;
     use weaver_checker::{FindingLevel, PolicyFinding};
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
-    use weaver_forge::v2::entity::{EntityAssociation as V2EntityAssociation, EntityRef};
+    use weaver_forge::v2::entity::{
+        EntityAssociation as V2EntityAssociation, EntityAttribute, EntityRefinement,
+    };
+    use weaver_forge::v2::provenance::Provenance as V2Provenance;
     use weaver_forge::v2::{
         attribute::Attribute as V2Attribute,
         event::{Event as V2Event, EventAttribute},
@@ -218,6 +267,7 @@ mod tests {
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::entity_association::EntityAssociation;
     use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
+    use weaver_semconv::v2::signal_id::SignalId;
     use weaver_semconv::v2::{span::SpanName, CommonFields};
     use weaver_semconv::{
         attribute::{
@@ -3061,6 +3111,281 @@ mod tests {
                 .iter()
                 .all(|a| a.id != "entity_required_attribute_not_present"),
             "neither group satisfied: per-branch required findings should be suppressed, got {advice:?}"
+        );
+    }
+
+    /// Builds the common fields of a stable v2 signal.
+    fn v2_common() -> CommonFields {
+        CommonFields {
+            brief: String::new(),
+            note: String::new(),
+            stability: Stability::Stable,
+            deprecated: None,
+            annotations: BTreeMap::new(),
+        }
+    }
+
+    /// Builds a v2 entity with a single required identity attribute.
+    fn v2_entity(entity_type: &str, attr_key: &str) -> V2Entity {
+        V2Entity {
+            requirement_level: None,
+            r#type: SignalId::from(entity_type.to_owned()),
+            identity: vec![EntityAttribute {
+                base: V2Attribute {
+                    key: attr_key.to_owned(),
+                    r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                    examples: None,
+                    common: v2_common(),
+                    provenance: Default::default(),
+                },
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            }],
+            description: vec![],
+            common: v2_common(),
+            provenance: Default::default(),
+        }
+    }
+
+    /// Builds a v2 event carrying the given entity associations.
+    fn v2_assoc_event(name: &str, associations: Vec<V2EntityAssociation>) -> V2Event {
+        V2Event {
+            requirement_level: None,
+            name: name.to_owned().into(),
+            attributes: vec![],
+            entity_associations: associations,
+            common: v2_common(),
+            provenance: Default::default(),
+        }
+    }
+
+    /// Builds a v2 registry from the pieces an association test needs.
+    fn v2_assoc_registry(
+        schema_url: &str,
+        events: Vec<V2Event>,
+        entities: Vec<V2Entity>,
+        entity_refinements: Vec<EntityRefinement>,
+        dependencies: Vec<ForgeResolvedRegistry>,
+    ) -> ForgeResolvedRegistry {
+        ForgeResolvedRegistry {
+            schema_url: schema_url.try_into().expect("valid schema url"),
+            registry: Registry {
+                attributes: vec![],
+                attribute_groups: vec![],
+                metrics: vec![],
+                spans: vec![],
+                events,
+                entities,
+            },
+            refinements: Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities: entity_refinements,
+            },
+            dependencies,
+        }
+    }
+
+    /// A reference to an entity that the registry at `schema_url` defines.
+    fn dependency_entity_ref(entity_type: &str, schema_url: &str) -> EntityRef {
+        EntityRef {
+            r#type: entity_type.to_owned().into(),
+            provenance: V2Provenance {
+                source: Some(schema_url.try_into().expect("valid schema url")),
+                path: None,
+            },
+        }
+    }
+
+    /// Builds a live checker and its statistics for one v2 registry.
+    fn v2_live_checker(registry: ForgeResolvedRegistry) -> (LiveChecker, LiveCheckStatistics) {
+        let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
+        let live_checker = LiveChecker::new(
+            Arc::new(VersionedRegistry::V2(Box::new(registry))),
+            advisors,
+        );
+        let stats =
+            LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+        (live_checker, stats)
+    }
+
+    #[test]
+    fn test_entity_association_from_dependency_v2() {
+        // A registry does not copy the entities of its dependencies, so the
+        // definition of `host` is only reachable through the reference.
+        const DEP_URL: &str = "https://example.com/base/1.0.0";
+        let dependency = v2_assoc_registry(
+            DEP_URL,
+            vec![],
+            vec![v2_entity("host", "host.name")],
+            vec![],
+            vec![],
+        );
+        let event = v2_assoc_event(
+            "thing.happened",
+            vec![V2EntityAssociation::Ref(dependency_entity_ref(
+                "host", DEP_URL,
+            ))],
+        );
+        let (mut live_checker, mut stats) = v2_live_checker(v2_assoc_registry(
+            "https://example.com/top/1.0.0",
+            vec![event],
+            vec![],
+            vec![],
+            vec![dependency],
+        ));
+
+        // The resource misses the required identity attribute of the entity.
+        let advice = run_event_check(&mut live_checker, &mut stats, "thing.happened", vec![]);
+        assert!(
+            advice.iter().any(|a| a.id == "entity_required_attribute_not_present"
+                && a.level == FindingLevel::Violation
+                && a.context.as_ref().is_some_and(|c| c["entity_type"] == "host"
+                    && c["attribute_key"] == "host.name")),
+            "expected a required-attribute violation for the host entity of the dependency, got {advice:?}"
+        );
+
+        // With the attribute present the association is satisfied.
+        let advice = run_event_check(
+            &mut live_checker,
+            &mut stats,
+            "thing.happened",
+            vec![string_sample_attr("host.name", "h1")],
+        );
+        assert!(
+            advice.iter().all(|a| !a.id.starts_with("entity_")),
+            "expected no entity findings, got {advice:?}"
+        );
+    }
+
+    #[test]
+    fn test_entity_association_names_refinement_v2() {
+        // An association names an entity type or the id of a refinement, which
+        // share one namespace. Here the leaf names a refinement of a dependency.
+        const DEP_URL: &str = "https://example.com/base/1.0.0";
+        let refinement = EntityRefinement {
+            id: SignalId::from("host.windows".to_owned()),
+            entity: v2_entity("host", "host.id"),
+        };
+        let dependency = v2_assoc_registry(DEP_URL, vec![], vec![], vec![refinement], vec![]);
+        let event = v2_assoc_event(
+            "thing.happened",
+            vec![V2EntityAssociation::Ref(dependency_entity_ref(
+                "host.windows",
+                DEP_URL,
+            ))],
+        );
+        let (mut live_checker, mut stats) = v2_live_checker(v2_assoc_registry(
+            "https://example.com/top/1.0.0",
+            vec![event],
+            vec![],
+            vec![],
+            vec![dependency],
+        ));
+
+        let advice = run_event_check(&mut live_checker, &mut stats, "thing.happened", vec![]);
+        assert!(
+            advice
+                .iter()
+                .any(|a| a.id == "entity_required_attribute_not_present"
+                    && a.context
+                        .as_ref()
+                        .is_some_and(|c| c["attribute_key"] == "host.id")),
+            "expected the refinement of the dependency to be checked, got {advice:?}"
+        );
+    }
+
+    #[test]
+    fn test_local_entity_wins_over_a_dependency_v2() {
+        // Two registries define `host`, and each reference says which one it
+        // means, so the leaf decides which definition is checked.
+        const DEP_URL: &str = "https://example.com/base/1.0.0";
+        let dependency = v2_assoc_registry(
+            DEP_URL,
+            vec![],
+            vec![v2_entity("host", "host.id")],
+            vec![],
+            vec![],
+        );
+        let (mut live_checker, mut stats) = v2_live_checker(v2_assoc_registry(
+            "https://example.com/top/1.0.0",
+            vec![
+                v2_assoc_event(
+                    "local.evt",
+                    vec![V2EntityAssociation::Ref(EntityRef::local(
+                        "host".to_owned().into(),
+                    ))],
+                ),
+                v2_assoc_event(
+                    "dependency.evt",
+                    vec![V2EntityAssociation::Ref(dependency_entity_ref(
+                        "host", DEP_URL,
+                    ))],
+                ),
+            ],
+            vec![v2_entity("host", "host.name")],
+            vec![],
+            vec![dependency],
+        ));
+
+        let advice = run_event_check(&mut live_checker, &mut stats, "local.evt", vec![]);
+        assert!(
+            advice.iter().any(|a| a
+                .context
+                .as_ref()
+                .is_some_and(|c| c["attribute_key"] == "host.name")),
+            "the local reference must read the local definition, got {advice:?}"
+        );
+
+        let advice = run_event_check(&mut live_checker, &mut stats, "dependency.evt", vec![]);
+        assert!(
+            advice.iter().any(|a| a
+                .context
+                .as_ref()
+                .is_some_and(|c| c["attribute_key"] == "host.id")),
+            "the reference into the dependency must read that definition, got {advice:?}"
+        );
+    }
+
+    #[test]
+    fn test_rego_data_holds_the_entities() {
+        // A rego policy under live-check cannot look an entity up for itself, so
+        // the jq preprocessor hands the definitions to the data document.
+        const DEP_URL: &str = "https://example.com/base/1.0.0";
+        let dependency = v2_assoc_registry(
+            DEP_URL,
+            vec![],
+            vec![v2_entity("host", "host.name")],
+            vec![],
+            vec![],
+        );
+        let (live_checker, _stats) = v2_live_checker(v2_assoc_registry(
+            "https://example.com/top/1.0.0",
+            vec![],
+            vec![v2_entity("service", "service.name")],
+            vec![EntityRefinement {
+                id: SignalId::from("host.windows".to_owned()),
+                entity: v2_entity("host", "host.id"),
+            }],
+            vec![dependency],
+        ));
+
+        let data = weaver_forge::jq::execute_jq(
+            &serde_json::to_value(&live_checker).expect("the live checker serializes"),
+            crate::DEFAULT_LIVE_CHECK_JQ,
+            &BTreeMap::new(),
+        )
+        .expect("the default jq filter runs");
+
+        let entities = data["entities"]
+            .as_object()
+            .expect("the data document holds the entities");
+        let mut names: Vec<&str> = entities.keys().map(String::as_str).collect();
+        names.sort_unstable();
+        assert_eq!(names, vec!["host", "host.windows", "service"]);
+        assert_eq!(
+            entities["host"]["identity"][0]["key"], "host.name",
+            "an entity of a dependency keeps its attributes"
         );
     }
 
