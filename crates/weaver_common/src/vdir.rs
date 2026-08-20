@@ -1198,14 +1198,20 @@ mod tests {
         assert!(error.contains("current working directory"), "{error}");
         assert!(error.contains("registry_path"), "{error}");
 
-        // Absolute path: no CWD hint, just the missing path.
+        // Absolute path: no CWD hint, just the missing path. A drive-less
+        // `/foo` path is not absolute on Windows, so anchor it explicitly.
+        let missing_abs = if cfg!(windows) {
+            r"C:\definitely\does\not\exist"
+        } else {
+            "/definitely/does/not/exist"
+        };
         let vdir_path = VirtualDirectoryPath::LocalFolder {
-            path: "/definitely/does/not/exist".to_owned(),
+            path: missing_abs.to_owned(),
         };
         let error = VirtualDirectory::try_new(&vdir_path)
             .expect_err("nonexistent local folder must be rejected")
             .to_string();
-        assert!(error.contains("/definitely/does/not/exist"), "{error}");
+        assert!(error.contains(missing_abs), "{error}");
         assert!(!error.contains("current working directory"), "{error}");
     }
 
