@@ -1183,41 +1183,82 @@ mod tests {
     use std::path::Path;
 
     #[test]
-    fn test_local_folder_not_found_reports_cwd_resolution() {
-        // Relative path: the error must name the CWD-resolved absolute path and
+    fn test_local_folder_not_found_relative_reports_cwd_resolution() {
+        // A missing relative path must name the CWD-resolved absolute path and
         // explain that relative paths (e.g. manifest `registry_path` entries)
-        // resolve against the current working directory.
-        let vdir_path = VirtualDirectoryPath::LocalFolder {
-            path: "./does/not/exist".to_owned(),
-        };
-        let error = VirtualDirectory::try_new(&vdir_path)
-            .expect_err("nonexistent local folder must be rejected")
-            .to_string();
-        let expected_resolved = std::env::current_dir()
-            .unwrap()
-            .join("does/not/exist")
+        // resolve against the current working directory. Both spellings of a
+        // relative path resolve identically; a leading `./` is stripped before
+        // joining.
+        let cwd = std::env::current_dir().unwrap();
+        let expected_resolved = cwd.join("does/not/exist").display().to_string();
+        for path in ["./does/not/exist", "does/not/exist"] {
+            let vdir_path = VirtualDirectoryPath::LocalFolder {
+                path: (*path).to_owned(),
+            };
+            let error = VirtualDirectory::try_new(&vdir_path)
+                .expect_err("nonexistent local folder must be rejected")
+                .to_string();
+            assert!(error.contains(path), "{error}");
+            assert!(error.contains(&expected_resolved), "{error}");
+            assert!(error.contains("current working directory"), "{error}");
+            assert!(error.contains("registry_path"), "{error}");
+        }
+    }
+
+    #[test]
+    fn test_local_folder_not_found_absolute() {
+        // A missing absolute path gets a plain "does not exist" with no CWD
+        // hint. A path inside a fresh temporary directory is absolute and
+        // guaranteed nonexistent on every platform.
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let missing = tmp_dir
+            .path()
+            .join("definitely-does-not-exist")
             .display()
             .to_string();
-        assert!(error.contains("./does/not/exist"), "{error}");
-        assert!(error.contains(&expected_resolved), "{error}");
-        assert!(error.contains("current working directory"), "{error}");
-        assert!(error.contains("registry_path"), "{error}");
-
-        // Absolute path: no CWD hint, just the missing path. A drive-less
-        // `/foo` path is not absolute on Windows, so anchor it explicitly.
-        let missing_abs = if cfg!(windows) {
-            r"C:\definitely\does\not\exist"
-        } else {
-            "/definitely/does/not/exist"
-        };
         let vdir_path = VirtualDirectoryPath::LocalFolder {
-            path: missing_abs.to_owned(),
+            path: missing.clone(),
         };
         let error = VirtualDirectory::try_new(&vdir_path)
             .expect_err("nonexistent local folder must be rejected")
             .to_string();
-        assert!(error.contains(missing_abs), "{error}");
+        assert!(error.contains(&missing), "{error}");
+        assert!(error.contains("local path does not exist"), "{error}");
         assert!(!error.contains("current working directory"), "{error}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_local_folder_unreadable_reports_check_failure() {
+        // A path whose existence cannot be determined (here: permission denied
+        // on the parent directory) must not be misreported as missing.
+        use std::os::unix::fs::PermissionsExt;
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let locked = tmp_dir.path().join("locked");
+        let target = locked.join("registry");
+        std::fs::create_dir_all(&target).unwrap();
+        let unlock = |mode: u32| {
+            std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(mode)).unwrap();
+        };
+        unlock(0o000);
+        if std::fs::metadata(&target).is_ok() {
+            // A privileged user (e.g. root in a container) bypasses permission
+            // checks, so the failure cannot be provoked; skip.
+            unlock(0o755);
+            return;
+        }
+        let vdir_path = VirtualDirectoryPath::LocalFolder {
+            path: target.display().to_string(),
+        };
+        let result = VirtualDirectory::try_new(&vdir_path);
+        // Restore permissions before asserting so the tempdir can be cleaned
+        // up even if an assertion fails.
+        unlock(0o755);
+        let error = result
+            .expect_err("unreadable local folder must be rejected")
+            .to_string();
+        assert!(error.contains("local path could not be checked"), "{error}");
+        assert!(!error.contains("does not exist"), "{error}");
     }
 
     #[test]
