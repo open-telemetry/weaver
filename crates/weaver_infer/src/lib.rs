@@ -516,8 +516,6 @@ fn attribute_ref(name: &str) -> AttributeRef {
         examples: None,
         requirement_level: None,
         note: None,
-        stability: None,
-        deprecated: None,
         annotations: BTreeMap::new(),
     }
 }
