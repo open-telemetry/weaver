@@ -26,6 +26,7 @@ pub struct LiveChecker {
     semconv_templates: HashMap<String, Rc<VersionedAttribute>>,
     semconv_metrics: HashMap<String, Rc<VersionedSignal>>,
     semconv_events: HashMap<String, Rc<VersionedSignal>>,
+    #[serde(skip)]
     semconv_entities: HashMap<String, VersionedEntity>,
     /// The advisors to run
     #[serde(skip)]
@@ -38,22 +39,6 @@ pub struct LiveChecker {
     /// Optional finding modifier for overriding/filtering findings
     #[serde(skip)]
     pub finding_modifier: Option<FindingModifier>,
-}
-
-/// Adds a v2 entity to the name index, unless the name is already taken.
-///
-/// The index is keyed by name alone, so when two registries define one name only
-/// the first indexed is reachable. The caller indexes this registry before its
-/// dependencies. A v2 association is unaffected either way: it resolves through
-/// [`LiveChecker::lookup_entity`], which reads the registry the reference names.
-fn index_v2_entity(
-    entities: &mut HashMap<String, VersionedEntity>,
-    name: String,
-    entity: &V2Entity,
-) {
-    let _ = entities
-        .entry(name)
-        .or_insert_with(|| VersionedEntity::V2(Box::new(entity.clone())));
 }
 
 impl LiveChecker {
@@ -122,21 +107,10 @@ impl LiveChecker {
                     let event_rc = Rc::new(VersionedSignal::Event(event.clone()));
                     let _ = semconv_events.insert(event_name, event_rc);
                 }
-                // The Rego data document is built from this index, so it holds
-                // every entity a policy may read: those of this registry and of
-                // each dependency, and the refinements, whose ids share the
-                // namespace of an entity type.
-                for source in std::iter::once(registry.as_ref()).chain(&registry.dependencies) {
-                    for entity in &source.registry.entities {
-                        index_v2_entity(&mut semconv_entities, entity.r#type.to_string(), entity);
-                    }
-                    for refinement in &source.refinements.entities {
-                        index_v2_entity(
-                            &mut semconv_entities,
-                            refinement.id.to_string(),
-                            &refinement.entity,
-                        );
-                    }
+                for entity in &registry.registry.entities {
+                    let entity_type = entity.r#type.to_string();
+                    let _ = semconv_entities
+                        .insert(entity_type, VersionedEntity::V2(Box::new(entity.clone())));
                 }
                 for attribute in &registry.registry.attributes {
                     let attribute_rc = Rc::new(VersionedAttribute::V2(attribute.clone()));
@@ -193,11 +167,11 @@ impl LiveChecker {
         self.semconv_events.get(name).map(Rc::clone)
     }
 
-    /// Find an entity by type name, or by refinement id
+    /// Find an entity in the registry by type name
     ///
-    /// The index is by name alone, so two registries that define the same name
-    /// leave one of the two definitions unreachable. Use [`Self::lookup_entity`]
-    /// for a v2 association, which says which registry defines the entity.
+    /// The index holds the entities of this registry alone. A v2 association goes
+    /// through [`Self::lookup_entity`] instead, which reads the registry that the
+    /// reference names.
     #[must_use]
     pub fn find_entity(&self, entity_type: &str) -> Option<&VersionedEntity> {
         self.semconv_entities.get(entity_type)
@@ -3146,6 +3120,15 @@ mod tests {
         }
     }
 
+    /// The same entity, carrying one annotation.
+    fn annotated(mut entity: V2Entity, key: &str, value: &str) -> V2Entity {
+        let _ = entity.common.annotations.insert(
+            key.to_owned(),
+            YamlValue(serde_yaml::Value::String(value.to_owned())),
+        );
+        entity
+    }
+
     /// Builds a v2 event carrying the given entity associations.
     fn v2_assoc_event(name: &str, associations: Vec<V2EntityAssociation>) -> V2Event {
         V2Event {
@@ -3347,45 +3330,181 @@ mod tests {
         );
     }
 
+    /// The data document the default jq preprocessor hands to a Rego policy.
+    fn rego_data(live_checker: &LiveChecker) -> serde_json::Value {
+        weaver_forge::jq::execute_jq(
+            &serde_json::to_value(live_checker).expect("the live checker serializes"),
+            crate::DEFAULT_LIVE_CHECK_JQ,
+            &BTreeMap::new(),
+        )
+        .expect("the default jq filter runs")
+    }
+
+    /// The entity definitions of one registry, from that data document.
+    fn rego_entities_of(
+        data: &serde_json::Value,
+        schema_url: &str,
+    ) -> serde_json::Map<String, serde_json::Value> {
+        data["entities"][schema_url]
+            .as_object()
+            .unwrap_or_else(|| panic!("no entities for {schema_url} in {data}"))
+            .clone()
+    }
+
     #[test]
-    fn test_rego_data_holds_the_entities() {
-        // A rego policy under live-check cannot look an entity up for itself, so
-        // the jq preprocessor hands the definitions to the data document.
+    fn test_rego_data_holds_the_v2_entities() {
+        // A Rego policy under live-check cannot look an entity up for itself, so
+        // the jq preprocessor derives the definitions from the registry. Both
+        // registries define `host`, and each is reachable under its own url.
+        const TOP_URL: &str = "https://example.com/top/1.0.0";
         const DEP_URL: &str = "https://example.com/base/1.0.0";
         let dependency = v2_assoc_registry(
             DEP_URL,
             vec![],
-            vec![v2_entity("host", "host.name")],
+            vec![v2_entity("host", "host.id")],
             vec![],
             vec![],
         );
         let (live_checker, _stats) = v2_live_checker(v2_assoc_registry(
-            "https://example.com/top/1.0.0",
+            TOP_URL,
             vec![],
-            vec![v2_entity("service", "service.name")],
+            vec![
+                v2_entity("service", "service.name"),
+                v2_entity("host", "host.name"),
+            ],
             vec![EntityRefinement {
                 id: SignalId::from("host.windows".to_owned()),
-                entity: v2_entity("host", "host.id"),
+                entity: v2_entity("host", "host.uuid"),
             }],
             vec![dependency],
         ));
 
-        let data = weaver_forge::jq::execute_jq(
-            &serde_json::to_value(&live_checker).expect("the live checker serializes"),
-            crate::DEFAULT_LIVE_CHECK_JQ,
-            &BTreeMap::new(),
-        )
-        .expect("the default jq filter runs");
+        let data = rego_data(&live_checker);
+        assert_eq!(
+            data["schema_url"], TOP_URL,
+            "a leaf with no provenance resolves against this"
+        );
 
-        let entities = data["entities"]
-            .as_object()
-            .expect("the data document holds the entities");
-        let mut names: Vec<&str> = entities.keys().map(String::as_str).collect();
+        let local = rego_entities_of(&data, TOP_URL);
+        let mut names: Vec<&str> = local.keys().map(String::as_str).collect();
         names.sort_unstable();
         assert_eq!(names, vec!["host", "host.windows", "service"]);
         assert_eq!(
-            entities["host"]["identity"][0]["key"], "host.name",
-            "an entity of a dependency keeps its attributes"
+            local["host.windows"]["identity"][0]["key"], "host.uuid",
+            "a refinement answers under its id"
+        );
+
+        let of_dependency = rego_entities_of(&data, DEP_URL);
+        assert_eq!(
+            of_dependency.keys().collect::<Vec<_>>(),
+            vec!["host"],
+            "the dependency keeps its own namespace"
+        );
+        assert_eq!(
+            of_dependency["host"]["identity"][0]["key"], "host.id",
+            "the rival definition of `host` is not lost to the local one"
+        );
+        assert_eq!(local["host"]["identity"][0]["key"], "host.name");
+    }
+
+    #[test]
+    fn test_rego_policy_reads_the_entities() {
+        // End to end: the default jq preprocessor hands the entity view to a
+        // policy, which reads an annotation from the definition of an entity that
+        // a dependency holds, and checks the resource against it. Nothing in the
+        // input carries that definition. This registry defines a rival `host`, so
+        // the leaf's provenance is what decides which annotation applies.
+        const DEP_URL: &str = "https://example.com/base/1.0.0";
+        let dependency = v2_assoc_registry(
+            DEP_URL,
+            vec![],
+            vec![annotated(
+                v2_entity("host", "host.name"),
+                "id_prefix",
+                "host-",
+            )],
+            vec![],
+            vec![],
+        );
+        let event = v2_assoc_event(
+            "thing.happened",
+            vec![V2EntityAssociation::Ref(dependency_entity_ref(
+                "host", DEP_URL,
+            ))],
+        );
+        let registry = VersionedRegistry::V2(Box::new(v2_assoc_registry(
+            "https://example.com/top/1.0.0",
+            vec![event],
+            vec![annotated(
+                v2_entity("host", "host.name"),
+                "id_prefix",
+                "local-",
+            )],
+            vec![],
+            vec![dependency],
+        )));
+        // No advisors, so the only finding under test is the policy's. The
+        // built-in association check is not an advisor and still runs.
+        let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
+        let rego_advisor = RegoAdvisor::new(
+            &live_checker,
+            &Some("data/policies/entity_advice/".into()),
+            &None,
+            &None,
+        )
+        .expect("Failed to create Rego advisor");
+        live_checker.add_advisor(Box::new(rego_advisor));
+        let mut stats =
+            LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+
+        // The resource carries the identity attribute with the wrong prefix.
+        let advice = run_event_check(
+            &mut live_checker,
+            &mut stats,
+            "thing.happened",
+            vec![string_sample_attr("host.name", "local-1")],
+        );
+        assert!(
+            advice.iter().any(|a| a.id == "unexpected_entity_id_prefix"
+                && a.level == FindingLevel::Improvement
+                && a.context
+                    .as_ref()
+                    .is_some_and(|c| c["entity_type"] == "host"
+                        && c["attribute_key"] == "host.name"
+                        && c["expected"] == "host-")),
+            "the policy should read the annotation of the dependency's entity, not \
+             the rival of this registry, got {advice:?}"
+        );
+
+        // The same signal, with a value the annotation of the dependency allows.
+        let advice = run_event_check(
+            &mut live_checker,
+            &mut stats,
+            "thing.happened",
+            vec![string_sample_attr("host.name", "host-1")],
+        );
+        assert!(
+            advice.iter().all(|a| a.id != "unexpected_entity_id_prefix"),
+            "a value that matches the prefix must not trigger the policy, got {advice:?}"
+        );
+    }
+
+    #[test]
+    fn test_rego_data_holds_no_entities_for_v1() {
+        // The view is derived from the v2 registry shape, which a v1 registry
+        // does not have, so a v1 policy sees an empty object rather than an error.
+        let registry = VersionedRegistry::V1(Box::new(ResolvedRegistry {
+            registry_url: "TEST_V1_ENTITIES".to_owned(),
+            groups: vec![entity_group("host", required_string_attr("host.name"))],
+        }));
+        let live_checker = LiveChecker::new(Arc::new(registry), vec![Box::new(TypeAdvisor)]);
+
+        assert!(
+            rego_data(&live_checker)["entities"]
+                .as_object()
+                .expect("an object, empty")
+                .is_empty(),
+            "a v1 registry has no entity view"
         );
     }
 

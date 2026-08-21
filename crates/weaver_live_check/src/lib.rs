@@ -223,8 +223,7 @@ impl VersionedSignal {
 }
 
 /// Versioned enum for an entity definition
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum VersionedEntity {
     /// v1 entity — a ResolvedGroup with GroupType::Entity
     V1(Box<ResolvedGroup>),
