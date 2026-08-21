@@ -163,6 +163,27 @@ make_finding(id, level, context, message) := {
 
 `data` contains a structure derived from the supplied `Registry`. A jq preprocessor takes the `Registry` (and maps for attributes and templates) to produce the `data` for the policy. If the jq is simply `.` this will passthrough as-is. Preprocessing is used to improve Rego performance and to simplify policy definitions. With this model `data` is processed once whereas the Rego policy runs for every sample entity as it arrives in the stream.
 
+The default preprocessor produces these keys:
+
+- `data.attributes_set`: every attribute name in the registry, as a map from name to `true`.
+- `data.deprecated_attributes_set`: the deprecated subset of those names, in the same shape.
+- `data.templates_set`: every template attribute name, in the same shape.
+- `data.namespaces_to_check_set`: every namespace prefix derived from the attribute names, in the same shape.
+- `data.schema_url`: the schema url of the registry under check. `null` for a v1 registry.
+- `data.entities`: the entity definitions, keyed by the schema url of the registry that defines them, and then by entity type or refinement id. Empty for a v1 registry.
+
+A signal declares the entities it belongs to with `entity_associations`, and an entity may be defined in a dependency rather than in the registry under check, so its definition is not in the input. Each association leaf carries the entity type and the provenance of the definition, which is the pair `data.entities` is keyed by, so a policy reads one definition rather than searching for it by name:
+
+```rego
+some assoc in input.registry_group.entity_associations
+
+# A leaf omits its provenance when the registry under check defines the entity.
+source := object.get(assoc, ["provenance", "source"], data.schema_url)
+entity := data.entities[source][assoc.type]
+```
+
+An element of `entity_associations` can also be a `one_of` or `all_of` group rather than a direct reference. A group carries no `type`, so a policy that must cover those walks the tree itself. `data/policies/entity_advice/entities.rego` is a complete example of reading an entity definition.
+
 To override the default Otel jq preprocessor provide a path to the jq file through the `--advice-preprocessor` option.
 
 ## Project Configuration (`.weaver.toml`)
