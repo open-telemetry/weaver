@@ -643,7 +643,7 @@ mod tests {
     use weaver_common::error::format_errors;
 
     use crate::finding::PolicyFinding;
-    use crate::{split_glob, Engine, Error, PolicyStage};
+    use crate::{split_glob, Engine, Error, PolicyStage, SEMCONV_REGO};
 
     #[test]
     fn test_policy() -> Result<(), Box<dyn std::error::Error>> {
@@ -714,6 +714,116 @@ mod tests {
         let mut engine = Engine::new();
         let result = engine.add_data(&"invalid data");
         assert!(result.is_err());
+    }
+
+    /// A materialized v2 registry, cut down to what the entity helpers read.
+    /// The main registry and its dependency both define `host`, and each brief
+    /// says where the definition came from.
+    fn entity_input(associations: serde_json::Value) -> serde_json::Value {
+        serde_json::json!({
+            "schema_url": "https://example.com/main/1.0.0",
+            "registry": {
+                "entities": [{"type": "host", "brief": "main host"}],
+                "metrics": [{"name": "main.request.count", "entity_associations": associations}],
+            },
+            "refinements": {
+                "entities": [{"id": "host.linux", "type": "host", "brief": "main host on linux"}],
+            },
+            "dependencies": [{
+                "schema_url": "https://example.com/dep/1.0.0",
+                "registry": {"entities": [{"type": "host", "brief": "dep host"}]},
+                "refinements": {"entities": []},
+            }],
+        })
+    }
+
+    /// A reference into the dependency.
+    fn dep_ref(r#type: &str) -> serde_json::Value {
+        serde_json::json!({
+            "type": r#type,
+            "provenance": {"source": "https://example.com/dep/1.0.0"},
+        })
+    }
+
+    /// Runs the entity policy over an input and returns the messages it reports,
+    /// sorted.
+    fn resolved_entities(input: &serde_json::Value) -> Vec<String> {
+        let mut engine = Engine::new();
+        _ = engine
+            .add_policy("defaults/rego/semconv.rego", SEMCONV_REGO)
+            .expect("the semconv library");
+        _ = engine
+            .add_policy_from_file("data/policies/entity_associations.rego")
+            .expect("the test policy");
+        engine.set_input(input).expect("the input");
+        let mut messages: Vec<String> = engine
+            .check(PolicyStage::AfterResolution)
+            .expect("the policy to run")
+            .into_iter()
+            .map(|finding| finding.message)
+            .collect();
+        messages.sort();
+        messages
+    }
+
+    /// `entity_refs` reaches a leaf at any depth of the `one_of` and `all_of`
+    /// tree.
+    #[test]
+    fn test_entity_refs_walks_the_association_tree() {
+        let associations = serde_json::json!([{
+            "all_of": [
+                {"type": "host"},
+                {"one_of": [dep_ref("host"), {"type": "host.linux"}]},
+            ],
+        }]);
+        assert_eq!(
+            resolved_entities(&entity_input(associations)),
+            vec![
+                "host -> dep host",
+                "host -> main host",
+                "host.linux -> main host on linux",
+            ]
+        );
+    }
+
+    /// Two registries define `host`. Each leaf reads the definition from the
+    /// registry it names.
+    #[test]
+    fn test_lookup_entity_reads_the_registry_the_leaf_names() {
+        let associations = serde_json::json!([{"type": "host"}, dep_ref("host")]);
+        assert_eq!(
+            resolved_entities(&entity_input(associations)),
+            vec!["host -> dep host", "host -> main host"]
+        );
+    }
+
+    /// A leaf names an entity type or the id of an entity refinement.
+    #[test]
+    fn test_lookup_entity_finds_a_refinement() {
+        let associations = serde_json::json!([{"type": "host.linux"}]);
+        assert_eq!(
+            resolved_entities(&entity_input(associations)),
+            vec!["host.linux -> main host on linux"]
+        );
+    }
+
+    /// An entity type wins over a refinement of the same name, as it does in
+    /// weaver.
+    #[test]
+    fn test_lookup_entity_prefers_an_entity_to_a_refinement() {
+        let mut input = entity_input(serde_json::json!([{"type": "host"}]));
+        input["refinements"]["entities"] = serde_json::json!([
+            {"id": "host", "type": "host", "brief": "main host refinement"},
+        ]);
+        assert_eq!(resolved_entities(&input), vec!["host -> main host"]);
+    }
+
+    /// A name that no registry defines resolves to nothing, and the policy
+    /// reports nothing.
+    #[test]
+    fn test_lookup_entity_unknown_name() {
+        let associations = serde_json::json!([{"type": "nothing"}, dep_ref("nothing")]);
+        assert!(resolved_entities(&entity_input(associations)).is_empty());
     }
 
     #[test]
