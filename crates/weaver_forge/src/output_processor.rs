@@ -5,6 +5,7 @@
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use include_dir::Dir;
 use serde::Serialize;
@@ -12,6 +13,7 @@ use serde::Serialize;
 use crate::config::{Params, WeaverConfig};
 use crate::error::Error;
 use crate::file_loader::{EmbeddedFileLoader, FileLoader};
+use crate::v2::registry::ForgeResolvedRegistry;
 use crate::{OutputDirective, TemplateEngine};
 
 /// Specifies where output should be written.
@@ -275,6 +277,20 @@ impl OutputProcessor {
                     .to_owned(),
             }),
         }
+    }
+
+    /// Generate output for a v2 registry.
+    ///
+    /// Same as [`Self::generate`], and a template can also read the entities
+    /// that `entity_associations` names, with the `lookup_entity` function.
+    /// Only a v2 registry holds those definitions, so this is the only entry
+    /// point that offers the lookup.
+    pub fn generate_v2_registry(&mut self, registry: ForgeResolvedRegistry) -> Result<(), Error> {
+        let registry = Arc::new(registry);
+        if let OutputKind::Template(t) = &mut self.kind {
+            t.engine.set_v2_registry(Arc::clone(&registry));
+        }
+        self.generate(registry.as_ref())
     }
 
     /// Generate output for serializable data.
