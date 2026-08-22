@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::{Display, Formatter};
 
+use crate::aggregation::AggregationSpec;
 use crate::any_value::AnyValueSpec;
 use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
 use crate::deprecated::Deprecated;
@@ -100,6 +101,12 @@ pub struct GroupSpec {
     /// Note: This field is required if type is metric.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unit: Option<String>,
+    /// The aggregation which should occur on the data points being capture by a meter.
+    /// Semconv metrics all use the default aggregation type, hence this option is for 
+    /// providing the parameters of the aggregation.
+    /// For more details: [Metrics SDK - Aggregation](https://opentelemetry.io/docs/specs/otel/metrics/sdk/#aggregation).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub aggregation: Option<AggregationSpec>,
     /// The name of the event (valid only when the group `type` is `event`).
     ///
     /// Note: If not specified, the prefix is used. If the prefix is empty (or unspecified), the name is required.
@@ -796,6 +803,7 @@ mod tests {
             metric_name: None,
             instrument: None,
             unit: None,
+            aggregation: None,
             requirement_level: None,
             name: None,
             display_name: None,
@@ -966,6 +974,7 @@ mod tests {
             metric_name: None,
             instrument: None,
             unit: None,
+            aggregation: None,
             requirement_level: None,
             name: None,
             display_name: None,
@@ -1257,6 +1266,7 @@ mod tests {
             metric_name: None,
             instrument: None,
             unit: None,
+            aggregation: None,
             requirement_level: None,
             display_name: None,
             attributes: vec![],
@@ -1477,6 +1487,7 @@ mod tests {
             metric_name: None,
             instrument: None,
             unit: None,
+            aggregation: None,
             requirement_level: None,
             display_name: None,
             attributes: vec![],
@@ -1637,6 +1648,7 @@ mod tests {
             metric_name: None,
             instrument: None,
             unit: None,
+            aggregation: None,
             requirement_level: None,
             name: None,
             display_name: None,
@@ -1712,6 +1724,7 @@ mod tests {
         group.metric_name = Some("test".to_owned());
         group.instrument = Some(Counter);
         group.unit = Some("test".to_owned());
+        group.aggregation = None;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
             Err(InvalidGroupStability {
@@ -1812,6 +1825,7 @@ mod tests {
             metric_name: None,
             instrument: None,
             unit: None,
+            aggregation: None,
             requirement_level: None,
             name: None,
             display_name: None,
@@ -1907,6 +1921,7 @@ mod tests {
         group.metric_name = Some("test".to_owned());
         group.instrument = Some(Counter);
         group.unit = Some("test".to_owned());
+        group.aggregation = None;
         assert!(group
             .validate("<test>")
             .into_result_failing_non_fatal()
@@ -1969,6 +1984,7 @@ mod tests {
             metric_name: None,
             instrument: None,
             unit: None,
+            aggregation: None,
             requirement_level: None,
             name: None,
             display_name: None,
@@ -2034,6 +2050,7 @@ mod tests {
             metric_name: Some("metric".to_owned()),
             instrument: Some(Gauge),
             unit: Some("{thing}".to_owned()),
+            aggregation: None,
             requirement_level: None,
             name: None,
             display_name: None,
@@ -2084,6 +2101,7 @@ mod tests {
         group.metric_name = None;
         group.instrument = None;
         group.unit = None;
+        group.aggregation = None;
         group.span_kind = Some(SpanKindSpec::Client);
         assert!(group
             .validate("<test>")
