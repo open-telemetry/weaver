@@ -143,9 +143,11 @@ pub(crate) fn command(
         OutputTarget::Directory(output_path),
     )?;
     resolved.check_after_resolution_policy(&mut diag_msgs)?;
-    match &resolved {
+    match resolved {
+        // A v2 registry goes through `generate_v2_registry`, so a template can
+        // look up the entities that `entity_associations` names.
         crate::weaver::Resolved::V2(v) => {
-            output.generate(v.template_schema())?;
+            output.generate_v2_registry(v.into_template_schema())?;
         }
         crate::weaver::Resolved::V1(v) => {
             output.generate(v.template_schema())?;

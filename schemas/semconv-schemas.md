@@ -337,8 +337,8 @@ refinements:
   dependency is listed here flat instead, with no nesting.
 - **registry**: Same structure as in the *resolved* schema, but all attribute references are replaced
   by complete attribute definitions. This applies to all signal types (metrics, spans, events, entities)
-  and to `attribute_groups`. An [entity association](#entity-associations) leaf keeps the entity type
-  alone, without its provenance.
+  and to `attribute_groups`. An [entity association](#entity-associations) leaf keeps its reference,
+  with the schema url of the registry that defines the entity.
 - **refinements**: Same structure as in the *resolved* schema, but attribute references are fully expanded.
 
 ### Diff schema
@@ -407,7 +407,9 @@ How a leaf names its entity depends on the schema:
   the index in `dependencies` of the registry that defines the entity, and is absent when this
   registry defines it. A reference is therefore self-describing: a consumer that holds one knows which
   schema to read next.
-- In the [materialized schema](#materialized-resolved-schema) a leaf is the entity type alone.
+- In the [materialized schema](#materialized-resolved-schema) a leaf is the same object, except that
+  `provenance.source` is the schema url of the defining registry rather than an index. That registry
+  is one of the `dependencies`, which hold the whole dependency closure.
 
 An association is resolved during [`weaver registry resolve`](/docs/usage.md#weaver-registry-resolve).
 The entity is *not* copied into this registry: there is one definition, in one place. A reference that

@@ -208,6 +208,18 @@ pub enum Error {
         attr_ref: AttributeRef,
     },
 
+    /// An entity reference that no registry answers.
+    #[error("Entity `{entity_type}` was not found in {}", match .registry {
+        Some(url) => format!("registry `{url}`"),
+        None => "this registry".to_owned(),
+    })]
+    EntityNotFound {
+        /// The entity type, or refinement id, that the reference names.
+        entity_type: String,
+        /// The registry the reference points at, if it is not this one.
+        registry: Option<String>,
+    },
+
     /// Filter error.
     #[error("Filter '{filter}' failed: {}", format_details(.details))]
     FilterError {
