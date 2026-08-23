@@ -1,0 +1,22 @@
+{#- An association can be a tree. A `one_of` or `all_of` node contains more
+    associations, and only a leaf names an entity. `lookup_entity` takes a leaf,
+    so this macro walks the tree to reach one. -#}
+{% macro association(assoc, indent) %}
+{%- if assoc.one_of or assoc.all_of %}
+{{ indent }}{{ "one_of" if assoc.one_of else "all_of" }}:
+{%- for child in assoc.one_of or assoc.all_of %}
+{{- association(child, indent ~ "  ") }}
+{%- endfor %}
+{%- else %}
+{%- set entity = lookup_entity(assoc) %}
+{{ indent }}entity: {{ entity.type }}
+{{ indent }}defined in: {% if assoc.provenance %}{{ assoc.provenance.source }}{% else %}this registry{% endif %}
+{{ indent }}identity: {% for attr in entity.identity %}{{ attr.key }}{{ ", " if not loop.last }}{% endfor %}
+{%- endif %}
+{%- endmacro -%}
+{% for span in ctx %}
+span: {{ span.type }}
+{%- for assoc in span.entity_associations %}
+{{- association(assoc, "  ") }}
+{%- endfor %}
+{% endfor %}
