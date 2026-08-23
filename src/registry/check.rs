@@ -232,6 +232,49 @@ mod tests {
         }
     }
 
+    /// A policy reads an entity definition through the `semconv` rego library:
+    /// `entity_refs` walks the association tree, and `lookup_entity` follows the
+    /// leaf into the dependency that defines the entity.
+    #[test]
+    fn test_v2_entity_association_policies() {
+        let registry_cmd = RegistryCommand {
+            command: RegistrySubCommand::Check(RegistryCheckArgs {
+                registry: RegistryArgs {
+                    registry: Some(VirtualDirectoryPath::LocalFolder {
+                        path: "tests/v2_check_entities/main".to_owned(),
+                    }),
+                    v2: Some(true),
+                    ..Default::default()
+                },
+                baseline_registry: None,
+                policy: PolicyArgs {
+                    ..Default::default()
+                },
+                diagnostic: Default::default(),
+            }),
+        };
+        let cmd_result = semconv_registry(&registry_cmd, None, &HttpAuthResolver::empty());
+        assert!(cmd_result.command_result.is_err());
+        if let Err(diag_msgs) = cmd_result.command_result {
+            // The metric names two entities of the dependency. Only `host` is
+            // unstable, so the stable one raises nothing.
+            let messages = format!("{diag_msgs:?}");
+            assert!(
+                messages.contains("unstable_entity_association"),
+                "expected the entity finding, got: {messages}"
+            );
+            assert!(
+                messages.contains("entity 'host', which is 'development'"),
+                "expected the finding to name the entity, got: {messages}"
+            );
+            assert_eq!(
+                diag_msgs.len(),
+                2 /* Unstable file version, one per registry */
+                + 1 /* the unstable entity association */
+            );
+        }
+    }
+
     #[test]
     fn test_v2_baseline_policies() {
         let registry_cmd = RegistryCommand {
