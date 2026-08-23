@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "dependencies": {
-      "description": "The resolved dependencies of this registry.",
+      "description": "The registries this one depends on directly, each with its own\ndependencies, as the manifests declared them.\n\nWhere no manifest is available to say what a registry declared, every\ndependency is listed here flat instead.",
       "type": "array",
       "items": {
         "$ref": "#"

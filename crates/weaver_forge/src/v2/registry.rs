@@ -40,7 +40,11 @@ pub struct ForgeResolvedRegistry {
     pub registry: Registry,
     /// The set of refinments defined in this registry.
     pub refinements: Refinements,
-    /// The resolved dependencies of this registry.
+    /// The registries this one depends on directly, each with its own
+    /// dependencies, as the manifests declared them.
+    ///
+    /// Where no manifest is available to say what a registry declared, every
+    /// dependency is listed here flat instead.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dependencies: Vec<ForgeResolvedRegistry>,
 }
@@ -89,6 +93,16 @@ impl ForgeResolvedRegistry {
     pub fn try_from_resolved_schema<R: SchemaResolver>(
         schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema,
         resolver: &mut R,
+    ) -> WResult<Self, Error> {
+        Self::build(schema, resolver, true)
+    }
+
+    /// Builds the registry. Dependencies become a tree when `expand` is set,
+    /// and leaves when it is not.
+    fn build<R: SchemaResolver>(
+        schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema,
+        resolver: &mut R,
+        expand: bool,
     ) -> WResult<Self, Error> {
         let mut errors = Vec::new();
 
@@ -468,7 +482,14 @@ impl ForgeResolvedRegistry {
 
         let mut non_fatal_errors = Vec::new();
         let mut dependencies = Vec::new();
-        for dep_url in &schema.dependencies {
+        // Use the direct dependencies where the resolver knows them. Otherwise
+        // list them all flat, since there is no way to tell the shape.
+        let (dep_urls, expand_children) = match resolver.direct_dependencies(&schema.schema_url) {
+            _ if !expand => (Vec::new(), false),
+            Some(direct) => (direct.to_vec(), true),
+            None => (schema.dependencies.iter().cloned().collect(), false),
+        };
+        for dep_url in &dep_urls {
             let (resolved_bundle, dep_nfes) = match resolver.resolve_schema(dep_url) {
                 WResult::Ok(bundle) => (bundle, vec![]),
                 WResult::OkWithNFEs(bundle, nfes) => (bundle, nfes),
@@ -490,7 +511,7 @@ impl ForgeResolvedRegistry {
                 }
             };
 
-            let dep_forge = match Self::try_from_resolved_schema(dep_v2_schema, resolver) {
+            let dep_forge = match Self::build(dep_v2_schema, resolver, expand_children) {
                 WResult::Ok(forge) => forge,
                 WResult::OkWithNFEs(forge, nfes) => {
                     non_fatal_errors.extend(nfes);
@@ -568,12 +589,14 @@ mod tests {
 
     struct MockSchemaResolver {
         schemas: HashMap<SchemaUrl, MockResolution>,
+        direct_dependencies: HashMap<SchemaUrl, Vec<SchemaUrl>>,
     }
 
     impl MockSchemaResolver {
         fn new() -> Self {
             Self {
                 schemas: HashMap::new(),
+                direct_dependencies: HashMap::new(),
             }
         }
 
@@ -609,6 +632,10 @@ mod tests {
         fn add_fatal(&mut self, url: SchemaUrl, error: weaver_resolver::Error) {
             let _ = self.schemas.insert(url, MockResolution::Fatal(error));
         }
+
+        fn add_direct_dependencies(&mut self, url: SchemaUrl, direct: Vec<SchemaUrl>) {
+            let _ = self.direct_dependencies.insert(url, direct);
+        }
     }
 
     impl SchemaResolver for MockSchemaResolver {
@@ -627,6 +654,12 @@ mod tests {
             } else {
                 WResult::FatalErr(weaver_resolver::Error::FailToResolveSchemaUrl {})
             }
+        }
+
+        fn direct_dependencies(&self, schema_url: &SchemaUrl) -> Option<&[SchemaUrl]> {
+            self.direct_dependencies
+                .get(schema_url)
+                .map(|urls| urls.as_slice())
         }
     }
 
@@ -1671,6 +1704,287 @@ mod tests {
         }
     }
 
+    /// The one chain both dependency tree tests expect, nearest first.
+    const EXPECTED_CHAIN: &[&str] = &[
+        "https://example.com/dependency-tree-middle/1.0.0",
+        "https://example.com/dependency-tree-sub/1.0.0",
+        "https://example.com/dependency-tree-leaf/1.0.0",
+    ];
+
+    /// Walks the dependencies of `registry`, failing if any level holds more
+    /// than one, which is what a flat listing would produce.
+    fn chain(registry: &ForgeResolvedRegistry) -> Vec<String> {
+        let mut out = Vec::new();
+        let mut current = registry;
+        while !current.dependencies.is_empty() {
+            assert_eq!(
+                current.dependencies.len(),
+                1,
+                "{} should declare exactly one dependency, found {:?}",
+                current.schema_url,
+                current
+                    .dependencies
+                    .iter()
+                    .map(|dep| dep.schema_url.to_string())
+                    .collect::<Vec<_>>()
+            );
+            current = &current.dependencies[0];
+            out.push(current.schema_url.to_string());
+        }
+        out
+    }
+
+    /// A resolved schema lists every registry it was built from, so `root`
+    /// names `leaf` even though only `middle` depends on it. The tree has to
+    /// follow the manifests, or a transitive dependency looks like a direct one.
+    #[test]
+    fn dependency_tree_follows_the_manifests() {
+        use weaver_common::vdir::VirtualDirectoryPath;
+        use weaver_resolver::{DefaultSchemaVisitor, WeaverResolver, WeaverResolverConfig};
+        use weaver_semconv::registry_repo::RegistryRepo;
+
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/dependency_tree/root".to_owned(),
+        };
+        let repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("failed to create the registry repo");
+        let v1 = match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => {
+                r.into_v1().expect("expected a v1 schema")
+            }
+            WResult::FatalErr(e) => panic!("failed to resolve the root registry: {e}"),
+        };
+
+        // All three are listed here. That is what made the old flat tree look right.
+        assert_eq!(
+            v1.dependencies.len(),
+            3,
+            "the resolved schema lists middle, sub and leaf alike"
+        );
+
+        let v2 = ResolvedTelemetrySchema::try_from(v1).expect("failed to convert to v2");
+        let forge = match ForgeResolvedRegistry::try_from_resolved_schema(v2, &mut resolver) {
+            WResult::Ok(f) | WResult::OkWithNFEs(f, _) => f,
+            WResult::FatalErr(e) => panic!("failed to build the forge registry: {e}"),
+        };
+
+        assert_eq!(
+            chain(&forge),
+            EXPECTED_CHAIN,
+            "root -> middle -> sub -> leaf"
+        );
+    }
+
+    /// A registry with two dependencies keeps both, in the order its manifest
+    /// lists them, each with its own subtree. `leaf` sits under both arms,
+    /// because a tree cannot share a node.
+    #[test]
+    fn a_registry_with_two_dependencies_keeps_both_arms() {
+        use weaver_common::vdir::VirtualDirectoryPath;
+        use weaver_resolver::{DefaultSchemaVisitor, WeaverResolver, WeaverResolverConfig};
+        use weaver_semconv::registry_repo::RegistryRepo;
+
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/dependency_tree/fork".to_owned(),
+        };
+        let repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("failed to create the registry repo");
+        let v1 = match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => {
+                r.into_v1().expect("expected a v1 schema")
+            }
+            WResult::FatalErr(e) => panic!("failed to resolve the fork registry: {e}"),
+        };
+        let v2 = ResolvedTelemetrySchema::try_from(v1).expect("failed to convert to v2");
+        let forge = match ForgeResolvedRegistry::try_from_resolved_schema(v2, &mut resolver) {
+            WResult::Ok(f) | WResult::OkWithNFEs(f, _) => f,
+            WResult::FatalErr(e) => panic!("failed to build the forge registry: {e}"),
+        };
+
+        let names = |registry: &ForgeResolvedRegistry| -> Vec<String> {
+            registry
+                .dependencies
+                .iter()
+                .map(|dep| dep.schema_url.name().to_owned())
+                .collect()
+        };
+
+        // The manifest lists middle before branch, which is not alphabetical.
+        assert_eq!(
+            names(&forge),
+            vec![
+                "example.com/dependency-tree-middle".to_owned(),
+                "example.com/dependency-tree-branch".to_owned()
+            ]
+        );
+        assert_eq!(chain(&forge.dependencies[0]), EXPECTED_CHAIN[1..].to_vec());
+        assert_eq!(
+            names(&forge.dependencies[1]),
+            vec!["example.com/dependency-tree-leaf".to_owned()],
+            "the second arm reaches leaf directly"
+        );
+    }
+
+    /// The same graph, with middle consumed as an already-resolved artifact
+    /// rather than resolved from its definition files. Its manifest is the only
+    /// record of what it depends on, so without reading it the walk stops being
+    /// faithful below middle.
+    #[test]
+    fn dependency_tree_follows_a_published_manifest() {
+        use weaver_common::vdir::VirtualDirectoryPath;
+        use weaver_resolver::{DefaultSchemaVisitor, WeaverResolver, WeaverResolverConfig};
+        use weaver_semconv::registry_repo::RegistryRepo;
+
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        // The published manifest names sub by schema URL alone, so point that
+        // URL at the definition files rather than fetching it.
+        resolver.add_schema_url_override(
+            "https://example.com/dependency-tree-sub/1.0.0"
+                .try_into()
+                .expect("not a valid schema url"),
+            VirtualDirectoryPath::LocalFolder {
+                path: "data/dependency_tree/sub".to_owned(),
+            },
+        );
+
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/dependency_tree/published/root".to_owned(),
+        };
+        let repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("failed to create the registry repo");
+        let v1 = match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => {
+                r.into_v1().expect("expected a v1 schema")
+            }
+            WResult::FatalErr(e) => panic!("failed to resolve the root registry: {e}"),
+        };
+        let v2 = ResolvedTelemetrySchema::try_from(v1).expect("failed to convert to v2");
+        let forge = match ForgeResolvedRegistry::try_from_resolved_schema(v2, &mut resolver) {
+            WResult::Ok(f) | WResult::OkWithNFEs(f, _) => f,
+            WResult::FatalErr(e) => panic!("failed to build the forge registry: {e}"),
+        };
+
+        assert_eq!(
+            chain(&forge),
+            EXPECTED_CHAIN,
+            "root -> middle -> sub -> leaf"
+        );
+    }
+
+    /// An unknown graph is listed flat. Every registry is still reachable, and
+    /// none is given children it might not have.
+    #[test]
+    fn an_unknown_dependency_graph_is_listed_flat() {
+        let leaf_url: SchemaUrl = "https://example.com/leaf/1.0.0".try_into().unwrap();
+        let middle_url: SchemaUrl = "https://example.com/middle/1.0.0".try_into().unwrap();
+        let root_url: SchemaUrl = "https://example.com/root/1.0.0".try_into().unwrap();
+
+        let empty_schema = |url: &SchemaUrl, deps: BTreeSet<SchemaUrl>| ResolvedTelemetrySchema {
+            file_format: "2.0.0".to_owned(),
+            schema_url: url.clone(),
+            attribute_catalog: vec![],
+            dependencies: deps,
+            registry: v2::registry::Registry {
+                attributes: vec![],
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+                attribute_groups: vec![],
+            },
+            refinements: refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+        };
+
+        let mut middle_deps = BTreeSet::new();
+        let _ = middle_deps.insert(leaf_url.clone());
+        let mut root_deps = BTreeSet::new();
+        let _ = root_deps.insert(leaf_url.clone());
+        let _ = root_deps.insert(middle_url.clone());
+
+        let mut mock_resolver = MockSchemaResolver::new();
+        mock_resolver.add_v2_schema(empty_schema(&leaf_url, BTreeSet::new()));
+        mock_resolver.add_v2_schema(empty_schema(&middle_url, middle_deps));
+
+        let forge = match ForgeResolvedRegistry::try_from_resolved_schema(
+            empty_schema(&root_url, root_deps),
+            &mut mock_resolver,
+        ) {
+            WResult::Ok(f) | WResult::OkWithNFEs(f, _) => f,
+            WResult::FatalErr(e) => panic!("failed to build the forge registry: {e}"),
+        };
+
+        assert_eq!(forge.dependencies.len(), 2, "every dependency is listed");
+        assert!(
+            forge
+                .dependencies
+                .iter()
+                .all(|dep| dep.dependencies.is_empty()),
+            "a flat listing must not nest, or middle would carry a second copy of leaf"
+        );
+    }
+
+    /// With the graph known, the same dependencies become a tree.
+    #[test]
+    fn a_known_dependency_graph_is_nested() {
+        let leaf_url: SchemaUrl = "https://example.com/leaf/1.0.0".try_into().unwrap();
+        let middle_url: SchemaUrl = "https://example.com/middle/1.0.0".try_into().unwrap();
+        let root_url: SchemaUrl = "https://example.com/root/1.0.0".try_into().unwrap();
+
+        let empty_schema = |url: &SchemaUrl, deps: BTreeSet<SchemaUrl>| ResolvedTelemetrySchema {
+            file_format: "2.0.0".to_owned(),
+            schema_url: url.clone(),
+            attribute_catalog: vec![],
+            dependencies: deps,
+            registry: v2::registry::Registry {
+                attributes: vec![],
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+                attribute_groups: vec![],
+            },
+            refinements: refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+        };
+
+        let mut middle_deps = BTreeSet::new();
+        let _ = middle_deps.insert(leaf_url.clone());
+        let mut root_deps = BTreeSet::new();
+        let _ = root_deps.insert(leaf_url.clone());
+        let _ = root_deps.insert(middle_url.clone());
+
+        let mut mock_resolver = MockSchemaResolver::new();
+        mock_resolver.add_v2_schema(empty_schema(&leaf_url, BTreeSet::new()));
+        mock_resolver.add_v2_schema(empty_schema(&middle_url, middle_deps));
+        mock_resolver.add_direct_dependencies(root_url.clone(), vec![middle_url.clone()]);
+        mock_resolver.add_direct_dependencies(middle_url.clone(), vec![leaf_url.clone()]);
+        mock_resolver.add_direct_dependencies(leaf_url.clone(), vec![]);
+
+        let forge = match ForgeResolvedRegistry::try_from_resolved_schema(
+            empty_schema(&root_url, root_deps),
+            &mut mock_resolver,
+        ) {
+            WResult::Ok(f) | WResult::OkWithNFEs(f, _) => f,
+            WResult::FatalErr(e) => panic!("failed to build the forge registry: {e}"),
+        };
+
+        assert_eq!(forge.dependencies.len(), 1);
+        assert_eq!(forge.dependencies[0].schema_url, middle_url);
+        assert_eq!(forge.dependencies[0].dependencies.len(), 1);
+        assert_eq!(forge.dependencies[0].dependencies[0].schema_url, leaf_url);
+    }
+
     #[test]
     fn test_dependency_resolution_resolver_nfes() {
         let dep_url: SchemaUrl = "https://example.com/dep".try_into().unwrap();
@@ -1924,6 +2238,7 @@ mod tests {
         };
 
         let root_url: SchemaUrl = "https://example.com/root".try_into().unwrap();
+        let root_url_for_graph = root_url.clone();
         let root_schema = ResolvedTelemetrySchema {
             file_format: "2.0.0".to_owned(),
             schema_url: root_url,
@@ -1952,6 +2267,9 @@ mod tests {
         let mut mock_resolver = MockSchemaResolver::new();
         mock_resolver.add_v2_schema(dep_a_schema);
         mock_resolver.add_v2_schema(dep_b_schema);
+        // The error is two levels down, so the graph must be known to reach it.
+        mock_resolver.add_direct_dependencies(root_url_for_graph, vec![dep_a_url.clone()]);
+        mock_resolver.add_direct_dependencies(dep_a_url.clone(), vec![dep_b_url.clone()]);
 
         let result =
             ForgeResolvedRegistry::try_from_resolved_schema(root_schema, &mut mock_resolver);
@@ -2123,6 +2441,9 @@ mod tests {
         let mut mock_resolver = MockSchemaResolver::new();
         mock_resolver.add_v2_schema(dep_a_schema);
         mock_resolver.add_v2_schema(dep_b_schema);
+        // root -> dep-a -> dep-b, as the manifests would declare it.
+        mock_resolver.add_direct_dependencies(root_url.clone(), vec![dep_a_url.clone()]);
+        mock_resolver.add_direct_dependencies(dep_a_url.clone(), vec![dep_b_url.clone()]);
 
         let forge_registry = match ForgeResolvedRegistry::try_from_resolved_schema(
             root_schema,

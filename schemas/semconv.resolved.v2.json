@@ -12,7 +12,7 @@
       }
     },
     "dependencies": {
-      "description": "The list of dependencies of the current instrumentation application or library.",
+      "description": "Every registry this schema was built from, direct and transitive.\n\nDo not narrow this to the dependencies a manifest declared:\n`DependencyRef` is an index into this set, in sorted order.",
       "type": "array",
       "items": {
         "$ref": "#/$defs/SchemaUrl"

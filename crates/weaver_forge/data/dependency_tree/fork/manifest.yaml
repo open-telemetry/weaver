@@ -1,0 +1,12 @@
+# Two dependencies, listed in an order that is not alphabetical so the tree
+# cannot pass by sorting.
+name: fork
+description: Depends on middle and branch, which both reach leaf.
+schema_url: https://example.com/dependency-tree-fork/1.0.0
+dependencies:
+  - name: middle
+    schema_url: https://example.com/dependency-tree-middle/1.0.0
+    registry_path: data/dependency_tree/middle
+  - name: branch
+    schema_url: https://example.com/dependency-tree-branch/1.0.0
+    registry_path: data/dependency_tree/branch

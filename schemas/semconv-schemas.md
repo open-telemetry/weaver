@@ -251,6 +251,9 @@ Entity references name the entity and the registry that defines it. See
   - **metrics**: Metric refinements — `id` plus all metric properties
   - **events**: Event refinements — `id` plus all event properties
   - **entities**: Entity refinements — `id` plus all entity properties
+- **dependencies**: Every registry this schema was built from, direct and transitive, sorted by
+  schema URL. A registry reached through another looks the same here as one the manifest named
+  directly. `provenance.source` is an index into this list, so the list must keep every registry.
 
 ## Other schemas
 
@@ -327,7 +330,11 @@ refinements:
 #### Materialized schema properties
 
 - **schema_url**: The Schema URL where this registry is or will be published
-- **dependencies**: An array of materialized dependencies (having the same structure as this materialized schema) that this registry depends on
+- **dependencies**: The registries this one depends on directly, as its manifest declared them, each
+  having the same structure as this materialized schema and carrying its own dependencies. This is a
+  tree, where the *resolved* schema has one flat list. It is read from the manifest, so a registry
+  consumed as an already-resolved artifact keeps its shape too. Where no manifest is available, every
+  dependency is listed here flat instead, with no nesting.
 - **registry**: Same structure as in the *resolved* schema, but all attribute references are replaced
   by complete attribute definitions. This applies to all signal types (metrics, spans, events, entities)
   and to `attribute_groups`. An [entity association](#entity-associations) leaf keeps the entity type
