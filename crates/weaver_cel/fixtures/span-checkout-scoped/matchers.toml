@@ -1,0 +1,12 @@
+# The checkout matcher with one more clause on the front of it. The signature
+# is now only trusted when the span came from our own instrumentation.
+[[live-check.matchers]]
+id = "myapp.checkout"
+sample_type = "span"
+when = '''
+instrumentation_scope.name.startsWith("myapp.")
+  && "myapp.checkout.id" in attributes
+  && "myapp.checkout.stage" in attributes
+  && attributes["myapp.checkout.stage"].matches("^(cart|payment|confirm)$")
+'''
+signal = "myapp.checkout"

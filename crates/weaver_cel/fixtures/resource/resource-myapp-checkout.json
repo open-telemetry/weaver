@@ -1,0 +1,9 @@
+{
+  "resource": {
+    "attributes": [
+      { "name": "service.name", "value": "myapp.checkout" },
+      { "name": "service.version", "value": "1.4.0" },
+      { "name": "myapp.tenant.code", "value": "acme-eu" }
+    ]
+  }
+}

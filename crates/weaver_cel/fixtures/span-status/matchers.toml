@@ -1,0 +1,9 @@
+# `error.type` is `conditionally_required: if and only if an error has
+# occurred.` in semconv. The outcome of a span is in its status, so that
+# condition is one clause. Written as a matcher, it picks out the spans that
+# failed.
+[[live-check.matchers]]
+id = "myapp.checkout.failed"
+sample_type = "span"
+when = 'status.code == "error"'
+signal = "myapp.checkout"

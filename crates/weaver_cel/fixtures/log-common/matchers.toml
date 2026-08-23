@@ -1,0 +1,7 @@
+# The log matcher from the plan. There is no `when`, so it applies to every
+# log we receive. There is no log signal in semconv, so it can only add an
+# attribute group.
+[[live-check.matchers]]
+id = "myapp.common.log"
+sample_type = "log"
+attribute_groups = ["myapp.common"]

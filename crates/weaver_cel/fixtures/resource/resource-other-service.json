@@ -1,0 +1,8 @@
+{
+  "resource": {
+    "attributes": [
+      { "name": "service.name", "value": "vendor.gateway" },
+      { "name": "service.version", "value": "3.1.2" }
+    ]
+  }
+}

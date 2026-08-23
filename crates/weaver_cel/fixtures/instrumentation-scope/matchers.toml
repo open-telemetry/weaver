@@ -1,0 +1,7 @@
+# A scope has an identifier, the name and version, so a matcher for one needs
+# no signature at all.
+[[live-check.matchers]]
+id = "myapp.scope"
+sample_type = "instrumentation_scope"
+when = 'name.startsWith("myapp.")'
+attribute_groups = ["myapp.scope"]

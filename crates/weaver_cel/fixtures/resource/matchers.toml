@@ -1,0 +1,8 @@
+# A resource has no identifier and no signal in the schema, so a matcher for
+# one has no `signal` at all. The `when` keeps it off the resources that
+# belong to anything other than our own services.
+[[live-check.matchers]]
+id = "myapp.resource"
+sample_type = "resource"
+when = '"service.name" in attributes && attributes["service.name"].startsWith("myapp.")'
+attribute_groups = ["myapp.resource"]

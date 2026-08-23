@@ -1,0 +1,9 @@
+{
+  "span": {
+    "name": "checkout payment",
+    "kind": "internal",
+    "attributes": [
+      { "name": "myapp.cart.item_count", "value": 3 }
+    ]
+  }
+}
