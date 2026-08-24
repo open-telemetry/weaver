@@ -6319,10 +6319,7 @@ name = "weaver_cel"
 version = "0.25.1"
 dependencies = [
  "cel",
- "serde",
- "serde_json",
  "thiserror 2.0.20",
- "toml",
 ]
 
 [[package]]
@@ -6504,7 +6501,9 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
+ "toml",
  "ureq",
+ "weaver_cel",
  "weaver_checker",
  "weaver_common",
  "weaver_config",
