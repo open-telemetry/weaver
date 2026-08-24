@@ -2295,6 +2295,75 @@ groups:
         (v2, nfes)
     }
 
+    /// Loads and resolves a `signal-name-preservation` fixture.
+    fn load_signal_name_fixture(name: &str) -> WeaverResolvedSchema {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: format!("data/signal-name-preservation/{name}"),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("failed to create registry repo");
+        match WeaverResolver::new(WeaverResolverConfig::default())
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+        {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Failed to resolve `{name}`: {e}"),
+        }
+    }
+
+    /// Asserts the materialized v2 signal names/types match the expected values.
+    fn check_v2_signal_names(v2: &V2Schema, entity: &str, metric: &str, event: &str, span: &str) {
+        let entities: Vec<String> = v2
+            .registry
+            .entities
+            .iter()
+            .map(|e| e.r#type.to_string())
+            .collect();
+        let metrics: Vec<String> = v2
+            .registry
+            .metrics
+            .iter()
+            .map(|m| m.name.to_string())
+            .collect();
+        let events: Vec<String> = v2
+            .registry
+            .events
+            .iter()
+            .map(|e| e.name.to_string())
+            .collect();
+        let spans: Vec<String> = v2
+            .registry
+            .spans
+            .iter()
+            .map(|s| s.r#type.to_string())
+            .collect();
+        let mut wrong = Vec::new();
+        for (label, want, got) in [
+            ("entity type", entity, &entities),
+            ("metric name", metric, &metrics),
+            ("event name", event, &events),
+            ("span type", span, &spans),
+        ] {
+            if !got.contains(&want.to_owned()) {
+                wrong.push(format!("{label}: want {want:?}, got {got:?}"));
+            }
+        }
+        assert!(
+            wrong.is_empty(),
+            "unexpected v2 signal names -> {}",
+            wrong.join("; ")
+        );
+    }
+
+    /// A v2 (`definition/2`) registry names a signal directly, with no id
+    /// prefix, so the materialized name is kept verbatim.
+    #[test]
+    fn test_v2_schema_preserves_signal_names() {
+        let resolved = load_signal_name_fixture("v2");
+        let v1 = resolved.as_v1().expect("a v1 schema").clone();
+        let v2: V2Schema = v1.try_into().expect("v1 -> v2 conversion");
+        check_v2_signal_names(&v2, "entity.test", "metric.test", "event.test", "span.test");
+    }
+
     /// The non-fatal errors of one of the `entity-assoc-imports` registries.
     fn entity_assoc_fixture_errors(name: &str) -> Vec<Error> {
         resolve_entity_assoc_fixture(name).1
