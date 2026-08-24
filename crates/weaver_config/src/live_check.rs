@@ -90,6 +90,12 @@ pub struct LiveCheckConfig {
     #[serde(default)]
     pub finding_level_overrides: Vec<FindingLevelOverride>,
 
+    /// Matchers give an untyped sample an identifier, and can add attribute
+    /// groups to the set a sample is compared with. Evaluated in the order
+    /// they are declared.
+    #[serde(default)]
+    pub matchers: Vec<MatcherConfig>,
+
     /// Where to read the input telemetry from. `{file path}` | `stdin` | `otlp`.
     pub input_source: String,
 
@@ -142,6 +148,7 @@ impl Default for LiveCheckConfig {
         Self {
             finding_filters: Vec::new(),
             finding_level_overrides: Vec::new(),
+            matchers: Vec::new(),
             input_source: "otlp".to_owned(),
             input_format: "json".to_owned(),
             format: "ansi".to_owned(),
@@ -252,6 +259,72 @@ pub struct FindingLevelOverride {
     pub sample_names: Vec<String>,
 }
 
+/// The kind of sample a matcher looks at.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum MatcherSampleType {
+    /// A span.
+    Span,
+    /// An event attached to a span.
+    SpanEvent,
+    /// A link between spans.
+    SpanLink,
+    /// A log record.
+    Log,
+    /// A metric.
+    Metric,
+    /// A resource.
+    Resource,
+    /// An instrumentation scope.
+    InstrumentationScope,
+    /// A profile.
+    Profile,
+}
+
+impl fmt::Display for MatcherSampleType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Span => "span",
+            Self::SpanEvent => "span_event",
+            Self::SpanLink => "span_link",
+            Self::Log => "log",
+            Self::Metric => "metric",
+            Self::Resource => "resource",
+            Self::InstrumentationScope => "instrumentation_scope",
+            Self::Profile => "profile",
+        };
+        f.write_str(s)
+    }
+}
+
+/// A matcher: what a sample is compared with when its own identity is not
+/// enough.
+///
+/// `signal` names one signal to compare the sample with, and overrides the
+/// natural match. `attribute_groups` add to the comparison instead of
+/// replacing it. Both are looked up in the registry at startup.
+#[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
+pub struct MatcherConfig {
+    /// Names the matcher in findings, statistics and coverage.
+    pub id: String,
+
+    /// The kind of sample this matcher looks at.
+    pub sample_type: MatcherSampleType,
+
+    /// A CEL expression that has to be true for the matcher to apply. When
+    /// unset, the matcher applies to every sample of its `sample_type`.
+    pub when: Option<String>,
+
+    /// The one signal the sample is compared with. When unset, the natural
+    /// match stands.
+    pub signal: Option<String>,
+
+    /// Attribute groups, in priority order, added to the comparison on top of
+    /// whatever `signal` brought in.
+    #[serde(default)]
+    pub attribute_groups: Vec<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -260,6 +333,139 @@ mod tests {
 
     fn live_check(config: &WeaverConfig) -> LiveCheckConfig {
         config.command_config("live-check")
+    }
+
+    #[test]
+    fn matchers_are_read_in_declaration_order() {
+        let toml = r#"
+[["live-check".matchers]]
+id = "myapp.checkout"
+sample_type = "span"
+when = """
+"myapp.checkout.id" in attributes
+  && attributes["myapp.checkout.stage"].matches("^(cart|payment)$")
+"""
+signal = "myapp.checkout"
+attribute_groups = ["myapp.common"]
+
+[["live-check".matchers]]
+id = "myapp.common.log"
+sample_type = "log"
+attribute_groups = ["myapp.common"]
+"#;
+        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
+        let lc = live_check(&config);
+
+        assert_eq!(lc.matchers.len(), 2);
+
+        let checkout = &lc.matchers[0];
+        assert_eq!(checkout.id, "myapp.checkout");
+        assert_eq!(checkout.sample_type, MatcherSampleType::Span);
+        assert!(checkout
+            .when
+            .as_deref()
+            .expect("it has a when")
+            .contains("myapp.checkout.id"));
+        assert_eq!(checkout.signal.as_deref(), Some("myapp.checkout"));
+        assert_eq!(checkout.attribute_groups, ["myapp.common"]);
+
+        // No `when` and no `signal`: applies to every log, adds a group.
+        let log = &lc.matchers[1];
+        assert_eq!(log.sample_type, MatcherSampleType::Log);
+        assert!(log.when.is_none());
+        assert!(log.signal.is_none());
+    }
+
+    #[test]
+    fn matchers_default_to_empty() {
+        let config: WeaverConfig = toml::from_str("").expect("Failed to parse TOML");
+        assert!(live_check(&config).matchers.is_empty());
+    }
+
+    #[test]
+    fn every_sample_type_a_matcher_can_target_parses() {
+        for sample_type in [
+            "span",
+            "span_event",
+            "span_link",
+            "log",
+            "metric",
+            "resource",
+            "instrumentation_scope",
+            "profile",
+        ] {
+            let toml = format!(
+                r#"
+[["live-check".matchers]]
+id = "test"
+sample_type = "{sample_type}"
+"#
+            );
+            let config: WeaverConfig =
+                toml::from_str(&toml).unwrap_or_else(|e| panic!("{sample_type} should parse: {e}"));
+            assert_eq!(
+                live_check(&config).matchers[0].sample_type.to_string(),
+                sample_type
+            );
+        }
+    }
+
+    /// Deserializes the `live-check` section on its own.
+    ///
+    /// `WeaverConfig::command_config` cannot be used here: it discards
+    /// deserialization errors.
+    fn parse_live_check_section(toml_str: &str) -> Result<LiveCheckConfig, String> {
+        let value: toml::Value = toml::from_str(toml_str).expect("Failed to parse TOML");
+        value
+            .get("live-check")
+            .expect("the fixture has a live-check section")
+            .clone()
+            .try_into()
+            .map_err(|e| e.to_string())
+    }
+
+    #[test]
+    fn an_unknown_sample_type_is_rejected() {
+        let error = parse_live_check_section(
+            r#"
+[["live-check".matchers]]
+id = "test"
+sample_type = "number_data_point"
+"#,
+        )
+        .expect_err("it should not deserialize");
+        assert!(error.contains("number_data_point"), "{error}");
+    }
+
+    #[test]
+    fn a_matcher_without_an_id_is_rejected() {
+        let error = parse_live_check_section(
+            r#"
+[["live-check".matchers]]
+sample_type = "span"
+"#,
+        )
+        .expect_err("it should not deserialize");
+        assert!(error.contains("id"), "{error}");
+    }
+
+    /// `command_config` swallows the error above and returns the default
+    /// section, so one bad matcher silently drops every other live-check
+    /// setting. Pinned here until startup validation reports it.
+    #[test]
+    fn a_bad_matcher_silently_falls_back_to_the_default_section() {
+        let toml = r#"
+[live-check]
+format = "json"
+
+[["live-check".matchers]]
+id = "test"
+sample_type = "number_data_point"
+"#;
+        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
+        let lc = live_check(&config);
+        assert!(lc.matchers.is_empty());
+        assert_eq!(lc.format, LiveCheckConfig::default().format);
     }
 
     #[test]

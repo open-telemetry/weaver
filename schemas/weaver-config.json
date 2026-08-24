@@ -270,6 +270,13 @@
           "type": "string",
           "default": "otlp"
         },
+        "matchers": {
+          "description": "Matchers give an untyped sample an identifier, and can add attribute\ngroups to the set a sample is compared with. Evaluated in the order\nthey are declared.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MatcherConfig"
+          }
+        },
         "no_stats": {
           "description": "Disable statistics accumulation. Useful for long-running live-check sessions.",
           "type": "boolean",
@@ -741,6 +748,91 @@
           "minimum": 0
         }
       }
+    },
+    "MatcherConfig": {
+      "description": "A matcher: what a sample is compared with when its own identity is not\nenough.\n\n`signal` names one signal to compare the sample with, and overrides the\nnatural match. `attribute_groups` add to the comparison instead of\nreplacing it. Both are looked up in the registry at startup.",
+      "type": "object",
+      "properties": {
+        "attribute_groups": {
+          "description": "Attribute groups, in priority order, added to the comparison on top of\nwhatever `signal` brought in.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "id": {
+          "description": "Names the matcher in findings, statistics and coverage.",
+          "type": "string"
+        },
+        "sample_type": {
+          "description": "The kind of sample this matcher looks at.",
+          "$ref": "#/$defs/MatcherSampleType"
+        },
+        "signal": {
+          "description": "The one signal the sample is compared with. When unset, the natural\nmatch stands.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "when": {
+          "description": "A CEL expression that has to be true for the matcher to apply. When\nunset, the matcher applies to every sample of its `sample_type`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "sample_type"
+      ]
+    },
+    "MatcherSampleType": {
+      "description": "The kind of sample a matcher looks at.",
+      "oneOf": [
+        {
+          "description": "A span.",
+          "type": "string",
+          "const": "span"
+        },
+        {
+          "description": "An event attached to a span.",
+          "type": "string",
+          "const": "span_event"
+        },
+        {
+          "description": "A link between spans.",
+          "type": "string",
+          "const": "span_link"
+        },
+        {
+          "description": "A log record.",
+          "type": "string",
+          "const": "log"
+        },
+        {
+          "description": "A metric.",
+          "type": "string",
+          "const": "metric"
+        },
+        {
+          "description": "A resource.",
+          "type": "string",
+          "const": "resource"
+        },
+        {
+          "description": "An instrumentation scope.",
+          "type": "string",
+          "const": "instrumentation_scope"
+        },
+        {
+          "description": "A profile.",
+          "type": "string",
+          "const": "profile"
+        }
+      ]
     }
   }
 }
