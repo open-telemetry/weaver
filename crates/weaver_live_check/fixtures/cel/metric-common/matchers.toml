@@ -1,0 +1,7 @@
+# Only our own metrics. No `signal`, so each keeps its natural match and
+# gains the group on top.
+[[live-check.matchers]]
+id = "myapp.common.metric"
+sample_type = "metric"
+when = 'name.startsWith("myapp.")'
+attribute_groups = ["myapp.common"]

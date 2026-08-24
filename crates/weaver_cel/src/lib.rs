@@ -1,43 +1,51 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! CEL experiments for live-check matchers.
+//! CEL expressions for weaver.
 //!
-//! A matcher gives live-check an identifier for the samples that do not carry
-//! one, by testing a CEL expression against the sample. This crate is a
-//! self-contained playground for those expressions: a minimal sample model, a
-//! matcher config, and the glue that binds one to the other.
+//! The engine only: compile, inspect, evaluate. It has no telemetry types and
+//! no weaver dependencies; the crate that owns the samples implements
+//! [`Bindings`].
 
-pub mod matcher;
-pub mod sample;
+mod bindings;
+mod expression;
 
-/// Errors raised while compiling or running a matcher expression.
+pub use bindings::Bindings;
+pub use expression::{Expression, Referenced};
+
+/// Re-exported so implementors of [`Bindings`] need no direct `cel` dependency.
+pub use cel::{Context, Value};
+
+/// Errors from compiling or running an expression.
+///
+/// Errors identify the expression by its source text; callers should add its
+/// origin.
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
 pub enum Error {
     /// The expression did not parse.
-    #[error("The `when` expression of matcher `{matcher_id}` did not compile: {error}")]
+    #[error("The expression `{expression}` did not compile: {error}")]
     CompileFailed {
-        /// The id of the matcher.
-        matcher_id: String,
-        /// The error reported by the CEL parser.
+        /// Source text of the expression.
+        expression: String,
+        /// Error from the CEL parser.
         error: String,
     },
 
-    /// The expression failed while running against a sample.
-    #[error("The `when` expression of matcher `{matcher_id}` failed to evaluate: {error}")]
+    /// The expression failed while running.
+    #[error("The expression `{expression}` failed to evaluate: {error}")]
     EvalFailed {
-        /// The id of the matcher.
-        matcher_id: String,
-        /// The error reported by the CEL interpreter.
+        /// Source text of the expression.
+        expression: String,
+        /// Error from the CEL interpreter.
         error: String,
     },
 
-    /// The expression came out as something other than a boolean.
-    #[error("The `when` expression of matcher `{matcher_id}` returned {value_type}, not a bool")]
+    /// The expression returned something other than a bool.
+    #[error("The expression `{expression}` returned {value_type}, not a bool")]
     NotBoolean {
-        /// The id of the matcher.
-        matcher_id: String,
-        /// The type the expression returned.
+        /// Source text of the expression.
+        expression: String,
+        /// Type the expression returned.
         value_type: String,
     },
 }

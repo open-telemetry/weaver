@@ -1,0 +1,7 @@
+# `error.type` is conditionally required when an error has occurred. The
+# outcome of a span is in its status.
+[[live-check.matchers]]
+id = "myapp.checkout.failed"
+sample_type = "span"
+when = 'status.code == "error"'
+signal = "myapp.checkout"

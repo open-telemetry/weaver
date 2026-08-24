@@ -31,6 +31,8 @@ use weaver_semconv::{
 
 /// Advisors for live checks
 pub mod advice;
+/// Binds sample fields to CEL variables.
+pub mod cel;
 /// Finding modifier engine (overrides and filters).
 pub mod finding_modifier;
 /// Generated types, constants, and log record builders for live check findings

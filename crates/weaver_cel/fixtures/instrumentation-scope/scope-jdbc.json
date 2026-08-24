@@ -1,8 +1,0 @@
-{
-  "instrumentation_scope": {
-    "name": "io.opentelemetry.jdbc",
-    "version": "2.9.0",
-    "schema_url": "https://opentelemetry.io/schemas/1.30.0",
-    "attributes": []
-  }
-}

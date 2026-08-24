@@ -1,8 +1,0 @@
-# The test is on the metric name, so this only reaches our own metrics. Each
-# one keeps the natural match to its declared metric signal, so there is no
-# `signal` here, only the group on top.
-[[live-check.matchers]]
-id = "myapp.common.metric"
-sample_type = "metric"
-when = 'name.startsWith("myapp.")'
-attribute_groups = ["myapp.common"]

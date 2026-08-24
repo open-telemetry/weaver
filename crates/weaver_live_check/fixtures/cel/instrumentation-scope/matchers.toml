@@ -1,0 +1,6 @@
+# A scope has a name, so no signature is needed.
+[[live-check.matchers]]
+id = "myapp.scope"
+sample_type = "instrumentation_scope"
+when = 'name.startsWith("myapp.")'
+attribute_groups = ["myapp.scope"]

@@ -1,0 +1,8 @@
+{
+  "name": "io.opentelemetry.jdbc",
+  "version": "2.9.0",
+  "schema_url": "https://opentelemetry.io/schemas/1.30.0",
+  "attributes": [],
+  "dropped_attributes_count": 0,
+  "live_check_result": null
+}
