@@ -180,7 +180,7 @@ pub(crate) fn command(
     cfg: Option<&WeaverConfig>,
     _auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     let config = cmd_config.config;
     log::warn!(
         "The `registry infer` command is experimental and not yet stable. \

@@ -44,7 +44,7 @@ pub(crate) fn command(
     cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     let mut diag_msgs = DiagnosticMessages::empty();
     info!("Weaver Registry Check");
     info!("Checking registry `{}`", cmd_config.registry.registry);

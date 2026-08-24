@@ -81,7 +81,7 @@ impl From<String> for InputFormat {
 #[weaver_command(
     section = "live-check",
     config_type = "::weaver_config::LiveCheckConfig",
-    extra_config_only = "finding_filters,finding_level_overrides"
+    extra_config_only = "finding_filters,finding_level_overrides,matchers"
 )]
 #[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryLiveCheckArgs {
@@ -236,7 +236,7 @@ pub(crate) fn command(
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut exit_code = 0;
 
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     let config = cmd_config.config;
     let registry_args = cmd_config.registry;
     let policy_args = cmd_config.policy;

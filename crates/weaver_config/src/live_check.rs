@@ -332,7 +332,9 @@ mod tests {
     use std::path::Path;
 
     fn live_check(config: &WeaverConfig) -> LiveCheckConfig {
-        config.command_config("live-check")
+        config
+            .command_config("live-check")
+            .expect("the fixture section deserializes")
     }
 
     #[test]
@@ -410,17 +412,11 @@ sample_type = "{sample_type}"
         }
     }
 
-    /// Deserializes the `live-check` section on its own.
-    ///
-    /// `WeaverConfig::command_config` cannot be used here: it discards
-    /// deserialization errors.
+    /// Deserializes the `live-check` section, reporting the error.
     fn parse_live_check_section(toml_str: &str) -> Result<LiveCheckConfig, String> {
-        let value: toml::Value = toml::from_str(toml_str).expect("Failed to parse TOML");
-        value
-            .get("live-check")
-            .expect("the fixture has a live-check section")
-            .clone()
-            .try_into()
+        let config: WeaverConfig = toml::from_str(toml_str).expect("Failed to parse TOML");
+        config
+            .command_config::<LiveCheckConfig>("live-check")
             .map_err(|e| e.to_string())
     }
 
@@ -449,11 +445,9 @@ sample_type = "span"
         assert!(error.contains("id"), "{error}");
     }
 
-    /// `command_config` swallows the error above and returns the default
-    /// section, so one bad matcher silently drops every other live-check
-    /// setting. Pinned here until startup validation reports it.
+    /// A bad matcher must not discard the rest of the section.
     #[test]
-    fn a_bad_matcher_silently_falls_back_to_the_default_section() {
+    fn a_bad_matcher_does_not_fall_back_to_the_default_section() {
         let toml = r#"
 [live-check]
 format = "json"
@@ -462,10 +456,9 @@ format = "json"
 id = "test"
 sample_type = "number_data_point"
 "#;
-        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
-        let lc = live_check(&config);
-        assert!(lc.matchers.is_empty());
-        assert_eq!(lc.format, LiveCheckConfig::default().format);
+        let error = parse_live_check_section(toml).expect_err("it should not deserialize");
+        assert!(error.contains("live-check"), "{error}");
+        assert!(error.contains("number_data_point"), "{error}");
     }
 
     #[test]

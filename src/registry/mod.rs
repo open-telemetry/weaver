@@ -329,15 +329,23 @@ pub fn resolve_weaver_config(
 /// Layer all configuration for a command: defaults → `.weaver.toml` → CLI overrides.
 ///
 /// Returns a [`CommandConfig`] with command-specific config plus effective registry,
-/// policy, and diagnostic settings. The `.weaver.toml` has already been loaded by
-/// the dispatcher (via the global `--config` flag or discovery), so this is infallible.
+/// policy, and diagnostic settings.
+///
+/// # Errors
+///
+/// Returns an error when the command's section in `.weaver.toml` is present but
+/// does not deserialize.
 pub fn load_config<A: CliOverrides>(
     args: &A,
     weaver_config: Option<&weaver_config::WeaverConfig>,
-) -> CommandConfig<A::Config> {
+) -> Result<CommandConfig<A::Config>, DiagnosticMessages> {
     // Command-specific config section
     let mut config = match weaver_config {
-        Some(wc) => A::extract_config(wc),
+        Some(wc) => A::extract_config(wc).map_err(|e| {
+            DiagnosticMessages::from(Error::Config {
+                error: e.to_string(),
+            })
+        })?,
         None => A::Config::default(),
     };
     args.apply_overrides(&mut config);
@@ -367,12 +375,12 @@ pub fn load_config<A: CliOverrides>(
         resolve.layer_config(&wc.resolve);
     }
 
-    CommandConfig {
+    Ok(CommandConfig {
         config,
         registry,
         policy,
         resolve,
-    }
+    })
 }
 
 /// Merge the project-level `[template]` settings from `.weaver.toml` into a
