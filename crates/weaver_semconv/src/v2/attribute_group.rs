@@ -90,6 +90,7 @@ impl AttributeGroup {
                     visibility: Some(AttributeGroupVisibilitySpec::Internal),
                     is_v2: true,
                     span_name: None,
+                    span_links: Vec::new(),
                 }
             }
             AttributeGroup::Public(public) => {
@@ -124,6 +125,7 @@ impl AttributeGroup {
                     visibility: Some(AttributeGroupVisibilitySpec::Public),
                     is_v2: true,
                     span_name: None,
+                    span_links: Vec::new(),
                 }
             }
         }

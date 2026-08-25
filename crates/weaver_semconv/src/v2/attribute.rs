@@ -16,7 +16,7 @@ use crate::{
 };
 
 /// A refinement of an Attribute for a signal.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub struct AttributeRef {

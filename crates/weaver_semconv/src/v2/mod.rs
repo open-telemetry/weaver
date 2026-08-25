@@ -265,6 +265,7 @@ impl SemConvSpecV2 {
                 brief: "<synthetic v2>".to_owned(),
                 is_v2: true,
                 span_name: None,
+                span_links: Vec::new(),
                 ..Default::default()
             });
         }

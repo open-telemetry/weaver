@@ -127,6 +127,7 @@ impl Metric {
             visibility: None,
             is_v2: true,
             span_name: None,
+            span_links: Vec::new(),
             requirement_level: self.requirement_level,
         }
     }
@@ -165,6 +166,7 @@ impl MetricRefinement {
             visibility: None,
             is_v2: true,
             span_name: None,
+            span_links: Vec::new(),
             requirement_level: None,
         }
     }

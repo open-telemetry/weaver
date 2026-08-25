@@ -19,7 +19,7 @@ use crate::{
 };
 
 /// A reference to an attribute group for spans.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct SpanGroupRef {
     /// Reference an existing attribute group by id.
@@ -27,7 +27,7 @@ pub struct SpanGroupRef {
 }
 
 /// A reference to either a span attribute or an attribute group.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(untagged)]
 pub enum SpanAttributeOrGroupRef {
     /// Reference to a span attribute.
@@ -64,7 +64,7 @@ pub fn split_span_attributes_and_groups(
 /// Span links model relations that do not fit the parent/child tree,
 /// for example a batch consumer span that links to the producer span
 /// of each message it processes.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub struct SpanLink {
@@ -205,6 +205,7 @@ impl Span {
             visibility: None,
             is_v2: true,
             span_name: Some(self.name),
+            span_links: self.links,
             requirement_level: self.requirement_level,
         }
     }
@@ -243,6 +244,7 @@ impl SpanRefinement {
             visibility: None,
             is_v2: true,
             span_name: self.name,
+            span_links: Vec::new(),
             requirement_level: None,
         }
     }
@@ -259,7 +261,7 @@ pub struct SpanName {
 }
 
 /// A refinement of an Attribute for a span.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub struct SpanAttributeRef {
