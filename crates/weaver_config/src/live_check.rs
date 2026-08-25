@@ -90,9 +90,9 @@ pub struct LiveCheckConfig {
     #[serde(default)]
     pub finding_level_overrides: Vec<FindingLevelOverride>,
 
-    /// Matchers give an untyped sample an identifier, and can add attribute
-    /// groups to the set a sample is compared with. Evaluated in the order
-    /// they are declared.
+    /// Rules that assign a registry signal, additional attribute groups, or
+    /// both, to samples that cannot be identified by name alone. Evaluated in
+    /// the order they are declared.
     #[serde(default)]
     pub matchers: Vec<MatcherConfig>,
 
@@ -259,7 +259,7 @@ pub struct FindingLevelOverride {
     pub sample_names: Vec<String>,
 }
 
-/// The kind of sample a matcher looks at.
+/// The kind of sample a matcher applies to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum MatcherSampleType {
@@ -297,30 +297,31 @@ impl fmt::Display for MatcherSampleType {
     }
 }
 
-/// A matcher: what a sample is compared with when its own identity is not
-/// enough.
+/// A rule that assigns a registry signal, additional attribute groups, or
+/// both, to samples that cannot be identified by name alone.
 ///
-/// `signal` names one signal to compare the sample with, and overrides the
-/// natural match. `attribute_groups` add to the comparison instead of
-/// replacing it. Both are looked up in the registry at startup.
+/// The rule applies to a sample of kind `sample_type` when `when` evaluates to
+/// true. `signal` replaces the signal the sample would otherwise be checked
+/// against; `attribute_groups` are checked in addition to it. Both are
+/// resolved against the registry at startup.
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
 pub struct MatcherConfig {
-    /// Names the matcher in findings, statistics and coverage.
+    /// Identifies the matcher in findings, statistics and coverage.
     pub id: String,
 
-    /// The kind of sample this matcher looks at.
+    /// The kind of sample this matcher applies to.
     pub sample_type: MatcherSampleType,
 
-    /// A CEL expression that has to be true for the matcher to apply. When
-    /// unset, the matcher applies to every sample of its `sample_type`.
+    /// A CEL expression that must evaluate to true for the matcher to apply.
+    /// When unset, the matcher applies to every sample of its `sample_type`.
     pub when: Option<String>,
 
-    /// The one signal the sample is compared with. When unset, the natural
-    /// match stands.
+    /// The registry signal the sample is checked against. When unset, the
+    /// sample is checked against the signal its name resolves to.
     pub signal: Option<String>,
 
-    /// Attribute groups, in priority order, added to the comparison on top of
-    /// whatever `signal` brought in.
+    /// Registry attribute groups checked in addition to the signal, in
+    /// priority order.
     #[serde(default)]
     pub attribute_groups: Vec<String>,
 }

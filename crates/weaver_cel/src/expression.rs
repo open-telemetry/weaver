@@ -87,7 +87,7 @@ impl Referenced {
         self.variables.contains(variable)
     }
 
-    /// The variables the expression reads, in order.
+    /// The variables the expression reads, in name order.
     pub fn variables(&self) -> impl Iterator<Item = &str> {
         self.variables.iter().map(String::as_str)
     }
@@ -99,7 +99,7 @@ mod tests {
 
     use super::*;
 
-    /// Stands in for a sample: a name and some attributes.
+    /// A stand-in sample: a name, some attributes, and a record of what was bound.
     struct TestBindings {
         name: &'static str,
         attributes: Vec<(&'static str, &'static str)>,
@@ -203,7 +203,7 @@ mod tests {
         );
     }
 
-    /// A matcher that only tests the name does not pay for the attribute map.
+    /// An expression that only reads `name` does not build the attribute map.
     #[test]
     fn only_the_referenced_variables_are_bound() {
         let expression = Expression::compile(r#"name.startsWith("checkout")"#).expect("compiles");

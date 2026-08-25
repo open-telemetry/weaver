@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! The variables an expression is given.
+//! The [`Bindings`] trait, which supplies variable values to an expression.
 
 use cel::Context;
 

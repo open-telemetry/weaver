@@ -74,8 +74,6 @@ impl WeaverConfig {
     /// # Errors
     ///
     /// Returns an error when the section is present but does not deserialize.
-    /// One bad field would otherwise discard every other setting in the
-    /// section.
     pub fn command_config<C: serde::de::DeserializeOwned + Default>(
         &self,
         section: &str,

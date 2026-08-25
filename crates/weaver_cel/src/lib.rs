@@ -2,8 +2,8 @@
 
 //! CEL expressions for weaver.
 //!
-//! The engine only: compile, inspect, evaluate. It has no telemetry types and
-//! no weaver dependencies; the crate that owns the samples implements
+//! Compilation, inspection and evaluation only: no telemetry types and no
+//! weaver dependencies. The crate that owns the samples implements
 //! [`Bindings`].
 
 mod bindings;
@@ -17,7 +17,7 @@ pub use cel::{Context, Value};
 
 /// Errors from compiling or running an expression.
 ///
-/// Errors identify the expression by its source text; callers should add its
+/// Each variant carries the expression source text; the caller adds its
 /// origin.
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
@@ -31,7 +31,7 @@ pub enum Error {
         error: String,
     },
 
-    /// The expression failed while running.
+    /// The expression failed during evaluation.
     #[error("The expression `{expression}` failed to evaluate: {error}")]
     EvalFailed {
         /// Source text of the expression.

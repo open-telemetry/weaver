@@ -1,5 +1,5 @@
-# Matched on a signature: the id present, and the stage holding one of the
-# values we expect.
+# Matched on a signature: the id is present and the stage is one of three
+# known values.
 [[live-check.matchers]]
 id = "myapp.checkout"
 sample_type = "span"

@@ -2,7 +2,7 @@
 
 //! Binds live-check samples to CEL variables.
 //!
-//! Each sample type offers its own set of variables, and only the ones an
+//! Each sample type has its own set of variables, and only the ones an
 //! expression reads are bound.
 
 use std::collections::HashMap;
@@ -21,14 +21,14 @@ use crate::{
     SampleType,
 };
 
-/// The `resource` variable, offered by every signal sample.
+/// The `resource` variable, available on every signal sample.
 const RESOURCE: &str = "resource";
-/// The `instrumentation_scope` variable, offered by every signal sample.
+/// The `instrumentation_scope` variable, available on every signal sample.
 const INSTRUMENTATION_SCOPE: &str = "instrumentation_scope";
 
 /// The variables an expression can read for a sample type.
 ///
-/// Empty means expressions never run against that sample type.
+/// An empty slice means no matcher can target that sample type.
 #[must_use]
 pub fn variables(sample_type: SampleType) -> &'static [&'static str] {
     match sample_type {
@@ -159,7 +159,6 @@ impl Bindings for SampleMetric {
             context.add_variable_from_value("instrument", enum_name(&self.instrument));
         }
         if referenced.wants("attributes") {
-            // Metric attributes are the union over the data points.
             context
                 .add_variable_from_value("attributes", attribute_map(data_point_attributes(self)));
         }
@@ -315,20 +314,9 @@ mod tests {
 
     use serde::Deserialize;
     use weaver_cel::{Error, Expression};
+    use weaver_config::live_check::{MatcherConfig, MatcherSampleType};
 
     use super::*;
-
-    /// A `[[live-check.matchers]]` table. Test-only until it has a home in
-    /// the config.
-    #[derive(Debug, Deserialize)]
-    struct MatcherConfig {
-        id: String,
-        sample_type: String,
-        when: Option<String>,
-        signal: Option<String>,
-        #[serde(default)]
-        attribute_groups: Vec<String>,
-    }
 
     /// The one matcher in a fixture config, with its expression compiled.
     fn matcher(fixture: &str) -> (MatcherConfig, Option<Expression>) {
@@ -380,7 +368,7 @@ mod tests {
         fn config_is_read_from_toml() {
             let (config, expression) = matcher(MATCHERS);
             assert_eq!(config.id, "myapp.checkout");
-            assert_eq!(config.sample_type, "span");
+            assert_eq!(config.sample_type, MatcherSampleType::Span);
             assert_eq!(config.signal.as_deref(), Some("myapp.checkout"));
             assert!(config.attribute_groups.is_empty());
             assert!(expression
@@ -493,7 +481,7 @@ mod tests {
         #[test]
         fn config_adds_a_group_and_no_signal() {
             let (config, expression) = matcher(MATCHERS);
-            assert_eq!(config.sample_type, "log");
+            assert_eq!(config.sample_type, MatcherSampleType::Log);
             assert!(config.when.is_none());
             assert!(config.signal.is_none());
             assert_eq!(config.attribute_groups, ["myapp.common"]);
@@ -593,7 +581,7 @@ mod tests {
             assert!(!matches(MATCHERS, &sample).expect("it evaluates"));
         }
 
-        /// The `in` test keeps this from erroring.
+        /// The `in` guard prevents an error on the absent attribute.
         #[test]
         fn a_resource_without_a_service_name_does_not_error() {
             let sample = resource(include_str!(
@@ -676,7 +664,7 @@ mod tests {
         }
     }
 
-    /// The check a startup lint would make.
+    /// The startup lint will make the same check.
     #[test]
     fn the_fixture_expressions_only_read_variables_that_exist() {
         let fixtures = [
@@ -714,7 +702,7 @@ mod tests {
             for variable in expression.referenced().variables() {
                 assert!(
                     allowed.contains(&variable),
-                    "matcher `{}` reads `{variable}`, which {sample_type:?} does not offer",
+                    "matcher `{}` reads `{variable}`, which {sample_type:?} does not have",
                     config.id
                 );
             }
@@ -722,7 +710,7 @@ mod tests {
     }
 
     #[test]
-    fn a_sample_type_a_matcher_cannot_target_offers_nothing() {
+    fn a_sample_type_a_matcher_cannot_target_has_no_variables() {
         assert!(variables(SampleType::NumberDataPoint).is_empty());
         assert!(variables(SampleType::Attribute).is_empty());
     }

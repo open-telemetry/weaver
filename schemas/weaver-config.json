@@ -271,7 +271,7 @@
           "default": "otlp"
         },
         "matchers": {
-          "description": "Matchers give an untyped sample an identifier, and can add attribute\ngroups to the set a sample is compared with. Evaluated in the order\nthey are declared.",
+          "description": "Rules that assign a registry signal, additional attribute groups, or\nboth, to samples that cannot be identified by name alone. Evaluated in\nthe order they are declared.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/MatcherConfig"
@@ -750,11 +750,11 @@
       }
     },
     "MatcherConfig": {
-      "description": "A matcher: what a sample is compared with when its own identity is not\nenough.\n\n`signal` names one signal to compare the sample with, and overrides the\nnatural match. `attribute_groups` add to the comparison instead of\nreplacing it. Both are looked up in the registry at startup.",
+      "description": "A rule that assigns a registry signal, additional attribute groups, or\nboth, to samples that cannot be identified by name alone.\n\nThe rule applies to a sample of kind `sample_type` when `when` evaluates to\ntrue. `signal` replaces the signal the sample would otherwise be checked\nagainst; `attribute_groups` are checked in addition to it. Both are\nresolved against the registry at startup.",
       "type": "object",
       "properties": {
         "attribute_groups": {
-          "description": "Attribute groups, in priority order, added to the comparison on top of\nwhatever `signal` brought in.",
+          "description": "Registry attribute groups checked in addition to the signal, in\npriority order.",
           "type": "array",
           "default": [],
           "items": {
@@ -762,22 +762,22 @@
           }
         },
         "id": {
-          "description": "Names the matcher in findings, statistics and coverage.",
+          "description": "Identifies the matcher in findings, statistics and coverage.",
           "type": "string"
         },
         "sample_type": {
-          "description": "The kind of sample this matcher looks at.",
+          "description": "The kind of sample this matcher applies to.",
           "$ref": "#/$defs/MatcherSampleType"
         },
         "signal": {
-          "description": "The one signal the sample is compared with. When unset, the natural\nmatch stands.",
+          "description": "The registry signal the sample is checked against. When unset, the\nsample is checked against the signal its name resolves to.",
           "type": [
             "string",
             "null"
           ]
         },
         "when": {
-          "description": "A CEL expression that has to be true for the matcher to apply. When\nunset, the matcher applies to every sample of its `sample_type`.",
+          "description": "A CEL expression that must evaluate to true for the matcher to apply.\nWhen unset, the matcher applies to every sample of its `sample_type`.",
           "type": [
             "string",
             "null"
@@ -790,7 +790,7 @@
       ]
     },
     "MatcherSampleType": {
-      "description": "The kind of sample a matcher looks at.",
+      "description": "The kind of sample a matcher applies to.",
       "oneOf": [
         {
           "description": "A span.",
