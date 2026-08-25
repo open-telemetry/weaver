@@ -353,6 +353,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             visibility: group.spec.visibility.clone(),
             is_v2: group.spec.is_v2,
             span_name: group.spec.span_name,
+            span_links: group.spec.span_links,
         },
         attributes: attrs,
         provenance: Some(group.provenance),
@@ -656,6 +657,9 @@ fn inherit_v2_refinement_fields(
     }
     if refinement.group.span_name.is_none() {
         refinement.group.span_name = parent.span_name.clone();
+    }
+    if refinement.group.span_links.is_empty() {
+        refinement.group.span_links = parent.span_links.clone();
     }
 
     let mut merged_annotations = parent.annotations.clone().unwrap_or_default();
@@ -1631,6 +1635,7 @@ groups:
                     visibility: Default::default(),
                     is_v2: false,
                     span_name: None,
+                    span_links: Vec::new(),
                 },
                 attributes: Default::default(),
                 include_groups: Default::default(),
@@ -1731,6 +1736,7 @@ groups:
                         visibility: Default::default(),
                         is_v2: false,
                         span_name: None,
+                        span_links: Vec::new(),
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
@@ -1767,6 +1773,7 @@ groups:
                         visibility: Default::default(),
                         is_v2: false,
                         span_name: None,
+                        span_links: Vec::new(),
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
@@ -1803,6 +1810,7 @@ groups:
                         visibility: Default::default(),
                         is_v2: false,
                         span_name: None,
+                        span_links: Vec::new(),
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),

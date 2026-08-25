@@ -799,6 +799,7 @@ mod tests {
                     visibility: None,
                     is_v2: false,
                     span_name: None,
+                    span_links: Vec::new(),
                 },
                 Group {
                     id: "span.custom".to_owned(),
@@ -825,6 +826,7 @@ mod tests {
                     visibility: None,
                     is_v2: false,
                     span_name: None,
+                    span_links: Vec::new(),
                 },
             ],
         };
@@ -888,6 +890,7 @@ mod tests {
                 visibility: None,
                 is_v2: false,
                 span_name,
+                span_links: Vec::new(),
             };
         let mut refinement_lineage =
             GroupLineage::new(Provenance::new(SchemaUrl::new_unknown(), "tmp"));
@@ -1017,6 +1020,7 @@ mod tests {
                     visibility: None,
                     is_v2: false,
                     span_name: None,
+                    span_links: Vec::new(),
                 },
                 Group {
                     id: "metric.http.custom".to_owned(),
@@ -1043,6 +1047,7 @@ mod tests {
                     visibility: None,
                     is_v2: false,
                     span_name: None,
+                    span_links: Vec::new(),
                 },
             ],
         };
@@ -1127,6 +1132,7 @@ mod tests {
                 visibility: None,
                 is_v2: false,
                 span_name: None,
+                span_links: Vec::new(),
             }],
         };
         let dependencies = BTreeSet::new();
@@ -1198,6 +1204,7 @@ mod tests {
                 visibility: None,
                 is_v2: false,
                 span_name: None,
+                span_links: Vec::new(),
             }],
         };
         let mut dependencies = BTreeSet::new();
@@ -1272,6 +1279,7 @@ mod tests {
                 visibility: Some(AttributeGroupVisibilitySpec::Public),
                 is_v2: true,
                 span_name: None,
+                span_links: Vec::new(),
             }],
         };
         let (_, v2_registry, _, _) = convert_v1_to_v2(v1_catalog, v1_registry, BTreeSet::new())

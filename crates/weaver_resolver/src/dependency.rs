@@ -58,6 +58,9 @@ pub(crate) struct GroupSummary {
     /// The v2 span name specification, inherited by refinements that do not
     /// override it.
     pub span_name: Option<weaver_semconv::v2::span::SpanName>,
+    /// The v2 span links, inherited by refinements that do not
+    /// declare their own.
+    pub span_links: Vec<weaver_semconv::v2::span::SpanLink>,
     /// The attributes from this group before being completely resolved to a catalog.
     pub attributes: Vec<UnresolvedAttribute>,
     /// The annotations of the group.
@@ -83,6 +86,7 @@ impl GroupSummary {
             requirement_level: group.requirement_level.clone(),
             span_kind: group.span_kind.clone(),
             span_name: group.span_name.clone(),
+            span_links: group.span_links.clone(),
             attributes: vec![], // Will be set during the dependency or registry loops.
             annotations: group.annotations.clone(),
             source,
@@ -794,6 +798,7 @@ impl ImportableDependency for V2Schema {
                 visibility: None,
                 is_v2: true,
                 span_name: None,
+                span_links: Vec::new(),
             });
         }
 
@@ -860,6 +865,7 @@ impl ImportableDependency for V2Schema {
                 visibility: None,
                 is_v2: true,
                 span_name: None,
+                span_links: Vec::new(),
             });
         }
 
@@ -950,6 +956,7 @@ impl ImportableDependency for V2Schema {
                 visibility: None,
                 is_v2: true,
                 span_name: None,
+                span_links: Vec::new(),
             });
         }
 
@@ -1016,6 +1023,7 @@ impl ImportableDependency for V2Schema {
                 visibility: None,
                 is_v2: true,
                 span_name: Some(s.name.clone()),
+                span_links: Vec::new(),
             });
         }
 
@@ -1080,6 +1088,7 @@ impl ImportableDependency for V2Schema {
                 visibility: None,
                 is_v2: true,
                 span_name: None,
+                span_links: Vec::new(),
             });
         }
         if !exclusion_errors.is_empty() {
@@ -1237,6 +1246,7 @@ fn signal_summary(
         requirement_level,
         span_kind: None,
         span_name: None,
+        span_links: Vec::new(),
         attributes,
         annotations: Some(common.annotations.clone()),
         source: GroupSource::Dependency,
@@ -1445,6 +1455,7 @@ mod tests {
                         visibility: Default::default(),
                         is_v2: Default::default(),
                         span_name: None,
+                        span_links: Vec::new(),
                     },
                     weaver_resolved_schema::registry::Group {
                         id: "span.v1".to_owned(),
@@ -1471,6 +1482,7 @@ mod tests {
                         visibility: Default::default(),
                         is_v2: Default::default(),
                         span_name: None,
+                        span_links: Vec::new(),
                     },
                 ],
             },
