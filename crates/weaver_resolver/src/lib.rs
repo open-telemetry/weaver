@@ -2343,7 +2343,7 @@ groups:
             ("event name", event, &events),
             ("span type", span, &spans),
         ] {
-            if !got.contains(&want.to_owned()) {
+            if got.len() != 1 || got.first().map(String::as_str) != Some(want) {
                 wrong.push(format!("{label}: want {want:?}, got {got:?}"));
             }
         }
