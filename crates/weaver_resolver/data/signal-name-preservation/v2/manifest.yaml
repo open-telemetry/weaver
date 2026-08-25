@@ -1,0 +1,5 @@
+description: >
+  A v2 registry whose span, metric, entity and event each carry a name or type
+  that starts with its own signal keyword, e.g. `span.{type}`. Used to check that
+  resolution keeps the name verbatim rather than stripping the keyword.
+schema_url: https://example.com/signal-name-preservation-v2/1.0.0
