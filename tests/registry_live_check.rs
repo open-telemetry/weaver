@@ -130,3 +130,62 @@ fn no_stats_with_none_threshold_is_silent_and_exits_zero() {
         "should not warn when --fail-on=none, got: {combined}"
     );
 }
+
+/// Writes a `.weaver.toml` holding one matcher and runs live-check against it.
+fn run_with_matcher(matcher: &str) -> (Output, tempfile::TempDir) {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let config = dir.path().join(".weaver.toml");
+    std::fs::write(&config, format!("[[\"live-check\".matchers]]\n{matcher}\n"))
+        .expect("write config");
+    let out = run_live_check(&["--config", config.to_str().expect("utf-8 path")]);
+    (out, dir)
+}
+
+fn combined(out: &Output) -> String {
+    format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    )
+}
+
+/// A `when` that does not compile stops the run, naming the matcher.
+#[test]
+fn a_matcher_that_does_not_compile_fails_startup() {
+    let (out, _dir) = run_with_matcher(
+        r#"id = "myapp.broken"
+sample_type = "span"
+when = 'attributes['"#,
+    );
+    assert_ne!(exit_code(&out), 0);
+    let output = combined(&out);
+    assert!(output.contains("myapp.broken"), "got: {output}");
+}
+
+/// A `when` reading a variable its sample type does not have stops the run.
+#[test]
+fn a_matcher_reading_an_unknown_variable_fails_startup() {
+    let (out, _dir) = run_with_matcher(
+        r#"id = "myapp.wrong.type"
+sample_type = "span"
+when = 'unit == "s"'"#,
+    );
+    assert_ne!(exit_code(&out), 0);
+    let output = combined(&out);
+    assert!(
+        output.contains("myapp.wrong.type") && output.contains("unit"),
+        "got: {output}"
+    );
+}
+
+/// A matcher that compiles does not change the outcome, since nothing consumes
+/// it yet.
+#[test]
+fn a_valid_matcher_does_not_change_the_run() {
+    let (out, _dir) = run_with_matcher(
+        r#"id = "myapp.checkout"
+sample_type = "span"
+when = '"myapp.checkout.id" in attributes'"#,
+    );
+    assert_eq!(exit_code(&out), 1, "got: {}", combined(&out));
+}

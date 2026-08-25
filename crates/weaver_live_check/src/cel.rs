@@ -312,40 +312,27 @@ fn enum_name<T: serde::Serialize>(value: &T) -> String {
 mod tests {
     use std::rc::Rc;
 
-    use serde::Deserialize;
     use weaver_cel::{Error, Expression};
-    use weaver_config::live_check::{MatcherConfig, MatcherSampleType};
 
     use super::*;
+    use crate::matcher::{fixture, Matchers};
 
-    /// The one matcher in a fixture config, with its expression compiled.
-    fn matcher(fixture: &str) -> (MatcherConfig, Option<Expression>) {
-        #[derive(Debug, Deserialize)]
-        struct Fixture {
-            #[serde(rename = "live-check")]
-            live_check: LiveCheck,
-        }
-        #[derive(Debug, Deserialize)]
-        struct LiveCheck {
-            matchers: Vec<MatcherConfig>,
-        }
-
-        let fixture: Fixture = toml::from_str(fixture).expect("the fixture config parses");
-        let mut matchers = fixture.live_check.matchers;
-        assert_eq!(matchers.len(), 1, "the fixture declares one matcher");
-        let config = matchers.pop().expect("there is one matcher");
-        let expression = config
-            .when
-            .as_deref()
-            .map(|when| Expression::compile(when).expect("the fixture expressions compile"));
-        (config, expression)
+    /// Compiles a fixture that declares one matcher.
+    fn compile(toml_str: &str) -> Matchers {
+        let configs = fixture::matcher_configs(toml_str);
+        assert_eq!(configs.len(), 1, "the fixture declares one matcher");
+        Matchers::compile(&configs).expect("the fixture matchers compile")
     }
 
     /// Evaluates the `when` of a fixture against a sample.
-    fn matches(fixture: &str, sample: &dyn Bindings) -> Result<bool, Error> {
-        let (_, expression) = matcher(fixture);
+    fn matches(toml_str: &str, sample: &dyn Bindings) -> Result<bool, Error> {
+        let matchers = compile(toml_str);
+        let matcher = matchers.iter().next().expect("there is one matcher");
         // A fixture with no `when` matches every sample of the type.
-        expression.map_or(Ok(true), |expression| expression.evaluate(sample))
+        matcher
+            .when
+            .as_ref()
+            .map_or(Ok(true), |when| when.evaluate(sample))
     }
 
     fn parse<T: serde::de::DeserializeOwned>(json: &str) -> T {
@@ -366,12 +353,15 @@ mod tests {
 
         #[test]
         fn config_is_read_from_toml() {
-            let (config, expression) = matcher(MATCHERS);
-            assert_eq!(config.id, "myapp.checkout");
-            assert_eq!(config.sample_type, MatcherSampleType::Span);
-            assert_eq!(config.signal.as_deref(), Some("myapp.checkout"));
-            assert!(config.attribute_groups.is_empty());
-            assert!(expression
+            let matchers = compile(MATCHERS);
+            let matcher = matchers.iter().next().expect("there is one matcher");
+            assert_eq!(matcher.id, "myapp.checkout");
+            assert_eq!(matcher.sample_type, SampleType::Span);
+            assert_eq!(matcher.signal.as_deref(), Some("myapp.checkout"));
+            assert!(matcher.attribute_groups.is_empty());
+            assert!(matcher
+                .when
+                .as_ref()
                 .expect("it has a when")
                 .referenced()
                 .wants("attributes"));
@@ -480,12 +470,12 @@ mod tests {
 
         #[test]
         fn config_adds_a_group_and_no_signal() {
-            let (config, expression) = matcher(MATCHERS);
-            assert_eq!(config.sample_type, MatcherSampleType::Log);
-            assert!(config.when.is_none());
-            assert!(config.signal.is_none());
-            assert_eq!(config.attribute_groups, ["myapp.common"]);
-            assert!(expression.is_none());
+            let matchers = compile(MATCHERS);
+            let matcher = matchers.iter().next().expect("there is one matcher");
+            assert_eq!(matcher.sample_type, SampleType::Log);
+            assert!(matcher.when.is_none());
+            assert!(matcher.signal.is_none());
+            assert_eq!(matcher.attribute_groups, ["myapp.common"]);
         }
 
         /// The fixture has no `when`.
@@ -661,51 +651,6 @@ mod tests {
             let error =
                 evaluate(r#"instrumentation_scope.name == "x""#, &span).expect_err("it errors");
             assert!(matches!(error, Error::EvalFailed { .. }), "{error}");
-        }
-    }
-
-    /// The startup lint will make the same check.
-    #[test]
-    fn the_fixture_expressions_only_read_variables_that_exist() {
-        let fixtures = [
-            (
-                SampleType::Span,
-                include_str!("../fixtures/cel/span-checkout/matchers.toml"),
-            ),
-            (
-                SampleType::Span,
-                include_str!("../fixtures/cel/span-status/matchers.toml"),
-            ),
-            (
-                SampleType::Log,
-                include_str!("../fixtures/cel/log-common/matchers.toml"),
-            ),
-            (
-                SampleType::Metric,
-                include_str!("../fixtures/cel/metric-common/matchers.toml"),
-            ),
-            (
-                SampleType::Resource,
-                include_str!("../fixtures/cel/resource/matchers.toml"),
-            ),
-            (
-                SampleType::InstrumentationScope,
-                include_str!("../fixtures/cel/instrumentation-scope/matchers.toml"),
-            ),
-        ];
-        for (sample_type, fixture) in fixtures {
-            let (config, expression) = matcher(fixture);
-            let Some(expression) = expression else {
-                continue;
-            };
-            let allowed = variables(sample_type);
-            for variable in expression.referenced().variables() {
-                assert!(
-                    allowed.contains(&variable),
-                    "matcher `{}` reads `{variable}`, which {sample_type:?} does not have",
-                    config.id
-                );
-            }
         }
     }
 

@@ -44,6 +44,8 @@ pub mod json_file_ingester;
 pub mod json_stdin_ingester;
 /// Live checker
 pub mod live_checker;
+/// Matchers from the live-check config.
+pub mod matcher;
 /// OTLP logger for emitting policy findings as log records
 pub mod otlp_logger;
 /// The intermediary format for attributes
@@ -267,6 +269,35 @@ pub enum Error {
     OutputError {
         /// The error that occurred.
         error: String,
+    },
+
+    /// Two matchers declare the same id.
+    #[error("Matcher `{id}` is declared more than once.")]
+    DuplicateMatcher {
+        /// The repeated matcher id.
+        id: String,
+    },
+
+    /// A matcher's `when` expression does not compile.
+    #[error("Matcher `{id}`: {error}")]
+    InvalidMatcherExpression {
+        /// The matcher id.
+        id: String,
+        /// The error that occurred.
+        error: String,
+    },
+
+    /// A matcher's `when` reads a variable its sample type does not have.
+    #[error("Matcher `{id}` reads `{variable}`, which a `{sample_type}` sample does not have. Available: {available}")]
+    UnknownMatcherVariable {
+        /// The matcher id.
+        id: String,
+        /// The variable the expression reads.
+        variable: String,
+        /// The sample type the matcher applies to.
+        sample_type: String,
+        /// The variables the sample type does have.
+        available: String,
     },
 }
 

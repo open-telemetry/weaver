@@ -9,8 +9,9 @@ use std::sync::Arc;
 use weaver_semconv::{attribute::AttributeType, group::GroupType};
 
 use crate::{
-    advice::Advisor, finding_modifier::FindingModifier, otlp_logger::OtlpEmitter,
-    VersionedAttribute, VersionedEntity, VersionedRegistry, VersionedSignal,
+    advice::Advisor, finding_modifier::FindingModifier, matcher::Matchers,
+    otlp_logger::OtlpEmitter, VersionedAttribute, VersionedEntity, VersionedRegistry,
+    VersionedSignal,
 };
 use weaver_forge::v2::entity::{Entity as V2Entity, EntityRef};
 
@@ -39,6 +40,9 @@ pub struct LiveChecker {
     /// Optional finding modifier for overriding/filtering findings
     #[serde(skip)]
     pub finding_modifier: Option<FindingModifier>,
+    /// The configured matchers, compiled
+    #[serde(skip)]
+    pub matchers: Matchers,
 }
 
 impl LiveChecker {
@@ -141,6 +145,7 @@ impl LiveChecker {
             templates_by_length,
             otlp_emitter: None,
             finding_modifier: None,
+            matchers: Matchers::default(),
         }
     }
 
