@@ -272,6 +272,7 @@ mod test {
                 },
                 attributes: vec![],
                 entity_associations: vec![],
+                links: vec![],
                 requirement_level: None,
                 common: CommonFields {
                     brief: "test".to_owned(),

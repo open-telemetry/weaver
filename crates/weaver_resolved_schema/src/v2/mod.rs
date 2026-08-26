@@ -165,6 +165,97 @@ fn fix_span_group_id(group_id: &str) -> SignalId {
     fix_group_id("span.", group_id)
 }
 
+/// Converts the v2 span links carried on a v1 group into resolved links.
+///
+/// Link attributes skip v1 attribute resolution (they ride the hidden
+/// GroupSpec carrier), so they resolve here: name -> root attribute ->
+/// v2 catalog reference. Unsupported constructs fail loudly instead of
+/// being dropped.
+fn convert_span_links(
+    g: &crate::registry::Group,
+    span_types: &HashSet<SignalId>,
+    c: &crate::catalog::Catalog,
+    v2_catalog: &Catalog,
+    provenance: &provenance::Provenance,
+) -> Result<Vec<span::SpanLink>, crate::error::Error> {
+    let mut links = Vec::new();
+    for link in g.span_links.iter() {
+        if !span_types.contains(&link.r#ref) {
+            return Err(crate::error::Error::SpanLinkTargetNotFound {
+                group_id: g.id.clone(),
+                link_ref: link.r#ref.to_string(),
+            });
+        }
+        let mut attributes = Vec::new();
+        for attr in link.attributes.iter() {
+            match attr {
+                weaver_semconv::v2::span::SpanAttributeOrGroupRef::Attribute(ar) => {
+                    if ar.base.brief.is_some()
+                        || ar.base.note.is_some()
+                        || ar.base.examples.is_some()
+                        || ar.base.stability.is_some()
+                        || ar.base.deprecated.is_some()
+                        || !ar.base.annotations.is_empty()
+                    {
+                        return Err(crate::error::Error::UnsupportedSpanLinkAttribute {
+                            group_id: g.id.clone(),
+                            link_ref: link.r#ref.to_string(),
+                            reason: format!(
+                                "attribute '{}' carries overrides; only requirement_level and sampling_relevant are supported on link attributes",
+                                ar.base.r#ref
+                            ),
+                        });
+                    }
+                    let Some((root, _)) = c.root_attribute(&ar.base.r#ref) else {
+                        return Err(crate::error::Error::UnsupportedSpanLinkAttribute {
+                            group_id: g.id.clone(),
+                            link_ref: link.r#ref.to_string(),
+                            reason: format!(
+                                "attribute '{}' not found in the catalog",
+                                ar.base.r#ref
+                            ),
+                        });
+                    };
+                    let Some(base) = v2_catalog.convert_ref(root) else {
+                        return Err(crate::error::Error::UnsupportedSpanLinkAttribute {
+                            group_id: g.id.clone(),
+                            link_ref: link.r#ref.to_string(),
+                            reason: format!(
+                                "attribute '{}' could not be mapped to the v2 catalog",
+                                ar.base.r#ref
+                            ),
+                        });
+                    };
+                    attributes.push(span::SpanAttributeRef {
+                        base,
+                        requirement_level: ar.base.requirement_level.clone().unwrap_or_default(),
+                        sampling_relevant: ar.sampling_relevant,
+                    });
+                }
+                weaver_semconv::v2::span::SpanAttributeOrGroupRef::Group(group_ref) => {
+                    return Err(crate::error::Error::UnsupportedSpanLinkAttribute {
+                        group_id: g.id.clone(),
+                        link_ref: link.r#ref.to_string(),
+                        reason: format!(
+                            "attribute group '{}' references are not supported on link attributes",
+                            group_ref.ref_group
+                        ),
+                    });
+                }
+            }
+        }
+        links.push(span::SpanLink {
+            r#ref: link.r#ref.clone(),
+            requirement_level: link.requirement_level.clone().unwrap_or_default(),
+            brief: link.brief.clone(),
+            note: link.note.clone(),
+            attributes,
+            provenance: provenance.clone(),
+        });
+    }
+    Ok(links)
+}
+
 /// Converts a V1 registry + catalog to V2.
 pub fn convert_v1_to_v2(
     c: crate::catalog::Catalog,
@@ -248,6 +339,23 @@ pub fn convert_v1_to_v2(
 
     let v2_catalog = Catalog::from_attributes(attributes.into_iter().collect());
 
+    // Collect the set of span types up front, so span link targets can be
+    // validated while each group converts. Refinements are excluded: a link
+    // targets a span type, not a refinement id.
+    let span_types: HashSet<SignalId> = r
+        .groups
+        .iter()
+        .filter(|g| {
+            g.r#type == GroupType::Span
+                && !g
+                    .lineage
+                    .as_ref()
+                    .map(|l| l.extends_group_type == Some(GroupType::Span))
+                    .unwrap_or(false)
+        })
+        .map(|g| fix_span_group_id(&g.id))
+        .collect();
+
     // Pull signals from the registry and create a new span-focused registry.
     let mut spans = Vec::new();
     let mut span_refinements = Vec::new();
@@ -282,6 +390,8 @@ pub fn convert_v1_to_v2(
                     }
                 }
                 if !is_refinement {
+                    let provenance = get_provenance(g);
+                    let links = convert_span_links(g, &span_types, &c, &v2_catalog, &provenance)?;
                     let span = Span {
                         r#type: fix_span_group_id(&g.id),
                         kind: g
@@ -305,7 +415,8 @@ pub fn convert_v1_to_v2(
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
                         attributes: span_attributes,
-                        provenance: get_provenance(g),
+                        links,
+                        provenance,
                     };
                     spans.push(span.clone());
                     span_refinements.push(SpanRefinement {
@@ -321,6 +432,8 @@ pub fn convert_v1_to_v2(
                         });
                     };
                     let span_type = fix_span_group_id(extends_group);
+                    let provenance = get_provenance(g);
+                    let links = convert_span_links(g, &span_types, &c, &v2_catalog, &provenance)?;
                     span_refinements.push(SpanRefinement {
                         id: fix_span_group_id(&g.id),
                         span: Span {
@@ -346,7 +459,8 @@ pub fn convert_v1_to_v2(
                                 annotations: g.annotations.clone().unwrap_or_default(),
                             },
                             attributes: span_attributes,
-                            provenance: get_provenance(g),
+                            links,
+                            provenance,
                         },
                     });
                 }

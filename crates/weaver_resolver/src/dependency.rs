@@ -1566,6 +1566,7 @@ mod tests {
                     },
                     attributes: vec![],
                     entity_associations: vec![],
+                    links: vec![],
                     requirement_level: None,
                     common: Default::default(),
                     provenance: Default::default(),
