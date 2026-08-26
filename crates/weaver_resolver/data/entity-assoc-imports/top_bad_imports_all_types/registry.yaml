@@ -1,0 +1,14 @@
+file_format: definition/2
+imports:
+  metrics:
+    - middle.request.count
+    - no.such.metric
+  events:
+    - no.such.event
+  spans:
+    - no.such.span
+  entities:
+    - host
+    - no.such.entity
+  attribute_groups:
+    - no.such.attribute_group

@@ -4,13 +4,14 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
     attribute::RequirementLevel,
-    entity_association::EntityAssociation,
     group::SpanKindSpec,
     signal_requirement_level::SignalRequirementLevel,
     v2::{signal_id::SignalId, span::SpanName, CommonFields},
 };
 
-use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
+use crate::v2::{
+    attribute::AttributeRef, entity::EntityAssociation, provenance::Provenance, Signal,
+};
 
 /// The definition of a Span signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
@@ -34,7 +35,7 @@ pub struct Span {
     /// Which entities this span should be associated with.
     ///
     /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
-    /// entity reference or a nested `one_of`/`all_of` expression.
+    /// entity reference (a type plus its provenance) or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<EntityAssociation>,

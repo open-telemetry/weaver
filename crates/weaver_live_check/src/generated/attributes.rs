@@ -187,6 +187,8 @@ pub enum SampleType {
     Exemplar,
     /// A log record or event
     Log,
+    /// A profiling data sample
+    Profile,
 }
 
 /// The OpenTelemetry signal type that the finding applies to
@@ -217,4 +219,6 @@ pub enum SignalType {
     Metric,
     /// Log record or event signal
     Log,
+    /// Profiling data signal
+    Profile,
 }

@@ -208,6 +208,34 @@
       depNameTemplate: "otel/weaver",
       datasourceTemplate: "docker",
     },
+    {
+      customType: "regex",
+      description: "Update downstream-check semantic-conventions version",
+      managerFilePatterns: [
+        "downstream-check.yaml",
+      ],
+      matchStrings: [
+        "https:\/\/github\\.com\/(?<packageName>open-telemetry\/semantic-conventions)(?:\\.git)?@v(?<currentValue>[0-9.]+)",
+      ],
+      datasourceTemplate: "github-tags",
+      versioningTemplate: "semver",
+      extractVersionTemplate: "^v(?<version>.*)$",
+      autoReplaceStringTemplate: "https://github.com/open-telemetry/semantic-conventions.git@v{{newVersion}}",
+    },
+    {
+      customType: "regex",
+      description: "Update downstream-check opentelemetry-rust version",
+      managerFilePatterns: [
+        "downstream-check.yaml",
+      ],
+      matchStrings: [
+        "https:\/\/github\\.com\/(?<packageName>open-telemetry\/opentelemetry-rust)(?:\\.git)?@opentelemetry-semantic-conventions-(?<currentValue>[0-9.]+)",
+      ],
+      datasourceTemplate: "github-tags",
+      versioningTemplate: "semver",
+      extractVersionTemplate: "^opentelemetry-semantic-conventions-(?<version>.*)$",
+      autoReplaceStringTemplate: "https://github.com/open-telemetry/opentelemetry-rust.git@opentelemetry-semantic-conventions-{{newVersion}}",
+    },
   ],
   labels: [
     'dependencies',

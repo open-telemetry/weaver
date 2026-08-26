@@ -262,6 +262,39 @@ file_name: "{{ctx.root_namespace | snake_case}}.md"
 - `flatten` - Convert nested lists into a single list
 - `map_text` - Map values using text_maps in weaver.yaml
 
+### Entity Lookup
+
+`lookup_entity` returns the entity definition that an `entity_associations` leaf
+names. A leaf gives the entity type and the registry that defines it, for example
+`{ type: host, provenance: { source: <schema url> } }`. No provenance means this
+registry. The definition is often not in `ctx`, because a registry does not copy
+the entities of its dependencies.
+
+```jinja
+{% set entity = lookup_entity(leaf) %}
+{{ entity.type }}: {% for attr in entity.identity %}{{ attr.key }} {% endfor %}
+```
+
+Pass a leaf, not a whole association. An association can be a tree: a `one_of`
+or `all_of` node contains more associations, and only a leaf names an entity.
+Walk the levels with a recursive macro:
+
+```jinja
+{% macro association(assoc) %}
+{%- if assoc.one_of or assoc.all_of %}
+{%- for child in assoc.one_of or assoc.all_of %}{{ association(child) }}{% endfor %}
+{%- else %}
+{%- set entity = lookup_entity(assoc) %}
+{{ entity.type }}: {% for attr in entity.identity %}{{ attr.key }} {% endfor %}
+{%- endif %}
+{%- endmacro %}
+```
+
+`crates/weaver_forge/templates/entity_lookup/` has a working version. Only
+`weaver registry generate` on a v2 registry gives the template engine these
+definitions. A template rendered from anything else gets an error, and so does a
+leaf naming an entity that no registry defines.
+
 For a complete list of all filters, functions, and tests, see:
 - **[Jinja Filters Reference](../crates/weaver_forge/README.md#jinja-filters-reference)** - Complete filter documentation
 - **[Jinja Functions Reference](../crates/weaver_forge/README.md#jinja-functions-reference)** - Available functions

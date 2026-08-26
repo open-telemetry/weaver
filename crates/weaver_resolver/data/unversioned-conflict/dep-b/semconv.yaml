@@ -1,0 +1,7 @@
+file_format: definition/2
+attributes:
+  - key: dep.b.id
+    type: string
+    stability: stable
+    brief: Unique ID.
+    examples: ["abc123"]

@@ -298,6 +298,7 @@ mod tests {
         // Create a registry with groups in non-alphabetical order
         let registry = Registry {
             registry_url: "test".to_owned(),
+            entity_association_origins: Default::default(),
             groups: vec![
                 Group {
                     id: "zebra.group".to_owned(),
@@ -439,6 +440,7 @@ mod tests {
 
         let registry = Registry {
             registry_url: "test".to_owned(),
+            entity_association_origins: Default::default(),
             groups: vec![
                 metric_group("metric.hw.errors", true, None),
                 metric_group("hw.errors.host", true, Some("metric.hw.errors")),

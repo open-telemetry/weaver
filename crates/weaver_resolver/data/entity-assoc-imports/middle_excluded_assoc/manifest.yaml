@@ -1,0 +1,9 @@
+name: middle
+description: >
+  The metric is associated with the `host` entity of `base_excluded`, which
+  keeps it private. Naming a private entity in an association must fail.
+schema_url: https://example.com/middle/1.0.0
+dependencies:
+  - name: base
+    schema_url: https://example.com/base/1.0.0
+    registry_path: data/entity-assoc-imports/base_excluded

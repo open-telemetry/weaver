@@ -103,7 +103,12 @@ pub(crate) fn command(
     );
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let weaver = WeaverEngine::new(
+        &cmd_config.registry,
+        &cmd_config.policy,
+        &cmd_config.resolve,
+        auth,
+    );
     let config = cmd_config.config;
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let params = generate_params(args)?;
@@ -138,9 +143,11 @@ pub(crate) fn command(
         OutputTarget::Directory(output_path),
     )?;
     resolved.check_after_resolution_policy(&mut diag_msgs)?;
-    match &resolved {
+    match resolved {
+        // A v2 registry goes through `generate_v2_registry`, so a template can
+        // look up the entities that `entity_associations` names.
         crate::weaver::Resolved::V2(v) => {
-            output.generate(v.template_schema())?;
+            output.generate_v2_registry(v.into_template_schema())?;
         }
         crate::weaver::Resolved::V1(v) => {
             output.generate(v.template_schema())?;

@@ -1,0 +1,9 @@
+name: middle
+description: >
+  Refines a metric of base. The refinement declares its own association, naming
+  an entity that only base defines.
+schema_url: https://example.com/middle/1.0.0
+dependencies:
+  - name: base
+    schema_url: https://example.com/base/1.0.0
+    registry_path: data/entity-assoc-imports/base_metric

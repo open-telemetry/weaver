@@ -1,11 +1,12 @@
 //! Metric related definitions structs.
 
-use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
+use crate::v2::{
+    attribute::AttributeRef, entity::EntityAssociation, provenance::Provenance, Signal,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
     attribute::RequirementLevel,
-    entity_association::EntityAssociation,
     group::InstrumentSpec,
     signal_requirement_level::SignalRequirementLevel,
     v2::{signal_id::SignalId, CommonFields},
@@ -35,7 +36,7 @@ pub struct Metric {
     /// Which entities this metric should be associated with.
     ///
     /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
-    /// entity reference or a nested `one_of`/`all_of` expression.
+    /// entity reference (a type plus its provenance) or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<EntityAssociation>,

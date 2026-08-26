@@ -4,6 +4,13 @@
   "description": "A resolved semantic convention registry used in the context of the template and policy\nengines.\n\nThis includes all registries fully fleshed out and ready for codegen.",
   "type": "object",
   "properties": {
+    "dependencies": {
+      "description": "The resolved dependencies of this registry.",
+      "type": "array",
+      "items": {
+        "$ref": "#"
+      }
+    },
     "refinements": {
       "description": "The set of refinments defined in this registry.",
       "$ref": "#/$defs/Refinements"
@@ -428,11 +435,11 @@
       ]
     },
     "EntityAssociation": {
-      "description": "An entity association expression.\n\nIn YAML this is either a bare string (an entity reference), a `{ one_of: [...] }` map or a\n`{ all_of: [...] }` map, where each list element is itself an [`EntityAssociation`].",
+      "description": "An entity association expression.\n\nThe shape matches the authored expression. Only the leaf differs: an author\nwrites an entity type, and this view holds an [`EntityRef`], which also says\nwhere that entity is defined.",
       "anyOf": [
         {
-          "description": "A reference to an entity by its type name.",
-          "type": "string"
+          "description": "A reference to one entity.",
+          "$ref": "#/$defs/EntityRef"
         },
         {
           "description": "Satisfied when at least one of the contained expressions is satisfied.",
@@ -537,6 +544,24 @@
         "brief",
         "stability",
         "requirement_level"
+      ]
+    },
+    "EntityRef": {
+      "description": "A reference to an entity definition, from an `entity_associations` clause.\n\nThe reference names the entity, and names the registry that defines it, so a\nconsumer that holds one knows where to read the definition. Pass it to\n[`crate::v2::registry::ForgeResolvedRegistry::lookup_entity`].",
+      "type": "object",
+      "properties": {
+        "provenance": {
+          "description": "Where the entity is defined. Empty means this registry.",
+          "$ref": "#/$defs/Provenance"
+        },
+        "type": {
+          "description": "The entity type, or the id of an entity refinement.",
+          "$ref": "#/$defs/SignalId"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "type"
       ]
     },
     "EntityRefinement": {

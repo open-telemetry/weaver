@@ -1,0 +1,18 @@
+file_format: definition/2
+attributes:
+  - key: dep.attr
+    type: string
+    brief: An attribute from dependency.
+    stability: stable
+  - key: dep.port
+    type: int
+    brief: Port attribute from dependency.
+    stability: stable
+metrics:
+  - name: dep.metric
+    brief: A metric from dependency.
+    instrument: counter
+    unit: "{request}"
+    stability: stable
+    attributes:
+      - ref: dep.attr

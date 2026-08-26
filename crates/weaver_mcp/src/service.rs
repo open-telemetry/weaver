@@ -209,6 +209,12 @@ fn collect_compact_findings(samples: &[Sample]) -> Vec<serde_json::Value> {
                     out.push(json!({"type": "log", "attribute_findings": parts}));
                 }
             }
+            Sample::Profile(p) => {
+                let parts = extract_attr_findings(&p.attributes);
+                if !parts.is_empty() {
+                    out.push(json!({"type": "profile", "attribute_findings": parts}));
+                }
+            }
         }
     }
     out
@@ -650,6 +656,7 @@ mod tests {
                 events: vec![],
                 entities: vec![],
             },
+            dependencies: vec![],
         }
     }
 
@@ -1283,6 +1290,34 @@ mod tests {
             .as_array()
             .expect("attribute_findings array");
         assert_eq!(attr_findings[0]["name"], "nonexistent.log.attr");
+    }
+
+    #[test]
+    fn test_live_check_findings_only_profile() {
+        let service = create_test_service();
+
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "profile": {
+                "original_payload_format": "pprof",
+                "attributes": [{ "name": "nonexistent.profile.attr", "value": "x" }]
+            }
+        }))
+        .expect("profile sample should deserialize");
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).expect("json");
+        let findings = parsed["findings"].as_array().expect("findings array");
+        assert!(!findings.is_empty());
+        assert_eq!(findings[0]["type"], "profile");
+        let attr_findings = findings[0]["attribute_findings"]
+            .as_array()
+            .expect("attribute_findings array");
+        assert_eq!(attr_findings[0]["name"], "nonexistent.profile.attr");
     }
 
     #[test]

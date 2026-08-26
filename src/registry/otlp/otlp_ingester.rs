@@ -15,7 +15,8 @@ use weaver_live_check::{
 use super::{
     conversion::{
         otlp_instrumentation_scope_to_sample, otlp_log_record_to_sample_log, otlp_metric_to_sample,
-        sample_attribute_from_key_value, span_kind_from_otlp_kind, status_from_otlp_status,
+        otlp_profile_to_sample, sample_attribute_from_key_value, span_kind_from_otlp_kind,
+        status_from_otlp_status,
     },
     listen_otlp_requests, OtlpRequest, ShutdownCoordinator,
 };
@@ -202,6 +203,48 @@ impl OtlpIterator {
                                 sample_span.span_links.push(sample_link);
                             }
                             self.buffer.push(Sample::Span(sample_span));
+                        }
+                    }
+                }
+                Some(self.buffer.len())
+            }
+            OtlpRequest::Profiles(profiles) => {
+                let dictionary = profiles.dictionary;
+                for resource_profile in profiles.resource_profiles {
+                    let rc_resource = if let Some(resource) = resource_profile.resource {
+                        let mut sample_resource = SampleResource {
+                            attributes: Vec::new(),
+                            live_check_result: None,
+                        };
+                        for attribute in resource.attributes {
+                            sample_resource
+                                .attributes
+                                .push(sample_attribute_from_key_value(&attribute));
+                        }
+                        let rc = Rc::new(sample_resource);
+                        self.buffer.push(Sample::Resource((*rc).clone()));
+                        Some(rc)
+                    } else {
+                        None
+                    };
+
+                    for scope_profile in resource_profile.scope_profiles {
+                        let instrumentation_scope = otlp_instrumentation_scope_to_sample(
+                            scope_profile.scope.as_ref(),
+                            &scope_profile.schema_url,
+                        )
+                        .map(Rc::new);
+                        if let Some(scope) = &instrumentation_scope {
+                            self.buffer
+                                .push(Sample::InstrumentationScope((**scope).clone()));
+                        }
+
+                        for profile in scope_profile.profiles {
+                            let mut sample_profile =
+                                otlp_profile_to_sample(&profile, dictionary.as_ref());
+                            sample_profile.instrumentation_scope = instrumentation_scope.clone();
+                            sample_profile.resource = rc_resource.clone();
+                            self.buffer.push(Sample::Profile(sample_profile));
                         }
                     }
                 }

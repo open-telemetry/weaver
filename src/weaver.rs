@@ -22,7 +22,7 @@ use weaver_semconv::semconv::Versioned;
 use weaver_semconv::{registry_repo::RegistryRepo, semconv::SemConvSpecWithProvenance};
 use weaver_version::schema_changes::SchemaChanges;
 
-use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig};
+use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig, EffectiveResolveConfig};
 
 /// Visitor that runs Rego policy evaluation during semantic convention loading.
 struct PolicyVisitor<'a> {
@@ -50,6 +50,7 @@ impl<'a> SchemaLoadingVisitor for PolicyVisitor<'a> {
 pub struct WeaverEngine<'a> {
     registry_config: &'a EffectiveRegistryConfig,
     policy_config: &'a EffectivePolicyConfig,
+    resolve_config: &'a EffectiveResolveConfig,
     /// Per-URL HTTP credential resolver built from `.weaver.toml` (`[[auth]]`).
     auth: &'a HttpAuthResolver,
 }
@@ -59,11 +60,13 @@ impl<'a> WeaverEngine<'a> {
     pub fn new(
         registry: &'a EffectiveRegistryConfig,
         policy: &'a EffectivePolicyConfig,
+        resolve: &'a EffectiveResolveConfig,
         auth: &'a HttpAuthResolver,
     ) -> Self {
         Self {
             registry_config: registry,
             policy_config: policy,
+            resolve_config: resolve,
             auth,
         }
     }
@@ -95,6 +98,7 @@ impl<'a> WeaverEngine<'a> {
             follow_symlinks: self.registry_config.follow_symlinks,
             include_unreferenced: self.registry_config.include_unreferenced,
             auth: self.auth.clone(),
+            schema_url_overrides: self.resolve_config.schema_url_overrides.clone(),
             ..Default::default()
         };
         let mut resolver = WeaverResolver::new(config);
@@ -146,6 +150,29 @@ impl<'a> WeaverEngine<'a> {
 
         let res_v1 = match resolved_bundle {
             WeaverResolvedSchema::V1(resolved) => {
+                if self.registry_config.v2 {
+                    let v2_resolved: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+                        resolved.try_into()?;
+                    let template = match weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
+                        v2_resolved.clone(),
+                        &mut resolver,
+                    ) {
+                        WResult::Ok(t) => t,
+                        WResult::OkWithNFEs(t, nfes) => {
+                            diag_msgs.extend_from_vec(
+                                nfes.into_iter().map(DiagnosticMessage::new).collect(),
+                            );
+                            t
+                        }
+                        WResult::FatalErr(e) => return Err(Error::Forge(e)),
+                    };
+                    return Ok(Resolved::V2(ResolvedV2 {
+                        resolved_schema: v2_resolved,
+                        template_schema: template,
+                        registry_path_repr,
+                        policy_engine,
+                    }));
+                }
                 let template = ResolvedRegistry::try_from_resolved_registry(
                     &resolved.registry,
                     resolved.catalog(),
@@ -161,10 +188,19 @@ impl<'a> WeaverEngine<'a> {
                 if !self.registry_config.v2 {
                     diag_msgs.extend(Error::V2FlagMissingWarning.into());
                 }
-                let template =
-                    weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
-                        resolved.clone(),
-                    )?;
+                let template = match weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
+                    resolved.clone(),
+                    &mut resolver,
+                ) {
+                    WResult::Ok(t) => t,
+                    WResult::OkWithNFEs(t, nfes) => {
+                        diag_msgs.extend_from_vec(
+                            nfes.into_iter().map(DiagnosticMessage::new).collect(),
+                        );
+                        t
+                    }
+                    WResult::FatalErr(e) => return Err(Error::Forge(e)),
+                };
                 return Ok(Resolved::V2(ResolvedV2 {
                     resolved_schema: resolved,
                     template_schema: template,
@@ -174,11 +210,6 @@ impl<'a> WeaverEngine<'a> {
             }
         };
 
-        if self.registry_config.v2 {
-            if let Resolved::V1(v) = res_v1 {
-                return Ok(Resolved::V2(v.try_into()?));
-            }
-        }
         Ok(res_v1)
     }
 }
@@ -432,10 +463,16 @@ impl TryFrom<ResolvedV1> for ResolvedV2 {
     fn try_from(value: ResolvedV1) -> Result<Self, Self::Error> {
         let resolved_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
             value.resolved_schema.try_into()?;
+        let mut null_resolver = weaver_resolver::NullSchemaResolver;
         let template_schema =
-            weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
+            match weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
                 resolved_schema.clone(),
-            )?;
+                &mut null_resolver,
+            ) {
+                WResult::Ok(t) => t,
+                WResult::OkWithNFEs(t, _) => t,
+                WResult::FatalErr(e) => return Err(Error::Forge(e)),
+            };
         Ok(Self {
             resolved_schema,
             template_schema,
@@ -722,5 +759,171 @@ pub enum PolicyError {
 impl From<PolicyError> for DiagnosticMessages {
     fn from(error: PolicyError) -> Self {
         DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use weaver_common::diagnostic::DiagnosticMessages;
+    use weaver_common::http_auth::HttpAuthResolver;
+    use weaver_common::vdir::VirtualDirectoryPath;
+    use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig, EffectiveResolveConfig};
+
+    use super::{Resolved, WeaverEngine};
+
+    fn assert_rendered_forge_schema(registry_dir: &str, expected_schema_file: &str) {
+        let registry_config = EffectiveRegistryConfig {
+            registry: VirtualDirectoryPath::LocalFolder {
+                path: registry_dir.to_owned(),
+            },
+            v2: true,
+            follow_symlinks: false,
+            include_unreferenced: false,
+        };
+        let policy_config = EffectivePolicyConfig {
+            policies: vec![],
+            skip_policies: true,
+            display_policy_coverage: false,
+        };
+        let auth = HttpAuthResolver::default();
+        let resolve_config = EffectiveResolveConfig::default();
+        let engine = WeaverEngine::new(&registry_config, &policy_config, &resolve_config, &auth);
+        let mut diag_msgs = DiagnosticMessages::empty();
+
+        let resolved = engine
+            .load_and_resolve_main(&mut diag_msgs)
+            .expect("Failed to load and resolve registry");
+
+        let Resolved::V2(v2) = resolved else {
+            panic!("Expected Resolved::V2 for {registry_dir}");
+        };
+
+        let observed_yaml = serde_yaml::to_string(&v2.template_schema)
+            .expect("Failed to serialize forge schema to YAML");
+
+        let observed_dir = PathBuf::from(format!("observed_output/{registry_dir}"));
+        let _ = std::fs::create_dir_all(&observed_dir);
+        let _ = std::fs::write(observed_dir.join("forge_schema.yaml"), &observed_yaml);
+
+        let expected_path = Path::new(expected_schema_file);
+        if !expected_path.exists() {
+            let _ = std::fs::write(expected_path, &observed_yaml);
+        }
+
+        let expected_yaml = std::fs::read_to_string(expected_path).unwrap_or_else(|_| {
+            panic!("Failed to read expected schema file: {expected_schema_file}")
+        });
+
+        let observed_json: serde_json::Value = serde_yaml::from_str(&observed_yaml)
+            .expect("Failed to deserialize observed yaml to json");
+        let expected_json: serde_json::Value = serde_yaml::from_str(&expected_yaml)
+            .expect("Failed to deserialize expected yaml to json");
+
+        assert_eq!(
+            observed_json,
+            expected_json,
+            "Rendered forge schema does not match expected for `{registry_dir}`.\nDiff:\n{}",
+            weaver_diff::diff_output(&expected_yaml, &observed_yaml)
+        );
+    }
+
+    #[test]
+    fn test_weaver_engine_render_forge_schema_v2_model() {
+        assert_rendered_forge_schema(
+            "tests/v2_forge/model",
+            "tests/v2_forge/expected_schema.yaml",
+        );
+    }
+
+    #[test]
+    fn test_weaver_engine_render_forge_schema_v2_dependencies() {
+        assert_rendered_forge_schema(
+            "tests/v2_forge_dep/root",
+            "tests/v2_forge_dep/expected_schema.yaml",
+        );
+    }
+
+    #[test]
+    fn test_weaver_engine_render_forge_schema_published_v2() {
+        assert_rendered_forge_schema(
+            "tests/published_v2_registry",
+            "tests/published_v2_registry/expected_schema.yaml",
+        );
+    }
+
+    #[test]
+    fn test_weaver_engine_schema_url_overrides() {
+        let registry_config = EffectiveRegistryConfig {
+            registry: VirtualDirectoryPath::LocalFolder {
+                path: "tests/v2_forge_dep/root".to_owned(),
+            },
+            v2: true,
+            follow_symlinks: false,
+            include_unreferenced: false,
+        };
+        let policy_config = EffectivePolicyConfig::skip_all();
+        let mut resolve_config = EffectiveResolveConfig::default();
+        _ = resolve_config.schema_url_overrides.insert(
+            "https://dep.example.com/schemas/1.0.0".try_into().unwrap(),
+            VirtualDirectoryPath::LocalFolder {
+                path: "tests/v2_forge_dep/dep".to_owned(),
+            },
+        );
+        let auth = HttpAuthResolver::default();
+        let engine = WeaverEngine::new(&registry_config, &policy_config, &resolve_config, &auth);
+        let mut diag_msgs = DiagnosticMessages::empty();
+
+        let resolved = engine
+            .load_and_resolve_main(&mut diag_msgs)
+            .expect("Failed to load and resolve registry with overrides");
+
+        let Resolved::V2(v2) = resolved else {
+            panic!("Expected Resolved::V2");
+        };
+        assert_eq!(
+            v2.resolved_schema().schema_url.as_str(),
+            "https://root.example.com/schemas/1.0.0"
+        );
+    }
+
+    #[test]
+    fn test_weaver_toml_resolve_override_integration() {
+        let toml_str = r#"
+[resolve.schema_url_overrides]
+"https://dep.example.com/schemas/1.0.0" = "tests/v2_forge_dep/dep"
+"#;
+        let dir = tempfile::tempdir().unwrap();
+        let config_path = dir.path().join(".weaver.toml");
+        std::fs::write(&config_path, toml_str).unwrap();
+        let config = weaver_config::load(&config_path).unwrap();
+        let mut resolve_config = EffectiveResolveConfig::default();
+        resolve_config.layer_config(&config.resolve);
+
+        let registry_config = EffectiveRegistryConfig {
+            registry: VirtualDirectoryPath::LocalFolder {
+                path: "tests/v2_forge_dep/root".to_owned(),
+            },
+            v2: true,
+            follow_symlinks: false,
+            include_unreferenced: false,
+        };
+        let policy_config = EffectivePolicyConfig::skip_all();
+        let auth = HttpAuthResolver::default();
+        let engine = WeaverEngine::new(&registry_config, &policy_config, &resolve_config, &auth);
+        let mut diag_msgs = DiagnosticMessages::empty();
+
+        let resolved = engine
+            .load_and_resolve_main(&mut diag_msgs)
+            .expect("Failed to load and resolve registry using weaver.toml overrides");
+
+        let Resolved::V2(v2) = resolved else {
+            panic!("Expected Resolved::V2");
+        };
+        assert_eq!(
+            v2.resolved_schema().schema_url.as_str(),
+            "https://root.example.com/schemas/1.0.0"
+        );
     }
 }

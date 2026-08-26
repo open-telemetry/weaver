@@ -1,0 +1,5 @@
+name: middle_name_clash
+description: >
+  A metric is named `host`, and an association names `host`. A signal of another
+  kind is no entity, so nothing satisfies the association.
+schema_url: https://example.com/middle-clash/1.0.0

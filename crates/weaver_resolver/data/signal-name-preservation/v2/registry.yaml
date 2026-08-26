@@ -1,0 +1,30 @@
+file_format: definition/2
+attributes:
+  - key: test.id
+    type: string
+    stability: stable
+    brief: An id.
+    examples: ["x"]
+entities:
+  - type: entity.test
+    stability: stable
+    brief: An entity whose type starts with `entity.`.
+    identity:
+      - ref: test.id
+metrics:
+  - name: metric.test
+    stability: stable
+    brief: A metric whose name starts with `metric.`.
+    instrument: counter
+    unit: "1"
+events:
+  - name: event.test
+    stability: stable
+    brief: An event whose name starts with `event.`.
+spans:
+  - type: span.test
+    stability: stable
+    brief: A span whose type starts with `span.`.
+    kind: client
+    name:
+      note: A span.
