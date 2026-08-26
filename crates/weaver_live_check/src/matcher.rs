@@ -450,11 +450,23 @@ mod tests {
         attributes: Vec<SpanAttribute>,
         advisors: Vec<Box<dyn Advisor>>,
     ) -> LiveChecker {
+        v2_live_checker_full(Vec::new(), attributes, advisors)
+    }
+
+    /// The fixture registry, with `catalog` as the registry attributes and the
+    /// span carrying `attributes`.
+    fn v2_live_checker_full(
+        catalog: Vec<V2Attribute>,
+        attributes: Vec<SpanAttribute>,
+        advisors: Vec<Box<dyn Advisor>>,
+    ) -> LiveChecker {
         let mut registry: ForgeResolvedRegistry =
             serde_json::from_str(include_str!("../fixtures/registry-v2.json"))
                 .expect("the fixture registry parses");
-        // `SpanAttribute` cannot be deserialized: it combines
-        // `deny_unknown_fields` with `flatten`, which serde does not support.
+        // Neither `Attribute` nor `SpanAttribute` can be deserialized: both
+        // combine `deny_unknown_fields` with `flatten`, which serde does not
+        // support.
+        registry.registry.attributes = catalog;
         if let Some(span) = registry.registry.spans.first_mut() {
             span.attributes = attributes;
         }
@@ -464,23 +476,37 @@ mod tests {
         )
     }
 
+    /// A registry attribute for the fixture registry.
+    fn base_attribute(key: &str, stability: Stability) -> V2Attribute {
+        V2Attribute {
+            key: key.to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            examples: None,
+            common: CommonFields {
+                brief: String::new(),
+                note: String::new(),
+                stability,
+                deprecated: None,
+                annotations: BTreeMap::new(),
+            },
+            provenance: Provenance::default(),
+        }
+    }
+
     /// A span attribute of the fixture registry.
     fn span_attribute(key: &str, requirement_level: RequirementLevel) -> SpanAttribute {
         SpanAttribute {
-            base: V2Attribute {
-                key: key.to_owned(),
-                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                examples: None,
-                common: CommonFields {
-                    brief: String::new(),
-                    note: String::new(),
-                    stability: Stability::Stable,
-                    deprecated: None,
-                    annotations: BTreeMap::new(),
-                },
-                provenance: Provenance::default(),
-            },
+            base: base_attribute(key, Stability::Stable),
             requirement_level,
+            sampling_relevant: None,
+        }
+    }
+
+    /// A span attribute whose stability differs from the base definition.
+    fn refined_span_attribute(key: &str, stability: Stability) -> SpanAttribute {
+        SpanAttribute {
+            base: base_attribute(key, stability),
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
             sampling_relevant: None,
         }
     }
@@ -1105,11 +1131,13 @@ signal = "myapp.checkout"
     /// A matched span is checked against its span signal.
     mod span_signal {
         use super::*;
+        use crate::advice::StabilityAdvisor;
         use crate::{
             sample_span::SampleSpan, CumulativeStatistics, LiveCheckRunner, LiveCheckStatistics,
             Sample,
         };
-        use weaver_semconv::group::SpanKindSpec;
+        use weaver_forge::registry::ResolvedGroup;
+        use weaver_semconv::group::{GroupType, SpanKindSpec};
 
         const MATCHERS: &str = include_str!("../fixtures/cel/span-checkout/matchers.toml");
 
@@ -1195,6 +1223,100 @@ signal = "myapp.checkout"
             span.kind = SpanKindSpec::Client;
             let ids = check(&mut span, Vec::new());
             assert_eq!(ids, ["kind_mismatch"]);
+        }
+
+        /// The findings on the span's attributes, after a full live check.
+        fn check_attributes(
+            catalog: Vec<V2Attribute>,
+            attributes: Vec<SpanAttribute>,
+        ) -> Vec<String> {
+            let mut live_checker = v2_live_checker_full(
+                catalog,
+                attributes,
+                vec![Box::new(StabilityAdvisor), Box::new(TypeAdvisor)],
+            );
+            live_checker
+                .set_matchers(&matcher_configs(MATCHERS))
+                .expect("they check out");
+            let mut stats =
+                LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+            let mut span = checkout_span();
+            let parent = Sample::Span(span.clone());
+            span.run_live_check(&mut live_checker, &mut stats, None, &parent)
+                .expect("the check runs");
+            span.attributes
+                .iter()
+                .filter_map(|attribute| attribute.live_check_result.as_ref())
+                .flat_map(|result| result.all_advice.iter())
+                .map(|finding| finding.id.clone())
+                .collect()
+        }
+
+        /// The base definition stays stable, so only the refinement can raise this.
+        #[test]
+        fn a_refined_stability_is_reported_while_the_base_is_stable() {
+            let ids = check_attributes(
+                vec![
+                    base_attribute("myapp.checkout.id", Stability::Stable),
+                    base_attribute("myapp.checkout.stage", Stability::Stable),
+                ],
+                vec![
+                    span_attribute(
+                        "myapp.checkout.id",
+                        RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                    ),
+                    refined_span_attribute("myapp.checkout.stage", Stability::Development),
+                ],
+            );
+            assert_eq!(ids, ["not_stable"]);
+        }
+
+        /// A signal does not have to declare every attribute a sample carries.
+        #[test]
+        fn an_attribute_the_signal_does_not_declare_falls_back_to_the_base() {
+            let ids = check_attributes(
+                vec![
+                    base_attribute("myapp.checkout.id", Stability::Stable),
+                    base_attribute("myapp.checkout.stage", Stability::Development),
+                ],
+                vec![span_attribute(
+                    "myapp.checkout.id",
+                    RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                )],
+            );
+            assert_eq!(ids, ["not_stable"]);
+        }
+
+        /// A v1 group holds no refinements.
+        #[test]
+        fn a_v1_signal_has_no_refined_attributes() {
+            let live_checker = v1_live_checker();
+            let group = VersionedSignal::Group(Box::new(ResolvedGroup {
+                id: "myapp.checkout".to_owned(),
+                r#type: GroupType::Span,
+                brief: String::new(),
+                note: String::new(),
+                prefix: String::new(),
+                entity_associations: Vec::new(),
+                extends: None,
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                attributes: Vec::new(),
+                span_kind: None,
+                events: Vec::new(),
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                name: None,
+                display_name: None,
+                body: None,
+                annotations: None,
+                lineage: None,
+                requirement_level: None,
+            }));
+            assert!(live_checker
+                .find_refined_attribute(&group, "myapp.checkout.stage")
+                .is_none());
         }
 
         #[test]

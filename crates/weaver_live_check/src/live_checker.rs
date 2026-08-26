@@ -17,11 +17,29 @@ use crate::{
 };
 use weaver_cel::Bindings;
 use weaver_config::live_check::MatcherConfig;
+use weaver_forge::v2::attribute::Attribute as V2Attribute;
 use weaver_forge::v2::attribute_group::AttributeGroup;
 use weaver_forge::v2::entity::{Entity as V2Entity, EntityRef};
 
 #[cfg(test)]
 use crate::CumulativeStatistics;
+
+/// Signal attributes, keyed by signal id and then by attribute key.
+type RefinedAttributes = HashMap<String, HashMap<String, Rc<VersionedAttribute>>>;
+
+/// Indexes a signal's attributes by key.
+fn index_attributes<'a>(
+    attributes: impl Iterator<Item = &'a V2Attribute>,
+) -> HashMap<String, Rc<VersionedAttribute>> {
+    attributes
+        .map(|attribute| {
+            (
+                attribute.key.clone(),
+                Rc::new(VersionedAttribute::V2(attribute.clone())),
+            )
+        })
+        .collect()
+}
 
 /// Holds the registry, helper structs, and the advisors for the live check
 #[derive(Serialize)]
@@ -38,6 +56,14 @@ pub struct LiveChecker {
     semconv_spans: HashMap<String, Rc<VersionedSignal>>,
     #[serde(skip)]
     semconv_attribute_groups: HashMap<String, Rc<AttributeGroup>>,
+    /// The attributes each v2 signal declares, which carry its refinements.
+    /// Empty for a v1 registry.
+    #[serde(skip)]
+    refined_span_attributes: RefinedAttributes,
+    #[serde(skip)]
+    refined_metric_attributes: RefinedAttributes,
+    #[serde(skip)]
+    refined_event_attributes: RefinedAttributes,
     #[serde(skip)]
     semconv_entities: HashMap<String, VersionedEntity>,
     /// The advisors to run
@@ -73,6 +99,10 @@ impl LiveChecker {
         // Hashmap of v2 spans by type, and v2 attribute groups by id
         let mut semconv_spans = HashMap::new();
         let mut semconv_attribute_groups = HashMap::new();
+        // The attributes each v2 signal declares, by signal id
+        let mut refined_span_attributes = RefinedAttributes::new();
+        let mut refined_metric_attributes = RefinedAttributes::new();
+        let mut refined_event_attributes = RefinedAttributes::new();
 
         match registry.as_ref() {
             VersionedRegistry::V1(registry) => {
@@ -117,16 +147,28 @@ impl LiveChecker {
             VersionedRegistry::V2(registry) => {
                 for metric in &registry.registry.metrics {
                     let metric_name = metric.name.to_string();
+                    let _ = refined_metric_attributes.insert(
+                        metric_name.clone(),
+                        index_attributes(metric.attributes.iter().map(|a| &a.base)),
+                    );
                     let metric_rc = Rc::new(VersionedSignal::Metric(metric.clone()));
                     let _ = semconv_metrics.insert(metric_name, metric_rc);
                 }
                 for event in &registry.registry.events {
                     let event_name = event.name.to_string();
+                    let _ = refined_event_attributes.insert(
+                        event_name.clone(),
+                        index_attributes(event.attributes.iter().map(|a| &a.base)),
+                    );
                     let event_rc = Rc::new(VersionedSignal::Event(event.clone()));
                     let _ = semconv_events.insert(event_name, event_rc);
                 }
                 for span in &registry.registry.spans {
                     let span_type = span.r#type.to_string();
+                    let _ = refined_span_attributes.insert(
+                        span_type.clone(),
+                        index_attributes(span.attributes.iter().map(|a| &a.base)),
+                    );
                     let span_rc = Rc::new(VersionedSignal::Span(span.clone()));
                     let _ = semconv_spans.insert(span_type, span_rc);
                 }
@@ -165,6 +207,9 @@ impl LiveChecker {
             semconv_events,
             semconv_spans,
             semconv_attribute_groups,
+            refined_span_attributes,
+            refined_metric_attributes,
+            refined_event_attributes,
             semconv_entities,
             advisors,
             templates_by_length,
@@ -251,6 +296,25 @@ impl LiveChecker {
     #[must_use]
     pub fn find_event(&self, name: &str) -> Option<Rc<VersionedSignal>> {
         self.semconv_events.get(name).map(Rc::clone)
+    }
+
+    /// Find a v2 signal's own copy of an attribute, which carries its
+    /// refinements
+    ///
+    /// `None` for a v1 group, and for an attribute the signal does not declare.
+    #[must_use]
+    pub fn find_refined_attribute(
+        &self,
+        signal: &VersionedSignal,
+        key: &str,
+    ) -> Option<Rc<VersionedAttribute>> {
+        let (index, id) = match signal {
+            VersionedSignal::Span(span) => (&self.refined_span_attributes, &*span.r#type),
+            VersionedSignal::Metric(metric) => (&self.refined_metric_attributes, &*metric.name),
+            VersionedSignal::Event(event) => (&self.refined_event_attributes, &*event.name),
+            VersionedSignal::Group(_) => return None,
+        };
+        index.get(id)?.get(key).map(Rc::clone)
     }
 
     /// Find a span in the registry by its type

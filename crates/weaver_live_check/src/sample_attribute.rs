@@ -178,14 +178,12 @@ impl LiveCheckRunner for SampleAttribute {
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
-        // find the attribute in the registry
-        let semconv_attribute = {
-            if let Some(attribute) = live_checker.find_attribute(&self.name) {
-                Some(attribute)
-            } else {
-                live_checker.find_template(&self.name)
-            }
-        };
+        // A signal's own copy of an attribute carries its refinements.
+        let semconv_attribute = parent_group
+            .as_deref()
+            .and_then(|signal| live_checker.find_refined_attribute(signal, &self.name))
+            .or_else(|| live_checker.find_attribute(&self.name))
+            .or_else(|| live_checker.find_template(&self.name));
         if semconv_attribute.is_none() {
             let sample_ref = SampleRef::Attribute(self);
             let finding = FindingBuilder::new(FindingId::MissingAttribute)
