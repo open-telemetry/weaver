@@ -996,6 +996,45 @@ impl ImportableDependency for V2Schema {
                     cache_lookup,
                 )?);
             }
+            // Convert the resolved links of the imported span back into the
+            // definition shape the carrier holds: catalog indices become
+            // attribute names, looked up in the dependency's own catalog.
+            let mut links = Vec::new();
+            for link in s.links.iter() {
+                let mut link_attributes = Vec::new();
+                for la in link.attributes.iter() {
+                    let attr = self.attribute_catalog.attribute(&la.base).ok_or(
+                        Error::InvalidRegistryAttributeRef {
+                            registry_name: self.schema_url.name().to_owned(),
+                            attribute_ref: la.base.0,
+                        },
+                    )?;
+                    link_attributes.push(
+                        weaver_semconv::v2::span::SpanAttributeOrGroupRef::Attribute(
+                            weaver_semconv::v2::span::SpanAttributeRef {
+                                base: weaver_semconv::v2::attribute::AttributeRef {
+                                    r#ref: attr.key.clone(),
+                                    brief: None,
+                                    examples: None,
+                                    requirement_level: Some(la.requirement_level.clone()),
+                                    note: None,
+                                    stability: None,
+                                    deprecated: None,
+                                    annotations: Default::default(),
+                                },
+                                sampling_relevant: la.sampling_relevant,
+                            },
+                        ),
+                    );
+                }
+                links.push(weaver_semconv::v2::span::SpanLink {
+                    r#ref: link.r#ref.clone(),
+                    requirement_level: Some(link.requirement_level.clone()),
+                    brief: link.brief.clone(),
+                    note: link.note.clone(),
+                    attributes: link_attributes,
+                });
+            }
             result.push(Group {
                 id: s.id().to_owned(),
                 r#type: GroupType::Span,
@@ -1023,7 +1062,7 @@ impl ImportableDependency for V2Schema {
                 visibility: None,
                 is_v2: true,
                 span_name: Some(s.name.clone()),
-                span_links: Vec::new(),
+                span_links: links,
             });
         }
 
