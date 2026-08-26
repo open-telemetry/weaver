@@ -15,3 +15,5 @@ Where something is a matter of judgment, it's described that way too.
 | File                  | Load when                                                                |
 | --------------------- | ------------------------------------------------------------------------ |
 | [wresult](wresult.md) | When handling `WResult` or creating helpful error and warning messages.  |
+| [rust-style](rust-style.md) | When writing or reviewing Rust code, and determining style/best practices. |
+
