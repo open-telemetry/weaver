@@ -11,7 +11,7 @@ use clap::Args;
 use include_dir::{include_dir, Dir};
 
 use log::info;
-use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::{log_success, log_warn};
 use weaver_config::{FailOnLevel, WeaverConfig};
@@ -475,6 +475,18 @@ pub(crate) fn command(
     } else {
         // Stats only (streaming mode finished)
         output.generate(&stats).map_err(DiagnosticMessages::from)?;
+    }
+
+    for matcher in live_checker.matchers().iter() {
+        if let Some((count, error)) = matcher.errors() {
+            diag_msgs.extend_from_vec(vec![DiagnosticMessage::new(
+                crate::registry::Error::MatcherFailedAtRuntime {
+                    id: matcher.id.clone(),
+                    count,
+                    error: error.to_owned(),
+                },
+            )]);
+        }
     }
 
     // Shutdown OTLP emitter to flush any pending log records

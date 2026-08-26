@@ -15,7 +15,7 @@ use crate::{
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_resource::SampleResource,
     Error, FindingId, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
-    VersionedSignal,
+    SampleType, VersionedSignal,
 };
 
 /// Represents a sample telemetry log parsed from any source
@@ -138,6 +138,15 @@ impl LiveCheckRunner for SampleLog {
             semconv_event.clone(),
             parent_signal,
         )?;
+
+        let comparison = live_checker.comparison_for(SampleType::Log, self, semconv_event.clone());
+        live_checker.record_matcher_errors(&comparison);
+        comparison.add_findings(
+            &SampleRef::Log(self),
+            &mut result,
+            live_checker,
+            parent_signal,
+        );
 
         self.live_check_result = Some(result);
         stats.inc_entity_count("log");

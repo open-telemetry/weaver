@@ -242,3 +242,75 @@ fn a_v1_registry_without_matchers_still_runs() {
     let out = run_live_check_on(V1_REGISTRY, &["--fail-on", "none"]);
     assert_eq!(exit_code(&out), 0, "got: {}", combined(&out));
 }
+
+/// One span sample, for the matcher tests.
+const SPAN_INPUT: &str = "crates/weaver_live_check/data/matcher_span.json";
+
+fn run_with_matcher_on_spans(matcher: &str) -> (Output, tempfile::TempDir) {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let config = dir.path().join(".weaver.toml");
+    std::fs::write(&config, format!("[[\"live-check\".matchers]]\n{matcher}\n"))
+        .expect("write config");
+    let mut cmd = Command::cargo_bin("weaver").expect("weaver binary not found");
+    let out = cmd
+        .arg("registry")
+        .arg("live-check")
+        .args(["-r", REGISTRY, "--v2"])
+        .args(["--input-source", SPAN_INPUT])
+        .args(["--input-format", "json"])
+        .args(["--format", "json"])
+        .args(["--fail-on", "none"])
+        .args(["--config", config.to_str().expect("utf-8 path")])
+        .timeout(std::time::Duration::from_secs(60))
+        .output()
+        .expect("failed to execute weaver binary");
+    (out, dir)
+}
+
+/// A span that matches no matcher is reported, so a gap in the matchers shows.
+#[test]
+fn a_span_that_matches_no_matcher_reports_unmatched_sample() {
+    let (out, _dir) = run_with_matcher_on_spans(
+        r#"id = "myapp.never"
+sample_type = "span"
+when = 'name == "no-such-span"'"#,
+    );
+    let output = combined(&out);
+    assert!(output.contains("unmatched_sample"), "got: {output}");
+}
+
+/// Without matchers the report is what it always was.
+#[test]
+fn no_matchers_reports_no_unmatched_sample() {
+    let out = Command::cargo_bin("weaver")
+        .expect("weaver binary not found")
+        .arg("registry")
+        .arg("live-check")
+        .args(["-r", REGISTRY, "--v2"])
+        .args(["--input-source", SPAN_INPUT])
+        .args(["--input-format", "json"])
+        .args(["--format", "json"])
+        .args(["--fail-on", "none"])
+        .timeout(std::time::Duration::from_secs(60))
+        .output()
+        .expect("failed to execute weaver binary");
+    let output = combined(&out);
+    assert!(!output.contains("unmatched_sample"), "got: {output}");
+}
+
+/// A `when` that errors is reported once per matcher, with a count.
+#[test]
+fn a_when_that_errors_at_runtime_warns_once_with_a_count() {
+    let (out, _dir) = run_with_matcher_on_spans(
+        r#"id = "myapp.errors"
+sample_type = "span"
+when = 'instrumentation_scope.name == "nope"'"#,
+    );
+    let output = combined(&out);
+    assert!(
+        output.contains("myapp.errors") && output.contains("errored on 1 sample"),
+        "got: {output}"
+    );
+    // The matcher errored, so it matched nothing and the span is unmatched.
+    assert!(output.contains("unmatched_sample"), "got: {output}");
+}

@@ -12,7 +12,7 @@ use crate::{
     live_checker::LiveChecker, sample_attribute::SampleAttribute,
     sample_instrumentation_scope::SampleInstrumentationScope, sample_resource::SampleResource,
     Advisable, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
-    VersionedSignal,
+    SampleType, VersionedSignal,
 };
 
 /// The status code of the span
@@ -82,8 +82,17 @@ impl LiveCheckRunner for SampleSpan {
         parent_group: Option<Rc<VersionedSignal>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
+        let mut result =
+            self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?;
+        let comparison = live_checker.comparison_for(SampleType::Span, self, None);
+        live_checker.record_matcher_errors(&comparison);
+        comparison.add_findings(
+            &SampleRef::Span(self),
+            &mut result,
+            live_checker,
+            parent_signal,
+        );
+        self.live_check_result = Some(result);
         self.attributes
             .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
         self.span_events.run_live_check(

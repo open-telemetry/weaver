@@ -46,6 +46,15 @@ attributes:
           value: "undefined_enum_variant"
           brief: "An enum attribute value is not in the set of allowed members"
           stability: development
+        # Matcher findings
+        - id: unmatched_sample
+          value: "unmatched_sample"
+          brief: "An untyped sample matched no matcher"
+          stability: development
+        - id: matcher_conflict
+          value: "matcher_conflict"
+          brief: "More than one of the matchers that applied to a sample set a signal"
+          stability: development
         # Requirement-level attribute findings
         - id: required_attribute_not_present
           value: "required_attribute_not_present"

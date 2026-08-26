@@ -302,8 +302,8 @@ impl fmt::Display for MatcherSampleType {
 ///
 /// The rule applies to a sample of kind `sample_type` when `when` evaluates to
 /// true. `signal` replaces the signal the sample would otherwise be checked
-/// against; `attribute_groups` are checked in addition to it. Both are
-/// resolved against the registry at startup.
+/// against; `attribute_groups` are checked in addition to it. Both are looked
+/// up in the registry at startup.
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
 pub struct MatcherConfig {
     /// Identifies the matcher in findings, statistics and coverage.

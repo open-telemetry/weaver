@@ -750,7 +750,7 @@
       }
     },
     "MatcherConfig": {
-      "description": "A rule that assigns a registry signal, additional attribute groups, or\nboth, to samples that cannot be identified by name alone.\n\nThe rule applies to a sample of kind `sample_type` when `when` evaluates to\ntrue. `signal` replaces the signal the sample would otherwise be checked\nagainst; `attribute_groups` are checked in addition to it. Both are\nresolved against the registry at startup.",
+      "description": "A rule that assigns a registry signal, additional attribute groups, or\nboth, to samples that cannot be identified by name alone.\n\nThe rule applies to a sample of kind `sample_type` when `when` evaluates to\ntrue. `signal` replaces the signal the sample would otherwise be checked\nagainst; `attribute_groups` are checked in addition to it. Both are looked\nup in the registry at startup.",
       "type": "object",
       "properties": {
         "attribute_groups": {

@@ -9,10 +9,13 @@ use std::sync::Arc;
 use weaver_semconv::{attribute::AttributeType, group::GroupType};
 
 use crate::{
-    advice::Advisor, finding_modifier::FindingModifier, matcher::Matchers,
-    otlp_logger::OtlpEmitter, Error, VersionedAttribute, VersionedEntity, VersionedRegistry,
-    VersionedSignal,
+    advice::Advisor,
+    finding_modifier::FindingModifier,
+    matcher::{Comparison, Matchers, SignalKind},
+    otlp_logger::OtlpEmitter,
+    Error, SampleType, VersionedAttribute, VersionedEntity, VersionedRegistry, VersionedSignal,
 };
+use weaver_cel::Bindings;
 use weaver_config::live_check::MatcherConfig;
 use weaver_forge::v2::attribute_group::AttributeGroup;
 use weaver_forge::v2::entity::{Entity as V2Entity, EntityRef};
@@ -191,6 +194,42 @@ impl LiveChecker {
         &self.matchers
     }
 
+    /// Find the signal a matcher's `signal` names for this sample type
+    ///
+    /// Returns `None` for a sample type that has no signal.
+    #[must_use]
+    pub fn find_signal(
+        &self,
+        signal: &str,
+        sample_type: SampleType,
+    ) -> Option<Rc<VersionedSignal>> {
+        match SignalKind::for_sample_type(sample_type)? {
+            SignalKind::SpanType => self.find_span(signal),
+            SignalKind::EventName => self.find_event(signal),
+            SignalKind::MetricName => self.find_metric(signal),
+        }
+    }
+
+    /// Counts the errors a comparison collected against the matchers that
+    /// raised them
+    pub fn record_matcher_errors(&mut self, comparison: &Comparison) {
+        if !comparison.errors.is_empty() {
+            self.matchers.record_errors(comparison);
+        }
+    }
+
+    /// The signal and attribute groups to compare a sample with
+    #[must_use]
+    pub fn comparison_for(
+        &self,
+        sample_type: SampleType,
+        bindings: &dyn Bindings,
+        natural: Option<Rc<VersionedSignal>>,
+    ) -> Comparison {
+        self.matchers
+            .comparison_for(sample_type, bindings, natural, self)
+    }
+
     /// Add an advisor
     pub fn add_advisor(&mut self, advisor: Box<dyn Advisor>) {
         self.advisors.push(advisor);
@@ -216,7 +255,7 @@ impl LiveChecker {
 
     /// Find a span in the registry by its type
     ///
-    /// A v1 registry has no span types, so this is always `None` for one.
+    /// Always `None` for a v1 registry, which has no span types.
     #[must_use]
     pub fn find_span(&self, span_type: &str) -> Option<Rc<VersionedSignal>> {
         self.semconv_spans.get(span_type).map(Rc::clone)
@@ -224,7 +263,7 @@ impl LiveChecker {
 
     /// Find an attribute group in the registry by its id
     ///
-    /// A v1 registry has no attribute groups, so this is always `None` for one.
+    /// Always `None` for a v1 registry, which has no attribute groups.
     #[must_use]
     pub fn find_attribute_group(&self, id: &str) -> Option<Rc<AttributeGroup>> {
         self.semconv_attribute_groups.get(id).map(Rc::clone)

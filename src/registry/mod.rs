@@ -73,6 +73,15 @@ pub enum Error {
     #[error("Failed to write output file `{path}`: {error}")]
     OutputWrite { path: PathBuf, error: String },
 
+    /// A matcher's `when` errored while running.
+    #[error("Matcher `{id}` errored on {count} sample(s) and matched none of them. First error: {error}")]
+    #[diagnostic(severity(warning))]
+    MatcherFailedAtRuntime {
+        id: String,
+        count: u64,
+        error: String,
+    },
+
     /// Configuration error (loading or parsing `.weaver.toml`)
     #[error("{error}")]
     Config { error: String },
