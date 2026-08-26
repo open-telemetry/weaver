@@ -912,6 +912,13 @@ mod tests {
         assert_resolved_v2_schema("data/registry-test-v2-dep/span_registry")
     }
 
+    /// End-to-end test for span links: declared locally, inherited by a
+    /// refinement, and forwarded on an imported span.
+    #[test]
+    fn test_v2_span_links() -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/span_links_registry")
+    }
+
     /// End-to-end test for an event refinement over a v2 dependency
     #[test]
     fn test_v2_dependency_event_refinement_inherits_attributes() -> Result<(), weaver_semconv::Error>

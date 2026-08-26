@@ -174,13 +174,17 @@ fn fix_span_group_id(group_id: &str) -> SignalId {
 fn convert_span_links(
     g: &crate::registry::Group,
     span_types: &HashSet<SignalId>,
+    validate_targets: bool,
     c: &crate::catalog::Catalog,
     v2_catalog: &Catalog,
     provenance: &provenance::Provenance,
 ) -> Result<Vec<span::SpanLink>, crate::error::Error> {
     let mut links = Vec::new();
     for link in g.span_links.iter() {
-        if !span_types.contains(&link.r#ref) {
+        // Refinement links can be inherited from a dependency span, so
+        // their targets may live outside this registry; only locally
+        // declared links are validated against the local span set.
+        if validate_targets && !span_types.contains(&link.r#ref) {
             return Err(crate::error::Error::SpanLinkTargetNotFound {
                 group_id: g.id.clone(),
                 link_ref: link.r#ref.to_string(),
@@ -391,7 +395,8 @@ pub fn convert_v1_to_v2(
                 }
                 if !is_refinement {
                     let provenance = get_provenance(g);
-                    let links = convert_span_links(g, &span_types, &c, &v2_catalog, &provenance)?;
+                    let links =
+                        convert_span_links(g, &span_types, true, &c, &v2_catalog, &provenance)?;
                     let span = Span {
                         r#type: fix_span_group_id(&g.id),
                         kind: g
@@ -433,7 +438,8 @@ pub fn convert_v1_to_v2(
                     };
                     let span_type = fix_span_group_id(extends_group);
                     let provenance = get_provenance(g);
-                    let links = convert_span_links(g, &span_types, &c, &v2_catalog, &provenance)?;
+                    let links =
+                        convert_span_links(g, &span_types, false, &c, &v2_catalog, &provenance)?;
                     span_refinements.push(SpanRefinement {
                         id: fix_span_group_id(&g.id),
                         span: Span {
