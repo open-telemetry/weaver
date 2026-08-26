@@ -131,6 +131,13 @@ pub struct RegistryLiveCheckArgs {
     #[config(default = "false")]
     no_stats: Option<bool>,
 
+    /// Search the base attribute definitions of the registry and its
+    /// dependencies for an attribute that is on neither the matched signal nor
+    /// its attribute groups.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    #[config(default = "false")]
+    search_all_attributes: Option<bool>,
+
     /// Findings at this level or higher cause a non-zero exit code.
     /// Levels (highest→lowest): violation, improvement, information.
     /// Use `none` to never fail.
@@ -306,6 +313,10 @@ pub(crate) fn command(
         FindingModifier::from_rules(&config.finding_filters, &config.finding_level_overrides)?;
 
     live_checker.set_matchers(&config.matchers)?;
+
+    if config.search_all_attributes {
+        live_checker.search_all_attributes();
+    }
 
     let rego_advisor = RegoAdvisor::new(
         &live_checker,

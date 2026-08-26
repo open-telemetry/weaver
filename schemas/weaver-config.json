@@ -299,6 +299,11 @@
           ],
           "default": null
         },
+        "search_all_attributes": {
+          "description": "Search the base attribute definitions of the registry and its\ndependencies for an attribute that is on neither the matched signal nor\nits attribute groups. An `unexpected_attribute` finding for one found\nthis way names every schema url that declares it. Without this, the\nattributes of a sample that matched no matcher are not checked at all.",
+          "type": "boolean",
+          "default": false
+        },
         "templates": {
           "description": "Path to the directory where the templates are located.",
           "type": "string",

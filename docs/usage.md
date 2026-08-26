@@ -522,6 +522,10 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 
   Possible values: `true`, `false`
 
+* `--search-all-attributes <SEARCH_ALL_ATTRIBUTES>` — Search the base attribute definitions of the registry and its dependencies for an attribute that is on neither the matched signal nor its attribute groups. [default: false]
+
+  Possible values: `true`, `false`
+
 * `--fail-on <FAIL_ON>` — Findings at this level or higher cause a non-zero exit code. Levels (highest→lowest): violation, improvement, information. Use `none` to never fail. [default: violation]
 * `-o`, `--output <OUTPUT>` — Path to save generated artifacts. Use "none" to suppress output, "http" to send as the /stop response
 * `--otlp-grpc-address <OTLP_GRPC_ADDRESS>` — Address used by the gRPC OTLP listener

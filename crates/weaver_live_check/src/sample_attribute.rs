@@ -178,12 +178,28 @@ impl LiveCheckRunner for SampleAttribute {
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
+        // A sample that matched no matcher is only checked against the base
+        // definitions, and only when the config asks for them.
+        if !live_checker.matchers().is_empty()
+            && !live_checker.is_searching_all_attributes()
+            && parent.as_deref().is_some_and(SampleMatch::is_unmatched)
+        {
+            self.live_check_result = Some(result);
+            self.update_stats(stats);
+            return Ok(());
+        }
         // A signal's own copy of an attribute carries its refinements, as does
-        // an attribute group's.
+        // an attribute group's. The base definitions come last, and hold
+        // nothing unless `search_all_attributes` is set.
         let semconv_attribute = parent
             .as_deref()
             .and_then(|sample_match| sample_match.find_attribute(live_checker, &self.name))
             .or_else(|| live_checker.find_attribute(&self.name))
+            .or_else(|| {
+                live_checker
+                    .find_base_attribute(&self.name)
+                    .map(|base| Rc::clone(&base.attribute))
+            })
             .or_else(|| live_checker.find_template(&self.name));
         if semconv_attribute.is_none() {
             let sample_ref = SampleRef::Attribute(self);

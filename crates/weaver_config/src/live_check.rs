@@ -116,6 +116,13 @@ pub struct LiveCheckConfig {
     /// Disable statistics accumulation. Useful for long-running live-check sessions.
     pub no_stats: bool,
 
+    /// Search the base attribute definitions of the registry and its
+    /// dependencies for an attribute that is on neither the matched signal nor
+    /// its attribute groups. An `unexpected_attribute` finding for one found
+    /// this way names every schema url that declares it. Without this, the
+    /// attributes of a sample that matched no matcher are not checked at all.
+    pub search_all_attributes: bool,
+
     /// Severity threshold that causes a non-zero exit code. Findings at this
     /// level or higher fail the run. Use `none` to never fail.
     pub fail_on: FailOnLevel,
@@ -155,6 +162,7 @@ impl Default for LiveCheckConfig {
             templates: PathBuf::from("live_check_templates"),
             no_stream: false,
             no_stats: false,
+            search_all_attributes: false,
             fail_on: FailOnLevel::default(),
             output: None,
             advice_policies: None,

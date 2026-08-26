@@ -27,6 +27,24 @@ use crate::CumulativeStatistics;
 /// Signal attributes, keyed by signal id and then by attribute key.
 type RefinedAttributes = HashMap<String, HashMap<String, Rc<VersionedAttribute>>>;
 
+/// A base attribute definition, and the schema urls of every registry that
+/// declares it.
+#[derive(Debug, Clone)]
+pub struct BaseAttribute {
+    /// The definition from the first registry that declares it.
+    pub attribute: Rc<VersionedAttribute>,
+    /// The schema urls that declare it, this registry first.
+    pub schema_urls: Vec<String>,
+}
+
+impl BaseAttribute {
+    /// The schema urls, as `a, b`.
+    #[must_use]
+    pub fn schema_urls(&self) -> String {
+        self.schema_urls.join(", ")
+    }
+}
+
 /// Indexes a signal's attributes by key.
 fn index_attributes<'a>(
     attributes: impl Iterator<Item = &'a V2Attribute>,
@@ -68,6 +86,13 @@ pub struct LiveChecker {
     /// group's id.
     #[serde(skip)]
     attribute_group_attributes: RefinedAttributes,
+    /// The base attributes of this registry and its dependencies, keyed by
+    /// attribute key. Empty unless `search_all_attributes` is called.
+    #[serde(skip)]
+    base_attributes: HashMap<String, BaseAttribute>,
+    /// Whether `search_all_attributes` was called.
+    #[serde(skip)]
+    searching_all_attributes: bool,
     #[serde(skip)]
     semconv_entities: HashMap<String, VersionedEntity>,
     /// The advisors to run
@@ -221,6 +246,8 @@ impl LiveChecker {
             refined_metric_attributes,
             refined_event_attributes,
             attribute_group_attributes,
+            base_attributes: HashMap::new(),
+            searching_all_attributes: false,
             semconv_entities,
             advisors,
             templates_by_length,
@@ -326,6 +353,45 @@ impl LiveChecker {
             VersionedSignal::Group(_) => return None,
         };
         index.get(id)?.get(key).map(Rc::clone)
+    }
+
+    /// Find an attribute in the base definitions of this registry and its
+    /// dependencies
+    ///
+    /// Always `None` unless `search_all_attributes` was called.
+    #[must_use]
+    pub fn find_base_attribute(&self, key: &str) -> Option<&BaseAttribute> {
+        self.base_attributes.get(key)
+    }
+
+    /// Whether the base definitions are being searched
+    #[must_use]
+    pub fn is_searching_all_attributes(&self) -> bool {
+        self.searching_all_attributes
+    }
+
+    /// Index the base attributes of this registry and its dependencies
+    ///
+    /// Does nothing for a v1 registry.
+    pub fn search_all_attributes(&mut self) {
+        self.searching_all_attributes = true;
+        let VersionedRegistry::V2(registry) = self.registry.as_ref() else {
+            return;
+        };
+        // This registry first, so its own definition wins over a dependency's.
+        for source in std::iter::once(registry.as_ref()).chain(registry.dependencies.iter()) {
+            let schema_url = source.schema_url.to_string();
+            for attribute in &source.registry.attributes {
+                let _ = self
+                    .base_attributes
+                    .entry(attribute.key.clone())
+                    .and_modify(|held| held.schema_urls.push(schema_url.clone()))
+                    .or_insert_with(|| BaseAttribute {
+                        attribute: Rc::new(VersionedAttribute::V2(attribute.clone())),
+                        schema_urls: vec![schema_url.clone()],
+                    });
+            }
+        }
     }
 
     /// Find an attribute that a v2 attribute group declares

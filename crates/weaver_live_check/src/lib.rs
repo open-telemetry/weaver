@@ -107,6 +107,8 @@ pub const EVENT_NAME_ADVICE_CONTEXT_KEY: &str = "event_name";
 pub const METRIC_NAME_ADVICE_CONTEXT_KEY: &str = "metric_name";
 /// Entity type key in advice context
 pub const ENTITY_TYPE_ADVICE_CONTEXT_KEY: &str = "entity_type";
+/// Schema url key in advice context
+pub const SCHEMA_URL_ADVICE_CONTEXT_KEY: &str = "schema_url";
 
 /// Embedded default live check rego policies
 pub const DEFAULT_LIVE_CHECK_REGO: &str =

@@ -12,7 +12,7 @@ use crate::{
     advice::FindingBuilder, cel::variables, generated::attributes::FindingId,
     live_checker::LiveChecker, sample_attribute::SampleAttribute, Error, LiveCheckResult, Sample,
     SampleRef, SampleType, VersionedAttribute, VersionedRegistry, VersionedSignal,
-    ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY,
+    ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY, SCHEMA_URL_ADVICE_CONTEXT_KEY,
 };
 use serde_json::json;
 use weaver_checker::FindingLevel;
@@ -357,12 +357,30 @@ impl SampleMatch {
                 if self.expects(live_checker, &attribute.name) {
                     continue;
                 }
-                let finding = FindingBuilder::new(FindingId::UnexpectedAttribute)
-                    .context(json!({ ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: attribute.name }))
-                    .message(format!(
+                // The base definition names the schema to reference or import
+                // the attribute from.
+                let found = live_checker.find_base_attribute(&attribute.name);
+                let context = match found {
+                    Some(base) => json!({
+                        ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: attribute.name,
+                        SCHEMA_URL_ADVICE_CONTEXT_KEY: base.schema_urls,
+                    }),
+                    None => json!({ ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: attribute.name }),
+                };
+                let message = match found {
+                    Some(base) => format!(
+                        "Attribute '{}' is not on the signal or its attribute groups. It is defined in {}.",
+                        attribute.name,
+                        base.schema_urls()
+                    ),
+                    None => format!(
                         "Attribute '{}' is not on the signal or its attribute groups.",
                         attribute.name
-                    ))
+                    ),
+                };
+                let finding = FindingBuilder::new(FindingId::UnexpectedAttribute)
+                    .context(context)
+                    .message(message)
                     .level(FindingLevel::Improvement)
                     .signal(parent_signal)
                     .build_and_emit(sample_ref, emitter, parent_signal);
@@ -1404,6 +1422,57 @@ signal = "myapp.checkout"
                 .is_none());
         }
 
+        /// The fixture registry, with `dependency` as its one dependency.
+        fn v2_live_checker_with_dependency(dependency: ForgeResolvedRegistry) -> LiveChecker {
+            let mut registry: ForgeResolvedRegistry =
+                serde_json::from_str(include_str!("../fixtures/registry-v2.json"))
+                    .expect("the fixture registry parses");
+            if let Some(span) = registry.registry.spans.first_mut() {
+                span.attributes = vec![span_attribute(
+                    "myapp.checkout.id",
+                    RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                )];
+            }
+            registry.registry.attributes =
+                vec![base_attribute("myapp.checkout.id", Stability::Stable)];
+            registry.dependencies = vec![dependency];
+            LiveChecker::new(
+                Arc::new(VersionedRegistry::V2(Box::new(registry))),
+                vec![Box::new(TypeAdvisor)],
+            )
+        }
+
+        /// A registry declaring `myapp.checkout.stage`, which the fixture span
+        /// does not.
+        fn dependency_registry() -> ForgeResolvedRegistry {
+            let mut registry: ForgeResolvedRegistry =
+                serde_json::from_str(include_str!("../fixtures/registry-v2.json"))
+                    .expect("the fixture registry parses");
+            registry.schema_url = "https://example.com/shared/1.0.0"
+                .try_into()
+                .expect("valid schema url");
+            registry.registry.attributes =
+                vec![base_attribute("myapp.checkout.stage", Stability::Stable)];
+            registry
+        }
+
+        /// The finding ids on the span, after a full live check.
+        fn check_findings(live_checker: &mut LiveChecker) -> Vec<String> {
+            let mut stats =
+                LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+            let mut span = checkout_span();
+            let parent = Sample::Span(span.clone());
+            span.run_live_check(live_checker, &mut stats, None, &parent)
+                .expect("the check runs");
+            span.live_check_result
+                .as_ref()
+                .expect("it has a result")
+                .all_advice
+                .iter()
+                .map(|finding| finding.id.clone())
+                .collect()
+        }
+
         /// The findings on the span, with `myapp.common` declaring
         /// `attribute_group_attributes`.
         fn check_with_attribute_group(
@@ -1460,6 +1529,118 @@ attribute_groups = ["myapp.common"]
             assert!(ids.is_empty(), "{ids:?}");
         }
 
+        /// An attribute only a dependency declares is checked against that
+        /// definition, not just named.
+        #[test]
+        fn a_dependency_definition_is_used_for_the_checks() {
+            let mut dependency = dependency_registry();
+            dependency.registry.attributes = vec![base_attribute(
+                "myapp.checkout.stage",
+                Stability::Development,
+            )];
+            let mut live_checker = v2_live_checker_with_dependency(dependency);
+            live_checker.add_advisor(Box::new(StabilityAdvisor));
+            live_checker
+                .set_matchers(&matcher_configs(MATCHERS))
+                .expect("they check out");
+            live_checker.search_all_attributes();
+
+            let ids = attribute_findings(&mut live_checker);
+            assert_eq!(ids, ["not_stable"]);
+        }
+
+        /// Without the base definitions the attribute is unknown.
+        #[test]
+        fn without_search_all_attributes_a_dependency_definition_is_not_used() {
+            let mut dependency = dependency_registry();
+            dependency.registry.attributes = vec![base_attribute(
+                "myapp.checkout.stage",
+                Stability::Development,
+            )];
+            let mut live_checker = v2_live_checker_with_dependency(dependency);
+            live_checker.add_advisor(Box::new(StabilityAdvisor));
+            live_checker
+                .set_matchers(&matcher_configs(MATCHERS))
+                .expect("they check out");
+
+            let ids = attribute_findings(&mut live_checker);
+            assert_eq!(ids, ["missing_attribute"]);
+        }
+
+        /// The findings on the span's attributes, after a full live check.
+        fn attribute_findings(live_checker: &mut LiveChecker) -> Vec<String> {
+            let mut stats =
+                LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+            let mut span = checkout_span();
+            let parent = Sample::Span(span.clone());
+            span.run_live_check(live_checker, &mut stats, None, &parent)
+                .expect("the check runs");
+            span.attributes
+                .iter()
+                .filter_map(|attribute| attribute.live_check_result.as_ref())
+                .flat_map(|result| result.all_advice.iter())
+                .map(|finding| finding.id.clone())
+                .collect()
+        }
+
+        /// Two registries declaring the same key are both named.
+        #[test]
+        fn every_schema_that_declares_the_attribute_is_named() {
+            let mut dependency = dependency_registry();
+            dependency.registry.attributes =
+                vec![base_attribute("myapp.checkout.id", Stability::Stable)];
+            let mut live_checker = v2_live_checker_with_dependency(dependency);
+            live_checker.search_all_attributes();
+            let found = live_checker
+                .find_base_attribute("myapp.checkout.id")
+                .expect("both declare it");
+            assert_eq!(
+                found.schema_urls(),
+                "https://example.com/myapp/1.0.0, https://example.com/shared/1.0.0"
+            );
+        }
+
+        /// A dependency declares the attribute, so the finding names its schema.
+        /// This registry's own definition wins over a dependency's.
+        #[test]
+        fn a_base_definition_in_this_registry_is_found_too() {
+            let mut live_checker = v2_live_checker_with_dependency(dependency_registry());
+            live_checker.search_all_attributes();
+            let found = live_checker
+                .find_base_attribute("myapp.checkout.id")
+                .expect("this registry declares it");
+            assert_eq!(found.schema_urls(), "https://example.com/myapp/1.0.0");
+        }
+
+        #[test]
+        fn an_unexpected_attribute_names_the_schema_that_declares_it() {
+            let dependency = dependency_registry();
+            let mut live_checker = v2_live_checker_with_dependency(dependency);
+            live_checker
+                .set_matchers(&matcher_configs(MATCHERS))
+                .expect("they check out");
+            live_checker.search_all_attributes();
+
+            let found = live_checker
+                .find_base_attribute("myapp.checkout.stage")
+                .expect("the dependency declares it");
+            assert_eq!(found.schema_urls(), "https://example.com/shared/1.0.0");
+
+            let ids = check_findings(&mut live_checker);
+            assert_eq!(ids, ["unexpected_attribute"]);
+        }
+
+        #[test]
+        fn without_search_all_attributes_no_base_definition_is_found() {
+            let mut live_checker = v2_live_checker_with_dependency(dependency_registry());
+            live_checker
+                .set_matchers(&matcher_configs(MATCHERS))
+                .expect("they check out");
+            assert!(live_checker
+                .find_base_attribute("myapp.checkout.stage")
+                .is_none());
+        }
+
         /// A v1 group carries no attribute list to compare with, so v1 keeps
         /// checking each attribute against the whole registry.
         #[test]
@@ -1481,6 +1662,58 @@ attribute_groups = ["myapp.common"]
                 &parent,
             );
             assert!(result.all_advice.is_empty());
+        }
+
+        /// An unmatched sample's attributes are only checked when the base
+        /// definitions are being searched.
+        #[test]
+        fn an_unmatched_span_does_not_check_its_attributes() {
+            let ids = unmatched_attribute_findings(false);
+            assert!(ids.is_empty(), "{ids:?}");
+        }
+
+        #[test]
+        fn search_all_attributes_checks_an_unmatched_span_after_all() {
+            let ids = unmatched_attribute_findings(true);
+            assert_eq!(ids, ["not_stable"]);
+        }
+
+        /// The findings on the attributes of a span that matched nothing.
+        fn unmatched_attribute_findings(search_all: bool) -> Vec<String> {
+            let mut live_checker = v2_live_checker_full(
+                vec![
+                    base_attribute("myapp.checkout.id", Stability::Stable),
+                    base_attribute("myapp.checkout.stage", Stability::Development),
+                ],
+                sample_span_attributes(),
+                Vec::new(),
+                vec![Box::new(StabilityAdvisor)],
+            );
+            live_checker
+                .set_matchers(&matcher_configs(
+                    r#"
+[[live-check.matchers]]
+id = "myapp.never"
+sample_type = "span"
+when = 'name == "no-such-span"'
+"#,
+                ))
+                .expect("they check out");
+            if search_all {
+                live_checker.search_all_attributes();
+            }
+            let mut stats =
+                LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+            let mut span = checkout_span();
+            let parent = Sample::Span(span.clone());
+            span.run_live_check(&mut live_checker, &mut stats, None, &parent)
+                .expect("the check runs");
+            span.attributes
+                .iter()
+                .filter_map(|attribute| attribute.live_check_result.as_ref())
+                .flat_map(|result| result.all_advice.iter())
+                .map(|finding| finding.id.clone())
+                .collect()
         }
 
         /// An unmatched sample has nothing to be unexpected against.
