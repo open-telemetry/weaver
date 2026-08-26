@@ -55,6 +55,10 @@ attributes:
           value: "matcher_conflict"
           brief: "More than one of the matchers that applied to a sample set a signal"
           stability: development
+        - id: unexpected_attribute
+          value: "unexpected_attribute"
+          brief: "A matched sample has an attribute that is not on its signal or attribute groups"
+          stability: development
         - id: kind_mismatch
           value: "kind_mismatch"
           brief: "A span kind does not match the kind defined in the registry"

@@ -10,9 +10,11 @@ use weaver_forge::v2::attribute_group::AttributeGroup;
 
 use crate::{
     advice::FindingBuilder, cel::variables, generated::attributes::FindingId,
-    live_checker::LiveChecker, Error, LiveCheckResult, Sample, SampleRef, SampleType,
-    VersionedRegistry, VersionedSignal,
+    live_checker::LiveChecker, sample_attribute::SampleAttribute, Error, LiveCheckResult, Sample,
+    SampleRef, SampleType, VersionedAttribute, VersionedRegistry, VersionedSignal,
+    ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY,
 };
+use serde_json::json;
 use weaver_checker::FindingLevel;
 
 impl From<MatcherSampleType> for SampleType {
@@ -115,11 +117,11 @@ impl Matchers {
         }
         for matcher in &self.matchers {
             matcher.check_signal(live_checker)?;
-            for group in &matcher.attribute_groups {
-                if live_checker.find_attribute_group(group).is_none() {
+            for attribute_group in &matcher.attribute_groups {
+                if live_checker.find_attribute_group(attribute_group).is_none() {
                     return Err(Error::UnknownMatcherAttributeGroup {
                         id: matcher.id.clone(),
-                        attribute_group: group.clone(),
+                        attribute_group: attribute_group.clone(),
                     });
                 }
             }
@@ -130,60 +132,60 @@ impl Matchers {
     /// The signal and attribute groups to compare a sample with.
     ///
     /// The first matcher with a `signal` overrides the natural match; a later
-    /// one is listed in [`Comparison::conflicts`]. Attribute groups accumulate
+    /// one is listed in [`SampleMatch::conflicts`]. Attribute groups accumulate
     /// in declaration order, first mention winning.
-    pub fn comparison_for(
+    pub fn match_for(
         &self,
         sample_type: SampleType,
         bindings: &dyn Bindings,
         natural: Option<Rc<VersionedSignal>>,
         live_checker: &LiveChecker,
-    ) -> Comparison {
-        let mut comparison = Comparison {
+    ) -> SampleMatch {
+        let mut sample_match = SampleMatch {
             signal: natural,
-            ..Comparison::default()
+            ..SampleMatch::default()
         };
         if self.matchers.is_empty() {
-            return comparison;
+            return sample_match;
         }
-        let mut seen_groups: Vec<&str> = Vec::new();
+        let mut seen_attribute_groups: Vec<&str> = Vec::new();
         for matcher in &self.matchers {
             match matcher.applies_to(sample_type, bindings) {
                 Ok(true) => {}
                 Ok(false) => continue,
                 Err(error) => {
-                    comparison
+                    sample_match
                         .errors
                         .push((matcher.id.clone(), error.to_string()));
                     continue;
                 }
             }
-            comparison.matched += 1;
+            sample_match.matched += 1;
             if let Some(signal) = &matcher.signal {
-                if comparison.signal_matcher.is_none() {
-                    comparison.signal = live_checker.find_signal(signal, sample_type);
-                    comparison.signal_matcher = Some(matcher.id.clone());
+                if sample_match.signal_matcher.is_none() {
+                    sample_match.signal = live_checker.find_signal(signal, sample_type);
+                    sample_match.signal_matcher = Some(matcher.id.clone());
                 } else {
-                    comparison.conflicts.push(matcher.id.clone());
+                    sample_match.conflicts.push(matcher.id.clone());
                 }
             }
-            for group in &matcher.attribute_groups {
-                if seen_groups.contains(&group.as_str()) {
+            for attribute_group in &matcher.attribute_groups {
+                if seen_attribute_groups.contains(&attribute_group.as_str()) {
                     continue;
                 }
-                seen_groups.push(group);
-                if let Some(found) = live_checker.find_attribute_group(group) {
-                    comparison.attribute_groups.push(found);
+                seen_attribute_groups.push(attribute_group);
+                if let Some(found) = live_checker.find_attribute_group(attribute_group) {
+                    sample_match.attribute_groups.push(found);
                 }
             }
         }
-        comparison
+        sample_match
     }
 
-    /// Counts the errors a comparison collected against the matchers that
+    /// Counts the errors a match collected against the matchers that
     /// raised them.
-    pub fn record_errors(&mut self, comparison: &Comparison) {
-        for (id, message) in &comparison.errors {
+    pub fn record_errors(&mut self, sample_match: &SampleMatch) {
+        for (id, message) in &sample_match.errors {
             if let Some(matcher) = self.matchers.iter_mut().find(|matcher| &matcher.id == id) {
                 matcher.record_error(message.clone());
             }
@@ -264,13 +266,14 @@ impl Matcher {
     }
 }
 
-/// What a sample is compared with, and the matchers that set it.
+/// What a sample matched: the signal and attribute groups it is checked
+/// against, and the matchers that chose them.
 #[derive(Debug, Default)]
-pub struct Comparison {
+pub struct SampleMatch {
     /// The signal the sample is compared with.
     pub signal: Option<Rc<VersionedSignal>>,
 
-    /// The attribute groups added to the comparison, in priority order.
+    /// The attribute groups added to the match, in priority order.
     pub attribute_groups: Vec<Rc<AttributeGroup>>,
 
     /// The matcher that set `signal`. `None` when `signal` is the natural
@@ -287,25 +290,85 @@ pub struct Comparison {
     pub errors: Vec<(String, String)>,
 }
 
-impl Comparison {
+impl SampleMatch {
     /// Whether the sample matched no matcher and has no signal.
     #[must_use]
     pub fn is_unmatched(&self) -> bool {
         self.matched == 0 && self.signal.is_none()
     }
 
-    /// Adds the findings this comparison raises to a sample's result.
+    /// The definition this match holds for an attribute, from the signal
+    /// or one of the attribute groups.
+    ///
+    /// The groups are searched in priority order, so the first mention wins.
+    #[must_use]
+    pub fn find_attribute(
+        &self,
+        live_checker: &LiveChecker,
+        key: &str,
+    ) -> Option<Rc<VersionedAttribute>> {
+        self.signal
+            .as_deref()
+            .and_then(|signal| live_checker.find_refined_attribute(signal, key))
+            .or_else(|| {
+                self.attribute_groups.iter().find_map(|attribute_group| {
+                    live_checker.find_attribute_group_attribute(&attribute_group.id, key)
+                })
+            })
+    }
+
+    /// Whether the match expects an attribute.
+    #[must_use]
+    pub fn expects(&self, live_checker: &LiveChecker, key: &str) -> bool {
+        self.find_attribute(live_checker, key).is_some()
+    }
+
+    /// Whether the match can say which attributes belong on the sample.
+    ///
+    /// A v1 group cannot: its attributes are checked one key at a time against
+    /// the whole registry.
+    fn holds_attribute_definitions(&self) -> bool {
+        !self.attribute_groups.is_empty()
+            || matches!(
+                self.signal.as_deref(),
+                Some(
+                    VersionedSignal::Span(_)
+                        | VersionedSignal::Metric(_)
+                        | VersionedSignal::Event(_)
+                )
+            )
+    }
+
+    /// Adds the findings this match raises to a sample's result.
     ///
     /// `unmatched_sample` is only raised when matchers are configured, so a
     /// registry checked without them reports what it always did.
     pub fn add_findings(
         &self,
         sample_ref: &SampleRef<'_>,
+        attributes: &[SampleAttribute],
         result: &mut LiveCheckResult,
         live_checker: &LiveChecker,
         parent_signal: &Sample,
     ) {
         let emitter = live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref());
+        if !self.is_unmatched() && self.holds_attribute_definitions() {
+            for attribute in attributes {
+                if self.expects(live_checker, &attribute.name) {
+                    continue;
+                }
+                let finding = FindingBuilder::new(FindingId::UnexpectedAttribute)
+                    .context(json!({ ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: attribute.name }))
+                    .message(format!(
+                        "Attribute '{}' is not on the signal or its attribute groups.",
+                        attribute.name
+                    ))
+                    .level(FindingLevel::Improvement)
+                    .signal(parent_signal)
+                    .build_and_emit(sample_ref, emitter, parent_signal);
+                result.add_advice(finding, live_checker.finding_modifier.as_ref(), sample_ref);
+            }
+        }
         if !live_checker.matchers().is_empty() && self.is_unmatched() {
             let finding = FindingBuilder::new(FindingId::UnmatchedSample)
                 .message("Sample matched no matcher.")
@@ -413,6 +476,7 @@ mod tests {
 
     use weaver_forge::registry::ResolvedRegistry;
     use weaver_forge::v2::attribute::Attribute as V2Attribute;
+    use weaver_forge::v2::attribute_group::AttributeGroupAttribute;
     use weaver_forge::v2::provenance::Provenance;
     use weaver_forge::v2::registry::ForgeResolvedRegistry;
     use weaver_forge::v2::span::SpanAttribute;
@@ -450,7 +514,22 @@ mod tests {
         attributes: Vec<SpanAttribute>,
         advisors: Vec<Box<dyn Advisor>>,
     ) -> LiveChecker {
-        v2_live_checker_full(Vec::new(), attributes, advisors)
+        v2_live_checker_full(Vec::new(), attributes, Vec::new(), advisors)
+    }
+
+    /// The attributes the fixture span sample carries, so a test that is not
+    /// about `unexpected_attribute` does not raise it.
+    fn sample_span_attributes() -> Vec<SpanAttribute> {
+        vec![
+            span_attribute(
+                "myapp.checkout.id",
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            ),
+            span_attribute(
+                "myapp.checkout.stage",
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+            ),
+        ]
     }
 
     /// The fixture registry, with `catalog` as the registry attributes and the
@@ -458,6 +537,7 @@ mod tests {
     fn v2_live_checker_full(
         catalog: Vec<V2Attribute>,
         attributes: Vec<SpanAttribute>,
+        attribute_group_attributes: Vec<AttributeGroupAttribute>,
         advisors: Vec<Box<dyn Advisor>>,
     ) -> LiveChecker {
         let mut registry: ForgeResolvedRegistry =
@@ -469,6 +549,9 @@ mod tests {
         registry.registry.attributes = catalog;
         if let Some(span) = registry.registry.spans.first_mut() {
             span.attributes = attributes;
+        }
+        if let Some(attribute_group) = registry.registry.attribute_groups.first_mut() {
+            attribute_group.attributes = attribute_group_attributes;
         }
         LiveChecker::new(
             Arc::new(VersionedRegistry::V2(Box::new(registry))),
@@ -499,6 +582,14 @@ mod tests {
             base: base_attribute(key, Stability::Stable),
             requirement_level,
             sampling_relevant: None,
+        }
+    }
+
+    /// An attribute of the fixture registry's `myapp.common` attribute group.
+    fn attribute_group_attribute(key: &str) -> AttributeGroupAttribute {
+        AttributeGroupAttribute {
+            base: base_attribute(key, Stability::Stable),
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
         }
     }
 
@@ -784,7 +875,7 @@ sample_type = "log"
 attribute_groups = ["myapp.common", "myapp.absent"]
 "#,
         )
-        .expect_err("the group is not there");
+        .expect_err("the attribute group is not there");
         assert!(
             matches!(&error, Error::UnknownMatcherAttributeGroup { attribute_group, .. }
                 if attribute_group == "myapp.absent"),
@@ -840,7 +931,7 @@ sample_type = "span"
             .expect("nothing to check");
     }
 
-    mod comparison {
+    mod sample_match {
         use super::*;
         use crate::sample_span::SampleSpan;
 
@@ -864,9 +955,9 @@ sample_type = "span"
             ))
         }
 
-        fn comparison_for(matchers: &Matchers, sample: &SampleSpan) -> Comparison {
+        fn match_for(matchers: &Matchers, sample: &SampleSpan) -> SampleMatch {
             let live_checker = v2_live_checker();
-            matchers.comparison_for(SampleType::Span, sample, None, &live_checker)
+            matchers.match_for(SampleType::Span, sample, None, &live_checker)
         }
 
         /// A live checker holding the matchers, as the sample path uses it.
@@ -879,10 +970,10 @@ sample_type = "span"
         }
 
         /// Compares a sample and records the errors, as the sample path does.
-        fn compare_and_record(live_checker: &mut LiveChecker, sample: &SampleSpan) -> Comparison {
-            let comparison = live_checker.comparison_for(SampleType::Span, sample, None);
-            live_checker.record_matcher_errors(&comparison);
-            comparison
+        fn compare_and_record(live_checker: &mut LiveChecker, sample: &SampleSpan) -> SampleMatch {
+            let sample_match = live_checker.match_for(SampleType::Span, sample, None);
+            live_checker.record_matcher_errors(&sample_match);
+            sample_match
         }
 
         /// The errors recorded against the one matcher.
@@ -912,35 +1003,38 @@ when = 'instrumentation_scope.name == "myapp"'
         #[test]
         fn a_matched_span_takes_the_signal_its_matcher_names() {
             let matchers = matchers(include_str!("../fixtures/cel/span-checkout/matchers.toml"));
-            let comparison = comparison_for(&matchers, &checkout_span());
-            assert_eq!(comparison.matched, 1);
-            assert_eq!(comparison.signal_matcher.as_deref(), Some("myapp.checkout"));
-            assert!(comparison.signal.is_some());
-            assert!(comparison.conflicts.is_empty());
+            let sample_match = match_for(&matchers, &checkout_span());
+            assert_eq!(sample_match.matched, 1);
+            assert_eq!(
+                sample_match.signal_matcher.as_deref(),
+                Some("myapp.checkout")
+            );
+            assert!(sample_match.signal.is_some());
+            assert!(sample_match.conflicts.is_empty());
         }
 
         #[test]
         fn a_span_that_matches_nothing_resolves_to_nothing() {
             let matchers = matchers(include_str!("../fixtures/cel/span-checkout/matchers.toml"));
-            let comparison = comparison_for(&matchers, &other_span());
-            assert_eq!(comparison.matched, 0);
-            assert!(comparison.signal.is_none());
-            assert!(comparison.signal_matcher.is_none());
+            let sample_match = match_for(&matchers, &other_span());
+            assert_eq!(sample_match.matched, 0);
+            assert!(sample_match.signal.is_none());
+            assert!(sample_match.signal_matcher.is_none());
         }
 
         #[test]
         fn no_matchers_keeps_the_natural_match() {
             let live_checker = v2_live_checker();
             let natural = live_checker.find_span("myapp.checkout");
-            let comparison = Matchers::default().comparison_for(
+            let sample_match = Matchers::default().match_for(
                 SampleType::Span,
                 &checkout_span(),
                 natural,
                 &live_checker,
             );
-            assert!(comparison.signal.is_some());
-            assert_eq!(comparison.matched, 0);
-            assert!(comparison.signal_matcher.is_none());
+            assert!(sample_match.signal.is_some());
+            assert_eq!(sample_match.matched, 0);
+            assert!(sample_match.signal_matcher.is_none());
         }
 
         #[test]
@@ -955,10 +1049,13 @@ signal = "myapp.checkout"
 "#,
             );
             let natural = live_checker.find_metric("myapp.checkout.duration");
-            let comparison =
-                matchers.comparison_for(SampleType::Span, &checkout_span(), natural, &live_checker);
-            assert_eq!(comparison.signal_matcher.as_deref(), Some("myapp.override"));
-            let signal = comparison.signal.expect("a signal");
+            let sample_match =
+                matchers.match_for(SampleType::Span, &checkout_span(), natural, &live_checker);
+            assert_eq!(
+                sample_match.signal_matcher.as_deref(),
+                Some("myapp.override")
+            );
+            let signal = sample_match.signal.expect("a signal");
             assert!(matches!(signal.as_ref(), VersionedSignal::Span(_)));
         }
 
@@ -977,10 +1074,10 @@ sample_type = "span"
 signal = "myapp.checkout"
 "#,
             );
-            let comparison = comparison_for(&matchers, &checkout_span());
-            assert_eq!(comparison.matched, 2);
-            assert_eq!(comparison.signal_matcher.as_deref(), Some("myapp.first"));
-            assert_eq!(comparison.conflicts, ["myapp.second"]);
+            let sample_match = match_for(&matchers, &checkout_span());
+            assert_eq!(sample_match.matched, 2);
+            assert_eq!(sample_match.signal_matcher.as_deref(), Some("myapp.first"));
+            assert_eq!(sample_match.conflicts, ["myapp.second"]);
         }
 
         #[test]
@@ -998,10 +1095,10 @@ sample_type = "span"
 attribute_groups = ["myapp.common"]
 "#,
             );
-            let comparison = comparison_for(&matchers, &checkout_span());
-            assert_eq!(comparison.matched, 2);
-            assert_eq!(comparison.attribute_groups.len(), 1);
-            assert!(comparison.signal.is_none());
+            let sample_match = match_for(&matchers, &checkout_span());
+            assert_eq!(sample_match.matched, 2);
+            assert_eq!(sample_match.attribute_groups.len(), 1);
+            assert!(sample_match.signal.is_none());
         }
 
         #[test]
@@ -1015,20 +1112,20 @@ sample_type = "log"
 attribute_groups = ["myapp.common"]
 "#,
             );
-            let comparison =
-                matchers.comparison_for(SampleType::Span, &checkout_span(), None, &live_checker);
-            assert_eq!(comparison.matched, 0);
-            assert!(comparison.attribute_groups.is_empty());
+            let sample_match =
+                matchers.match_for(SampleType::Span, &checkout_span(), None, &live_checker);
+            assert_eq!(sample_match.matched, 0);
+            assert!(sample_match.attribute_groups.is_empty());
         }
 
         /// A guarded expression the lint passes can still error on a sample.
         #[test]
         fn a_when_that_errors_does_not_match_and_is_counted() {
             let mut live_checker = checker_with(ERRORING);
-            let comparison = compare_and_record(&mut live_checker, &span_without_scope());
+            let sample_match = compare_and_record(&mut live_checker, &span_without_scope());
 
-            assert_eq!(comparison.matched, 0);
-            assert_eq!(comparison.errors.len(), 1);
+            assert_eq!(sample_match.matched, 0);
+            assert_eq!(sample_match.errors.len(), 1);
 
             let (count, message) = recorded(&live_checker).expect("it errored");
             assert_eq!(count, 1);
@@ -1045,17 +1142,18 @@ attribute_groups = ["myapp.common"]
             assert_eq!(recorded(&live_checker).expect("it errored").0, 3);
         }
 
-        /// The finding ids a comparison raises for a sample.
+        /// The finding ids a match raises for a sample.
         fn findings(toml_str: &str, sample: &SampleSpan) -> Vec<String> {
-            let mut live_checker = v2_live_checker();
+            let mut live_checker = v2_live_checker_with(sample_span_attributes(), Vec::new());
             live_checker
                 .set_matchers(&matcher_configs(toml_str))
                 .expect("they check out");
-            let comparison = live_checker.comparison_for(SampleType::Span, sample, None);
+            let sample_match = live_checker.match_for(SampleType::Span, sample, None);
             let mut result = LiveCheckResult::new();
             let parent = Sample::Span(sample.clone());
-            comparison.add_findings(
+            sample_match.add_findings(
                 &SampleRef::Span(sample),
+                &sample.attributes,
                 &mut result,
                 &live_checker,
                 &parent,
@@ -1086,12 +1184,13 @@ when = 'name == "no-such-span"'
         fn no_matchers_raises_no_unmatched_sample() {
             let live_checker = v2_live_checker();
             let sample = checkout_span();
-            let comparison = live_checker.comparison_for(SampleType::Span, &sample, None);
-            assert!(comparison.is_unmatched());
+            let sample_match = live_checker.match_for(SampleType::Span, &sample, None);
+            assert!(sample_match.is_unmatched());
             let mut result = LiveCheckResult::new();
             let parent = Sample::Span(sample.clone());
-            comparison.add_findings(
+            sample_match.add_findings(
                 &SampleRef::Span(&sample),
+                &sample.attributes,
                 &mut result,
                 &live_checker,
                 &parent,
@@ -1122,8 +1221,8 @@ signal = "myapp.checkout"
         fn a_matcher_that_never_errors_reports_no_errors() {
             let mut live_checker =
                 checker_with(include_str!("../fixtures/cel/span-checkout/matchers.toml"));
-            let comparison = compare_and_record(&mut live_checker, &checkout_span());
-            assert!(comparison.errors.is_empty());
+            let sample_match = compare_and_record(&mut live_checker, &checkout_span());
+            assert!(sample_match.errors.is_empty());
             assert!(recorded(&live_checker).is_none());
         }
     }
@@ -1170,49 +1269,29 @@ signal = "myapp.checkout"
 
         #[test]
         fn a_matched_span_missing_a_recommended_attribute_is_reported() {
-            let ids = check(
-                &mut checkout_span(),
-                vec![
-                    span_attribute(
-                        "myapp.checkout.id",
-                        RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
-                    ),
-                    span_attribute(
-                        "myapp.checkout.coupon",
-                        RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
-                    ),
-                ],
-            );
+            let mut attributes = sample_span_attributes();
+            attributes.push(span_attribute(
+                "myapp.checkout.coupon",
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+            ));
+            let ids = check(&mut checkout_span(), attributes);
             assert_eq!(ids, ["recommended_attribute_not_present"]);
         }
 
         #[test]
         fn a_matched_span_missing_a_required_attribute_is_reported() {
-            let ids = check(
-                &mut checkout_span(),
-                vec![span_attribute(
-                    "myapp.checkout.total",
-                    RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
-                )],
-            );
+            let mut attributes = sample_span_attributes();
+            attributes.push(span_attribute(
+                "myapp.checkout.total",
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            ));
+            let ids = check(&mut checkout_span(), attributes);
             assert_eq!(ids, ["required_attribute_not_present"]);
         }
 
         #[test]
         fn a_matched_span_with_every_attribute_is_clean() {
-            let ids = check(
-                &mut checkout_span(),
-                vec![
-                    span_attribute(
-                        "myapp.checkout.id",
-                        RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
-                    ),
-                    span_attribute(
-                        "myapp.checkout.stage",
-                        RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
-                    ),
-                ],
-            );
+            let ids = check(&mut checkout_span(), sample_span_attributes());
             assert!(ids.is_empty(), "{ids:?}");
         }
 
@@ -1221,7 +1300,7 @@ signal = "myapp.checkout"
         fn a_span_kind_that_differs_from_the_signal_is_reported() {
             let mut span = checkout_span();
             span.kind = SpanKindSpec::Client;
-            let ids = check(&mut span, Vec::new());
+            let ids = check(&mut span, sample_span_attributes());
             assert_eq!(ids, ["kind_mismatch"]);
         }
 
@@ -1233,6 +1312,7 @@ signal = "myapp.checkout"
             let mut live_checker = v2_live_checker_full(
                 catalog,
                 attributes,
+                Vec::new(),
                 vec![Box::new(StabilityAdvisor), Box::new(TypeAdvisor)],
             );
             live_checker
@@ -1288,10 +1368,9 @@ signal = "myapp.checkout"
         }
 
         /// A v1 group holds no refinements.
-        #[test]
-        fn a_v1_signal_has_no_refined_attributes() {
-            let live_checker = v1_live_checker();
-            let group = VersionedSignal::Group(Box::new(ResolvedGroup {
+        /// A v1 span group of the fixture registry.
+        fn v1_group() -> ResolvedGroup {
+            ResolvedGroup {
                 id: "myapp.checkout".to_owned(),
                 r#type: GroupType::Span,
                 brief: String::new(),
@@ -1313,10 +1392,127 @@ signal = "myapp.checkout"
                 annotations: None,
                 lineage: None,
                 requirement_level: None,
-            }));
+            }
+        }
+
+        #[test]
+        fn a_v1_signal_has_no_refined_attributes() {
+            let live_checker = v1_live_checker();
+            let group = VersionedSignal::Group(Box::new(v1_group()));
             assert!(live_checker
                 .find_refined_attribute(&group, "myapp.checkout.stage")
                 .is_none());
+        }
+
+        /// The findings on the span, with `myapp.common` declaring
+        /// `attribute_group_attributes`.
+        fn check_with_attribute_group(
+            attribute_group_attributes: Vec<AttributeGroupAttribute>,
+            matchers: &str,
+        ) -> Vec<String> {
+            let mut live_checker = v2_live_checker_full(
+                Vec::new(),
+                vec![span_attribute(
+                    "myapp.checkout.id",
+                    RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                )],
+                attribute_group_attributes,
+                vec![Box::new(TypeAdvisor)],
+            );
+            live_checker
+                .set_matchers(&matcher_configs(matchers))
+                .expect("they check out");
+            let mut stats =
+                LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+            let mut span = checkout_span();
+            let parent = Sample::Span(span.clone());
+            span.run_live_check(&mut live_checker, &mut stats, None, &parent)
+                .expect("the check runs");
+            span.live_check_result
+                .as_ref()
+                .expect("it has a result")
+                .all_advice
+                .iter()
+                .map(|finding| finding.id.clone())
+                .collect()
+        }
+
+        /// The signal declares `myapp.checkout.id` but not `myapp.checkout.stage`.
+        #[test]
+        fn an_attribute_on_neither_the_signal_nor_a_group_is_unexpected() {
+            let ids = check_with_attribute_group(Vec::new(), MATCHERS);
+            assert_eq!(ids, ["unexpected_attribute"]);
+        }
+
+        #[test]
+        fn an_attribute_group_accounts_for_the_attribute() {
+            let ids = check_with_attribute_group(
+                vec![attribute_group_attribute("myapp.checkout.stage")],
+                r#"
+[[live-check.matchers]]
+id = "myapp.checkout"
+sample_type = "span"
+when = '"myapp.checkout.id" in attributes'
+signal = "myapp.checkout"
+attribute_groups = ["myapp.common"]
+"#,
+            );
+            assert!(ids.is_empty(), "{ids:?}");
+        }
+
+        /// A v1 group carries no attribute list to compare with, so v1 keeps
+        /// checking each attribute against the whole registry.
+        #[test]
+        fn a_v1_signal_raises_no_unexpected_attribute() {
+            let live_checker = v1_live_checker();
+            let sample_match = SampleMatch {
+                signal: Some(Rc::new(VersionedSignal::Group(Box::new(v1_group())))),
+                matched: 1,
+                ..SampleMatch::default()
+            };
+            let sample = checkout_span();
+            let mut result = LiveCheckResult::new();
+            let parent = Sample::Span(sample.clone());
+            sample_match.add_findings(
+                &SampleRef::Span(&sample),
+                &sample.attributes,
+                &mut result,
+                &live_checker,
+                &parent,
+            );
+            assert!(result.all_advice.is_empty());
+        }
+
+        /// An unmatched sample has nothing to be unexpected against.
+        #[test]
+        fn an_unmatched_span_raises_no_unexpected_attribute() {
+            let mut live_checker =
+                v2_live_checker_with(sample_span_attributes(), vec![Box::new(TypeAdvisor)]);
+            live_checker
+                .set_matchers(&matcher_configs(
+                    r#"
+[[live-check.matchers]]
+id = "myapp.never"
+sample_type = "span"
+when = 'name == "no-such-span"'
+"#,
+                ))
+                .expect("they check out");
+            let mut stats =
+                LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+            let mut span = checkout_span();
+            let parent = Sample::Span(span.clone());
+            span.run_live_check(&mut live_checker, &mut stats, None, &parent)
+                .expect("the check runs");
+            let ids: Vec<_> = span
+                .live_check_result
+                .as_ref()
+                .expect("it has a result")
+                .all_advice
+                .iter()
+                .map(|finding| finding.id.clone())
+                .collect();
+            assert_eq!(ids, ["unmatched_sample"]);
         }
 
         #[test]

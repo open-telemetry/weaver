@@ -8,9 +8,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    live_checker::LiveChecker, sample_attribute::SampleAttribute, Advisable, Error,
-    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleInstrumentationScope,
-    SampleRef, SampleResource, VersionedSignal,
+    live_checker::LiveChecker, matcher::SampleMatch, sample_attribute::SampleAttribute, Advisable,
+    Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample,
+    SampleInstrumentationScope, SampleRef, SampleResource,
 };
 
 /// Represents a profile collected via OTLP (v1development)
@@ -46,13 +46,13 @@ impl LiveCheckRunner for SampleProfile {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
+            Some(self.run_advisors(live_checker, stats, parent.clone(), parent_signal)?);
         self.attributes
-            .run_live_check(live_checker, stats, parent_group, parent_signal)?;
+            .run_live_check(live_checker, stats, parent, parent_signal)?;
         Ok(())
     }
 }

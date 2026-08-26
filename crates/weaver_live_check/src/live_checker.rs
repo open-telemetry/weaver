@@ -11,7 +11,7 @@ use weaver_semconv::{attribute::AttributeType, group::GroupType};
 use crate::{
     advice::Advisor,
     finding_modifier::FindingModifier,
-    matcher::{Comparison, Matchers, SignalKind},
+    matcher::{Matchers, SampleMatch, SignalKind},
     otlp_logger::OtlpEmitter,
     Error, SampleType, VersionedAttribute, VersionedEntity, VersionedRegistry, VersionedSignal,
 };
@@ -64,6 +64,10 @@ pub struct LiveChecker {
     refined_metric_attributes: RefinedAttributes,
     #[serde(skip)]
     refined_event_attributes: RefinedAttributes,
+    /// The attributes each v2 attribute group declares, keyed by the attribute
+    /// group's id.
+    #[serde(skip)]
+    attribute_group_attributes: RefinedAttributes,
     #[serde(skip)]
     semconv_entities: HashMap<String, VersionedEntity>,
     /// The advisors to run
@@ -103,6 +107,7 @@ impl LiveChecker {
         let mut refined_span_attributes = RefinedAttributes::new();
         let mut refined_metric_attributes = RefinedAttributes::new();
         let mut refined_event_attributes = RefinedAttributes::new();
+        let mut attribute_group_attributes = RefinedAttributes::new();
 
         match registry.as_ref() {
             VersionedRegistry::V1(registry) => {
@@ -172,9 +177,14 @@ impl LiveChecker {
                     let span_rc = Rc::new(VersionedSignal::Span(span.clone()));
                     let _ = semconv_spans.insert(span_type, span_rc);
                 }
-                for group in &registry.registry.attribute_groups {
-                    let group_id = group.id.to_string();
-                    let _ = semconv_attribute_groups.insert(group_id, Rc::new(group.clone()));
+                for attribute_group in &registry.registry.attribute_groups {
+                    let attribute_group_id = attribute_group.id.to_string();
+                    let _ = attribute_group_attributes.insert(
+                        attribute_group_id.clone(),
+                        index_attributes(attribute_group.attributes.iter().map(|a| &a.base)),
+                    );
+                    let _ = semconv_attribute_groups
+                        .insert(attribute_group_id, Rc::new(attribute_group.clone()));
                 }
                 for entity in &registry.registry.entities {
                     let entity_type = entity.r#type.to_string();
@@ -210,6 +220,7 @@ impl LiveChecker {
             refined_span_attributes,
             refined_metric_attributes,
             refined_event_attributes,
+            attribute_group_attributes,
             semconv_entities,
             advisors,
             templates_by_length,
@@ -255,24 +266,24 @@ impl LiveChecker {
         }
     }
 
-    /// Counts the errors a comparison collected against the matchers that
+    /// Counts the errors a match collected against the matchers that
     /// raised them
-    pub fn record_matcher_errors(&mut self, comparison: &Comparison) {
-        if !comparison.errors.is_empty() {
-            self.matchers.record_errors(comparison);
+    pub fn record_matcher_errors(&mut self, sample_match: &SampleMatch) {
+        if !sample_match.errors.is_empty() {
+            self.matchers.record_errors(sample_match);
         }
     }
 
     /// The signal and attribute groups to compare a sample with
     #[must_use]
-    pub fn comparison_for(
+    pub fn match_for(
         &self,
         sample_type: SampleType,
         bindings: &dyn Bindings,
         natural: Option<Rc<VersionedSignal>>,
-    ) -> Comparison {
+    ) -> SampleMatch {
         self.matchers
-            .comparison_for(sample_type, bindings, natural, self)
+            .match_for(sample_type, bindings, natural, self)
     }
 
     /// Add an advisor
@@ -315,6 +326,19 @@ impl LiveChecker {
             VersionedSignal::Group(_) => return None,
         };
         index.get(id)?.get(key).map(Rc::clone)
+    }
+
+    /// Find an attribute that a v2 attribute group declares
+    #[must_use]
+    pub fn find_attribute_group_attribute(
+        &self,
+        attribute_group_id: &str,
+        key: &str,
+    ) -> Option<Rc<VersionedAttribute>> {
+        self.attribute_group_attributes
+            .get(attribute_group_id)?
+            .get(key)
+            .map(Rc::clone)
     }
 
     /// Find a span in the registry by its type

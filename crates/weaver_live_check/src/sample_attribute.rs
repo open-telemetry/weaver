@@ -11,8 +11,8 @@ use weaver_checker::FindingLevel;
 use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{
-    advice::FindingBuilder, live_checker::LiveChecker, Error, FindingId, LiveCheckResult,
-    LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef, VersionedSignal,
+    advice::FindingBuilder, live_checker::LiveChecker, matcher::SampleMatch, Error, FindingId,
+    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
     ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY,
 };
 
@@ -174,14 +174,15 @@ impl LiveCheckRunner for SampleAttribute {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
-        // A signal's own copy of an attribute carries its refinements.
-        let semconv_attribute = parent_group
+        // A signal's own copy of an attribute carries its refinements, as does
+        // an attribute group's.
+        let semconv_attribute = parent
             .as_deref()
-            .and_then(|signal| live_checker.find_refined_attribute(signal, &self.name))
+            .and_then(|sample_match| sample_match.find_attribute(live_checker, &self.name))
             .or_else(|| live_checker.find_attribute(&self.name))
             .or_else(|| live_checker.find_template(&self.name));
         if semconv_attribute.is_none() {
@@ -229,7 +230,7 @@ impl LiveCheckRunner for SampleAttribute {
                 sample_ref.clone(),
                 parent_signal,
                 semconv_attribute.clone(),
-                parent_group.clone(),
+                parent.as_ref().and_then(|c| c.signal.clone()),
                 live_checker.otlp_emitter.clone(),
             )?;
             result.add_advice_list(

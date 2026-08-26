@@ -1,5 +1,5 @@
 # Only myapp metrics. No `signal`, so each metric is still checked against
-# the signal its name resolves to, plus this group.
+# the signal its name resolves to, plus this attribute group.
 [[live-check.matchers]]
 id = "myapp.common.metric"
 sample_type = "metric"

@@ -9,10 +9,10 @@ use serde::{Deserialize, Serialize};
 use weaver_semconv::group::SpanKindSpec;
 
 use crate::{
-    live_checker::LiveChecker, sample_attribute::SampleAttribute,
+    live_checker::LiveChecker, matcher::SampleMatch, sample_attribute::SampleAttribute,
     sample_instrumentation_scope::SampleInstrumentationScope, sample_resource::SampleResource,
     Advisable, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
-    SampleType, VersionedSignal,
+    SampleType,
 };
 
 /// The status code of the span
@@ -79,28 +79,45 @@ impl LiveCheckRunner for SampleSpan {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        let comparison = live_checker.comparison_for(SampleType::Span, self, None);
-        live_checker.record_matcher_errors(&comparison);
-        // A matched span is checked against its signal, so the advisors see it
-        // in place of the group passed down.
-        let signal = comparison.signal.clone().or(parent_group);
-        let mut result = self.run_advisors(live_checker, stats, signal.clone(), parent_signal)?;
-        comparison.add_findings(
+        let sample_match = live_checker.match_for(SampleType::Span, self, None);
+        live_checker.record_matcher_errors(&sample_match);
+        // A matched span replaces the match passed down.
+        let sample_match = if sample_match.signal.is_some() || sample_match.matched > 0 {
+            Rc::new(sample_match)
+        } else {
+            parent.unwrap_or_else(|| Rc::new(sample_match))
+        };
+        let mut result = self.run_advisors(
+            live_checker,
+            stats,
+            Some(Rc::clone(&sample_match)),
+            parent_signal,
+        )?;
+        sample_match.add_findings(
             &SampleRef::Span(self),
+            &self.attributes,
             &mut result,
             live_checker,
             parent_signal,
         );
         self.live_check_result = Some(result);
-        self.attributes
-            .run_live_check(live_checker, stats, signal.clone(), parent_signal)?;
-        self.span_events
-            .run_live_check(live_checker, stats, signal.clone(), parent_signal)?;
+        self.attributes.run_live_check(
+            live_checker,
+            stats,
+            Some(Rc::clone(&sample_match)),
+            parent_signal,
+        )?;
+        self.span_events.run_live_check(
+            live_checker,
+            stats,
+            Some(Rc::clone(&sample_match)),
+            parent_signal,
+        )?;
         self.span_links
-            .run_live_check(live_checker, stats, signal, parent_signal)?;
+            .run_live_check(live_checker, stats, Some(sample_match), parent_signal)?;
         Ok(())
     }
 }
@@ -132,13 +149,13 @@ impl LiveCheckRunner for SampleSpanEvent {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
+            Some(self.run_advisors(live_checker, stats, parent.clone(), parent_signal)?);
         self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
+            .run_live_check(live_checker, stats, parent.clone(), parent_signal)?;
         Ok(())
     }
 }
@@ -168,13 +185,13 @@ impl LiveCheckRunner for SampleSpanLink {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
+            Some(self.run_advisors(live_checker, stats, parent.clone(), parent_signal)?);
         self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
+            .run_live_check(live_checker, stats, parent.clone(), parent_signal)?;
         Ok(())
     }
 }

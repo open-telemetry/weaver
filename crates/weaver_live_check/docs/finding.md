@@ -103,6 +103,7 @@ Custom Rego policies may emit additional finding IDs not listed here.
 | `undefined_enum_variant` | ![Development](https://img.shields.io/badge/-development-blue) | An enum attribute value is not in the set of allowed members |
 | `unmatched_sample` | ![Development](https://img.shields.io/badge/-development-blue) | An untyped sample matched no matcher |
 | `matcher_conflict` | ![Development](https://img.shields.io/badge/-development-blue) | More than one of the matchers that applied to a sample set a signal |
+| `unexpected_attribute` | ![Development](https://img.shields.io/badge/-development-blue) | A matched sample has an attribute that is not on its signal or attribute groups |
 | `kind_mismatch` | ![Development](https://img.shields.io/badge/-development-blue) | A span kind does not match the kind defined in the registry |
 | `required_attribute_not_present` | ![Development](https://img.shields.io/badge/-development-blue) | A required attribute is absent from the sample |
 | `recommended_attribute_not_present` | ![Development](https://img.shields.io/badge/-development-blue) | A recommended attribute is absent from the sample |

@@ -20,6 +20,8 @@ use sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+
+use crate::matcher::SampleMatch;
 use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::{
@@ -526,36 +528,32 @@ impl LiveCheckRunner for Sample {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         match self {
             Sample::Attribute(attribute) => {
-                attribute.run_live_check(live_checker, stats, parent_group, parent_signal)
+                attribute.run_live_check(live_checker, stats, parent, parent_signal)
             }
-            Sample::Span(span) => {
-                span.run_live_check(live_checker, stats, parent_group, parent_signal)
-            }
+            Sample::Span(span) => span.run_live_check(live_checker, stats, parent, parent_signal),
             Sample::SpanEvent(span_event) => {
-                span_event.run_live_check(live_checker, stats, parent_group, parent_signal)
+                span_event.run_live_check(live_checker, stats, parent, parent_signal)
             }
             Sample::SpanLink(span_link) => {
-                span_link.run_live_check(live_checker, stats, parent_group, parent_signal)
+                span_link.run_live_check(live_checker, stats, parent, parent_signal)
             }
             Sample::Resource(resource) => {
-                resource.run_live_check(live_checker, stats, parent_group, parent_signal)
+                resource.run_live_check(live_checker, stats, parent, parent_signal)
             }
             Sample::InstrumentationScope(scope) => {
-                scope.run_live_check(live_checker, stats, parent_group, parent_signal)
+                scope.run_live_check(live_checker, stats, parent, parent_signal)
             }
             Sample::Metric(metric) => {
-                metric.run_live_check(live_checker, stats, parent_group, parent_signal)
+                metric.run_live_check(live_checker, stats, parent, parent_signal)
             }
-            Sample::Log(log) => {
-                log.run_live_check(live_checker, stats, parent_group, parent_signal)
-            }
+            Sample::Log(log) => log.run_live_check(live_checker, stats, parent, parent_signal),
             Sample::Profile(profile) => {
-                profile.run_live_check(live_checker, stats, parent_group, parent_signal)
+                profile.run_live_check(live_checker, stats, parent, parent_signal)
             }
         }
     }
@@ -647,7 +645,7 @@ pub trait LiveCheckRunner {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error>;
 }
@@ -658,11 +656,11 @@ impl<T: LiveCheckRunner> LiveCheckRunner for Vec<T> {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         for item in self.iter_mut() {
-            item.run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
+            item.run_live_check(live_checker, stats, parent.clone(), parent_signal)?;
         }
         Ok(())
     }
@@ -681,7 +679,7 @@ pub trait Advisable {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<LiveCheckResult, Error> {
         let mut result = LiveCheckResult::new();
@@ -691,7 +689,7 @@ pub trait Advisable {
                 self.as_sample_ref(),
                 parent_signal,
                 None,
-                parent_group.clone(),
+                parent.as_ref().and_then(|c| c.signal.clone()),
                 live_checker.otlp_emitter.clone(),
             )?;
             result.add_advice_list(

@@ -372,7 +372,7 @@ attribute_groups = ["myapp.common"]
         assert_eq!(checkout.signal.as_deref(), Some("myapp.checkout"));
         assert_eq!(checkout.attribute_groups, ["myapp.common"]);
 
-        // No `when` and no `signal`: applies to every log, adds a group.
+        // No `when` and no `signal`: applies to every log, adds an attribute group.
         let log = &lc.matchers[1];
         assert_eq!(log.sample_type, MatcherSampleType::Log);
         assert!(log.when.is_none());

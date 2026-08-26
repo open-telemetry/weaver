@@ -11,6 +11,7 @@ use weaver_checker::FindingLevel;
 use crate::{
     advice::{check_entity_associations, emit_findings, FindingBuilder},
     live_checker::LiveChecker,
+    matcher::SampleMatch,
     sample_attribute::SampleAttribute,
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_resource::SampleResource,
@@ -51,7 +52,7 @@ impl LiveCheckRunner for SampleLog {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        _parent_group: Option<Rc<VersionedSignal>>,
+        _parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
@@ -131,22 +132,20 @@ impl LiveCheckRunner for SampleLog {
             );
         }
 
-        // Check attributes
-        self.attributes.run_live_check(
-            live_checker,
-            stats,
-            semconv_event.clone(),
-            parent_signal,
-        )?;
-
-        let comparison = live_checker.comparison_for(SampleType::Log, self, semconv_event.clone());
-        live_checker.record_matcher_errors(&comparison);
-        comparison.add_findings(
+        let sample_match = live_checker.match_for(SampleType::Log, self, semconv_event.clone());
+        live_checker.record_matcher_errors(&sample_match);
+        sample_match.add_findings(
             &SampleRef::Log(self),
+            &self.attributes,
             &mut result,
             live_checker,
             parent_signal,
         );
+        let sample_match = Rc::new(sample_match);
+
+        // Check attributes
+        self.attributes
+            .run_live_check(live_checker, stats, Some(sample_match), parent_signal)?;
 
         self.live_check_result = Some(result);
         stats.inc_entity_count("log");

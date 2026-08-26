@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 # Unreleased
 
 - Fix live-check reading the base definition of an attribute that its signal refines, so a refined `stability`, `deprecated` or `annotations` was ignored. v2 registries only. ([#1721](https://github.com/open-telemetry/weaver/pull/1721) by @jerbly)
+- Add `unexpected_attribute`, raised when a matched sample carries an attribute that is on neither its signal nor the `attribute_groups` a matcher added. v2 registries only. ([#1721](https://github.com/open-telemetry/weaver/pull/1721) by @jerbly)
 - Add `[[live-check.matchers]]`, which matches a span or a log to a v2 signal with a CEL expression over the sample. A matched span is checked against that span signal. New findings: `unmatched_sample`, `matcher_conflict` and `kind_mismatch`. ([#1721](https://github.com/open-telemetry/weaver/pull/1721) by @jerbly)
 - Add `entity_refs` and `lookup_entity` to the `semconv` Rego library, so an `after_resolution` policy can read the entity definition that an `entity_associations` leaf names, including one a dependency defines. `entity_refs` walks the `one_of` and `all_of` levels of an association. ([#1719](https://github.com/open-telemetry/weaver/pull/1719) by @jerbly)
 - Add a `lookup_entity` Jinja function, which turns an `entity_associations` leaf into the entity definition it names, for `weaver registry generate` on a v2 registry. ([#1718](https://github.com/open-telemetry/weaver/pull/1718) by @jerbly)
