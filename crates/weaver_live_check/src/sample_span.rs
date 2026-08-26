@@ -82,10 +82,12 @@ impl LiveCheckRunner for SampleSpan {
         parent_group: Option<Rc<VersionedSignal>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        let mut result =
-            self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?;
         let comparison = live_checker.comparison_for(SampleType::Span, self, None);
         live_checker.record_matcher_errors(&comparison);
+        // A matched span is checked against its signal, so the advisors see it
+        // in place of the group passed down.
+        let signal = comparison.signal.clone().or(parent_group);
+        let mut result = self.run_advisors(live_checker, stats, signal.clone(), parent_signal)?;
         comparison.add_findings(
             &SampleRef::Span(self),
             &mut result,
@@ -94,15 +96,11 @@ impl LiveCheckRunner for SampleSpan {
         );
         self.live_check_result = Some(result);
         self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
-        self.span_events.run_live_check(
-            live_checker,
-            stats,
-            parent_group.clone(),
-            parent_signal,
-        )?;
+            .run_live_check(live_checker, stats, signal.clone(), parent_signal)?;
+        self.span_events
+            .run_live_check(live_checker, stats, signal.clone(), parent_signal)?;
         self.span_links
-            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
+            .run_live_check(live_checker, stats, signal, parent_signal)?;
         Ok(())
     }
 }

@@ -409,8 +409,20 @@ pub(crate) mod fixture {
 mod tests {
     use std::sync::Arc;
 
+    use std::collections::BTreeMap;
+
     use weaver_forge::registry::ResolvedRegistry;
+    use weaver_forge::v2::attribute::Attribute as V2Attribute;
+    use weaver_forge::v2::provenance::Provenance;
     use weaver_forge::v2::registry::ForgeResolvedRegistry;
+    use weaver_forge::v2::span::SpanAttribute;
+    use weaver_semconv::attribute::{
+        AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
+    };
+    use weaver_semconv::stability::Stability;
+    use weaver_semconv::v2::CommonFields;
+
+    use crate::advice::{Advisor, TypeAdvisor};
 
     use super::{fixture::matcher_configs, *};
 
@@ -429,13 +441,48 @@ mod tests {
     /// A v2 registry with one span type, one attribute group, one metric and
     /// one event.
     fn v2_live_checker() -> LiveChecker {
-        let registry: ForgeResolvedRegistry =
+        v2_live_checker_with(Vec::new(), Vec::new())
+    }
+
+    /// The fixture registry, with the span carrying `attributes` and the
+    /// advisors in `advisors`.
+    fn v2_live_checker_with(
+        attributes: Vec<SpanAttribute>,
+        advisors: Vec<Box<dyn Advisor>>,
+    ) -> LiveChecker {
+        let mut registry: ForgeResolvedRegistry =
             serde_json::from_str(include_str!("../fixtures/registry-v2.json"))
                 .expect("the fixture registry parses");
+        // `SpanAttribute` cannot be deserialized: it combines
+        // `deny_unknown_fields` with `flatten`, which serde does not support.
+        if let Some(span) = registry.registry.spans.first_mut() {
+            span.attributes = attributes;
+        }
         LiveChecker::new(
             Arc::new(VersionedRegistry::V2(Box::new(registry))),
-            Vec::new(),
+            advisors,
         )
+    }
+
+    /// A span attribute of the fixture registry.
+    fn span_attribute(key: &str, requirement_level: RequirementLevel) -> SpanAttribute {
+        SpanAttribute {
+            base: V2Attribute {
+                key: key.to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                examples: None,
+                common: CommonFields {
+                    brief: String::new(),
+                    note: String::new(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+                provenance: Provenance::default(),
+            },
+            requirement_level,
+            sampling_relevant: None,
+        }
     }
 
     /// Every fixture in `fixtures/cel/`.
@@ -1052,6 +1099,119 @@ signal = "myapp.checkout"
             let comparison = compare_and_record(&mut live_checker, &checkout_span());
             assert!(comparison.errors.is_empty());
             assert!(recorded(&live_checker).is_none());
+        }
+    }
+
+    /// A matched span is checked against its span signal.
+    mod span_signal {
+        use super::*;
+        use crate::{
+            sample_span::SampleSpan, CumulativeStatistics, LiveCheckRunner, LiveCheckStatistics,
+            Sample,
+        };
+        use weaver_semconv::group::SpanKindSpec;
+
+        const MATCHERS: &str = include_str!("../fixtures/cel/span-checkout/matchers.toml");
+
+        /// The findings on the span itself, after a full live check.
+        fn check(span: &mut SampleSpan, attributes: Vec<SpanAttribute>) -> Vec<String> {
+            let mut live_checker = v2_live_checker_with(attributes, vec![Box::new(TypeAdvisor)]);
+            live_checker
+                .set_matchers(&matcher_configs(MATCHERS))
+                .expect("they check out");
+            let mut stats =
+                LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+            let parent = Sample::Span(span.clone());
+            span.run_live_check(&mut live_checker, &mut stats, None, &parent)
+                .expect("the check runs");
+            span.live_check_result
+                .as_ref()
+                .expect("it has a result")
+                .all_advice
+                .iter()
+                .map(|finding| finding.id.clone())
+                .collect()
+        }
+
+        fn checkout_span() -> SampleSpan {
+            serde_json::from_str(include_str!(
+                "../fixtures/cel/span-checkout/span-checkout-payment.json"
+            ))
+            .expect("the fixture sample parses")
+        }
+
+        #[test]
+        fn a_matched_span_missing_a_recommended_attribute_is_reported() {
+            let ids = check(
+                &mut checkout_span(),
+                vec![
+                    span_attribute(
+                        "myapp.checkout.id",
+                        RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                    ),
+                    span_attribute(
+                        "myapp.checkout.coupon",
+                        RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+                    ),
+                ],
+            );
+            assert_eq!(ids, ["recommended_attribute_not_present"]);
+        }
+
+        #[test]
+        fn a_matched_span_missing_a_required_attribute_is_reported() {
+            let ids = check(
+                &mut checkout_span(),
+                vec![span_attribute(
+                    "myapp.checkout.total",
+                    RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                )],
+            );
+            assert_eq!(ids, ["required_attribute_not_present"]);
+        }
+
+        #[test]
+        fn a_matched_span_with_every_attribute_is_clean() {
+            let ids = check(
+                &mut checkout_span(),
+                vec![
+                    span_attribute(
+                        "myapp.checkout.id",
+                        RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                    ),
+                    span_attribute(
+                        "myapp.checkout.stage",
+                        RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+                    ),
+                ],
+            );
+            assert!(ids.is_empty(), "{ids:?}");
+        }
+
+        /// The fixture span signal is `internal`.
+        #[test]
+        fn a_span_kind_that_differs_from_the_signal_is_reported() {
+            let mut span = checkout_span();
+            span.kind = SpanKindSpec::Client;
+            let ids = check(&mut span, Vec::new());
+            assert_eq!(ids, ["kind_mismatch"]);
+        }
+
+        #[test]
+        fn a_span_that_matches_nothing_is_not_checked_against_a_signal() {
+            let mut span: SampleSpan = serde_json::from_str(include_str!(
+                "../fixtures/cel/span-checkout/span-no-signature.json"
+            ))
+            .expect("the fixture sample parses");
+            span.kind = SpanKindSpec::Client;
+            let ids = check(
+                &mut span,
+                vec![span_attribute(
+                    "myapp.checkout.total",
+                    RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                )],
+            );
+            assert_eq!(ids, ["unmatched_sample"]);
         }
     }
 

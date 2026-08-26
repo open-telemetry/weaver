@@ -55,6 +55,10 @@ attributes:
           value: "matcher_conflict"
           brief: "More than one of the matchers that applied to a sample set a signal"
           stability: development
+        - id: kind_mismatch
+          value: "kind_mismatch"
+          brief: "A span kind does not match the kind defined in the registry"
+          stability: development
         # Requirement-level attribute findings
         - id: required_attribute_not_present
           value: "required_attribute_not_present"

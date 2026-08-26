@@ -10,6 +10,7 @@ use weaver_forge::v2::{
     entity::{Entity as V2Entity, EntityAssociation as V2EntityAssociation, EntityRef},
     event::EventAttribute,
     metric::MetricAttribute,
+    span::SpanAttribute,
 };
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_semconv::attribute::{
@@ -21,11 +22,12 @@ use weaver_semconv::entity_association::EntityAssociation;
 
 use super::{emit_findings, Advisor, FindingBuilder};
 use crate::{
-    live_checker::LiveChecker, otlp_logger::OtlpEmitter, sample_attribute::SampleAttribute,
-    sample_metric::SampleInstrument, Error, FindingId, Sample, SampleRef, VersionedAttribute,
-    VersionedEntity, VersionedSignal, ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY,
-    ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY, ENTITY_TYPE_ADVICE_CONTEXT_KEY,
-    EXPECTED_VALUE_ADVICE_CONTEXT_KEY, INSTRUMENT_ADVICE_CONTEXT_KEY, UNIT_ADVICE_CONTEXT_KEY,
+    enum_name, live_checker::LiveChecker, otlp_logger::OtlpEmitter,
+    sample_attribute::SampleAttribute, sample_metric::SampleInstrument, Error, FindingId, Sample,
+    SampleRef, VersionedAttribute, VersionedEntity, VersionedSignal,
+    ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY, ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY,
+    ENTITY_TYPE_ADVICE_CONTEXT_KEY, EXPECTED_VALUE_ADVICE_CONTEXT_KEY,
+    INSTRUMENT_ADVICE_CONTEXT_KEY, UNIT_ADVICE_CONTEXT_KEY,
 };
 
 /// An advisor that checks if a sample has the correct type
@@ -53,6 +55,20 @@ impl CheckableAttribute for Attribute {
 }
 
 impl CheckableAttribute for MetricAttribute {
+    fn key(&self) -> &str {
+        &self.base.key
+    }
+
+    fn requirement_level(&self) -> &RequirementLevel {
+        &self.requirement_level
+    }
+
+    fn attribute_type(&self) -> &AttributeType {
+        &self.base.r#type
+    }
+}
+
+impl CheckableAttribute for SpanAttribute {
     fn key(&self) -> &str {
         &self.base.key
     }
@@ -698,6 +714,39 @@ impl Advisor for TypeAdvisor {
                 } else {
                     Ok(Vec::new())
                 }
+            }
+            SampleRef::Span(sample_span) => {
+                let Some(semconv_span) = registry_group else {
+                    return Ok(Vec::new());
+                };
+                let VersionedSignal::Span(span) = &*semconv_span else {
+                    return Ok(Vec::new());
+                };
+                let mut advice_list =
+                    check_attributes(&span.attributes, &sample_span.attributes, parent_signal);
+                if sample_span.kind != span.kind {
+                    advice_list.push(PolicyFinding {
+                        id: FindingId::KindMismatch.into(),
+                        context: Some(json!({
+                            EXPECTED_VALUE_ADVICE_CONTEXT_KEY: span.kind,
+                        })),
+                        message: format!(
+                            "Span kind '{}' does not match the registry kind '{}'.",
+                            enum_name(&sample_span.kind),
+                            enum_name(&span.kind)
+                        ),
+                        level: FindingLevel::Violation,
+                        signal_type: parent_signal.signal_type(),
+                        signal_name: parent_signal.signal_name(),
+                    });
+                }
+                emit_findings(
+                    &advice_list,
+                    &sample,
+                    otlp_emitter.as_deref(),
+                    parent_signal,
+                );
+                Ok(advice_list)
             }
             SampleRef::Log(sample_log) => {
                 if let Some(semconv_event) = registry_group {

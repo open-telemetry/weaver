@@ -19,6 +19,7 @@ use sample_resource::SampleResource;
 use sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::{
@@ -28,6 +29,14 @@ use weaver_forge::{
 use weaver_semconv::{
     attribute::AttributeType, deprecated::Deprecated, group::InstrumentSpec, stability::Stability,
 };
+
+/// Serializes an enum value to its serde name, e.g. `internal`.
+pub(crate) fn enum_name<T: Serialize>(value: &T) -> String {
+    match serde_json::to_value(value) {
+        Ok(JsonValue::String(name)) => name,
+        _ => String::new(),
+    }
+}
 
 /// Advisors for live checks
 pub mod advice;

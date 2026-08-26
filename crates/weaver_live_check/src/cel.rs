@@ -11,6 +11,7 @@ use serde_json::Value as JsonValue;
 use weaver_cel::{Bindings, Context, Referenced, Value};
 
 use crate::{
+    enum_name,
     sample_attribute::SampleAttribute,
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_log::SampleLog,
@@ -297,14 +298,6 @@ fn json_to_cel(value: &JsonValue) -> Value {
                 .map(|(key, value)| (key.clone(), json_to_cel(value)))
                 .collect::<HashMap<_, _>>(),
         ),
-    }
-}
-
-/// Serializes an enum value to its serde name.
-fn enum_name<T: serde::Serialize>(value: &T) -> String {
-    match serde_json::to_value(value) {
-        Ok(JsonValue::String(name)) => name,
-        _ => String::new(),
     }
 }
 

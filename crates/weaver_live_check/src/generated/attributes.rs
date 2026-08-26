@@ -77,6 +77,8 @@ pub enum FindingId {
     UnmatchedSample,
     /// More than one of the matchers that applied to a sample set a signal
     MatcherConflict,
+    /// A span kind does not match the kind defined in the registry
+    KindMismatch,
     /// A required attribute is absent from the sample
     RequiredAttributeNotPresent,
     /// A recommended attribute is absent from the sample
