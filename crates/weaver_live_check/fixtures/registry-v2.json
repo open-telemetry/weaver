@@ -1,0 +1,46 @@
+{
+  "schema_url": "https://example.com/myapp/1.0.0",
+  "registry": {
+    "attributes": [],
+    "attribute_groups": [
+      {
+        "id": "myapp.common",
+        "attributes": [],
+        "brief": "Attributes every myapp signal carries",
+        "stability": "stable"
+      }
+    ],
+    "metrics": [
+      {
+        "name": "myapp.checkout.duration",
+        "instrument": "histogram",
+        "unit": "s",
+        "brief": "How long a checkout took",
+        "stability": "stable"
+      }
+    ],
+    "spans": [
+      {
+        "type": "myapp.checkout",
+        "kind": "internal",
+        "name": { "note": "The checkout stage" },
+        "brief": "A checkout span",
+        "stability": "stable"
+      }
+    ],
+    "events": [
+      {
+        "name": "myapp.order.placed",
+        "brief": "An order was placed",
+        "stability": "stable"
+      }
+    ],
+    "entities": []
+  },
+  "refinements": {
+    "metrics": [],
+    "spans": [],
+    "events": [],
+    "entities": []
+  }
+}

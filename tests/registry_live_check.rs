@@ -12,13 +12,18 @@ use std::process::Output;
 
 const REGISTRY: &str = "crates/weaver_live_check/model";
 const INPUT: &str = "crates/weaver_live_check/data/attributes.txt";
+const V1_REGISTRY: &str = "crates/weaver_live_check/data/model/metrics";
 
 fn run_live_check(extra_args: &[&str]) -> Output {
+    run_live_check_on(REGISTRY, extra_args)
+}
+
+fn run_live_check_on(registry: &str, extra_args: &[&str]) -> Output {
     let mut cmd = Command::cargo_bin("weaver").expect("weaver binary not found");
     cmd.arg("registry")
         .arg("live-check")
         .arg("-r")
-        .arg(REGISTRY)
+        .arg(registry)
         .arg("--input-source")
         .arg(INPUT)
         .arg("--input-format")
@@ -133,11 +138,21 @@ fn no_stats_with_none_threshold_is_silent_and_exits_zero() {
 
 /// Writes a `.weaver.toml` holding one matcher and runs live-check against it.
 fn run_with_matcher(matcher: &str) -> (Output, tempfile::TempDir) {
+    run_with_matcher_on(REGISTRY, &["--v2"], matcher)
+}
+
+fn run_with_matcher_on(
+    registry: &str,
+    extra_args: &[&str],
+    matcher: &str,
+) -> (Output, tempfile::TempDir) {
     let dir = tempfile::tempdir().expect("temp dir");
     let config = dir.path().join(".weaver.toml");
     std::fs::write(&config, format!("[[\"live-check\".matchers]]\n{matcher}\n"))
         .expect("write config");
-    let out = run_live_check(&["--config", config.to_str().expect("utf-8 path")]);
+    let mut args = vec!["--config", config.to_str().expect("utf-8 path")];
+    args.extend_from_slice(extra_args);
+    let out = run_live_check_on(registry, &args);
     (out, dir)
 }
 
@@ -178,14 +193,52 @@ when = 'unit == "s"'"#,
     );
 }
 
-/// A matcher that compiles does not change the outcome, since nothing consumes
-/// it yet.
+/// A matcher that compiles and resolves lets the run finish, since nothing
+/// consumes it yet.
 #[test]
 fn a_valid_matcher_does_not_change_the_run() {
-    let (out, _dir) = run_with_matcher(
+    let (out, _dir) = run_with_matcher_on(
+        REGISTRY,
+        &["--v2", "--fail-on", "none"],
         r#"id = "myapp.checkout"
 sample_type = "span"
 when = '"myapp.checkout.id" in attributes'"#,
     );
-    assert_eq!(exit_code(&out), 1, "got: {}", combined(&out));
+    assert_eq!(exit_code(&out), 0, "got: {}", combined(&out));
+}
+
+/// A `signal` that is not in the registry stops the run.
+#[test]
+fn a_matcher_naming_an_unknown_signal_fails_startup() {
+    let (out, _dir) = run_with_matcher(
+        r#"id = "myapp.checkout"
+sample_type = "span"
+signal = "myapp.absent""#,
+    );
+    assert_ne!(exit_code(&out), 0);
+    let output = combined(&out);
+    assert!(
+        output.contains("myapp.absent") && output.contains("span type"),
+        "got: {output}"
+    );
+}
+
+/// Matchers need a v2 registry, and v1 behaviour is unchanged without them.
+#[test]
+fn a_matcher_against_a_v1_registry_fails_startup() {
+    let (out, _dir) = run_with_matcher_on(
+        V1_REGISTRY,
+        &[],
+        r#"id = "myapp.checkout"
+sample_type = "span""#,
+    );
+    assert_ne!(exit_code(&out), 0);
+    let output = combined(&out);
+    assert!(output.contains("v2 registry"), "got: {output}");
+}
+
+#[test]
+fn a_v1_registry_without_matchers_still_runs() {
+    let out = run_live_check_on(V1_REGISTRY, &["--fail-on", "none"]);
+    assert_eq!(exit_code(&out), 0, "got: {}", combined(&out));
 }

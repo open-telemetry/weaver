@@ -10,9 +10,11 @@ use weaver_semconv::{attribute::AttributeType, group::GroupType};
 
 use crate::{
     advice::Advisor, finding_modifier::FindingModifier, matcher::Matchers,
-    otlp_logger::OtlpEmitter, VersionedAttribute, VersionedEntity, VersionedRegistry,
+    otlp_logger::OtlpEmitter, Error, VersionedAttribute, VersionedEntity, VersionedRegistry,
     VersionedSignal,
 };
+use weaver_config::live_check::MatcherConfig;
+use weaver_forge::v2::attribute_group::AttributeGroup;
 use weaver_forge::v2::entity::{Entity as V2Entity, EntityRef};
 
 #[cfg(test)]
@@ -27,6 +29,12 @@ pub struct LiveChecker {
     semconv_templates: HashMap<String, Rc<VersionedAttribute>>,
     semconv_metrics: HashMap<String, Rc<VersionedSignal>>,
     semconv_events: HashMap<String, Rc<VersionedSignal>>,
+    /// v2 spans keyed by type, and v2 attribute groups keyed by id. Both are
+    /// empty for a v1 registry, which has neither.
+    #[serde(skip)]
+    semconv_spans: HashMap<String, Rc<VersionedSignal>>,
+    #[serde(skip)]
+    semconv_attribute_groups: HashMap<String, Rc<AttributeGroup>>,
     #[serde(skip)]
     semconv_entities: HashMap<String, VersionedEntity>,
     /// The advisors to run
@@ -40,9 +48,9 @@ pub struct LiveChecker {
     /// Optional finding modifier for overriding/filtering findings
     #[serde(skip)]
     pub finding_modifier: Option<FindingModifier>,
-    /// The configured matchers, compiled
+    /// The configured matchers, compiled and checked against the registry
     #[serde(skip)]
-    pub matchers: Matchers,
+    matchers: Matchers,
 }
 
 impl LiveChecker {
@@ -59,6 +67,9 @@ impl LiveChecker {
         let mut semconv_events = HashMap::new();
         // Hashmap of entities by type name
         let mut semconv_entities = HashMap::new();
+        // Hashmap of v2 spans by type, and v2 attribute groups by id
+        let mut semconv_spans = HashMap::new();
+        let mut semconv_attribute_groups = HashMap::new();
 
         match registry.as_ref() {
             VersionedRegistry::V1(registry) => {
@@ -111,6 +122,15 @@ impl LiveChecker {
                     let event_rc = Rc::new(VersionedSignal::Event(event.clone()));
                     let _ = semconv_events.insert(event_name, event_rc);
                 }
+                for span in &registry.registry.spans {
+                    let span_type = span.r#type.to_string();
+                    let span_rc = Rc::new(VersionedSignal::Span(span.clone()));
+                    let _ = semconv_spans.insert(span_type, span_rc);
+                }
+                for group in &registry.registry.attribute_groups {
+                    let group_id = group.id.to_string();
+                    let _ = semconv_attribute_groups.insert(group_id, Rc::new(group.clone()));
+                }
                 for entity in &registry.registry.entities {
                     let entity_type = entity.r#type.to_string();
                     let _ = semconv_entities
@@ -140,6 +160,8 @@ impl LiveChecker {
             semconv_templates,
             semconv_metrics,
             semconv_events,
+            semconv_spans,
+            semconv_attribute_groups,
             semconv_entities,
             advisors,
             templates_by_length,
@@ -147,6 +169,26 @@ impl LiveChecker {
             finding_modifier: None,
             matchers: Matchers::default(),
         }
+    }
+
+    /// Compile the configured matchers and check them against the registry
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a matcher does not compile, reads a variable its
+    /// sample type does not have, or names something that is not in the
+    /// registry. Matchers need a v2 registry.
+    pub fn set_matchers(&mut self, configs: &[MatcherConfig]) -> Result<(), Error> {
+        let matchers = Matchers::compile(configs)?;
+        matchers.check_against(self)?;
+        self.matchers = matchers;
+        Ok(())
+    }
+
+    /// The configured matchers
+    #[must_use]
+    pub fn matchers(&self) -> &Matchers {
+        &self.matchers
     }
 
     /// Add an advisor
@@ -170,6 +212,22 @@ impl LiveChecker {
     #[must_use]
     pub fn find_event(&self, name: &str) -> Option<Rc<VersionedSignal>> {
         self.semconv_events.get(name).map(Rc::clone)
+    }
+
+    /// Find a span in the registry by its type
+    ///
+    /// A v1 registry has no span types, so this is always `None` for one.
+    #[must_use]
+    pub fn find_span(&self, span_type: &str) -> Option<Rc<VersionedSignal>> {
+        self.semconv_spans.get(span_type).map(Rc::clone)
+    }
+
+    /// Find an attribute group in the registry by its id
+    ///
+    /// A v1 registry has no attribute groups, so this is always `None` for one.
+    #[must_use]
+    pub fn find_attribute_group(&self, id: &str) -> Option<Rc<AttributeGroup>> {
+        self.semconv_attribute_groups.get(id).map(Rc::clone)
     }
 
     /// Find an entity in the registry by type name
@@ -3979,6 +4037,6 @@ mod tests {
             &None,
             &Some("/non/existent/path/*.json".to_owned()),
         );
-        assert!(matches!(result, Err(crate::Error::AdviceError { .. })));
+        assert!(matches!(result, Err(Error::AdviceError { .. })));
     }
 }

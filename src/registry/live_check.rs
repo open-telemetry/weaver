@@ -23,7 +23,6 @@ use weaver_live_check::finding_modifier::FindingModifier;
 use weaver_live_check::json_file_ingester::JsonFileIngester;
 use weaver_live_check::json_stdin_ingester::JsonStdinIngester;
 use weaver_live_check::live_checker::LiveChecker;
-use weaver_live_check::matcher::Matchers;
 use weaver_live_check::text_file_ingester::TextFileIngester;
 use weaver_live_check::text_stdin_ingester::TextStdinIngester;
 use weaver_live_check::{
@@ -306,7 +305,7 @@ pub(crate) fn command(
     live_checker.finding_modifier =
         FindingModifier::from_rules(&config.finding_filters, &config.finding_level_overrides)?;
 
-    live_checker.matchers = Matchers::compile(&config.matchers)?;
+    live_checker.set_matchers(&config.matchers)?;
 
     let rego_advisor = RegoAdvisor::new(
         &live_checker,

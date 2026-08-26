@@ -287,6 +287,44 @@ pub enum Error {
         error: String,
     },
 
+    /// Matchers are configured against a v1 registry.
+    #[error("Matchers require a v2 registry. Matcher `{id}` cannot be used with the registry under check.")]
+    MatchersRequireV2Registry {
+        /// The first matcher id declared.
+        id: String,
+    },
+
+    /// A matcher sets `signal` for a sample type that has no signal.
+    #[error("Matcher `{id}` sets `signal`, which a `{sample_type}` matcher does not allow. Use `attribute_groups` instead.")]
+    MatcherSignalNotAllowed {
+        /// The matcher id.
+        id: String,
+        /// The sample type the matcher applies to.
+        sample_type: String,
+    },
+
+    /// A matcher's `signal` is not in the registry.
+    #[error(
+        "Matcher `{id}` names the signal `{signal}`, which is not {expected} in the registry."
+    )]
+    UnknownMatcherSignal {
+        /// The matcher id.
+        id: String,
+        /// The signal the matcher names.
+        signal: String,
+        /// What the signal has to be, e.g. `a span type`.
+        expected: String,
+    },
+
+    /// A matcher's `attribute_groups` names a group that is not in the registry.
+    #[error("Matcher `{id}` names the attribute group `{attribute_group}`, which is not in the registry.")]
+    UnknownMatcherAttributeGroup {
+        /// The matcher id.
+        id: String,
+        /// The attribute group the matcher names.
+        attribute_group: String,
+    },
+
     /// A matcher's `when` reads a variable its sample type does not have.
     #[error("Matcher `{id}` reads `{variable}`, which a `{sample_type}` sample does not have. Available: {available}")]
     UnknownMatcherVariable {
