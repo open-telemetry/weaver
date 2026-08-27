@@ -26,6 +26,9 @@ registry:
     - ref: linkserver.produce
       requirement_level: recommended
       brief: One link per processed message.
+      attributes:
+      - base: 0
+        requirement_level: recommended
     brief: A process span.
     stability: stable
   metrics: []
@@ -49,6 +52,9 @@ refinements:
     - ref: linkserver.produce
       requirement_level: recommended
       brief: One link per processed message.
+      attributes:
+      - base: 0
+        requirement_level: recommended
     brief: A process span.
     stability: stable
   metrics: []

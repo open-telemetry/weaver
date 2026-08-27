@@ -21,6 +21,9 @@ registry:
     - ref: linkserver.produce
       requirement_level: recommended
       brief: One link per processed message.
+      attributes:
+      - base: 0
+        requirement_level: recommended
       provenance:
         source: 0
     brief: A process span.
@@ -73,6 +76,9 @@ refinements:
     - ref: linkserver.produce
       requirement_level: recommended
       brief: One link per processed message.
+      attributes:
+      - base: 0
+        requirement_level: recommended
       provenance:
         source: 0
     brief: A process span.
