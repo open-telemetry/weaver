@@ -9,8 +9,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     attribute::{AttributeRole, AttributeSpec, AttributeType, Examples, RequirementLevel},
-    deprecated::Deprecated,
-    stability::Stability,
     v2::{signal_id::SignalId, CommonFields},
     YamlValue,
 };
@@ -43,14 +41,6 @@ pub struct AttributeRef {
     /// Refines the more elaborate description of the attribute.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
-    /// Refines the stability of the attribute.
-    /// This denotes whether an attribute is stable for a specific
-    /// signal.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stability: Option<Stability>,
-    /// Specifies if the attribute is deprecated for this signal.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub deprecated: Option<Deprecated>,
     /// Additional annotations for the attribute. These will be
     /// merged with annotations from the definition.
     #[serde(default)]
@@ -70,8 +60,8 @@ impl AttributeRef {
             requirement_level: self.requirement_level,
             sampling_relevant: None,
             note: self.note,
-            stability: self.stability,
-            deprecated: self.deprecated,
+            stability: None,
+            deprecated: None,
             prefix: false,
             annotations: if self.annotations.is_empty() {
                 None
@@ -92,8 +82,8 @@ impl AttributeRef {
             requirement_level: self.requirement_level,
             sampling_relevant: None,
             note: self.note,
-            stability: self.stability,
-            deprecated: self.deprecated,
+            stability: None,
+            deprecated: None,
             prefix: false,
             annotations: if self.annotations.is_empty() {
                 None
@@ -190,4 +180,29 @@ pub fn split_attributes_and_groups(
     }
 
     (attributes, groups)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_attribute_ref_rejects_stability_and_deprecated() {
+        for (field, name) in [
+            ("stability: stable", "stability"),
+            ("deprecated:\n  reason: obsoleted", "deprecated"),
+        ] {
+            let yaml = format!("ref: my.attribute\n{field}\n");
+            let err = serde_yaml::from_str::<AttributeRef>(&yaml)
+                .expect_err("stability/deprecated must not be allowed on attribute refs");
+            assert_eq!(
+                err.to_string(),
+                format!(
+                    "unknown field `{name}`, expected one of \
+                     `ref`, `brief`, `examples`, `requirement_level`, `note`, `annotations` \
+                     at line 2 column 1"
+                )
+            );
+        }
+    }
 }
