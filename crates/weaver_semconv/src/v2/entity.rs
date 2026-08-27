@@ -44,10 +44,16 @@ pub struct EntityRefinement {
     /// The name of the entity being refined.
     pub r#ref: SignalId,
     /// Refinements of the base entity's identity attributes.
+    ///
+    /// A refinement must not change *which* attributes identify the entity: it
+    /// may only refine attributes the base entity already lists under
+    /// `identity`.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub identity: Vec<AttributeRef>,
     /// Refinements or additional attributes to describe the Entity.
+    ///
+    /// Attributes listed here have the descriptive role.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub description: Vec<AttributeRef>,

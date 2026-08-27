@@ -17,22 +17,22 @@ use crate::{
     YamlValue,
 };
 
-/// The instrument type that should be used to record the metric.
+/// The type of the metric.
 #[derive(
     Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord, Copy,
 )]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum InstrumentSpec {
+    /// An up-down counter metric.
+    #[serde(rename = "updowncounter")]
+    UpDownCounter,
     /// A counter metric.
     Counter,
     /// A gauge metric.
     Gauge,
     /// A histogram metric.
     Histogram,
-    /// An up-down counter metric.
-    #[serde(rename = "updowncounter")]
-    UpDownCounter,
 }
 
 impl Display for InstrumentSpec {
@@ -52,15 +52,24 @@ impl Display for InstrumentSpec {
 pub struct Metric {
     /// The name of the metric.
     pub name: SignalId,
-    /// The instrument type that should be used to record the metric.
+    /// The instrument type that should be used to record the metric. Note that
+    /// the semantic conventions must be written using the names of the
+    /// synchronous instrument types (counter, gauge, updowncounter and
+    /// histogram).
+    /// For more details: [Metrics semantic conventions - Instrument types](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-types).
+    /// Note: This field is required if type is metric.
     pub instrument: InstrumentSpec,
-    /// The unit in which the metric is measured.
+    /// The unit in which the metric is measured, which should adhere to the
+    /// [guidelines](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-units).
     pub unit: String,
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeOrGroupRef>,
     /// Which resources this metric should be associated with.
+    ///
+    /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
+    /// entity reference or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<EntityAssociation>,
@@ -85,6 +94,9 @@ pub struct MetricRefinement {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeOrGroupRef>,
     /// Which resources this metric should be associated with.
+    ///
+    /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
+    /// entity reference or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<EntityAssociation>,

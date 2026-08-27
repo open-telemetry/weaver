@@ -200,11 +200,14 @@ pub struct EnumEntriesSpec {
     /// String that uniquely identifies the enum entry.
     pub id: String,
     /// String, int, or boolean; value of the enum entry.
+    /// If omitted, defaults to the value of `id`.
     pub value: ValueSpec,
     /// Brief description of the enum entry value.
+    /// It defaults to the value of id.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub brief: Option<String>,
     /// Longer description.
+    /// It defaults to an empty string.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     /// Stability of this enum value.
@@ -225,17 +228,27 @@ pub struct EnumEntriesSpec {
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct EnumEntriesSpecDeserialize {
+    /// String that uniquely identifies the enum entry.
     id: String,
+    /// String, int, or boolean; value of the enum entry.
+    /// If omitted, defaults to the value of `id`.
     value: Option<ValueSpec>,
+    /// Brief description of the enum entry value.
+    /// It defaults to the value of id.
     brief: Option<String>,
+    /// Longer description.
+    /// It defaults to an empty string.
     note: Option<String>,
+    /// Stability of this enum value.
     stability: Option<Stability>,
+    /// Deprecation note.
     #[serde(
         deserialize_with = "crate::deprecated::deserialize_option_deprecated",
         default
     )]
     #[serde(skip_serializing_if = "Option::is_none")]
     deprecated: Option<Deprecated>,
+    /// Annotations for the member.
     annotations: Option<BTreeMap<String, YamlValue>>,
 }
 
@@ -438,16 +451,24 @@ pub struct AttributeRef {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub brief: Option<String>,
     /// Refined sequence of example values for the attribute or single example
-    /// value.
+    /// value. They are required only for string and string array
+    /// attributes. Example values must be of the same type of the
+    /// attribute. If only a single example is provided, it can directly
+    /// be reported without encapsulating it into a sequence/dictionary.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub examples: Option<Examples>,
-    /// Refines the attribute requirement level.
+    /// Refines the attribute requirement level. Can be "required",
+    /// "conditionally_required", "recommended" or "opt_in". When omitted,
+    /// the original attribute requirement level is used. When set to
+    /// "conditionally_required", the string provided as `condition` MUST
+    /// specify the conditions under which the attribute is required.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub requirement_level: Option<RequirementLevel>,
     /// Refines the more elaborate description of the attribute.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
-    /// Additional annotations for the attribute.
+    /// Additional annotations for the attribute. These will be
+    /// merged with annotations from the definition.
     #[serde(default)]
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub annotations: BTreeMap<String, YamlValue>,
@@ -463,7 +484,11 @@ pub struct AttributeDef {
     /// Either a string literal denoting the type as a primitive or an
     /// array type, a template type or an enum definition.
     pub r#type: AttributeType,
-    /// Sequence of example values for the attribute or single example value.
+    /// Sequence of example values for the attribute or single example
+    /// value. They are required only for string and string array
+    /// attributes. Example values must be of the same type of the
+    /// attribute. If only a single example is provided, it can directly
+    /// be reported without encapsulating it into a sequence/dictionary.
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub examples: Option<Examples>,

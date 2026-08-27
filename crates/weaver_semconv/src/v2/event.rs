@@ -27,6 +27,9 @@ pub struct Event {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeOrGroupRef>,
     /// Which resources this event should be associated with.
+    ///
+    /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
+    /// entity reference or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<EntityAssociation>,
@@ -51,6 +54,9 @@ pub struct EventRefinement {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeOrGroupRef>,
     /// Which resources this event should be associated with.
+    ///
+    /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
+    /// entity reference or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<EntityAssociation>,

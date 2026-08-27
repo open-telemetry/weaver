@@ -54,7 +54,8 @@ pub struct CommonFields {
     pub annotations: BTreeMap<String, YamlValue>,
 }
 
-/// A wildcard expression for matching signal groups.
+/// Represents a wildcard expression to import one or several groups defined in an imported
+/// registry.
 #[derive(Debug, Clone, JsonSchema, PartialEq, Eq)]
 pub struct GroupWildcard(#[schemars(with = "String")] pub Glob);
 
