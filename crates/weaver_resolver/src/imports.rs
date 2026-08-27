@@ -905,8 +905,6 @@ impl ImportableDependency for V2Schema {
                                     examples: None,
                                     requirement_level: Some(la.requirement_level.clone()),
                                     note: None,
-                                    stability: None,
-                                    deprecated: None,
                                     annotations: Default::default(),
                                 },
                                 sampling_relevant: la.sampling_relevant,
