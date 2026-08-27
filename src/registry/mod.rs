@@ -82,6 +82,11 @@ pub enum Error {
         error: String,
     },
 
+    /// A matcher applied to no samples.
+    #[error("Matcher `{id}` applied to no samples.")]
+    #[diagnostic(severity(warning))]
+    MatcherNeverFired { id: String },
+
     /// Configuration error (loading or parsing `.weaver.toml`)
     #[error("{error}")]
     Config { error: String },

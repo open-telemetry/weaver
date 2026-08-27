@@ -298,6 +298,42 @@ fn no_matchers_reports_no_unmatched_sample() {
     assert!(!output.contains("unmatched_sample"), "got: {output}");
 }
 
+/// A matcher that applies to no sample is reported, so dead config shows.
+#[test]
+fn a_matcher_that_applies_to_nothing_warns() {
+    let (out, _dir) = run_with_matcher_on_spans(
+        r#"id = "myapp.never"
+sample_type = "span"
+when = 'name == "no-such-span"'"#,
+    );
+    let output = combined(&out);
+    assert!(
+        output.contains("Matcher `myapp.never` applied to no samples."),
+        "got: {output}"
+    );
+}
+
+#[test]
+fn the_statistics_count_what_each_matcher_matched() {
+    let (out, _dir) = run_with_matcher_on_spans(
+        r#"id = "myapp.checkout"
+sample_type = "span"
+when = '"myapp.checkout.id" in attributes'"#,
+    );
+    let output = combined(&out);
+    assert!(!output.contains("applied to no samples"), "got: {output}");
+    // Streaming mode prints a document per sample, then the statistics.
+    let statistics = serde_json::Deserializer::from_slice(&out.stdout)
+        .into_iter::<serde_json::Value>()
+        .last()
+        .expect("something was printed")
+        .expect("the statistics parse");
+    let matchers = &statistics["matchers"];
+    assert_eq!(matchers[0]["id"], "myapp.checkout", "got: {output}");
+    assert_eq!(matchers[0]["matched"], 1, "got: {output}");
+    assert_eq!(matchers[0]["errors"], 0, "got: {output}");
+}
+
 /// A `when` that errors is reported once per matcher, with a count.
 #[test]
 fn a_when_that_errors_at_runtime_warns_once_with_a_count() {

@@ -133,7 +133,7 @@ impl LiveCheckRunner for SampleLog {
         }
 
         let sample_match = live_checker.match_for(SampleType::Log, self, semconv_event.clone());
-        live_checker.record_matcher_errors(&sample_match);
+        live_checker.record_match(&sample_match);
         sample_match.add_findings(
             &SampleRef::Log(self),
             &self.attributes,

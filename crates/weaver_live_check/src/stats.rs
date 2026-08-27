@@ -9,7 +9,7 @@
 use serde::Serialize;
 use std::collections::HashMap;
 
-use crate::{FindingLevel, LiveCheckResult, PolicyFinding, VersionedRegistry};
+use crate::{matcher::Matchers, FindingLevel, LiveCheckResult, PolicyFinding, VersionedRegistry};
 use weaver_semconv::group::GroupType;
 
 /// Cumulative statistics that track all telemetry data
@@ -45,6 +45,21 @@ pub struct CumulativeStatistics {
     pub(crate) seen_non_registry_events: HashMap<String, usize>,
     /// Fraction of the registry covered by the attributes, metrics, and events
     pub(crate) registry_coverage: f32,
+    /// What each configured matcher did, in declaration order
+    pub(crate) matchers: Vec<MatcherStatistics>,
+}
+
+/// What one matcher did over the run
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct MatcherStatistics {
+    /// The matcher `id` from the config
+    pub id: String,
+    /// The number of samples the matcher applied to
+    pub matched: u64,
+    /// The number of samples whose `when` errored
+    pub errors: u64,
+    /// The message from the first sample whose `when` errored
+    pub first_error: Option<String>,
 }
 
 impl CumulativeStatistics {
@@ -69,6 +84,7 @@ impl CumulativeStatistics {
             seen_registry_events: seen_events,
             seen_non_registry_events: HashMap::new(),
             registry_coverage: 0.0,
+            matchers: Vec::new(),
         }
     }
 
@@ -217,8 +233,25 @@ impl CumulativeStatistics {
         self.max_level().is_some_and(|level| level >= threshold)
     }
 
-    /// Finalize the statistics by calculating registry coverage
-    pub(crate) fn finalize(&mut self) {
+    /// Finalize the statistics by calculating registry coverage and
+    /// collecting what each matcher did
+    pub(crate) fn finalize(&mut self, matchers: &Matchers) {
+        self.matchers = matchers
+            .iter()
+            .map(|matcher| {
+                let (errors, first_error) = match matcher.errors() {
+                    Some((count, message)) => (count, Some(message.to_owned())),
+                    None => (0, None),
+                };
+                MatcherStatistics {
+                    id: matcher.id.clone(),
+                    matched: matcher.matched(),
+                    errors,
+                    first_error,
+                }
+            })
+            .collect();
+
         // Calculate the registry coverage
         // (non-zero attributes + non-zero metrics + non-zero events) / (total attributes + total metrics + total events)
         let non_zero_attributes = self
@@ -336,9 +369,9 @@ impl LiveCheckStatistics {
     }
 
     /// Finalize the statistics
-    pub fn finalize(&mut self) {
+    pub fn finalize(&mut self, matchers: &Matchers) {
         if let Self::Cumulative(stats) = self {
-            stats.finalize();
+            stats.finalize(matchers);
         }
     }
 }

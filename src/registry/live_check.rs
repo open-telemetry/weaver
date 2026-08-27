@@ -423,7 +423,7 @@ pub(crate) fn command(
         }
     }
 
-    stats.finalize();
+    stats.finalize(live_checker.matchers());
     // Set exit_code based on the configured --fail-on threshold. `None`
     // threshold means "never fail". `should_fail` returns false for disabled
     // stats; the startup check above warns about --no-stats + non-`none` gates.
@@ -495,6 +495,13 @@ pub(crate) fn command(
                     id: matcher.id.clone(),
                     count,
                     error: error.to_owned(),
+                },
+            )]);
+        }
+        if matcher.matched() == 0 {
+            diag_msgs.extend_from_vec(vec![DiagnosticMessage::new(
+                crate::registry::Error::MatcherNeverFired {
+                    id: matcher.id.clone(),
                 },
             )]);
         }

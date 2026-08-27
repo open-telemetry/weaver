@@ -377,7 +377,7 @@ impl LiveCheckRunner for SampleMetric {
         }
 
         let sample_match = live_checker.match_for(SampleType::Metric, self, semconv_metric.clone());
-        live_checker.record_matcher_errors(&sample_match);
+        live_checker.record_match(&sample_match);
         sample_match.add_findings(
             &SampleRef::Metric(self),
             &[],

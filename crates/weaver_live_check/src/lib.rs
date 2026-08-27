@@ -81,7 +81,7 @@ pub mod text_file_ingester;
 pub mod text_stdin_ingester;
 
 // Re-export statistics types from stats module
-pub use stats::{CumulativeStatistics, DisabledStatistics, LiveCheckStatistics};
+pub use stats::{CumulativeStatistics, DisabledStatistics, LiveCheckStatistics, MatcherStatistics};
 
 /// Attribute key in advice context
 pub const ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: &str = "attribute_key";

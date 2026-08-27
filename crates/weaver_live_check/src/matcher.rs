@@ -52,6 +52,9 @@ pub struct Matcher {
     /// order.
     pub attribute_groups: Vec<String>,
 
+    /// The number of samples the matcher applied to.
+    matched: u64,
+
     /// The number of samples whose `when` errored.
     errors: u64,
 
@@ -92,6 +95,7 @@ impl Matchers {
                 when,
                 signal: config.signal.clone(),
                 attribute_groups: config.attribute_groups.clone(),
+                matched: 0,
                 errors: 0,
                 first_error: None,
             });
@@ -149,18 +153,16 @@ impl Matchers {
             return sample_match;
         }
         let mut seen_attribute_groups: Vec<&str> = Vec::new();
-        for matcher in &self.matchers {
+        for (index, matcher) in self.matchers.iter().enumerate() {
             match matcher.applies_to(sample_type, bindings) {
                 Ok(true) => {}
                 Ok(false) => continue,
                 Err(error) => {
-                    sample_match
-                        .errors
-                        .push((matcher.id.clone(), error.to_string()));
+                    sample_match.errors.push((index, error.to_string()));
                     continue;
                 }
             }
-            sample_match.matched += 1;
+            sample_match.applied.push(index);
             if let Some(signal) = &matcher.signal {
                 if sample_match.signal_matcher.is_none() {
                     sample_match.signal = live_checker.find_signal(signal, sample_type);
@@ -182,11 +184,15 @@ impl Matchers {
         sample_match
     }
 
-    /// Counts the errors a match collected against the matchers that
-    /// raised them.
-    pub fn record_errors(&mut self, sample_match: &SampleMatch) {
-        for (id, message) in &sample_match.errors {
-            if let Some(matcher) = self.matchers.iter_mut().find(|matcher| &matcher.id == id) {
+    /// Counts a match against the matchers that produced it.
+    pub fn record_match(&mut self, sample_match: &SampleMatch) {
+        for &index in &sample_match.applied {
+            if let Some(matcher) = self.matchers.get_mut(index) {
+                matcher.matched = matcher.matched.saturating_add(1);
+            }
+        }
+        for (index, message) in &sample_match.errors {
+            if let Some(matcher) = self.matchers.get_mut(*index) {
                 matcher.record_error(message.clone());
             }
         }
@@ -229,6 +235,12 @@ impl Matcher {
         if self.first_error.is_none() {
             self.first_error = Some(message);
         }
+    }
+
+    /// The number of samples the matcher applied to.
+    #[must_use]
+    pub fn matched(&self) -> u64 {
+        self.matched
     }
 
     /// The number of samples whose `when` errored, with the first message.
@@ -283,18 +295,19 @@ pub struct SampleMatch {
     /// Matchers whose `signal` was ignored because `signal_matcher` came first.
     pub conflicts: Vec<String>,
 
-    /// How many matchers applied.
-    pub matched: usize,
+    /// The matchers that applied, as indices into the configured matchers.
+    pub applied: Vec<usize>,
 
-    /// Matchers whose `when` errored on this sample, with the message.
-    pub errors: Vec<(String, String)>,
+    /// The matchers whose `when` errored on this sample, as indices into the
+    /// configured matchers, with the message.
+    pub errors: Vec<(usize, String)>,
 }
 
 impl SampleMatch {
     /// Whether the sample matched no matcher and has no signal.
     #[must_use]
     pub fn is_unmatched(&self) -> bool {
-        self.matched == 0 && self.signal.is_none()
+        self.applied.is_empty() && self.signal.is_none()
     }
 
     /// The definition this match holds for an attribute, from the signal
@@ -951,7 +964,7 @@ sample_type = "span"
 
     mod sample_match {
         use super::*;
-        use crate::sample_span::SampleSpan;
+        use crate::{sample_span::SampleSpan, CumulativeStatistics, LiveCheckStatistics};
 
         fn matchers(toml_str: &str) -> Matchers {
             Matchers::compile(&matcher_configs(toml_str)).expect("they compile")
@@ -990,17 +1003,22 @@ sample_type = "span"
         /// Compares a sample and records the errors, as the sample path does.
         fn compare_and_record(live_checker: &mut LiveChecker, sample: &SampleSpan) -> SampleMatch {
             let sample_match = live_checker.match_for(SampleType::Span, sample, None);
-            live_checker.record_matcher_errors(&sample_match);
+            live_checker.record_match(&sample_match);
             sample_match
         }
 
-        /// The errors recorded against the one matcher.
-        fn recorded(live_checker: &LiveChecker) -> Option<(u64, String)> {
+        /// The one matcher.
+        fn only_matcher(live_checker: &LiveChecker) -> &Matcher {
             live_checker
                 .matchers()
                 .iter()
                 .next()
                 .expect("there is one matcher")
+        }
+
+        /// The errors recorded against the one matcher.
+        fn recorded(live_checker: &LiveChecker) -> Option<(u64, String)> {
+            only_matcher(live_checker)
                 .errors()
                 .map(|(count, message)| (count, message.to_owned()))
         }
@@ -1022,7 +1040,7 @@ when = 'instrumentation_scope.name == "myapp"'
         fn a_matched_span_takes_the_signal_its_matcher_names() {
             let matchers = matchers(include_str!("../fixtures/cel/span-checkout/matchers.toml"));
             let sample_match = match_for(&matchers, &checkout_span());
-            assert_eq!(sample_match.matched, 1);
+            assert_eq!(sample_match.applied.len(), 1);
             assert_eq!(
                 sample_match.signal_matcher.as_deref(),
                 Some("myapp.checkout")
@@ -1035,7 +1053,7 @@ when = 'instrumentation_scope.name == "myapp"'
         fn a_span_that_matches_nothing_resolves_to_nothing() {
             let matchers = matchers(include_str!("../fixtures/cel/span-checkout/matchers.toml"));
             let sample_match = match_for(&matchers, &other_span());
-            assert_eq!(sample_match.matched, 0);
+            assert!(sample_match.applied.is_empty());
             assert!(sample_match.signal.is_none());
             assert!(sample_match.signal_matcher.is_none());
         }
@@ -1051,7 +1069,7 @@ when = 'instrumentation_scope.name == "myapp"'
                 &live_checker,
             );
             assert!(sample_match.signal.is_some());
-            assert_eq!(sample_match.matched, 0);
+            assert!(sample_match.applied.is_empty());
             assert!(sample_match.signal_matcher.is_none());
         }
 
@@ -1093,7 +1111,7 @@ signal = "myapp.checkout"
 "#,
             );
             let sample_match = match_for(&matchers, &checkout_span());
-            assert_eq!(sample_match.matched, 2);
+            assert_eq!(sample_match.applied.len(), 2);
             assert_eq!(sample_match.signal_matcher.as_deref(), Some("myapp.first"));
             assert_eq!(sample_match.conflicts, ["myapp.second"]);
         }
@@ -1114,7 +1132,7 @@ attribute_groups = ["myapp.common"]
 "#,
             );
             let sample_match = match_for(&matchers, &checkout_span());
-            assert_eq!(sample_match.matched, 2);
+            assert_eq!(sample_match.applied.len(), 2);
             assert_eq!(sample_match.attribute_groups.len(), 1);
             assert!(sample_match.signal.is_none());
         }
@@ -1132,7 +1150,7 @@ attribute_groups = ["myapp.common"]
             );
             let sample_match =
                 matchers.match_for(SampleType::Span, &checkout_span(), None, &live_checker);
-            assert_eq!(sample_match.matched, 0);
+            assert!(sample_match.applied.is_empty());
             assert!(sample_match.attribute_groups.is_empty());
         }
 
@@ -1142,7 +1160,7 @@ attribute_groups = ["myapp.common"]
             let mut live_checker = checker_with(ERRORING);
             let sample_match = compare_and_record(&mut live_checker, &span_without_scope());
 
-            assert_eq!(sample_match.matched, 0);
+            assert!(sample_match.applied.is_empty());
             assert_eq!(sample_match.errors.len(), 1);
 
             let (count, message) = recorded(&live_checker).expect("it errored");
@@ -1158,6 +1176,55 @@ attribute_groups = ["myapp.common"]
                 let _ = compare_and_record(&mut live_checker, &span);
             }
             assert_eq!(recorded(&live_checker).expect("it errored").0, 3);
+        }
+
+        const CHECKOUT: &str = include_str!("../fixtures/cel/span-checkout/matchers.toml");
+
+        #[test]
+        fn the_match_count_covers_every_sample() {
+            let mut live_checker = checker_with(CHECKOUT);
+            let span = checkout_span();
+            for _ in 0..3 {
+                let _ = compare_and_record(&mut live_checker, &span);
+            }
+            assert_eq!(only_matcher(&live_checker).matched(), 3);
+        }
+
+        #[test]
+        fn a_matcher_that_applies_to_nothing_counts_no_matches() {
+            let mut live_checker = checker_with(CHECKOUT);
+            let _ = compare_and_record(&mut live_checker, &other_span());
+            assert_eq!(only_matcher(&live_checker).matched(), 0);
+        }
+
+        /// A `when` that errors is not a match.
+        #[test]
+        fn a_matcher_that_only_errors_counts_no_matches() {
+            let mut live_checker = checker_with(ERRORING);
+            let _ = compare_and_record(&mut live_checker, &span_without_scope());
+            let matcher = only_matcher(&live_checker);
+            assert_eq!(matcher.matched(), 0);
+            assert_eq!(matcher.errors().expect("it errored").0, 1);
+        }
+
+        #[test]
+        fn the_statistics_carry_what_each_matcher_did() {
+            let mut live_checker = checker_with(CHECKOUT);
+            let _ = compare_and_record(&mut live_checker, &checkout_span());
+            let _ = compare_and_record(&mut live_checker, &other_span());
+
+            let mut stats =
+                LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+            stats.finalize(live_checker.matchers());
+
+            let LiveCheckStatistics::Cumulative(stats) = stats else {
+                panic!("cumulative statistics");
+            };
+            assert_eq!(stats.matchers.len(), 1);
+            assert_eq!(stats.matchers[0].id, "myapp.checkout");
+            assert_eq!(stats.matchers[0].matched, 1);
+            assert_eq!(stats.matchers[0].errors, 0);
+            assert!(stats.matchers[0].first_error.is_none());
         }
 
         /// The finding ids a match raises for a sample.
@@ -1648,7 +1715,7 @@ attribute_groups = ["myapp.common"]
             let live_checker = v1_live_checker();
             let sample_match = SampleMatch {
                 signal: Some(Rc::new(VersionedSignal::Group(Box::new(v1_group())))),
-                matched: 1,
+                applied: vec![0],
                 ..SampleMatch::default()
             };
             let sample = checkout_span();

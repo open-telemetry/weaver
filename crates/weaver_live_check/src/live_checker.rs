@@ -293,12 +293,9 @@ impl LiveChecker {
         }
     }
 
-    /// Counts the errors a match collected against the matchers that
-    /// raised them
-    pub fn record_matcher_errors(&mut self, sample_match: &SampleMatch) {
-        if !sample_match.errors.is_empty() {
-            self.matchers.record_errors(sample_match);
-        }
+    /// Counts a match against the matchers that produced it
+    pub fn record_match(&mut self, sample_match: &SampleMatch) {
+        self.matchers.record_match(sample_match);
     }
 
     /// The signal and attribute groups to compare a sample with
@@ -568,7 +565,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
 
         let all_advice = get_all_advice(&mut samples[0]);
         assert!(all_advice.is_empty());
@@ -1474,7 +1471,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
 
         let all_advice = get_all_advice(&mut samples[0]);
         assert!(all_advice.is_empty());
@@ -1559,7 +1556,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
 
         // Check the statistics
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
@@ -1626,7 +1623,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
 
         // Check the statistics
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
@@ -1679,7 +1676,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
 
         // Check the statistics
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
@@ -1767,7 +1764,7 @@ mod tests {
 
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
                 cumulative_stats
@@ -1817,7 +1814,7 @@ mod tests {
 
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
 
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
@@ -2110,7 +2107,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
 
         // Check the statistics
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
@@ -2254,7 +2251,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
                 cumulative_stats
@@ -2338,7 +2335,7 @@ mod tests {
         let result = sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
 
         assert!(result.is_ok());
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
                 cumulative_stats.advice_type_counts.get("low_value"),
@@ -2392,7 +2389,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
                 cumulative_stats

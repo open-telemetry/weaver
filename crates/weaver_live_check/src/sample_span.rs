@@ -83,9 +83,9 @@ impl LiveCheckRunner for SampleSpan {
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         let sample_match = live_checker.match_for(SampleType::Span, self, None);
-        live_checker.record_matcher_errors(&sample_match);
+        live_checker.record_match(&sample_match);
         // A matched span replaces the match passed down.
-        let sample_match = if sample_match.signal.is_some() || sample_match.matched > 0 {
+        let sample_match = if sample_match.signal.is_some() || !sample_match.applied.is_empty() {
             Rc::new(sample_match)
         } else {
             parent.unwrap_or_else(|| Rc::new(sample_match))

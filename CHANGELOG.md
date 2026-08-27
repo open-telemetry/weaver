@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Live-check statistics now count the samples each matcher applied to, alongside its runtime error count. A matcher that applied to no samples is reported as a warning. ([#1721](https://github.com/open-telemetry/weaver/pull/1721) by @jerbly)
 - Fix live-check reading the base definition of an attribute that its signal refines, so a refined `stability`, `deprecated` or `annotations` was ignored. v2 registries only. ([#1721](https://github.com/open-telemetry/weaver/pull/1721) by @jerbly)
 - Add `search_all_attributes` to `[live-check]`, which searches the base attribute definitions of the registry and its dependencies for an attribute that is on neither the matched signal nor its attribute groups. `unexpected_attribute` then names every schema url that declares it. Without it, the attributes of a sample that matched no matcher are not checked. Off by default. ([#1721](https://github.com/open-telemetry/weaver/pull/1721) by @jerbly)
 - Add `unexpected_attribute`, raised when a matched sample carries an attribute that is on neither its signal nor the `attribute_groups` a matcher added. v2 registries only. ([#1721](https://github.com/open-telemetry/weaver/pull/1721) by @jerbly)
