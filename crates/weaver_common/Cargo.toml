@@ -45,7 +45,7 @@ zip.workspace = true
 
 [dev-dependencies]
 axum.workspace = true
-rustls = { version = "0.23.40", default-features = false, features = ["ring", "std", "tls12"] }
+rustls = { workspace = true, features = ["ring"] }
 tokio.workspace = true
 tower-http = { version = "0.6", features = ["fs"] }
 ureq.workspace = true
