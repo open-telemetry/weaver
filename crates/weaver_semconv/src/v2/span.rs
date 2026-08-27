@@ -62,8 +62,8 @@ pub fn split_span_attributes_and_groups(
 /// Declares a link from this span to another span.
 ///
 /// Span links model relations that do not fit the parent/child tree,
-/// for example a batch consumer span that links to the producer span
-/// of each message it processes.
+/// for example a batch consumer span that links to the creation
+/// context of each message it processes.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]

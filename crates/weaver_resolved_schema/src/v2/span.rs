@@ -62,8 +62,8 @@ pub struct Span {
 /// A resolved link from this span to another span.
 ///
 /// Span links model relations that do not fit the parent/child tree,
-/// for example a batch consumer span that links to the producer span
-/// of each message it processes.
+/// for example a batch consumer span that links to the creation
+/// context of each message it processes.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]

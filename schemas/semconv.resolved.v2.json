@@ -1530,7 +1530,7 @@
       ]
     },
     "SpanLink": {
-      "description": "A resolved link from this span to another span.\n\nSpan links model relations that do not fit the parent/child tree,\nfor example a batch consumer span that links to the producer span\nof each message it processes.",
+      "description": "A resolved link from this span to another span.\n\nSpan links model relations that do not fit the parent/child tree,\nfor example a batch consumer span that links to the creation\ncontext of each message it processes.",
       "type": "object",
       "properties": {
         "attributes": {
