@@ -9,10 +9,10 @@ use opentelemetry::{
     KeyValue,
 };
 use weaver_forge::{
-    registry::ResolvedRegistry,
+    v1::registry::ResolvedRegistry,
     v2::{registry::ForgeResolvedRegistry, span::SpanAttribute},
 };
-use weaver_semconv::group::{GroupType, SpanKindSpec};
+use weaver_semconv::v1::group::{GroupType, SpanKindSpec};
 
 // TODO These constants should be replaced with official semconvs when available.
 const WEAVER_EMIT_SPAN: &str = "otel.weaver.emit";
@@ -68,10 +68,11 @@ pub(crate) fn emit_trace_for_registry_v2(registry: &ForgeResolvedRegistry, regis
 
         // Emit each span to the OTLP receiver.
         for span in registry.registry.spans.iter() {
+            let kind = weaver_semconv::convert::v1_v2::v2_span_kind_to_v1(span.kind);
             let _span =
                 tracer
                     .span_builder(span.r#type.to_string())
-                    .with_kind(otel_span_kind(Some(&span.kind)))
+                    .with_kind(otel_span_kind(Some(&kind)))
                     .with_attributes(span.attributes.iter().map(|span_attr: &SpanAttribute| {
                         get_attribute_name_value_v2(&span_attr.base)
                     }))

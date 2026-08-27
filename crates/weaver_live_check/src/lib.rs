@@ -22,11 +22,13 @@ use serde::{Deserialize, Serialize};
 use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::{
-    registry::{ResolvedGroup, ResolvedRegistry},
+    v1::registry::{ResolvedGroup, ResolvedRegistry},
     v2::registry::ForgeResolvedRegistry,
 };
 use weaver_semconv::{
-    attribute::AttributeType, deprecated::Deprecated, group::InstrumentSpec, stability::Stability,
+    deprecated::Deprecated,
+    stability::Stability,
+    v1::{attribute::AttributeType, group::InstrumentSpec},
 };
 
 /// Advisors for live checks
@@ -119,7 +121,7 @@ pub enum VersionedRegistry {
 #[serde(untagged)]
 pub enum VersionedAttribute {
     /// v1 Attribute
-    V1(weaver_resolved_schema::attribute::Attribute),
+    V1(weaver_resolved_schema::v1::attribute::Attribute),
     /// v2 Attribute
     V2(weaver_forge::v2::attribute::Attribute),
 }
@@ -136,10 +138,12 @@ impl VersionedAttribute {
 
     /// Get the type of the attribute
     #[must_use]
-    pub fn r#type(&self) -> &AttributeType {
+    pub fn r#type(&self) -> AttributeType {
         match self {
-            VersionedAttribute::V1(attr) => &attr.r#type,
-            VersionedAttribute::V2(attr) => &attr.r#type,
+            VersionedAttribute::V1(attr) => attr.r#type.clone(),
+            VersionedAttribute::V2(attr) => {
+                weaver_semconv::convert::v1_v2::v2_attribute_type_to_v1(attr.r#type.clone())
+            }
         }
     }
 
@@ -201,10 +205,12 @@ impl VersionedSignal {
 
     /// Get the instrument field of the signal, if applicable
     #[must_use]
-    pub fn instrument(&self) -> Option<&InstrumentSpec> {
+    pub fn instrument(&self) -> Option<InstrumentSpec> {
         match self {
-            VersionedSignal::Group(group) => group.as_ref().instrument.as_ref(),
-            VersionedSignal::Metric(metric) => Some(&metric.instrument),
+            VersionedSignal::Group(group) => group.as_ref().instrument.clone(),
+            VersionedSignal::Metric(metric) => {
+                Some(weaver_semconv::convert::v1_v2::v2_instrument_to_v1(metric.instrument))
+            }
             VersionedSignal::Span(_) => None,
             VersionedSignal::Event(_) => None,
         }

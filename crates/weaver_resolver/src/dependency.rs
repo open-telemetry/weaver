@@ -11,18 +11,19 @@
 //! [`crate::imports`], which resolves an attribute's origin registry with the
 //! same helpers used here.
 
-use weaver_resolved_schema::registry::Group;
+use weaver_resolved_schema::v1::attribute::UnresolvedAttribute;
+use weaver_resolved_schema::v1::registry::Group;
+use weaver_resolved_schema::v1::ResolvedTelemetrySchema as V1Schema;
 use weaver_resolved_schema::v2::entity::Entity;
 use weaver_resolved_schema::v2::provenance::DependencyRef;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
-use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
-use weaver_resolved_schema::{attribute::UnresolvedAttribute, v2::Signal};
-use weaver_semconv::attribute::{AttributeRole, RequirementLevel};
+use weaver_resolved_schema::v2::Signal;
 use weaver_semconv::deprecated::Deprecated;
-use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::stability::Stability;
+use weaver_semconv::v1::attribute::{AttributeRole, RequirementLevel};
+use weaver_semconv::v1::group::{GroupType, InstrumentSpec, SpanKindSpec};
 
 use crate::attribute::AttributeSource;
 use crate::dependency_resolution::is_excluded;
@@ -60,7 +61,7 @@ pub(crate) struct GroupSummary {
     pub span_kind: Option<SpanKindSpec>,
     /// The v2 span name specification, inherited by refinements that do not
     /// override it.
-    pub span_name: Option<weaver_semconv::v2::span::SpanName>,
+    pub span_name: Option<weaver_semconv::v1::group::SpanName>,
     /// The attributes from this group before being completely resolved to a catalog.
     pub attributes: Vec<UnresolvedAttribute>,
     /// The annotations of the group.
@@ -245,7 +246,7 @@ impl GroupRefinementLookup for V1Schema {
                             AttributeSource::Local { .. } => url.clone(),
                         }
                     }),
-                    spec: weaver_semconv::attribute::AttributeSpec::Id {
+                    spec: weaver_semconv::v1::attribute::AttributeSpec::Id {
                         id: a.name.clone(),
                         r#type: a.r#type.clone(),
                         brief: Some(a.brief.clone()),
@@ -360,11 +361,14 @@ fn attr_spec(
 ) -> UnresolvedAttribute {
     UnresolvedAttribute {
         origin: Some(v2_source_url(schema, deps, a.provenance.source)),
-        spec: weaver_semconv::attribute::AttributeSpec::Id {
+        spec: weaver_semconv::v1::attribute::AttributeSpec::Id {
             id: a.key.clone(),
-            r#type: a.r#type.clone(),
+            r#type: weaver_semconv::convert::v1_v2::v2_attribute_type_to_v1(a.r#type.clone()),
             brief: Some(a.common.brief.clone()),
-            examples: a.examples.clone(),
+            examples: a
+                .examples
+                .clone()
+                .map(weaver_semconv::convert::v1_v2::v2_examples_to_v1),
             tag: None,
             requirement_level,
             sampling_relevant,
@@ -422,7 +426,9 @@ fn entity_group_summary(schema: &V2Schema, deps: &[SchemaUrl], e: &Entity) -> Gr
                     schema,
                     deps,
                     a,
-                    ar.requirement_level.clone(),
+                    weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                        ar.requirement_level.clone(),
+                    ),
                     None,
                     Some(role),
                 )
@@ -462,7 +468,16 @@ impl GroupRefinementLookup for V2Schema {
                 .iter()
                 .filter_map(|ar| {
                     self.attribute_catalog.get(ar.base.0 as usize).map(|a| {
-                        attr_spec(self, &deps, a, ar.requirement_level.clone(), None, None)
+                        attr_spec(
+                            self,
+                            &deps,
+                            a,
+                            weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                                ar.requirement_level.clone(),
+                            ),
+                            None,
+                            None,
+                        )
                     })
                 })
                 .collect();
@@ -473,7 +488,8 @@ impl GroupRefinementLookup for V2Schema {
                 attributes,
             );
             summary.metric_name = Some(m.name.to_string());
-            summary.instrument = Some(m.instrument.clone());
+            summary.instrument =
+                Some(weaver_semconv::convert::v1_v2::v2_instrument_to_v1(m.instrument));
             summary.unit = Some(m.unit.clone());
             return Some(summary);
         }
@@ -483,7 +499,16 @@ impl GroupRefinementLookup for V2Schema {
                 .iter()
                 .filter_map(|ar| {
                     self.attribute_catalog.get(ar.base.0 as usize).map(|a| {
-                        attr_spec(self, &deps, a, ar.requirement_level.clone(), None, None)
+                        attr_spec(
+                            self,
+                            &deps,
+                            a,
+                            weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                                ar.requirement_level.clone(),
+                            ),
+                            None,
+                            None,
+                        )
                     })
                 })
                 .collect();
@@ -504,7 +529,9 @@ impl GroupRefinementLookup for V2Schema {
                             self,
                             &deps,
                             a,
-                            ar.requirement_level.clone(),
+                            weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                                ar.requirement_level.clone(),
+                            ),
                             ar.sampling_relevant,
                             None,
                         )
@@ -517,8 +544,10 @@ impl GroupRefinementLookup for V2Schema {
                 s.requirement_level.clone(),
                 attributes,
             );
-            summary.span_kind = Some(s.kind.clone());
-            summary.span_name = Some(s.name.clone());
+            summary.span_kind =
+                Some(weaver_semconv::convert::v1_v2::v2_span_kind_to_v1(s.kind));
+            summary.span_name =
+                Some(weaver_semconv::convert::v1_v2::v2_span_name_to_v1(s.name.clone()));
             return Some(summary);
         }
         None
@@ -547,7 +576,7 @@ impl From<V2Schema> for ResolvedDependency {
 pub(crate) mod tests {
     use itertools::Itertools;
     use std::{collections::HashMap, error::Error};
-    use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
+    use weaver_resolved_schema::v1::ResolvedTelemetrySchema as V1Schema;
 
     use crate::dependency::{GroupRefinementLookup, ResolvedDependency};
 
@@ -581,20 +610,20 @@ pub(crate) mod tests {
             file_format: "resolved/1.0.0".to_owned(),
             schema_url: "http://test/schemas/1.0.0".to_owned(),
             registry_id: "test-registry".to_owned(),
-            registry: weaver_resolved_schema::registry::Registry {
+            registry: weaver_resolved_schema::v1::registry::Registry {
                 registry_url: "v1-example".to_owned(),
                 entity_association_origins: Default::default(),
                 groups: vec![
-                    weaver_resolved_schema::registry::Group {
+                    weaver_resolved_schema::v1::registry::Group {
                         id: "a".to_owned(),
-                        r#type: weaver_semconv::group::GroupType::AttributeGroup,
+                        r#type: weaver_semconv::v1::group::GroupType::AttributeGroup,
                         brief: Default::default(),
                         note: Default::default(),
                         prefix: Default::default(),
                         extends: Default::default(),
                         stability: Default::default(),
                         deprecated: Default::default(),
-                        attributes: vec![weaver_resolved_schema::attribute::AttributeRef(0)],
+                        attributes: vec![weaver_resolved_schema::v1::attribute::AttributeRef(0)],
                         span_kind: Default::default(),
                         events: Default::default(),
                         metric_name: Default::default(),
@@ -611,9 +640,9 @@ pub(crate) mod tests {
                         is_v2: Default::default(),
                         span_name: None,
                     },
-                    weaver_resolved_schema::registry::Group {
+                    weaver_resolved_schema::v1::registry::Group {
                         id: "span.v1".to_owned(),
-                        r#type: weaver_semconv::group::GroupType::Span,
+                        r#type: weaver_semconv::v1::group::GroupType::Span,
                         brief: Default::default(),
                         note: Default::default(),
                         prefix: Default::default(),
@@ -621,7 +650,7 @@ pub(crate) mod tests {
                         stability: Default::default(),
                         deprecated: Default::default(),
                         attributes: vec![],
-                        span_kind: Some(weaver_semconv::group::SpanKindSpec::Client),
+                        span_kind: Some(weaver_semconv::v1::group::SpanKindSpec::Client),
                         events: Default::default(),
                         metric_name: Default::default(),
                         instrument: Default::default(),
@@ -639,11 +668,11 @@ pub(crate) mod tests {
                     },
                 ],
             },
-            catalog: weaver_resolved_schema::catalog::Catalog::new(
-                vec![weaver_resolved_schema::attribute::Attribute {
+            catalog: weaver_resolved_schema::v1::catalog::Catalog::new(
+                vec![weaver_resolved_schema::v1::attribute::Attribute {
                     name: "a.test".to_owned(),
-                    r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                        weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                    r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                        weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String,
                     ),
                     brief: Default::default(),
                     examples: Default::default(),
@@ -684,8 +713,8 @@ pub(crate) mod tests {
                             weaver_resolved_schema::v2::attribute_group::AttributeGroupAttributeRef {
                                 base: weaver_resolved_schema::v2::attribute::AttributeRef(0),
                                 requirement_level:
-                                    weaver_semconv::attribute::RequirementLevel::Basic(
-                                        weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                                    weaver_semconv::v2::attribute::RequirementLevel::Basic(
+                                        weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
                                     ),
                             },
                         ],
@@ -695,7 +724,7 @@ pub(crate) mod tests {
                 ],
                 metrics: vec![weaver_resolved_schema::v2::metric::Metric {
                     name: "metric.a".to_owned().into(),
-                    instrument: weaver_semconv::group::InstrumentSpec::Counter,
+                    instrument: weaver_semconv::v2::metric::InstrumentSpec::Counter,
                     unit: "1".to_owned(),
                     attributes: vec![],
                     entity_associations: vec![
@@ -719,7 +748,7 @@ pub(crate) mod tests {
                 }],
                 spans: vec![weaver_resolved_schema::v2::span::Span {
                     r#type: "span.d".to_owned().into(),
-                    kind: weaver_semconv::group::SpanKindSpec::Client,
+                    kind: weaver_semconv::v2::span::SpanKindSpec::Client,
                     name: weaver_semconv::v2::span::SpanName {
                         note: "test".to_owned(),
                     },
@@ -750,8 +779,8 @@ pub(crate) mod tests {
             attribute_catalog: vec![
                 weaver_resolved_schema::v2::attribute::Attribute {
                     key: "attr.in.group".to_owned(),
-                    r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                        weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                    r#type: weaver_semconv::v2::attribute::AttributeType::PrimitiveOrArray(
+                        weaver_semconv::v2::attribute::PrimitiveOrArrayTypeSpec::String,
                     ),
                     examples: None,
                     common: Default::default(),
@@ -759,8 +788,8 @@ pub(crate) mod tests {
                 },
                 weaver_resolved_schema::v2::attribute::Attribute {
                     key: "entity.c.id".to_owned(),
-                    r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                        weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                    r#type: weaver_semconv::v2::attribute::AttributeType::PrimitiveOrArray(
+                        weaver_semconv::v2::attribute::PrimitiveOrArrayTypeSpec::String,
                     ),
                     examples: None,
                     common: Default::default(),
@@ -768,8 +797,8 @@ pub(crate) mod tests {
                 },
                 weaver_resolved_schema::v2::attribute::Attribute {
                     key: "entity.c.label".to_owned(),
-                    r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                        weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                    r#type: weaver_semconv::v2::attribute::AttributeType::PrimitiveOrArray(
+                        weaver_semconv::v2::attribute::PrimitiveOrArrayTypeSpec::String,
                     ),
                     examples: None,
                     common: Default::default(),
@@ -794,36 +823,36 @@ pub(crate) mod tests {
         assert!(result_metric.is_some(), "Should find metric.a");
         assert_eq!(
             result_metric.unwrap().r#type,
-            weaver_semconv::group::GroupType::Metric
+            weaver_semconv::v1::group::GroupType::Metric
         );
 
         let result_event = d.lookup_group_summary("event.b");
         assert!(result_event.is_some(), "Should find event.b");
         assert_eq!(
             result_event.unwrap().r#type,
-            weaver_semconv::group::GroupType::Event
+            weaver_semconv::v1::group::GroupType::Event
         );
 
         let result_entity = d.lookup_group_summary("entity.c");
         assert!(result_entity.is_some(), "Should find entity.c");
         assert_eq!(
             result_entity.unwrap().r#type,
-            weaver_semconv::group::GroupType::Entity
+            weaver_semconv::v1::group::GroupType::Entity
         );
 
         let result_span = d.lookup_group_summary("span.d");
         assert!(result_span.is_some(), "Should find span.d");
         let span_summary = result_span.unwrap();
-        assert_eq!(span_summary.r#type, weaver_semconv::group::GroupType::Span);
+        assert_eq!(span_summary.r#type, weaver_semconv::v1::group::GroupType::Span);
         assert_eq!(
             span_summary.span_kind,
-            Some(weaver_semconv::group::SpanKindSpec::Client)
+            Some(weaver_semconv::v1::group::SpanKindSpec::Client)
         );
         // The span name (with its note) is carried over so refinements that do
         // not override it inherit the dependency's definition.
         assert_eq!(
             span_summary.span_name,
-            Some(weaver_semconv::v2::span::SpanName {
+            Some(weaver_semconv::v1::group::SpanName {
                 note: "test".to_owned(),
             })
         );

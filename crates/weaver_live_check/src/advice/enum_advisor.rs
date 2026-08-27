@@ -5,7 +5,7 @@
 use serde_json::json;
 use std::rc::Rc;
 use weaver_checker::{FindingLevel, PolicyFinding};
-use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec, ValueSpec};
+use weaver_semconv::v1::attribute::{AttributeType, PrimitiveOrArrayTypeSpec, ValueSpec};
 
 use super::{Advisor, FindingBuilder};
 use crate::{

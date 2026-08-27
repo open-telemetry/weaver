@@ -7,10 +7,10 @@ use crate::attributes::get_attribute_name_value_v2;
 use opentelemetry::global;
 use opentelemetry::metrics::Meter;
 use opentelemetry::KeyValue;
-use weaver_forge::registry::ResolvedRegistry;
+use weaver_forge::v1::registry::ResolvedRegistry;
 use weaver_forge::v2::registry::ForgeResolvedRegistry;
-use weaver_semconv::group::GroupType;
-use weaver_semconv::group::InstrumentSpec;
+use weaver_semconv::v1::group::GroupType;
+use weaver_semconv::v1::group::InstrumentSpec;
 
 /// Emit a single metric using the provided instrument spec
 fn emit_metric(
@@ -94,7 +94,7 @@ pub(crate) fn emit_metrics_for_registry_v2(registry: &ForgeResolvedRegistry) {
 
     // Emit each metric to the OTLP receiver.
     for metric in registry.registry.metrics.iter() {
-        let instrument = &metric.instrument;
+        let instrument = weaver_semconv::convert::v1_v2::v2_instrument_to_v1(metric.instrument);
         let metric_name = metric.name.to_string();
         let unit = metric.unit.clone();
         let description = metric.common.brief.clone();
@@ -107,7 +107,7 @@ pub(crate) fn emit_metrics_for_registry_v2(registry: &ForgeResolvedRegistry) {
 
         emit_metric(
             &meter,
-            instrument,
+            &instrument,
             metric_name,
             unit,
             description,

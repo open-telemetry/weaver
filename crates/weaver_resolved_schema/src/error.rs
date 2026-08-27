@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::attribute::AttributeRef;
+use crate::v1::attribute::AttributeRef;
 use crate::error::Error::{
     AttributeNotFound, CompoundError, EntityAssociationNotFound, EventNameNotFound,
     InvalidSchemaUrl, RefinementBaseNotFound,

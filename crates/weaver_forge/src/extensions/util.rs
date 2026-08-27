@@ -239,7 +239,7 @@ mod tests {
     use crate::v2::registry::{ForgeResolvedRegistry, Refinements, Registry};
     use minijinja::Environment;
     use serde_yaml::{Mapping, Number, Value};
-    use weaver_semconv::attribute::{
+    use weaver_semconv::v2::attribute::{
         AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
     };
     use weaver_semconv::v2::CommonFields;

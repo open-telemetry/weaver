@@ -3,10 +3,13 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
-    attribute::RequirementLevel,
-    group::SpanKindSpec,
     signal_requirement_level::SignalRequirementLevel,
-    v2::{signal_id::SignalId, span::SpanName, CommonFields},
+    v2::{
+        attribute::RequirementLevel,
+        signal_id::SignalId,
+        span::{SpanKindSpec, SpanName},
+        CommonFields,
+    },
 };
 
 use crate::v2::{

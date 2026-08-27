@@ -11,17 +11,16 @@ use weaver_live_check::sample_metric::{SampleInstrument, SampleMetric};
 use weaver_live_check::sample_resource::SampleResource;
 use weaver_live_check::sample_span::SampleSpan;
 use weaver_live_check::Sample;
-use weaver_semconv::attribute::{
-    AttributeSpec, AttributeType, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel,
-};
-use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
 use weaver_semconv::stability::Stability;
 use weaver_semconv::v2::{
-    attribute::{AttributeDef, AttributeOrGroupRef, AttributeRef},
+    attribute::{
+        AttributeDef, AttributeOrGroupRef, AttributeRef, AttributeType, Examples,
+        PrimitiveOrArrayTypeSpec,
+    },
     event::Event,
-    metric::Metric,
+    metric::{InstrumentSpec, Metric},
     signal_id::SignalId,
-    span::{Span, SpanAttributeOrGroupRef, SpanAttributeRef, SpanName},
+    span::{Span, SpanAttributeOrGroupRef, SpanAttributeRef, SpanKindSpec, SpanName},
     CommonFields, SemConvSpecV2,
 };
 
@@ -30,7 +29,7 @@ const MAX_EXAMPLES: usize = 5;
 struct AccumulatedSpan {
     name: String,
     kind: SpanKindSpec,
-    attributes: HashMap<String, AttributeSpec>,
+    attributes: HashMap<String, AttributeDef>,
     events: HashMap<String, AccumulatedEvent>,
 }
 
@@ -49,7 +48,7 @@ struct AccumulatedMetric {
     name: String,
     instrument: InstrumentSpec,
     unit: String,
-    attributes: HashMap<String, AttributeSpec>,
+    attributes: HashMap<String, AttributeDef>,
 }
 
 impl AccumulatedMetric {
@@ -65,7 +64,7 @@ impl AccumulatedMetric {
 
 struct AccumulatedEvent {
     name: String,
-    attributes: HashMap<String, AttributeSpec>,
+    attributes: HashMap<String, AttributeDef>,
 }
 
 impl AccumulatedEvent {
@@ -80,7 +79,7 @@ impl AccumulatedEvent {
 /// Accumulates telemetry samples into inferred semantic convention groups.
 #[derive(Default)]
 pub struct AccumulatedSamples {
-    resources: HashMap<String, AttributeSpec>,
+    resources: HashMap<String, AttributeDef>,
     spans: HashMap<String, AccumulatedSpan>,
     metrics: HashMap<String, AccumulatedMetric>,
     events: HashMap<String, AccumulatedEvent>,
@@ -119,10 +118,11 @@ impl AccumulatedSamples {
     }
 
     fn add_span(&mut self, span: SampleSpan) {
+        let kind = weaver_semconv::convert::v1_v2::v1_span_kind_to_v2(span.kind);
         let entry = self
             .spans
             .entry(span.name.clone())
-            .or_insert_with(|| AccumulatedSpan::new(span.name.clone(), span.kind.clone()));
+            .or_insert_with(|| AccumulatedSpan::new(span.name.clone(), kind));
 
         for attr in span.attributes {
             accumulate_attribute(&mut entry.attributes, attr);
@@ -144,7 +144,9 @@ impl AccumulatedSamples {
     fn add_metric(&mut self, metric: SampleMetric) {
         // Skip unsupported instrument types (e.g., Summary, Unspecified) - we can't infer a schema for them
         let instrument = match &metric.instrument {
-            SampleInstrument::Supported(i) => i.clone(),
+            SampleInstrument::Supported(i) => {
+                weaver_semconv::convert::v1_v2::v1_instrument_to_v2(i.clone())
+            }
             SampleInstrument::Unsupported(_) => return,
         };
 
@@ -242,7 +244,7 @@ impl AccumulatedSamples {
 
                 Span {
                     r#type: SignalId::from(span.name.clone()),
-                    kind: span.kind.clone(),
+                    kind: span.kind,
                     name: SpanName {
                         note: span.name.clone(),
                     },
@@ -272,7 +274,7 @@ impl AccumulatedSamples {
 
                 Metric {
                     name: SignalId::from(metric.name.clone()),
-                    instrument: metric.instrument.clone(),
+                    instrument: metric.instrument,
                     unit: metric.unit.clone(),
                     attributes,
                     entity_associations: vec![],
@@ -337,48 +339,45 @@ impl AccumulatedSamples {
     }
 }
 
-/// Create a new `AttributeSpec` from a `SampleAttribute`.
-fn attribute_spec_from_sample(sample: &SampleAttribute) -> AttributeSpec {
+/// Create a new `AttributeDef` from a `SampleAttribute`.
+fn attribute_def_from_sample(sample: &SampleAttribute) -> AttributeDef {
     let attr_type = sample
         .r#type
         .clone()
+        .map(weaver_semconv::convert::v1_v2::v1_primitive_or_array_type_to_v2)
         .unwrap_or(PrimitiveOrArrayTypeSpec::String);
 
     let examples = sample.value.as_ref().and_then(|v| add_example(None, v));
 
-    AttributeSpec::Id {
-        id: sample.name.clone(),
+    AttributeDef {
+        key: sample.name.clone(),
         r#type: AttributeType::PrimitiveOrArray(attr_type),
-        brief: Some(String::new()),
         examples,
-        tag: None,
-        requirement_level: RequirementLevel::default(),
-        sampling_relevant: None,
-        note: String::new(),
-        stability: Some(Stability::Development),
-        deprecated: None,
-        annotations: None,
-        role: None,
+        common: CommonFields {
+            brief: String::new(),
+            note: String::new(),
+            stability: Stability::Development,
+            deprecated: None,
+            annotations: BTreeMap::new(),
+        },
     }
 }
 
-/// Update an `AttributeSpec` examples field with a new value.
-fn update_attribute_example(attr: &mut AttributeSpec, value: &Option<Value>) {
+/// Update an `AttributeDef` examples field with a new value.
+fn update_attribute_example(attr: &mut AttributeDef, value: &Option<Value>) {
     if let Some(v) = value {
-        if let AttributeSpec::Id { examples, .. } = attr {
-            *examples = add_example(examples.take(), v);
-        }
+        attr.examples = add_example(attr.examples.take(), v);
     }
 }
 
 /// Get or create an attribute in a map, updating examples if it already exists.
-fn accumulate_attribute(attributes: &mut HashMap<String, AttributeSpec>, sample: SampleAttribute) {
+fn accumulate_attribute(attributes: &mut HashMap<String, AttributeDef>, sample: SampleAttribute) {
     match attributes.entry(sample.name.clone()) {
         std::collections::hash_map::Entry::Occupied(mut entry) => {
             update_attribute_example(entry.get_mut(), &sample.value);
         }
         std::collections::hash_map::Entry::Vacant(entry) => {
-            let _ = entry.insert(attribute_spec_from_sample(&sample));
+            let _ = entry.insert(attribute_def_from_sample(&sample));
         }
     }
 }
@@ -532,37 +531,13 @@ fn attribute_or_group_ref(name: &str) -> AttributeOrGroupRef {
 }
 
 fn collect_attribute_defs<'a>(
-    attributes: impl Iterator<Item = &'a AttributeSpec>,
+    attributes: impl Iterator<Item = &'a AttributeDef>,
     attribute_defs: &mut HashMap<String, AttributeDef>,
 ) {
     for attribute in attributes {
-        if let AttributeSpec::Id {
-            id,
-            r#type,
-            brief,
-            examples,
-            note,
-            stability,
-            deprecated,
-            annotations,
-            ..
-        } = attribute
-        {
-            let _ = attribute_defs
-                .entry(id.clone())
-                .or_insert_with(|| AttributeDef {
-                    key: id.clone(),
-                    r#type: r#type.clone(),
-                    examples: examples.clone(),
-                    common: CommonFields {
-                        brief: brief.clone().unwrap_or_default(),
-                        note: note.clone(),
-                        stability: stability.clone().unwrap_or(Stability::Development),
-                        deprecated: deprecated.clone(),
-                        annotations: annotations.clone().unwrap_or_default(),
-                    },
-                });
-        }
+        let _ = attribute_defs
+            .entry(attribute.key.clone())
+            .or_insert_with(|| attribute.clone());
     }
 }
 
@@ -591,8 +566,14 @@ mod tests {
     };
     use weaver_live_check::sample_span::SampleSpanEvent;
     use weaver_live_check::sample_span::SampleSpanLink;
-    use weaver_semconv::group::SpanKindSpec;
     use weaver_semconv::semconv::Versioned;
+    use weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec;
+    use weaver_semconv::v1::group::{InstrumentSpec, SpanKindSpec as V1SpanKindSpec};
+    use weaver_semconv::v2::attribute::{
+        AttributeType as V2AttributeType, PrimitiveOrArrayTypeSpec as V2PrimitiveOrArrayTypeSpec,
+    };
+    use weaver_semconv::v2::metric::InstrumentSpec as V2InstrumentSpec;
+    use weaver_semconv::v2::span::SpanKindSpec;
 
     fn assert_v2_file_format(registry: &SemConvSpecV2) {
         let value =
@@ -859,26 +840,15 @@ mod tests {
             live_check_result: None,
         };
 
-        let spec = attribute_spec_from_sample(&sample);
+        let def = attribute_def_from_sample(&sample);
 
-        match spec {
-            AttributeSpec::Id {
-                id,
-                r#type,
-                examples,
-                stability,
-                ..
-            } => {
-                assert_eq!(id, "test.attr");
-                assert_eq!(
-                    r#type,
-                    AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String)
-                );
-                assert_eq!(examples, Some(Examples::String("example".to_owned())));
-                assert_eq!(stability, Some(Stability::Development));
-            }
-            AttributeSpec::Ref { .. } => panic!("Expected AttributeSpec::Id"),
-        }
+        assert_eq!(def.key, "test.attr");
+        assert_eq!(
+            def.r#type,
+            V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String)
+        );
+        assert_eq!(def.examples, Some(Examples::String("example".to_owned())));
+        assert_eq!(def.common.stability, Stability::Development);
     }
 
     #[test]
@@ -890,14 +860,8 @@ mod tests {
             live_check_result: None,
         };
 
-        let spec = attribute_spec_from_sample(&sample);
-
-        match spec {
-            AttributeSpec::Id { examples, .. } => {
-                assert!(examples.is_none());
-            }
-            AttributeSpec::Ref { .. } => panic!("Expected AttributeSpec::Id"),
-        }
+        let def = attribute_def_from_sample(&sample);
+        assert!(def.examples.is_none());
     }
 
     // ============================================
@@ -906,7 +870,7 @@ mod tests {
 
     #[test]
     fn test_accumulate_attribute_creates_new() {
-        let mut attributes: HashMap<String, AttributeSpec> = HashMap::new();
+        let mut attributes: HashMap<String, AttributeDef> = HashMap::new();
 
         let sample = SampleAttribute {
             name: "test.attr".to_owned(),
@@ -923,7 +887,7 @@ mod tests {
 
     #[test]
     fn test_accumulate_attribute_updates_examples() {
-        let mut attributes: HashMap<String, AttributeSpec> = HashMap::new();
+        let mut attributes: HashMap<String, AttributeDef> = HashMap::new();
 
         // Add first sample
         accumulate_attribute(
@@ -952,18 +916,13 @@ mod tests {
 
         // But examples should be updated
         let attr = attributes.get("test.attr").expect("attribute should exist");
-        match attr {
-            AttributeSpec::Id { examples, .. } => {
-                assert_eq!(
-                    *examples,
-                    Some(Examples::Strings(vec![
-                        "value1".to_owned(),
-                        "value2".to_owned()
-                    ]))
-                );
-            }
-            AttributeSpec::Ref { .. } => panic!("Expected AttributeSpec::Id"),
-        }
+        assert_eq!(
+            attr.examples,
+            Some(Examples::Strings(vec![
+                "value1".to_owned(),
+                "value2".to_owned()
+            ]))
+        );
     }
 
     // ============================================
@@ -997,16 +956,11 @@ mod tests {
         assert_eq!(acc.stats(), (1, 0, 0, 0));
         assert!(acc.resources.contains_key("service.name"));
 
-        let attr_spec = acc
+        let attr = acc
             .resources
             .get("service.name")
             .expect("resource attribute should exist");
-        match attr_spec {
-            AttributeSpec::Id { examples, .. } => {
-                assert_eq!(*examples, Some(Examples::String("my-service".to_owned())));
-            }
-            AttributeSpec::Ref { .. } => panic!("Expected AttributeSpec::Id"),
-        }
+        assert_eq!(attr.examples, Some(Examples::String("my-service".to_owned())));
     }
 
     #[test]
@@ -1015,7 +969,7 @@ mod tests {
 
         let span = SampleSpan {
             name: "GET /api/users".to_owned(),
-            kind: SpanKindSpec::Server,
+            kind: V1SpanKindSpec::Server,
             status: None,
             attributes: vec![SampleAttribute {
                 name: "http.method".to_owned(),
@@ -1046,7 +1000,7 @@ mod tests {
 
         let span = SampleSpan {
             name: "process".to_owned(),
-            kind: SpanKindSpec::Internal,
+            kind: V1SpanKindSpec::Internal,
             status: None,
             attributes: vec![],
             span_events: vec![SampleSpanEvent {
@@ -1133,7 +1087,7 @@ mod tests {
         }));
         acc.add_sample(Sample::Span(SampleSpan {
             name: "ProcessOrder".to_owned(),
-            kind: SpanKindSpec::Server,
+            kind: V1SpanKindSpec::Server,
             status: None,
             attributes: vec![],
             span_events: vec![],
@@ -1335,7 +1289,7 @@ mod tests {
 
         acc.add_span(SampleSpan {
             name: "HTTP GET".to_owned(),
-            kind: SpanKindSpec::Client,
+            kind: V1SpanKindSpec::Client,
             status: None,
             attributes: vec![SampleAttribute {
                 name: "http.url".to_owned(),
@@ -1389,7 +1343,7 @@ mod tests {
         assert_eq!(registry.metrics().len(), 1);
         let metric = &registry.metrics()[0];
         assert_eq!(metric.name.to_string(), "http.server.duration");
-        assert_eq!(metric.instrument, InstrumentSpec::Histogram);
+        assert_eq!(metric.instrument, V2InstrumentSpec::Histogram);
         assert_eq!(metric.unit, "ms");
     }
 
@@ -1442,7 +1396,7 @@ mod tests {
 
         acc.add_span(SampleSpan {
             name: "HandleCheckout".to_owned(),
-            kind: SpanKindSpec::Server,
+            kind: V1SpanKindSpec::Server,
             status: None,
             attributes: vec![],
             span_events: vec![SampleSpanEvent {
@@ -1575,7 +1529,7 @@ mod tests {
         );
         acc.add_span(SampleSpan {
             name: "HandleCheckout".to_owned(),
-            kind: SpanKindSpec::Server,
+            kind: V1SpanKindSpec::Server,
             status: None,
             attributes: vec![],
             span_events: vec![SampleSpanEvent {

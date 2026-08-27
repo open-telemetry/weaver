@@ -6,14 +6,14 @@ use std::collections::{HashMap, HashSet};
 
 use serde::Deserialize;
 
-use weaver_resolved_schema::attribute::AttributeRef;
-use weaver_resolved_schema::attribute::{self};
-use weaver_resolved_schema::catalog::{Catalog, RootAttribute};
-use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
+use weaver_resolved_schema::v1::attribute::AttributeRef;
+use weaver_resolved_schema::v1::attribute::{self};
+use weaver_resolved_schema::v1::catalog::{Catalog, RootAttribute};
+use weaver_resolved_schema::v1::lineage::{AttributeLineage, GroupLineage};
+use weaver_resolved_schema::v1::ResolvedTelemetrySchema as V1Schema;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
-use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
-use weaver_semconv::attribute::AttributeSpec;
 use weaver_semconv::schema_url::SchemaUrl;
+use weaver_semconv::v1::attribute::AttributeSpec;
 
 use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 use crate::dependency::ResolvedDependency;
@@ -692,13 +692,19 @@ impl AttributeLookup for V2Schema {
                 Some(AttributeWithSource {
                     attribute: attribute::Attribute {
                         name: attr.key.clone(),
-                        r#type: attr.r#type.clone(),
-                        brief: attr.common.brief.clone(),
-                        examples: attr.examples.clone(),
-                        tag: None,
-                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        r#type: weaver_semconv::convert::v1_v2::v2_attribute_type_to_v1(
+                            attr.r#type.clone(),
                         ),
+                        brief: attr.common.brief.clone(),
+                        examples: attr
+                            .examples
+                            .clone()
+                            .map(weaver_semconv::convert::v1_v2::v2_examples_to_v1),
+                        tag: None,
+                        requirement_level:
+                            weaver_semconv::v1::attribute::RequirementLevel::Basic(
+                                weaver_semconv::v1::attribute::BasicRequirementLevelSpec::Required,
+                            ),
                         sampling_relevant: None,
                         note: attr.common.note.clone(),
                         stability: Some(attr.common.stability.clone()),
@@ -734,8 +740,8 @@ impl AttributeLookup for V2Schema {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use weaver_semconv::attribute::BasicRequirementLevelSpec::{Recommended, Required};
-    use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec, RequirementLevel};
+    use weaver_semconv::v1::attribute::BasicRequirementLevelSpec::{Recommended, Required};
+    use weaver_semconv::v1::attribute::{AttributeType, PrimitiveOrArrayTypeSpec, RequirementLevel};
 
     #[test]
     fn test_attribute_catalog() {
@@ -867,7 +873,9 @@ mod tests {
 
         let attr1 = AttributeV2 {
             key: "error.type".to_owned(),
-            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            r#type: weaver_semconv::v2::attribute::AttributeType::PrimitiveOrArray(
+                weaver_semconv::v2::attribute::PrimitiveOrArrayTypeSpec::String,
+            ),
             examples: None,
             common: Default::default(),
             provenance: Default::default(),
@@ -934,7 +942,7 @@ mod tests {
         use std::collections::HashMap;
         use weaver_resolved_schema::v2::attribute::Attribute as AttributeV2;
         use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
-        use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
+        use weaver_resolved_schema::v1::ResolvedTelemetrySchema as V1Schema;
 
         let attr_name = "error.type";
 
@@ -970,7 +978,7 @@ mod tests {
             file_format: "resolved/1.0".to_owned(),
             schema_url: "http://test/schema/1.0.0".to_owned(),
             registry_id: "test-registry".to_owned(),
-            registry: weaver_resolved_schema::registry::Registry {
+            registry: weaver_resolved_schema::v1::registry::Registry {
                 registry_url: "v1-example".to_owned(),
                 entity_association_origins: Default::default(),
                 groups: vec![],
@@ -986,7 +994,9 @@ mod tests {
         // Create V2 Schema (acting as Dependency source)
         let attr_v2 = AttributeV2 {
             key: attr_name.to_owned(),
-            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            r#type: weaver_semconv::v2::attribute::AttributeType::PrimitiveOrArray(
+                weaver_semconv::v2::attribute::PrimitiveOrArrayTypeSpec::String,
+            ),
             examples: None,
             common: Default::default(),
             provenance: Default::default(),
@@ -1054,7 +1064,9 @@ mod tests {
         }
         let attr = AttributeV2 {
             key: key.to_owned(),
-            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            r#type: weaver_semconv::v2::attribute::AttributeType::PrimitiveOrArray(
+                weaver_semconv::v2::attribute::PrimitiveOrArrayTypeSpec::String,
+            ),
             examples: None,
             common,
             provenance: Default::default(),

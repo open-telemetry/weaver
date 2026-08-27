@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 use weaver_common::log_error;
-use weaver_semconv::attribute::AttributeRole;
 use weaver_semconv::provenance::Provenance;
+use weaver_semconv::v1::attribute::AttributeRole;
 
 /// An error that can occur while resolving a telemetry schema.
 #[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]

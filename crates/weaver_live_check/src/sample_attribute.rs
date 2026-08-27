@@ -8,7 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use weaver_checker::FindingLevel;
-use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
+use weaver_semconv::v1::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{
     advice::FindingBuilder, live_checker::LiveChecker, Error, FindingId, LiveCheckResult,

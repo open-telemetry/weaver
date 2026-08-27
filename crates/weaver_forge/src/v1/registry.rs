@@ -9,16 +9,17 @@ use itertools::Itertools;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use weaver_resolved_schema::attribute::Attribute;
-use weaver_resolved_schema::catalog::Catalog;
-use weaver_resolved_schema::lineage::GroupLineage;
-use weaver_resolved_schema::registry::{Group, Registry};
-use weaver_semconv::any_value::AnyValueSpec;
+use weaver_resolved_schema::v1::attribute::Attribute;
+use weaver_resolved_schema::v1::catalog::Catalog;
+use weaver_resolved_schema::v1::lineage::GroupLineage;
+use weaver_resolved_schema::v1::registry::{Group, Registry};
+use weaver_resolved_schema::v1::ResolvedTelemetrySchema;
+use weaver_semconv::v1::any_value::AnyValueSpec;
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::entity_association::EntityAssociation;
-use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::stability::Stability;
+use weaver_semconv::v1::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::YamlValue;
 
 /// A resolved semantic convention registry used in the context of the template and policy
@@ -155,7 +156,7 @@ impl ResolvedGroup {
                 if attr.is_none() {
                     errors.push(Error::AttributeNotFound {
                         group_id: id.clone(),
-                        attr_ref: *attr_ref,
+                        attr_ref: attr_ref.0,
                     });
                 }
                 attr
@@ -193,6 +194,11 @@ impl ResolvedGroup {
 }
 
 impl ResolvedRegistry {
+    /// Create a new template registry from a resolved telemetry schema.
+    pub fn try_from_resolved_schema(schema: &ResolvedTelemetrySchema) -> Result<Self, Error> {
+        Self::try_from_resolved_registry(&schema.registry, &schema.catalog)
+    }
+
     /// Create a new template registry from a resolved registry.
     ///
     /// V2 refinements are dropped: v1 has no notion of a refinement, and one resolves
@@ -226,7 +232,7 @@ impl ResolvedRegistry {
                         if attr.is_none() {
                             errors.push(Error::AttributeNotFound {
                                 group_id: id.clone(),
-                                attr_ref: *attr_ref,
+                                attr_ref: attr_ref.0,
                             });
                         }
                         attr
@@ -274,15 +280,15 @@ impl ResolvedRegistry {
 
 #[cfg(test)]
 mod tests {
-    use crate::ResolvedRegistry;
+    use super::*;
     use schemars::schema_for;
     use serde_json::to_string_pretty;
-    use weaver_resolved_schema::catalog::Catalog;
-    use weaver_resolved_schema::lineage::GroupLineage;
-    use weaver_resolved_schema::registry::{Group, Registry};
-    use weaver_semconv::group::GroupType;
+    use weaver_resolved_schema::v1::catalog::Catalog;
+    use weaver_resolved_schema::v1::lineage::GroupLineage;
+    use weaver_resolved_schema::v1::registry::{Group, Registry};
     use weaver_semconv::provenance::Provenance;
     use weaver_semconv::schema_url::SchemaUrl;
+    use weaver_semconv::v1::group::GroupType;
 
     #[test]
     fn test_json_schema_gen() {

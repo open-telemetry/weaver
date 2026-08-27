@@ -4,9 +4,9 @@
 
 use opentelemetry::{Array, KeyValue, Value};
 use weaver_common::ordered_float::OrderedF64;
-use weaver_resolved_schema::attribute::Attribute;
-use weaver_semconv::attribute::ValueSpec;
-use weaver_semconv::attribute::{
+use weaver_resolved_schema::v1::attribute::Attribute;
+use weaver_semconv::v1::attribute::ValueSpec;
+use weaver_semconv::v1::attribute::{
     AttributeType, Examples, PrimitiveOrArrayTypeSpec, TemplateTypeSpec,
 };
 
@@ -25,10 +25,15 @@ pub fn get_attribute_name_value(attribute: &Attribute) -> KeyValue {
 /// Values are generated based on the attribute type and examples where possible.
 #[must_use]
 pub fn get_attribute_name_value_v2(attribute: &weaver_forge::v2::attribute::Attribute) -> KeyValue {
+    let r_type = weaver_semconv::convert::v1_v2::v2_attribute_type_to_v1(attribute.r#type.clone());
+    let examples = attribute
+        .examples
+        .clone()
+        .map(weaver_semconv::convert::v1_v2::v2_examples_to_v1);
     internal_get_attribute_name_value(
         attribute.key.clone(),
-        &attribute.r#type,
-        attribute.examples.as_ref(),
+        &r_type,
+        examples.as_ref(),
     )
 }
 
@@ -201,12 +206,12 @@ mod tests {
     use super::*;
     use opentelemetry::{Array, KeyValue, Value};
     use weaver_common::ordered_float::OrderedF64;
-    use weaver_resolved_schema::attribute::Attribute;
-    use weaver_semconv::attribute::{
+    use weaver_resolved_schema::v1::attribute::Attribute;
+    use weaver_semconv::stability::Stability;
+    use weaver_semconv::v1::attribute::{
         AttributeType, EnumEntriesSpec, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel,
         TemplateTypeSpec, ValueSpec,
     };
-    use weaver_semconv::stability::Stability;
 
     fn create_test_attribute(
         name: &str,
@@ -720,6 +725,7 @@ mod tests {
     fn test_v2_attribute() {
         use std::collections::BTreeMap;
         use weaver_forge::v2::attribute::Attribute as V2Attribute;
+        use weaver_semconv::v2::attribute::{AttributeType, Examples, PrimitiveOrArrayTypeSpec};
         use weaver_semconv::v2::CommonFields;
 
         let attr = V2Attribute {

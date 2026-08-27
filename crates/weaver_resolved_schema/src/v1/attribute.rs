@@ -4,16 +4,16 @@
 
 //! Specification of a resolved attribute.
 
-use crate::tags::Tags;
-use crate::value::Value;
+use crate::v1::tags::Tags;
+use crate::v1::value::Value;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::ops::Not;
 #[cfg(test)]
-use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
-use weaver_semconv::attribute::{
+use weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec;
+use weaver_semconv::v1::attribute::{
     AttributeRole, AttributeSpec, AttributeType, Examples, RequirementLevel,
 };
 use weaver_semconv::deprecated::Deprecated;

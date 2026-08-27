@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_semconv::attribute::AttributeType;
+use weaver_semconv::v2::attribute::AttributeType;
 
 use crate::v2::{
     attribute::AttributeRef,
@@ -102,7 +102,7 @@ impl Registry {
                 }
                 let _ = metric_names.insert(metric.name.to_string());
                 *instrument_breakdown
-                    .entry(metric.instrument.clone())
+                    .entry(metric.instrument)
                     .or_insert(0) += 1;
                 *unit_breakdown.entry(metric.unit.clone()).or_insert(0) += 1;
                 *stability_breakdown
@@ -135,7 +135,7 @@ impl Registry {
                 if !span.common.note.is_empty() {
                     total_with_note += 1;
                 }
-                *span_kind_breakdown.entry(span.kind.clone()).or_default() += 1;
+                *span_kind_breakdown.entry(span.kind).or_default() += 1;
                 *stability_breakdown
                     .entry(span.common.stability.clone())
                     .or_default() += 1;
@@ -236,9 +236,13 @@ impl Registry {
 #[cfg(test)]
 mod test {
     use weaver_semconv::{
-        group::{InstrumentSpec, SpanKindSpec},
         stability::Stability,
-        v2::{span::SpanName, CommonFields},
+        v2::{
+            attribute::{BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel},
+            metric::InstrumentSpec,
+            span::{SpanKindSpec, SpanName},
+            CommonFields,
+        },
     };
 
     use crate::v2::{attribute::Attribute, entity::EntityAttributeRef};
@@ -250,7 +254,7 @@ mod test {
         let catalog = vec![Attribute {
             key: "key".to_owned(),
             r#type: AttributeType::PrimitiveOrArray(
-                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                PrimitiveOrArrayTypeSpec::String,
             ),
             examples: None,
             common: CommonFields {
@@ -303,8 +307,8 @@ mod test {
                 r#type: "test.entity".to_owned().into(),
                 identity: vec![EntityAttributeRef {
                     base: AttributeRef(0),
-                    requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                        weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                    requirement_level: RequirementLevel::Basic(
+                        BasicRequirementLevelSpec::Required,
                     ),
                 }],
                 description: vec![],

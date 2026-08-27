@@ -6,7 +6,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
-use weaver_semconv::{attribute::AttributeType, group::GroupType};
+use weaver_semconv::v1::{attribute::AttributeType, group::GroupType};
 
 use crate::{
     advice::Advisor, finding_modifier::FindingModifier, otlp_logger::OtlpEmitter,
@@ -115,7 +115,7 @@ impl LiveChecker {
                 for attribute in &registry.registry.attributes {
                     let attribute_rc = Rc::new(VersionedAttribute::V2(attribute.clone()));
                     match &attribute.r#type {
-                        AttributeType::Template(_) => {
+                        weaver_semconv::v2::attribute::AttributeType::Template(_) => {
                             templates_by_length.push((attribute.key.clone(), attribute_rc.clone()));
                             let _ = semconv_templates.insert(attribute.key.clone(), attribute_rc);
                         }
@@ -226,7 +226,7 @@ mod tests {
     use serde_yaml;
     use std::collections::BTreeMap;
     use weaver_checker::{FindingLevel, PolicyFinding};
-    use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
+    use weaver_forge::v1::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_forge::v2::entity::{
         EntityAssociation as V2EntityAssociation, EntityAttribute, EntityRefinement,
     };
@@ -238,20 +238,30 @@ mod tests {
         registry::{ForgeResolvedRegistry, Refinements, Registry},
         span::{Span as V2Span, SpanAttribute},
     };
-    use weaver_resolved_schema::attribute::Attribute;
+    use weaver_resolved_schema::v1::attribute::Attribute;
     use weaver_semconv::entity_association::EntityAssociation;
     use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
-    use weaver_semconv::v2::signal_id::SignalId;
-    use weaver_semconv::v2::{span::SpanName, CommonFields};
-    use weaver_semconv::{
+    use weaver_semconv::stability::Stability;
+    use weaver_semconv::v1::{
         attribute::{
             AttributeType, BasicRequirementLevelSpec, EnumEntriesSpec, Examples,
             PrimitiveOrArrayTypeSpec, RequirementLevel, TemplateTypeSpec, ValueSpec,
         },
         group::{GroupType, InstrumentSpec, SpanKindSpec},
-        stability::Stability,
-        YamlValue,
     };
+    use weaver_semconv::v2::attribute::{
+        AttributeType as V2AttributeType,
+        BasicRequirementLevelSpec as V2BasicRequirementLevelSpec,
+        EnumEntriesSpec as V2EnumEntriesSpec, Examples as V2Examples,
+        PrimitiveOrArrayTypeSpec as V2PrimitiveOrArrayTypeSpec,
+        RequirementLevel as V2RequirementLevel, TemplateTypeSpec as V2TemplateTypeSpec,
+        ValueSpec as V2ValueSpec,
+    };
+    use weaver_semconv::v2::metric::InstrumentSpec as V2InstrumentSpec;
+    use weaver_semconv::v2::signal_id::SignalId;
+    use weaver_semconv::v2::span::SpanKindSpec as V2SpanKindSpec;
+    use weaver_semconv::v2::{span::SpanName, CommonFields};
+    use weaver_semconv::YamlValue;
     fn get_all_advice(sample: &mut Sample) -> &mut [PolicyFinding] {
         match sample {
             Sample::Attribute(sample_attribute) => sample_attribute
@@ -579,10 +589,10 @@ mod tests {
                     attributes: vec![
                         V2Attribute {
                             key: "test.string".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(
-                                PrimitiveOrArrayTypeSpec::String,
+                            r#type: V2AttributeType::PrimitiveOrArray(
+                                V2PrimitiveOrArrayTypeSpec::String,
                             ),
-                            examples: Some(Examples::Strings(vec![
+                            examples: Some(V2Examples::Strings(vec![
                                 "value1".to_owned(),
                                 "value2".to_owned(),
                             ])),
@@ -597,20 +607,20 @@ mod tests {
                         },
                         V2Attribute {
                             key: "test.enum".to_owned(),
-                            r#type: AttributeType::Enum {
+                            r#type: V2AttributeType::Enum {
                                 members: vec![
-                                    EnumEntriesSpec {
+                                    V2EnumEntriesSpec {
                                         id: "test_enum_member".to_owned(),
-                                        value: ValueSpec::String("example_variant1".to_owned()),
+                                        value: V2ValueSpec::String("example_variant1".to_owned()),
                                         brief: None,
                                         note: None,
                                         stability: Some(Stability::Stable),
                                         deprecated: None,
                                         annotations: None,
                                     },
-                                    EnumEntriesSpec {
+                                    V2EnumEntriesSpec {
                                         id: "test_enum_member2".to_owned(),
-                                        value: ValueSpec::String("example_variant2".to_owned()),
+                                        value: V2ValueSpec::String("example_variant2".to_owned()),
                                         brief: None,
                                         note: None,
                                         stability: Some(Stability::Stable),
@@ -631,10 +641,10 @@ mod tests {
                         },
                         V2Attribute {
                             key: "test.deprecated".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(
-                                PrimitiveOrArrayTypeSpec::String,
+                            r#type: V2AttributeType::PrimitiveOrArray(
+                                V2PrimitiveOrArrayTypeSpec::String,
                             ),
-                            examples: Some(Examples::Strings(vec![
+                            examples: Some(V2Examples::Strings(vec![
                                 "value1".to_owned(),
                                 "value2".to_owned(),
                             ])),
@@ -653,8 +663,8 @@ mod tests {
                         },
                         V2Attribute {
                             key: "test.template".to_owned(),
-                            r#type: AttributeType::Template(TemplateTypeSpec::String),
-                            examples: Some(Examples::Strings(vec![
+                            r#type: V2AttributeType::Template(V2TemplateTypeSpec::String),
+                            examples: Some(V2Examples::Strings(vec![
                                 "value1".to_owned(),
                                 "value2".to_owned(),
                             ])),
@@ -831,20 +841,20 @@ mod tests {
         if use_v2 {
             let memory_state_attr = V2Attribute {
                 key: "system.memory.state".to_owned(),
-                r#type: AttributeType::Enum {
+                r#type: V2AttributeType::Enum {
                     members: vec![
-                        EnumEntriesSpec {
+                        V2EnumEntriesSpec {
                             id: "used".to_owned(),
-                            value: ValueSpec::String("used".to_owned()),
+                            value: V2ValueSpec::String("used".to_owned()),
                             brief: None,
                             note: None,
                             stability: Some(Stability::Development),
                             deprecated: None,
                             annotations: None,
                         },
-                        EnumEntriesSpec {
+                        V2EnumEntriesSpec {
                             id: "free".to_owned(),
-                            value: ValueSpec::String("free".to_owned()),
+                            value: V2ValueSpec::String("free".to_owned()),
                             brief: None,
                             note: None,
                             stability: Some(Stability::Development),
@@ -853,7 +863,7 @@ mod tests {
                         },
                     ],
                 },
-                examples: Some(Examples::Strings(vec![
+                examples: Some(V2Examples::Strings(vec![
                     "free".to_owned(),
                     "cached".to_owned(),
                 ])),
@@ -877,7 +887,7 @@ mod tests {
                     metrics: vec![
                         V2Metric {
                             name: "system.uptime".to_owned().into(),
-                            instrument: InstrumentSpec::Gauge,
+                            instrument: V2InstrumentSpec::Gauge,
                             unit: "s".to_owned(),
                             requirement_level: Some(SignalRequirementLevel::OptIn),
                             attributes: vec![],
@@ -893,12 +903,12 @@ mod tests {
                         },
                         V2Metric {
                             name: "system.memory.usage".to_owned().into(),
-                            instrument: InstrumentSpec::UpDownCounter,
+                            instrument: V2InstrumentSpec::UpDownCounter,
                             unit: "By".to_owned(),
                             requirement_level: Some(SignalRequirementLevel::OptIn),
                             attributes: vec![MetricAttribute {
                                 base: memory_state_attr.clone(),
-                                requirement_level: RequirementLevel::Recommended {
+                                requirement_level: V2RequirementLevel::Recommended {
                                     text: "".to_owned(),
                                 },
                             }],
@@ -1072,8 +1082,8 @@ mod tests {
         if use_v2 {
             let custom_string_attr = V2Attribute {
                 key: "custom.string".to_owned(),
-                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                examples: Some(Examples::Strings(vec![
+                r#type: V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
+                examples: Some(V2Examples::Strings(vec![
                     "value1".to_owned(),
                     "value2".to_owned(),
                 ])),
@@ -1098,13 +1108,13 @@ mod tests {
                     spans: vec![V2Span {
                         requirement_level: None,
                         r#type: "custom.comprehensive.internal".to_owned().into(),
-                        kind: SpanKindSpec::Internal,
+                        kind: V2SpanKindSpec::Internal,
                         name: SpanName {
                             note: "custom.comprehensive.internal".to_owned(),
                         },
                         attributes: vec![SpanAttribute {
                             base: custom_string_attr.clone(),
-                            requirement_level: RequirementLevel::Recommended {
+                            requirement_level: V2RequirementLevel::Recommended {
                                 text: "".to_owned(),
                             },
                             sampling_relevant: None,
@@ -1584,8 +1594,8 @@ mod tests {
         if use_v2 {
             let session_id_attr = V2Attribute {
                 key: "session.id".to_owned(),
-                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                examples: Some(Examples::Strings(vec![
+                r#type: V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
+                examples: Some(V2Examples::Strings(vec![
                     "00112233-4455-6677-8899-aabbccddeeff".to_owned(),
                 ])),
                 common: CommonFields {
@@ -1600,8 +1610,8 @@ mod tests {
 
             let session_previous_id_attr = V2Attribute {
                 key: "session.previous_id".to_owned(),
-                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                examples: Some(Examples::Strings(vec![
+                r#type: V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
+                examples: Some(V2Examples::Strings(vec![
                     "00112233-4455-6677-8899-aabbccddeeff".to_owned(),
                 ])),
                 common: CommonFields {
@@ -1630,13 +1640,13 @@ mod tests {
                             attributes: vec![
                                 EventAttribute {
                                     base: session_id_attr.clone(),
-                                    requirement_level: RequirementLevel::Basic(
-                                        BasicRequirementLevelSpec::Required,
+                                    requirement_level: V2RequirementLevel::Basic(
+                                        V2BasicRequirementLevelSpec::Required,
                                     ),
                                 },
                                 EventAttribute {
                                     base: session_previous_id_attr.clone(),
-                                    requirement_level: RequirementLevel::Recommended {
+                                    requirement_level: V2RequirementLevel::Recommended {
                                         text: "".to_owned(),
                                     },
                                 },
@@ -2171,7 +2181,7 @@ mod tests {
 
             let deployment_name_attr = V2Attribute {
                 key: "deployment.name".to_owned(),
-                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                r#type: V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
                 examples: None,
                 common: CommonFields {
                     brief: "The deployment name".to_owned(),
@@ -2184,7 +2194,7 @@ mod tests {
             };
             let deployment_env_attr = V2Attribute {
                 key: "deployment.environment".to_owned(),
-                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                r#type: V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
                 examples: None,
                 common: CommonFields {
                     brief: "The deployment environment".to_owned(),
@@ -2197,7 +2207,7 @@ mod tests {
             };
             let deployment_tier_attr = V2Attribute {
                 key: "deployment.tier".to_owned(),
-                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                r#type: V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
                 examples: None,
                 common: CommonFields {
                     brief: "The deployment tier".to_owned(),
@@ -2210,7 +2220,7 @@ mod tests {
             };
             let deployment_region_attr = V2Attribute {
                 key: "deployment.region".to_owned(),
-                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                r#type: V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
                 examples: None,
                 common: CommonFields {
                     brief: "The deployment region".to_owned(),
@@ -2257,26 +2267,26 @@ mod tests {
                         r#type: SignalId::from("deployment".to_owned()),
                         identity: vec![EntityAttribute {
                             base: deployment_name_attr,
-                            requirement_level: RequirementLevel::Basic(
-                                BasicRequirementLevelSpec::Required,
+                            requirement_level: V2RequirementLevel::Basic(
+                                V2BasicRequirementLevelSpec::Required,
                             ),
                         }],
                         description: vec![
                             EntityAttribute {
                                 base: deployment_env_attr,
-                                requirement_level: RequirementLevel::Recommended {
+                                requirement_level: V2RequirementLevel::Recommended {
                                     text: "".to_owned(),
                                 },
                             },
                             EntityAttribute {
                                 base: deployment_tier_attr,
-                                requirement_level: RequirementLevel::OptIn {
+                                requirement_level: V2RequirementLevel::OptIn {
                                     text: "".to_owned(),
                                 },
                             },
                             EntityAttribute {
                                 base: deployment_region_attr,
-                                requirement_level: RequirementLevel::ConditionallyRequired {
+                                requirement_level: V2RequirementLevel::ConditionallyRequired {
                                     text: "When multi-region".to_owned(),
                                 },
                             },
@@ -3107,12 +3117,12 @@ mod tests {
             identity: vec![EntityAttribute {
                 base: V2Attribute {
                     key: attr_key.to_owned(),
-                    r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                    r#type: V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
                     examples: None,
                     common: v2_common(),
                     provenance: Default::default(),
                 },
-                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                requirement_level: V2RequirementLevel::Basic(V2BasicRequirementLevelSpec::Required),
             }],
             description: vec![],
             common: v2_common(),
@@ -3526,7 +3536,7 @@ mod tests {
 
             let host_name_attr = V2Attribute {
                 key: "host.name".to_owned(),
-                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                r#type: V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
                 examples: None,
                 common: CommonFields {
                     brief: "The host name".to_owned(),
@@ -3547,7 +3557,7 @@ mod tests {
                     attribute_groups: vec![],
                     metrics: vec![V2Metric {
                         name: "system.uptime".to_owned().into(),
-                        instrument: InstrumentSpec::Gauge,
+                        instrument: V2InstrumentSpec::Gauge,
                         unit: "s".to_owned(),
                         requirement_level: None,
                         attributes: vec![],
@@ -3570,8 +3580,8 @@ mod tests {
                         r#type: SignalId::from("host".to_owned()),
                         identity: vec![EntityAttribute {
                             base: host_name_attr,
-                            requirement_level: RequirementLevel::Basic(
-                                BasicRequirementLevelSpec::Required,
+                            requirement_level: V2RequirementLevel::Basic(
+                                V2BasicRequirementLevelSpec::Required,
                             ),
                         }],
                         description: vec![],

@@ -12,7 +12,7 @@ use weaver_live_check::{
     sample_profile::SampleProfile,
     sample_span::{Status, StatusCode},
 };
-use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
+use weaver_semconv::v1::group::{InstrumentSpec, SpanKindSpec};
 
 use super::grpc_stubs::proto::profiles::v1development::{
     KeyValueAndUnit, Profile, ProfilesDictionary,

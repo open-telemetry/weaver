@@ -15,9 +15,10 @@
 
 use globset::GlobSet;
 use std::collections::{BTreeMap, HashMap};
-use weaver_resolved_schema::attribute::{Attribute, AttributeRef};
-use weaver_resolved_schema::lineage::GroupLineage;
-use weaver_resolved_schema::registry::Group;
+use weaver_resolved_schema::v1::attribute::{Attribute, AttributeRef};
+use weaver_resolved_schema::v1::lineage::GroupLineage;
+use weaver_resolved_schema::v1::registry::Group;
+use weaver_resolved_schema::v1::ResolvedTelemetrySchema as V1Schema;
 use weaver_resolved_schema::v2::attribute::AttributeRef as V2AttributeRef;
 use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
 use weaver_resolved_schema::v2::entity::{
@@ -25,10 +26,10 @@ use weaver_resolved_schema::v2::entity::{
 };
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::v2::Signal;
-use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
-use weaver_semconv::attribute::{AttributeRole, RequirementLevel};
-use weaver_semconv::group::{GroupType, GroupWildcard, ImportsWithProvenance};
 use weaver_semconv::schema_url::SchemaUrl;
+use weaver_semconv::v1::attribute::{AttributeRole, RequirementLevel};
+use weaver_semconv::v1::group::{GroupType, GroupWildcard, ImportsWithProvenance};
+use weaver_semconv::v1::semconv::Imports;
 
 use crate::{
     attribute::{AttributeCatalog, AttributeSource},
@@ -85,7 +86,7 @@ impl ImportField {
     }
 
     /// The patterns of this field, in one `imports` block.
-    fn patterns<'a>(&self, imports: &'a weaver_semconv::semconv::Imports) -> &'a [GroupWildcard] {
+    fn patterns<'a>(&self, imports: &'a Imports) -> &'a [GroupWildcard] {
         let field = match self {
             Self::Metrics => &imports.metrics,
             Self::Events => &imports.events,
@@ -586,9 +587,12 @@ fn convert_v2_attribute(
 ) -> Attribute {
     Attribute {
         name: attr.key.clone(),
-        r#type: attr.r#type.clone(),
+        r#type: weaver_semconv::convert::v1_v2::v2_attribute_type_to_v1(attr.r#type.clone()),
         brief: attr.common.brief.clone(),
-        examples: attr.examples.clone(),
+        examples: attr
+            .examples
+            .clone()
+            .map(weaver_semconv::convert::v1_v2::v2_examples_to_v1),
         tag: None,
         requirement_level,
         sampling_relevant,
@@ -772,9 +776,14 @@ impl ImportableDependency for V2Schema {
             let attributes = import_v2_attributes(
                 self,
                 &deps,
-                m.attributes
-                    .iter()
-                    .map(|ar| V2SignalAttribute::new(&ar.base, ar.requirement_level.clone())),
+                m.attributes.iter().map(|ar| {
+                    V2SignalAttribute::new(
+                        &ar.base,
+                        weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                            ar.requirement_level.clone(),
+                        ),
+                    )
+                }),
                 attribute_catalog,
                 cache_lookup,
             )?;
@@ -786,7 +795,8 @@ impl ImportableDependency for V2Schema {
                 Some(GroupLineage::new(v2_provenance(self, &deps, &m.provenance))),
             );
             group.metric_name = Some(m.name.to_string());
-            group.instrument = Some(m.instrument.clone());
+            group.instrument =
+                Some(weaver_semconv::convert::v1_v2::v2_instrument_to_v1(m.instrument));
             group.unit = Some(m.unit.clone());
             group.entity_associations = to_named_associations(&m.entity_associations);
             _ = origins.insert(
@@ -804,9 +814,14 @@ impl ImportableDependency for V2Schema {
             let attributes = import_v2_attributes(
                 self,
                 &deps,
-                e.attributes
-                    .iter()
-                    .map(|ar| V2SignalAttribute::new(&ar.base, ar.requirement_level.clone())),
+                e.attributes.iter().map(|ar| {
+                    V2SignalAttribute::new(
+                        &ar.base,
+                        weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                            ar.requirement_level.clone(),
+                        ),
+                    )
+                }),
                 attribute_catalog,
                 cache_lookup,
             )?;
@@ -838,12 +853,22 @@ impl ImportableDependency for V2Schema {
                 e.identity
                     .iter()
                     .map(|ar| {
-                        V2SignalAttribute::new(&ar.base, ar.requirement_level.clone())
-                            .with_role(AttributeRole::Identifying)
+                        V2SignalAttribute::new(
+                            &ar.base,
+                            weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                                ar.requirement_level.clone(),
+                            ),
+                        )
+                        .with_role(AttributeRole::Identifying)
                     })
                     .chain(e.description.iter().map(|ar| {
-                        V2SignalAttribute::new(&ar.base, ar.requirement_level.clone())
-                            .with_role(AttributeRole::Descriptive)
+                        V2SignalAttribute::new(
+                            &ar.base,
+                            weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                                ar.requirement_level.clone(),
+                            ),
+                        )
+                        .with_role(AttributeRole::Descriptive)
                     })),
                 attribute_catalog,
                 cache_lookup,
@@ -868,8 +893,13 @@ impl ImportableDependency for V2Schema {
                 self,
                 &deps,
                 s.attributes.iter().map(|ar| {
-                    V2SignalAttribute::new(&ar.base, ar.requirement_level.clone())
-                        .with_sampling_relevant(ar.sampling_relevant)
+                    V2SignalAttribute::new(
+                        &ar.base,
+                        weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                            ar.requirement_level.clone(),
+                        ),
+                    )
+                    .with_sampling_relevant(ar.sampling_relevant)
                 }),
                 attribute_catalog,
                 cache_lookup,
@@ -881,8 +911,10 @@ impl ImportableDependency for V2Schema {
                 attributes,
                 Some(GroupLineage::new(v2_provenance(self, &deps, &s.provenance))),
             );
-            group.span_kind = Some(s.kind.clone());
-            group.span_name = Some(s.name.clone());
+            group.span_kind =
+                Some(weaver_semconv::convert::v1_v2::v2_span_kind_to_v1(s.kind));
+            group.span_name =
+                Some(weaver_semconv::convert::v1_v2::v2_span_name_to_v1(s.name.clone()));
             group.name = Some(s.r#type.to_string());
             group.entity_associations = to_named_associations(&s.entity_associations);
             _ = origins.insert(
@@ -901,9 +933,14 @@ impl ImportableDependency for V2Schema {
             let attributes = import_v2_attributes(
                 self,
                 &deps,
-                ag.attributes
-                    .iter()
-                    .map(|ar| V2SignalAttribute::new(&ar.base, ar.requirement_level.clone())),
+                ag.attributes.iter().map(|ar| {
+                    V2SignalAttribute::new(
+                        &ar.base,
+                        weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                            ar.requirement_level.clone(),
+                        ),
+                    )
+                }),
                 attribute_catalog,
                 cache_lookup,
             )?;
@@ -1044,16 +1081,16 @@ mod tests {
         let schema_url =
             weaver_semconv::schema_url::SchemaUrl::try_from_name_version("main", "1.0.0")
                 .expect("Failed to create schema_url");
-        let imports = vec![weaver_semconv::group::ImportsWithProvenance {
+        let imports = vec![weaver_semconv::v1::group::ImportsWithProvenance {
             provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file"),
-            imports: weaver_semconv::semconv::Imports {
+            imports: weaver_semconv::v1::semconv::Imports {
                 metrics: None,
                 events: None,
                 entities: None,
-                spans: Some(vec![weaver_semconv::group::GroupWildcard(
+                spans: Some(vec![weaver_semconv::v1::group::GroupWildcard(
                     globset::Glob::new("span.v1")?,
                 )]),
-                attribute_groups: Some(vec![weaver_semconv::group::GroupWildcard(
+                attribute_groups: Some(vec![weaver_semconv::v1::group::GroupWildcard(
                     globset::Glob::new("a")?,
                 )]),
             },
@@ -1077,22 +1114,22 @@ mod tests {
         let schema_url =
             weaver_semconv::schema_url::SchemaUrl::try_from_name_version("main", "1.0.0")
                 .expect("Failed to create schema_url");
-        let imports = vec![weaver_semconv::group::ImportsWithProvenance {
+        let imports = vec![weaver_semconv::v1::group::ImportsWithProvenance {
             provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file"),
-            imports: weaver_semconv::semconv::Imports {
-                metrics: Some(vec![weaver_semconv::group::GroupWildcard(
+            imports: weaver_semconv::v1::semconv::Imports {
+                metrics: Some(vec![weaver_semconv::v1::group::GroupWildcard(
                     globset::Glob::new("metric.a")?,
                 )]),
-                events: Some(vec![weaver_semconv::group::GroupWildcard(
+                events: Some(vec![weaver_semconv::v1::group::GroupWildcard(
                     globset::Glob::new("event.b")?,
                 )]),
-                entities: Some(vec![weaver_semconv::group::GroupWildcard(
+                entities: Some(vec![weaver_semconv::v1::group::GroupWildcard(
                     globset::Glob::new("entity.c")?,
                 )]),
-                spans: Some(vec![weaver_semconv::group::GroupWildcard(
+                spans: Some(vec![weaver_semconv::v1::group::GroupWildcard(
                     globset::Glob::new("span.d")?,
                 )]),
-                attribute_groups: Some(vec![weaver_semconv::group::GroupWildcard(
+                attribute_groups: Some(vec![weaver_semconv::v1::group::GroupWildcard(
                     globset::Glob::new("attribute_group.e")?,
                 )]),
             },
@@ -1120,8 +1157,8 @@ mod tests {
             .expect("imported attribute should exist in the catalog");
         assert_eq!(
             attr.requirement_level,
-            weaver_semconv::attribute::RequirementLevel::Basic(
-                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+            weaver_semconv::v1::attribute::RequirementLevel::Basic(
+                weaver_semconv::v1::attribute::BasicRequirementLevelSpec::Required,
             )
         );
 
@@ -1138,13 +1175,13 @@ mod tests {
             weaver_semconv::schema_url::SchemaUrl::try_from_name_version("main", "1.0.0")
                 .expect("Failed to create schema_url");
         let star = |pattern| {
-            Some(vec![weaver_semconv::group::GroupWildcard(
+            Some(vec![weaver_semconv::v1::group::GroupWildcard(
                 globset::Glob::new(pattern).expect("valid glob"),
             )])
         };
-        let imports = vec![weaver_semconv::group::ImportsWithProvenance {
+        let imports = vec![weaver_semconv::v1::group::ImportsWithProvenance {
             provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file"),
-            imports: weaver_semconv::semconv::Imports {
+            imports: weaver_semconv::v1::semconv::Imports {
                 metrics: star("*"),
                 events: star("*"),
                 entities: star("*"),
@@ -1168,7 +1205,7 @@ mod tests {
         assert_eq!(metric.metric_name.as_deref(), Some("metric.a"));
         assert_eq!(
             metric.instrument,
-            Some(weaver_semconv::group::InstrumentSpec::Counter)
+            Some(weaver_semconv::v1::group::InstrumentSpec::Counter)
         );
         assert_eq!(metric.unit.as_deref(), Some("1"));
         assert_eq!(
@@ -1188,11 +1225,11 @@ mod tests {
         assert_eq!(span.name.as_deref(), Some("span.d"));
         assert_eq!(
             span.span_kind,
-            Some(weaver_semconv::group::SpanKindSpec::Client)
+            Some(weaver_semconv::v1::group::SpanKindSpec::Client)
         );
         assert_eq!(
             span.span_name,
-            Some(weaver_semconv::v2::span::SpanName {
+            Some(weaver_semconv::v1::group::SpanName {
                 note: "test".to_owned(),
             })
         );
@@ -1217,11 +1254,11 @@ mod tests {
             vec![
                 (
                     "entity.c.id".to_owned(),
-                    Some(weaver_semconv::attribute::AttributeRole::Identifying)
+                    Some(weaver_semconv::v1::attribute::AttributeRole::Identifying)
                 ),
                 (
                     "entity.c.label".to_owned(),
-                    Some(weaver_semconv::attribute::AttributeRole::Descriptive)
+                    Some(weaver_semconv::v1::attribute::AttributeRole::Descriptive)
                 ),
             ]
         );
@@ -1242,22 +1279,22 @@ mod tests {
         let schema_url =
             weaver_semconv::schema_url::SchemaUrl::try_from_name_version("main", "1.0.0")
                 .expect("Failed to create schema_url");
-        let imports = vec![weaver_semconv::group::ImportsWithProvenance {
+        let imports = vec![weaver_semconv::v1::group::ImportsWithProvenance {
             provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file"),
-            imports: weaver_semconv::semconv::Imports {
-                metrics: Some(vec![weaver_semconv::group::GroupWildcard(
+            imports: weaver_semconv::v1::semconv::Imports {
+                metrics: Some(vec![weaver_semconv::v1::group::GroupWildcard(
                     globset::Glob::new("metric.a")?,
                 )]),
-                events: Some(vec![weaver_semconv::group::GroupWildcard(
+                events: Some(vec![weaver_semconv::v1::group::GroupWildcard(
                     globset::Glob::new("event.b")?,
                 )]),
-                entities: Some(vec![weaver_semconv::group::GroupWildcard(
+                entities: Some(vec![weaver_semconv::v1::group::GroupWildcard(
                     globset::Glob::new("entity.c")?,
                 )]),
-                spans: Some(vec![weaver_semconv::group::GroupWildcard(
+                spans: Some(vec![weaver_semconv::v1::group::GroupWildcard(
                     globset::Glob::new("span.d")?,
                 )]),
-                attribute_groups: Some(vec![weaver_semconv::group::GroupWildcard(
+                attribute_groups: Some(vec![weaver_semconv::v1::group::GroupWildcard(
                     globset::Glob::new("attribute_group.e")?,
                 )]),
             },
@@ -1280,13 +1317,13 @@ mod tests {
                 .expect("Failed to create schema_url");
 
         let imports = vec![
-            weaver_semconv::group::ImportsWithProvenance {
+            weaver_semconv::v1::group::ImportsWithProvenance {
                 provenance: weaver_semconv::provenance::Provenance::new(
                     schema_url.clone(),
                     "file1",
                 ),
-                imports: weaver_semconv::semconv::Imports {
-                    metrics: Some(vec![weaver_semconv::group::GroupWildcard(
+                imports: weaver_semconv::v1::semconv::Imports {
+                    metrics: Some(vec![weaver_semconv::v1::group::GroupWildcard(
                         globset::Glob::new("metric.a")?,
                     )]),
                     events: None,
@@ -1295,13 +1332,13 @@ mod tests {
                     attribute_groups: None,
                 },
             },
-            weaver_semconv::group::ImportsWithProvenance {
+            weaver_semconv::v1::group::ImportsWithProvenance {
                 provenance: weaver_semconv::provenance::Provenance::new(schema_url, "file2"),
-                imports: weaver_semconv::semconv::Imports {
-                    metrics: Some(vec![weaver_semconv::group::GroupWildcard(
+                imports: weaver_semconv::v1::semconv::Imports {
+                    metrics: Some(vec![weaver_semconv::v1::group::GroupWildcard(
                         globset::Glob::new("metric.b")?,
                     )]),
-                    events: Some(vec![weaver_semconv::group::GroupWildcard(
+                    events: Some(vec![weaver_semconv::v1::group::GroupWildcard(
                         globset::Glob::new("event.b")?,
                     )]),
                     entities: None,

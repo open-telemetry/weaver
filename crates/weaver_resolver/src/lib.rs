@@ -8,13 +8,13 @@ use std::num::NonZeroUsize;
 use std::sync::Arc;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::result::WResult;
+use weaver_resolved_schema::v1::ResolvedTelemetrySchema;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
-use weaver_resolved_schema::ResolvedTelemetrySchema;
-use weaver_semconv::group::ImportsWithProvenance;
 use weaver_semconv::manifest::Dependency;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::semconv::SemConvSpecWithProvenance;
+use weaver_semconv::v1::group::ImportsWithProvenance;
 
 use crate::attribute::AttributeCatalog;
 use crate::dependency::ResolvedDependency;
@@ -621,9 +621,9 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
     use weaver_common::vdir::VirtualDirectoryPath;
-    use weaver_semconv::attribute::{BasicRequirementLevelSpec, RequirementLevel};
-    use weaver_semconv::group::{GroupType, ImportsWithProvenance};
     use weaver_semconv::registry_repo::RegistryRepo;
+    use weaver_semconv::v1::attribute::{BasicRequirementLevelSpec, RequirementLevel};
+    use weaver_semconv::v1::group::{GroupType, ImportsWithProvenance};
 
     #[test]
     fn test_weaver_resolver_caching() {
@@ -870,8 +870,8 @@ mod tests {
                     assert_eq!(attr.brief, "Server address.");
                     assert_eq!(
                         attr.r#type,
-                        weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                            weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String
+                        weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                            weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String
                         )
                     );
                 }
@@ -879,8 +879,8 @@ mod tests {
                     assert_eq!(attr.brief, "The server port used by the consumer.");
                     assert_eq!(
                         attr.r#type,
-                        weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                            weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::Int
+                        weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                            weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::Int
                         )
                     );
                 }
@@ -1358,7 +1358,7 @@ metrics:
 
     fn create_registry_from_string(
         registry_spec: &str,
-    ) -> WResult<weaver_resolved_schema::registry::Registry, Error> {
+    ) -> WResult<weaver_resolved_schema::v1::registry::Registry, Error> {
         let loaded = LoadedSemconvRegistry::create_from_string(registry_spec)
             .expect("Failed to load semconv spec");
         let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
@@ -3038,12 +3038,12 @@ groups:
             file_format: "resolved/1.0".to_owned(),
             schema_url: "https://example.com/base/1.0.0".to_owned(),
             registry_id: "base".to_owned(),
-            registry: weaver_resolved_schema::registry::Registry {
+            registry: weaver_resolved_schema::v1::registry::Registry {
                 registry_url: "https://example.com/base/1.0.0".to_owned(),
                 entity_association_origins: Default::default(),
                 groups: vec![],
             },
-            catalog: weaver_resolved_schema::catalog::Catalog::default(),
+            catalog: weaver_resolved_schema::v1::catalog::Catalog::default(),
             resource: None,
             instrumentation_library: None,
             dependencies: Default::default(),
@@ -3055,12 +3055,12 @@ groups:
             file_format: "resolved/1.0".to_owned(),
             schema_url: "https://example.com/base/1.1.0".to_owned(),
             registry_id: "base".to_owned(),
-            registry: weaver_resolved_schema::registry::Registry {
+            registry: weaver_resolved_schema::v1::registry::Registry {
                 registry_url: "https://example.com/base/1.1.0".to_owned(),
                 entity_association_origins: Default::default(),
                 groups: vec![],
             },
-            catalog: weaver_resolved_schema::catalog::Catalog::default(),
+            catalog: weaver_resolved_schema::v1::catalog::Catalog::default(),
             resource: None,
             instrumentation_library: None,
             dependencies: Default::default(),
@@ -3072,12 +3072,12 @@ groups:
             file_format: "resolved/1.0".to_owned(),
             schema_url: "https://example.com/layer1_a/0.1.0".to_owned(),
             registry_id: "layer1_a".to_owned(),
-            registry: weaver_resolved_schema::registry::Registry {
+            registry: weaver_resolved_schema::v1::registry::Registry {
                 registry_url: "https://example.com/layer1_a/0.1.0".to_owned(),
                 entity_association_origins: Default::default(),
                 groups: vec![],
             },
-            catalog: weaver_resolved_schema::catalog::Catalog::default(),
+            catalog: weaver_resolved_schema::v1::catalog::Catalog::default(),
             resource: None,
             instrumentation_library: None,
             dependencies: [url_base_v1_0.clone()].into_iter().collect(),
@@ -3089,12 +3089,12 @@ groups:
             file_format: "resolved/1.0".to_owned(),
             schema_url: "https://example.com/layer1_b/0.1.0".to_owned(),
             registry_id: "layer1_b".to_owned(),
-            registry: weaver_resolved_schema::registry::Registry {
+            registry: weaver_resolved_schema::v1::registry::Registry {
                 registry_url: "https://example.com/layer1_b/0.1.0".to_owned(),
                 entity_association_origins: Default::default(),
                 groups: vec![],
             },
-            catalog: weaver_resolved_schema::catalog::Catalog::default(),
+            catalog: weaver_resolved_schema::v1::catalog::Catalog::default(),
             resource: None,
             instrumentation_library: None,
             dependencies: [url_base_v1_1.clone()].into_iter().collect(),
@@ -3132,12 +3132,12 @@ groups:
             file_format: "resolved/1.0".to_owned(),
             schema_url: "https://example.com/c/1.2.0".to_owned(),
             registry_id: "c".to_owned(),
-            registry: weaver_resolved_schema::registry::Registry {
+            registry: weaver_resolved_schema::v1::registry::Registry {
                 registry_url: "https://example.com/c/1.2.0".to_owned(),
                 entity_association_origins: Default::default(),
                 groups: vec![],
             },
-            catalog: weaver_resolved_schema::catalog::Catalog::default(),
+            catalog: weaver_resolved_schema::v1::catalog::Catalog::default(),
             resource: None,
             instrumentation_library: None,
             dependencies: Default::default(),
@@ -3153,10 +3153,10 @@ groups:
             cache: &cache,
         };
 
-        let attr = weaver_resolved_schema::attribute::Attribute {
+        let attr = weaver_resolved_schema::v1::attribute::Attribute {
             name: "c.removed_attr".to_owned(),
-            r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+            r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String,
             ),
             brief: "Old attribute in C v1.1".to_owned(),
             examples: Default::default(),

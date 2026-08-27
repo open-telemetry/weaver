@@ -7,16 +7,17 @@ use std::fmt::Display;
 use std::path::MAIN_SEPARATOR;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
-use weaver_semconv::registry::SemConvRegistry;
+use weaver_semconv::v1::registry::SemConvRegistry;
 
 use walkdir::DirEntry;
 use weaver_common::result::WResult;
+use weaver_resolved_schema::v1::ResolvedTelemetrySchema as V1Schema;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
-use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_semconv::manifest::Dependency;
 use weaver_semconv::registry_repo::{RegistryRepo, LEGACY_REGISTRY_MANIFEST, REGISTRY_MANIFEST};
 use weaver_semconv::schema_url::SchemaUrl;
-use weaver_semconv::{group::ImportsWithProvenance, semconv::SemConvSpecWithProvenance};
+use weaver_semconv::semconv::SemConvSpecWithProvenance;
+use weaver_semconv::v1::group::ImportsWithProvenance;
 
 use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 use crate::Error;

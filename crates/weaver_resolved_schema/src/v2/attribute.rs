@@ -4,9 +4,9 @@ use std::fmt::Display;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_semconv::{
+use weaver_semconv::v2::{
     attribute::{AttributeType, Examples},
-    v2::CommonFields,
+    CommonFields,
 };
 
 use crate::v2::{provenance::Provenance, Signal};

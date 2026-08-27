@@ -3,6 +3,7 @@
 //! The new way we want to define metrics going forward.
 
 use std::collections::BTreeMap;
+use std::fmt::{Display, Formatter};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -10,41 +11,60 @@ use serde::{Deserialize, Serialize};
 use crate::{
     deprecated::Deprecated,
     entity_association::EntityAssociation,
-    group::{GroupSpec, InstrumentSpec},
     signal_requirement_level::SignalRequirementLevel,
     stability::Stability,
     v2::{
-        attribute::{split_attributes_and_groups, AttributeOrGroupRef},
+        attribute::AttributeOrGroupRef,
         signal_id::SignalId,
         CommonFields,
     },
     YamlValue,
 };
 
+/// The instrument type that should be used to record the metric.
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord, Copy,
+)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum InstrumentSpec {
+    /// A counter metric.
+    Counter,
+    /// A gauge metric.
+    Gauge,
+    /// A histogram metric.
+    Histogram,
+    /// An up-down counter metric.
+    #[serde(rename = "updowncounter")]
+    UpDownCounter,
+}
+
+impl Display for InstrumentSpec {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InstrumentSpec::Counter => write!(f, "counter"),
+            InstrumentSpec::Gauge => write!(f, "gauge"),
+            InstrumentSpec::Histogram => write!(f, "histogram"),
+            InstrumentSpec::UpDownCounter => write!(f, "updowncounter"),
+        }
+    }
+}
+
 /// Defines a new metric.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Metric {
     /// The name of the metric.
     pub name: SignalId,
-    /// The instrument type that should be used to record the metric. Note that
-    /// the semantic conventions must be written using the names of the
-    /// synchronous instrument types (counter, gauge, updowncounter and
-    /// histogram).
-    /// For more details: [Metrics semantic conventions - Instrument types](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-types).
-    /// Note: This field is required if type is metric.
+    /// The instrument type that should be used to record the metric.
     pub instrument: InstrumentSpec,
-    /// The unit in which the metric is measured, which should adhere to the
-    /// [guidelines](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-units).
+    /// The unit in which the metric is measured.
     pub unit: String,
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeOrGroupRef>,
     /// Which resources this metric should be associated with.
-    ///
-    /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
-    /// entity reference or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<EntityAssociation>,
@@ -57,7 +77,7 @@ pub struct Metric {
 }
 
 /// A refinement of an existing metric.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct MetricRefinement {
     /// The ID of the refinement.
@@ -69,9 +89,6 @@ pub struct MetricRefinement {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeOrGroupRef>,
     /// Which resources this metric should be associated with.
-    ///
-    /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
-    /// entity reference or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<EntityAssociation>,
@@ -94,143 +111,22 @@ pub struct MetricRefinement {
     pub annotations: BTreeMap<String, YamlValue>,
 }
 
-impl Metric {
-    /// Converts a v2 span group into a v1 GroupSpec.
-    #[must_use]
-    pub fn into_v1_group(self) -> GroupSpec {
-        let (attribute_refs, include_groups) = split_attributes_and_groups(self.attributes);
-        GroupSpec {
-            id: format!("metric.{}", &self.name),
-            r#type: crate::group::GroupType::Metric,
-            brief: self.common.brief,
-            note: self.common.note,
-            prefix: Default::default(),
-            extends: None,
-            include_groups,
-            stability: Some(self.common.stability),
-            deprecated: self.common.deprecated,
-            attributes: attribute_refs,
-            span_kind: None,
-            events: Default::default(),
-            metric_name: Some(self.name.into_v1()),
-            instrument: Some(self.instrument),
-            unit: Some(self.unit),
-            name: None,
-            display_name: None,
-            body: None,
-            annotations: if self.common.annotations.is_empty() {
-                None
-            } else {
-                Some(self.common.annotations)
-            },
-            entity_associations: self.entity_associations,
-            visibility: None,
-            is_v2: true,
-            span_name: None,
-            requirement_level: self.requirement_level,
-        }
-    }
-}
-
-impl MetricRefinement {
-    /// Converts a v2 metric refinement into a v1 GroupSpec.
-    #[must_use]
-    pub fn into_v1_group(self) -> GroupSpec {
-        let (attribute_refs, include_groups) = split_attributes_and_groups(self.attributes);
-        GroupSpec {
-            id: self.id.to_string(),
-            r#type: crate::group::GroupType::Metric,
-            brief: self.brief.unwrap_or_default(),
-            note: self.note.unwrap_or_default(),
-            prefix: Default::default(),
-            extends: Some(format!("metric.{}", &self.r#ref)),
-            include_groups,
-            stability: self.stability,
-            deprecated: self.deprecated,
-            attributes: attribute_refs,
-            span_kind: None,
-            events: Default::default(),
-            metric_name: None,
-            instrument: None,
-            unit: None,
-            name: None,
-            display_name: None,
-            body: None,
-            annotations: if self.annotations.is_empty() {
-                None
-            } else {
-                Some(self.annotations)
-            },
-            entity_associations: self.entity_associations,
-            visibility: None,
-            is_v2: true,
-            span_name: None,
-            requirement_level: None,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn parse_and_translate(v2: &str, v1: &str) {
-        let metric = serde_yaml::from_str::<Metric>(v2).expect("Failed to parse YAML string");
-        let expected =
-            serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
-        assert_eq!(expected, metric.into_v1_group());
-    }
-
     #[test]
-    fn test_value_spec_display() {
-        parse_and_translate(
-            // V2 - Metric
-            r#"name: my_metric
+    fn test_metric_parsing() {
+        let yaml = r#"name: my_metric
 brief: Test metric
 stability: stable
 instrument: histogram
 unit: s
 requirement_level: opt_in
-"#,
-            // V1 - Group
-            r#"id: metric.my_metric
-type: metric
-metric_name: my_metric
-brief: Test metric
-stability: stable
-is_v2: true
-instrument: histogram
-unit: s
-requirement_level: opt_in
-"#,
-        );
-    }
-
-    fn parse_and_translate_refinement(v2: &str, v1: &str) {
-        let metric =
-            serde_yaml::from_str::<MetricRefinement>(v2).expect("Failed to parse YAML string");
-        let expected =
-            serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
-        assert_eq!(expected, metric.into_v1_group());
-    }
-
-    #[test]
-    fn test_metric_refinement_translation() {
-        parse_and_translate_refinement(
-            // V2 - MetricRefinement
-            r#"id: metric.refinement.my_metric
-ref: my_metric
-brief: Test metric refinement
-stability: stable
-"#,
-            // V1 - Group
-            r#"id: metric.refinement.my_metric
-type: metric
-brief: Test metric refinement
-extends: metric.my_metric
-stability: stable
-is_v2: true
-"#,
-        );
+"#;
+        let metric = serde_yaml::from_str::<Metric>(yaml).expect("Failed to parse YAML string");
+        assert_eq!(metric.name.to_string(), "my_metric");
+        assert_eq!(metric.instrument, InstrumentSpec::Histogram);
+        assert_eq!(metric.unit, "s");
     }
 }

@@ -9,8 +9,8 @@ use std::fmt::{Display, Formatter};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::attribute::{BasicRequirementLevelSpec, EnumEntriesSpec, Examples, RequirementLevel};
 use crate::stability::Stability;
+use crate::v1::attribute::{BasicRequirementLevelSpec, EnumEntriesSpec, Examples, RequirementLevel};
 
 /// The AnyValueTypeSpec is a specification of a value that can be of any type.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
@@ -245,7 +245,7 @@ impl AnyValueSpec {
 mod tests {
     use std::fs;
 
-    use crate::attribute::ValueSpec;
+    use crate::v1::attribute::ValueSpec;
 
     use super::*;
 
