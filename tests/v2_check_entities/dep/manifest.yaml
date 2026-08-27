@@ -1,0 +1,5 @@
+name: entities_dep
+description: >
+  A dependency that defines a stable `service` entity and a `host` entity that
+  is still in development.
+schema_url: https://example.com/entities-dep/1.0.0

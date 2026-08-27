@@ -637,11 +637,51 @@ fn resolve_attribute_references<C: crate::SchemaCacheLookup>(
     attr_catalog: &mut AttributeCatalog,
     cache_lookup: &C,
 ) -> Result<(), Error> {
-    // TODO - Right now the attribute registry does NOT have any of the
-    // attributes from dependencies. We expect to resolve all groups in the current
-    // algorithm, instead we need to *pre-register* those attributes here.
+    // First, resolve all attribute definitions (AttributeSpec::Id) across all groups.
+    // This populates the catalog with all local and refinement attribute definitions
+    // before resolving attribute references (AttributeSpec::Ref), preventing dependency
+    // lookups from preempting local definitions.
+    let mut init_errors = vec![];
+    for unresolved_group in ureg.groups.iter_mut() {
+        let mut resolved_attr = vec![];
+        let mut still_unresolved = vec![];
+        let group_excluded = is_group_excluded(
+            &unresolved_group.group.annotations,
+            unresolved_group.visibility.as_ref(),
+            &unresolved_group.group.r#type,
+        );
+        for attr in unresolved_group.attributes.drain(..) {
+            if matches!(attr.spec, AttributeSpec::Id { .. }) {
+                match attr_catalog.resolve(
+                    &unresolved_group.group.id,
+                    &unresolved_group.group.prefix,
+                    group_excluded,
+                    &attr.spec,
+                    attr.origin.as_ref(),
+                    unresolved_group.group.lineage.as_mut(),
+                    &ureg.dependencies,
+                    cache_lookup,
+                ) {
+                    Ok(Some(attr_ref)) => {
+                        resolved_attr.push(attr_ref);
+                    }
+                    Ok(None) => still_unresolved.push(attr),
+                    Err(e @ Error::ExcludedFromDependencyResolution { .. }) => {
+                        init_errors.push(e);
+                        still_unresolved.push(attr);
+                    }
+                    Err(e) => return Err(e),
+                }
+            } else {
+                still_unresolved.push(attr);
+            }
+        }
+        unresolved_group.attributes = still_unresolved;
+        unresolved_group.group.attributes.extend(resolved_attr);
+    }
+
     loop {
-        let mut errors = vec![];
+        let mut errors = init_errors.clone();
         let mut resolved_attr_count = 0;
 
         // Iterate over all groups and resolve the attributes.

@@ -6,10 +6,7 @@ use serde::{Deserialize, Serialize};
 use weaver_common::result::WResult;
 use weaver_resolved_schema::{
     attribute::AttributeRef,
-    v2::{
-        catalog::AttributeCatalog,
-        entity::{to_named_associations, EntityAttributeRef},
-    },
+    v2::{catalog::AttributeCatalog, entity::EntityAttributeRef},
 };
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::schema_url::SchemaUrl;
@@ -19,7 +16,9 @@ use crate::{
     v2::{
         attribute::Attribute,
         attribute_group::AttributeGroup,
-        entity::{Entity, EntityAttribute, EntityRefinement},
+        entity::{
+            from_resolved_associations, Entity, EntityAttribute, EntityRef, EntityRefinement,
+        },
         event::{Event, EventAttribute, EventRefinement},
         metric::{Metric, MetricAttribute, MetricRefinement},
         span::{Span, SpanAttribute, SpanRefinement},
@@ -82,6 +81,53 @@ pub struct Refinements {
 }
 
 impl ForgeResolvedRegistry {
+    /// Returns the entity definition that an association leaf names.
+    ///
+    /// The reference says where the entity is defined, so this reads one
+    /// registry rather than searching the dependency tree. A registry does not
+    /// copy the entities of its dependencies, so an association often points
+    /// away from this one.
+    pub fn lookup_entity(&self, entity_ref: &EntityRef) -> Result<&Entity, Error> {
+        let registry = match &entity_ref.provenance.source {
+            // Empty provenance: this registry defines it.
+            None => self,
+            // A dependency list holds the whole closure, so a registry that
+            // another dependency re-exports from is here too.
+            Some(url) => self
+                .dependencies
+                .iter()
+                .find(|dep| &dep.schema_url == url)
+                .ok_or_else(|| Error::EntityNotFound {
+                    entity_type: entity_ref.r#type.to_string(),
+                    registry: Some(url.to_string()),
+                })?,
+        };
+        registry
+            .defined_entity(&entity_ref.r#type)
+            .ok_or_else(|| Error::EntityNotFound {
+                entity_type: entity_ref.r#type.to_string(),
+                registry: entity_ref.provenance.source.as_ref().map(|u| u.to_string()),
+            })
+    }
+
+    /// The entity this registry defines under `name`.
+    ///
+    /// An association names an entity type or the id of an entity refinement,
+    /// which share one namespace, so both lists answer.
+    fn defined_entity(&self, name: &str) -> Option<&Entity> {
+        self.registry
+            .entities
+            .iter()
+            .find(|entity| &*entity.r#type == name)
+            .or_else(|| {
+                self.refinements
+                    .entities
+                    .iter()
+                    .find(|refinement| &*refinement.id == name)
+                    .map(|refinement| &refinement.entity)
+            })
+    }
+
     /// Create a new template registry from a resolved schema registry, resolving
     /// all dependencies via the provided schema resolver.
     ///
@@ -94,18 +140,12 @@ impl ForgeResolvedRegistry {
 
         let deps_list: Vec<_> = schema.dependencies.iter().cloned().collect();
         let resolve_provenance = |prov: &weaver_resolved_schema::v2::provenance::Provenance| {
-            let source = prov
-                .source
-                .and_then(|r| deps_list.get(r.0 as usize).cloned());
-            Provenance {
-                source,
-                path: if prov.path.is_empty() {
-                    None
-                } else {
-                    Some(prov.path.clone())
-                },
-            }
+            Provenance::from_resolved(prov, &deps_list)
         };
+        let resolve_associations =
+            |assocs: &[weaver_resolved_schema::v2::entity::EntityAssociation]| {
+                from_resolved_associations(assocs, &deps_list)
+            };
 
         let attribute_lookup = |r: &weaver_resolved_schema::v2::attribute::AttributeRef| {
             schema.attribute_catalog.attribute(r)
@@ -155,7 +195,7 @@ impl ForgeResolvedRegistry {
                 instrument: metric.instrument,
                 unit: metric.unit,
                 attributes,
-                entity_associations: to_named_associations(&metric.entity_associations),
+                entity_associations: resolve_associations(&metric.entity_associations),
                 requirement_level: metric.requirement_level,
                 common: metric.common,
                 provenance: resolve_provenance(&metric.provenance),
@@ -196,7 +236,7 @@ impl ForgeResolvedRegistry {
                     instrument: metric.metric.instrument,
                     unit: metric.metric.unit,
                     attributes,
-                    entity_associations: to_named_associations(&metric.metric.entity_associations),
+                    entity_associations: resolve_associations(&metric.metric.entity_associations),
                     requirement_level: metric.metric.requirement_level,
                     common: metric.metric.common,
                     provenance: resolve_provenance(&metric.metric.provenance),
@@ -236,7 +276,7 @@ impl ForgeResolvedRegistry {
                 kind: span.kind,
                 name: span.name,
                 attributes,
-                entity_associations: to_named_associations(&span.entity_associations),
+                entity_associations: resolve_associations(&span.entity_associations),
                 requirement_level: span.requirement_level,
                 common: span.common,
                 provenance: resolve_provenance(&span.provenance),
@@ -277,7 +317,7 @@ impl ForgeResolvedRegistry {
                     kind: span.span.kind,
                     name: span.span.name,
                     attributes,
-                    entity_associations: to_named_associations(&span.span.entity_associations),
+                    entity_associations: resolve_associations(&span.span.entity_associations),
                     requirement_level: span.span.requirement_level,
                     common: span.span.common,
                     provenance: resolve_provenance(&span.span.provenance),
@@ -314,7 +354,7 @@ impl ForgeResolvedRegistry {
             events.push(Event {
                 name: event.name,
                 attributes,
-                entity_associations: to_named_associations(&event.entity_associations),
+                entity_associations: resolve_associations(&event.entity_associations),
                 requirement_level: event.requirement_level,
                 common: event.common,
                 provenance: resolve_provenance(&event.provenance),
@@ -354,7 +394,7 @@ impl ForgeResolvedRegistry {
                 event: Event {
                     name: event.event.name,
                     attributes,
-                    entity_associations: to_named_associations(&event.event.entity_associations),
+                    entity_associations: resolve_associations(&event.event.entity_associations),
                     requirement_level: event.event.requirement_level,
                     common: event.event.common,
                     provenance: resolve_provenance(&event.event.provenance),
@@ -534,6 +574,7 @@ mod tests {
     use std::collections::{BTreeMap, BTreeSet, HashMap};
     use std::sync::Arc;
 
+    use crate::v2::entity::EntityAssociation;
     use schemars::schema_for;
     use serde_json::to_string_pretty;
     use weaver_resolved_schema::attribute::AttributeRef;
@@ -547,7 +588,6 @@ mod tests {
             AttributeType, BasicRequirementLevelSpec, Examples, PrimitiveOrArrayTypeSpec,
             RequirementLevel,
         },
-        entity_association::EntityAssociation,
         group::{InstrumentSpec, SpanKindSpec},
         schema_url::SchemaUrl,
         signal_requirement_level::SignalRequirementLevel,
@@ -909,7 +949,9 @@ mod tests {
         assert_eq!(span.attributes[0].sampling_relevant, Some(true));
         assert_eq!(
             span.entity_associations,
-            vec![EntityAssociation::Ref("my-entity".to_owned())]
+            vec![EntityAssociation::Ref(EntityRef::local(
+                "my-entity".to_owned().into()
+            ))]
         );
         assert_eq!(span.provenance.source, Some(dep_url.clone()));
         assert_eq!(span.provenance.path, Some("span.yaml".to_owned()));
@@ -922,7 +964,9 @@ mod tests {
         assert_eq!(metric.attributes[0].base.key, "test.attr");
         assert_eq!(
             metric.entity_associations,
-            vec![EntityAssociation::Ref("my-entity".to_owned())]
+            vec![EntityAssociation::Ref(EntityRef::local(
+                "my-entity".to_owned().into()
+            ))]
         );
 
         let event = &forge_registry.registry.events[0];
@@ -931,7 +975,9 @@ mod tests {
         assert_eq!(event.attributes[0].base.key, "test.attr");
         assert_eq!(
             event.entity_associations,
-            vec![EntityAssociation::Ref("my-entity".to_owned())]
+            vec![EntityAssociation::Ref(EntityRef::local(
+                "my-entity".to_owned().into()
+            ))]
         );
 
         let entity = &forge_registry.registry.entities[0];
@@ -2151,5 +2197,277 @@ mod tests {
         let round_trip: ForgeResolvedRegistry =
             serde_json::from_value(json_val).expect("Failed to deserialize from JSON");
         assert_eq!(round_trip, forge_registry);
+    }
+
+    /// An entity with no attributes, for the lookup tests.
+    fn test_entity(entity_type: &str) -> Entity {
+        Entity {
+            r#type: entity_type.to_owned().into(),
+            identity: vec![],
+            description: vec![],
+            requirement_level: None,
+            common: CommonFields::default(),
+            provenance: Provenance::default(),
+        }
+    }
+
+    /// A registry that defines `entities`, a base refinement of each, and holds
+    /// `dependencies`.
+    fn test_registry(
+        url: &str,
+        entities: &[&str],
+        dependencies: Vec<ForgeResolvedRegistry>,
+    ) -> ForgeResolvedRegistry {
+        ForgeResolvedRegistry {
+            schema_url: url.try_into().expect("a valid schema url"),
+            registry: Registry {
+                attributes: vec![],
+                attribute_groups: vec![],
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities: entities.iter().map(|t| test_entity(t)).collect(),
+            },
+            refinements: Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities: entities
+                    .iter()
+                    .map(|t| EntityRefinement {
+                        id: (*t).to_owned().into(),
+                        entity: test_entity(t),
+                    })
+                    .collect(),
+            },
+            dependencies,
+        }
+    }
+
+    /// The registry a dependency-sourced reference points at, and the tree that
+    /// holds it. The dependency list of a resolved schema is the whole closure,
+    /// so `base` is a child of `main` even though `middle` is what depends on it.
+    fn lookup_fixture() -> (SchemaUrl, SchemaUrl, ForgeResolvedRegistry) {
+        let middle_url: SchemaUrl = "https://example.com/middle/1.0.0"
+            .try_into()
+            .expect("a valid schema url");
+        let base_url: SchemaUrl = "https://example.com/base/1.0.0"
+            .try_into()
+            .expect("a valid schema url");
+        let base = test_registry(base_url.as_str(), &["host"], vec![]);
+        let middle = test_registry(middle_url.as_str(), &["deployment"], vec![base.clone()]);
+        let main = test_registry(
+            "https://example.com/main/1.0.0",
+            &["service"],
+            vec![middle, base],
+        );
+        (middle_url, base_url, main)
+    }
+
+    /// An empty provenance names an entity of this registry.
+    #[test]
+    fn test_lookup_entity_local() {
+        let (_, _, main) = lookup_fixture();
+        let found = main
+            .lookup_entity(&EntityRef::local("service".to_owned().into()))
+            .expect("the local entity");
+        assert_eq!(found.r#type, "service".to_owned().into());
+    }
+
+    /// A refinement id is a name like any other, so the refinement list answers
+    /// for an entity the registry list does not hold.
+    #[test]
+    fn test_lookup_entity_refinement() {
+        let (_, _, mut main) = lookup_fixture();
+        main.refinements.entities.push(EntityRefinement {
+            id: "service.linux".to_owned().into(),
+            entity: test_entity("service"),
+        });
+        let found = main
+            .lookup_entity(&EntityRef::local("service.linux".to_owned().into()))
+            .expect("the refinement");
+        assert_eq!(found.r#type, "service".to_owned().into());
+    }
+
+    /// A reference into a direct dependency reads that dependency.
+    #[test]
+    fn test_lookup_entity_from_dependency() {
+        let (middle_url, _, main) = lookup_fixture();
+        let found = main
+            .lookup_entity(&EntityRef {
+                r#type: "deployment".to_owned().into(),
+                provenance: Provenance {
+                    source: Some(middle_url),
+                    path: None,
+                },
+            })
+            .expect("the entity of the dependency");
+        assert_eq!(found.r#type, "deployment".to_owned().into());
+    }
+
+    /// A dependency of a dependency is in the closure, so it needs no walk.
+    #[test]
+    fn test_lookup_entity_from_transitive_dependency() {
+        let (_, base_url, main) = lookup_fixture();
+        let found = main
+            .lookup_entity(&EntityRef {
+                r#type: "host".to_owned().into(),
+                provenance: Provenance {
+                    source: Some(base_url),
+                    path: None,
+                },
+            })
+            .expect("the entity of the transitive dependency");
+        assert_eq!(found.r#type, "host".to_owned().into());
+    }
+
+    /// A name no registry defines names the reference in the error.
+    #[test]
+    fn test_lookup_entity_not_defined() {
+        let (_, _, main) = lookup_fixture();
+        let error = main
+            .lookup_entity(&EntityRef::local("nothing".to_owned().into()))
+            .expect_err("no such entity");
+        assert!(
+            matches!(&error, Error::EntityNotFound { entity_type, registry }
+                if entity_type == "nothing" && registry.is_none()),
+            "unexpected error: {error:?}"
+        );
+    }
+
+    /// A reference into a registry that this one does not depend on names that
+    /// registry in the error.
+    #[test]
+    fn test_lookup_entity_unknown_registry() {
+        let (_, _, main) = lookup_fixture();
+        let stranger: SchemaUrl = "https://example.com/stranger/1.0.0"
+            .try_into()
+            .expect("a valid schema url");
+        let error = main
+            .lookup_entity(&EntityRef {
+                r#type: "host".to_owned().into(),
+                provenance: Provenance {
+                    source: Some(stranger.clone()),
+                    path: None,
+                },
+            })
+            .expect_err("not a dependency");
+        assert!(
+            matches!(&error, Error::EntityNotFound { entity_type, registry }
+                if entity_type == "host" && registry.as_deref() == Some(stranger.as_str())),
+            "unexpected error: {error:?}"
+        );
+    }
+
+    /// An entity a dependency holds is not copied into this registry, so a
+    /// reference that lost its provenance would find nothing.
+    #[test]
+    fn test_lookup_entity_of_dependency_is_not_local() {
+        let (_, _, main) = lookup_fixture();
+        assert!(main
+            .lookup_entity(&EntityRef::local("host".to_owned().into()))
+            .is_err());
+    }
+
+    /// End to end: the conversion turns the dependency index of a leaf into the
+    /// schema url of that dependency, and the helper reads the definition back.
+    #[test]
+    fn test_lookup_entity_after_conversion() {
+        let base_url: SchemaUrl = "https://example.com/base/1.0.0"
+            .try_into()
+            .expect("a valid schema url");
+        let host = entity::Entity {
+            r#type: "host".to_owned().into(),
+            identity: vec![],
+            description: vec![],
+            requirement_level: None,
+            common: CommonFields::default(),
+            provenance: Default::default(),
+        };
+        let base_schema = ResolvedTelemetrySchema {
+            file_format: "2.0.0".to_owned(),
+            schema_url: base_url.clone(),
+            attribute_catalog: vec![],
+            dependencies: BTreeSet::new(),
+            registry: v2::registry::Registry {
+                attributes: vec![],
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![host.clone()],
+                attribute_groups: vec![],
+            },
+            refinements: refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![entity::EntityRefinement {
+                    id: "host".to_owned().into(),
+                    entity: host,
+                }],
+            },
+        };
+
+        // The span names the `host` of `base`, which this registry does not hold.
+        let root_schema = ResolvedTelemetrySchema {
+            file_format: "2.0.0".to_owned(),
+            schema_url: "https://example.com/root/1.0.0"
+                .try_into()
+                .expect("a valid schema url"),
+            attribute_catalog: vec![],
+            dependencies: [base_url.clone()].into_iter().collect(),
+            registry: v2::registry::Registry {
+                attributes: vec![],
+                spans: vec![span::Span {
+                    r#type: "my-span".to_owned().into(),
+                    kind: SpanKindSpec::Internal,
+                    name: SpanName {
+                        note: "My Span".to_owned(),
+                    },
+                    attributes: vec![],
+                    entity_associations: vec![entity::EntityAssociation::Ref(entity::EntityRef {
+                        r#type: "host".to_owned().into(),
+                        provenance: provenance::Provenance {
+                            source: Some(provenance::DependencyRef(0)),
+                            path: String::new(),
+                        },
+                    })],
+                    requirement_level: None,
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                }],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+                attribute_groups: vec![],
+            },
+            refinements: refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+        };
+
+        let mut mock_resolver = MockSchemaResolver::new();
+        mock_resolver.add_v2_schema(base_schema);
+        let forge_registry = match ForgeResolvedRegistry::try_from_resolved_schema(
+            root_schema,
+            &mut mock_resolver,
+        ) {
+            WResult::Ok(r) => r,
+            WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
+        };
+
+        let leaf = match &forge_registry.registry.spans[0].entity_associations[0] {
+            EntityAssociation::Ref(entity_ref) => entity_ref,
+            other => panic!("expected a reference, got {other:?}"),
+        };
+        assert_eq!(leaf.provenance.source.as_ref(), Some(&base_url));
+        let found = forge_registry
+            .lookup_entity(leaf)
+            .expect("the entity of the dependency");
+        assert_eq!(found.r#type, "host".to_owned().into());
     }
 }

@@ -24,7 +24,7 @@ eula = false
 # Workspace definition ========================================================
 [workspace]
 members = ["crates/*"]
-exclude = ["fuzz"]
+exclude = ["fuzz", "target"]
 
 [workspace.package]
 version = "0.25.1"

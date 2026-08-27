@@ -1558,6 +1558,50 @@ groups:
     }
 
     #[test]
+    fn test_dep_exclusion_migration_redefine_ref_before_def() {
+        // Test that when a consumer references a redefined attribute (via ref) in a group,
+        // it resolves against the local definition rather than falling back to the dependency's
+        // excluded definition.
+        let consumer_yaml = r#"
+file_format: definition/2
+metrics:
+  - name: moved.metric
+    requirement_level: recommended
+    instrument: counter
+    unit: "1"
+    stability: stable
+    brief: Redefined metric.
+    attributes:
+      - ref: moved.attr
+        requirement_level: required
+attributes:
+  - key: moved.attr
+    type: string
+    stability: stable
+    brief: Redefined attribute (same name as the deprecated parent item).
+"#;
+        let result = resolve_inline_with_parent(
+            consumer_yaml,
+            "data/registry-test-dep-exclusion/migration_parent",
+        );
+        let resolved = match result {
+            WResult::Ok(s) | WResult::OkWithNFEs(s, _) => s,
+            WResult::FatalErr(e) => panic!("expected success; got {e:?}"),
+        };
+
+        let metric = resolved
+            .groups(GroupType::Metric)
+            .get("metric.moved.metric")
+            .cloned()
+            .expect("metric.moved.metric should be present");
+        let attr = resolved
+            .catalog
+            .attribute(&metric.attributes[0])
+            .expect("attribute should exist in catalog");
+        assert_eq!(attr.name, "moved.attr");
+    }
+
+    #[test]
     fn test_within_registry_leak_v2_refinement() {
         // V2: a public metric_refinement targets an excluded base metric in
         // the same registry. Exercises the `extends` exclusion path on V2.
@@ -2249,6 +2293,75 @@ groups:
             .filter(|e| !is_unstable_format_warning(e))
             .collect();
         (v2, nfes)
+    }
+
+    /// Loads and resolves a `signal-name-preservation` fixture.
+    fn load_signal_name_fixture(name: &str) -> WeaverResolvedSchema {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: format!("data/signal-name-preservation/{name}"),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("failed to create registry repo");
+        match WeaverResolver::new(WeaverResolverConfig::default())
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+        {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Failed to resolve `{name}`: {e}"),
+        }
+    }
+
+    /// Asserts the materialized v2 signal names/types match the expected values.
+    fn check_v2_signal_names(v2: &V2Schema, entity: &str, metric: &str, event: &str, span: &str) {
+        let entities: Vec<String> = v2
+            .registry
+            .entities
+            .iter()
+            .map(|e| e.r#type.to_string())
+            .collect();
+        let metrics: Vec<String> = v2
+            .registry
+            .metrics
+            .iter()
+            .map(|m| m.name.to_string())
+            .collect();
+        let events: Vec<String> = v2
+            .registry
+            .events
+            .iter()
+            .map(|e| e.name.to_string())
+            .collect();
+        let spans: Vec<String> = v2
+            .registry
+            .spans
+            .iter()
+            .map(|s| s.r#type.to_string())
+            .collect();
+        let mut wrong = Vec::new();
+        for (label, want, got) in [
+            ("entity type", entity, &entities),
+            ("metric name", metric, &metrics),
+            ("event name", event, &events),
+            ("span type", span, &spans),
+        ] {
+            if got.len() != 1 || got.first().map(String::as_str) != Some(want) {
+                wrong.push(format!("{label}: want {want:?}, got {got:?}"));
+            }
+        }
+        assert!(
+            wrong.is_empty(),
+            "unexpected v2 signal names -> {}",
+            wrong.join("; ")
+        );
+    }
+
+    /// A v2 (`definition/2`) registry names a signal directly, with no id
+    /// prefix, so the materialized name is kept verbatim.
+    #[test]
+    fn test_v2_schema_preserves_signal_names() {
+        let resolved = load_signal_name_fixture("v2");
+        let v1 = resolved.as_v1().expect("a v1 schema").clone();
+        let v2: V2Schema = v1.try_into().expect("v1 -> v2 conversion");
+        check_v2_signal_names(&v2, "entity.test", "metric.test", "event.test", "span.test");
     }
 
     /// The non-fatal errors of one of the `entity-assoc-imports` registries.

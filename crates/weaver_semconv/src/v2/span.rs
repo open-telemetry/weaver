@@ -252,8 +252,8 @@ impl SpanAttributeRef {
             requirement_level: self.base.requirement_level,
             sampling_relevant: self.sampling_relevant,
             note: self.base.note,
-            stability: self.base.stability,
-            deprecated: self.base.deprecated,
+            stability: None,
+            deprecated: None,
             prefix: false,
             annotations: if self.base.annotations.is_empty() {
                 None
@@ -406,5 +406,19 @@ brief: With name override
         .expect("Failed to parse refinement with name");
         assert!(with_name.name.is_some());
         assert_eq!(with_name.name.unwrap().note, "{custom} {name_format}");
+    }
+
+    #[test]
+    fn test_span_attribute_ref_rejects_stability_and_deprecated() {
+        for (field, name) in [
+            ("stability: stable", "stability"),
+            ("deprecated:\n  reason: obsoleted", "deprecated"),
+        ] {
+            let yaml = format!("ref: my.attribute\nsampling_relevant: true\n{field}\n");
+            let err = serde_yaml::from_str::<SpanAttributeRef>(&yaml)
+                .expect_err("stability/deprecated must not be allowed on span attribute refs");
+            // `serde(flatten)` drops the position and the list of expected fields.
+            assert_eq!(err.to_string(), format!("unknown field `{name}`"));
+        }
     }
 }

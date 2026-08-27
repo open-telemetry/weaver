@@ -1,0 +1,9 @@
+name: entities_main
+description: >
+  A registry whose stable metric is associated with entities of its dependency.
+  One of them is not stable, which the policy denies.
+schema_url: https://example.com/entities-main/1.0.0
+dependencies:
+  - name: entities_dep
+    schema_url: https://example.com/entities-dep/1.0.0
+    registry_path: tests/v2_check_entities/dep

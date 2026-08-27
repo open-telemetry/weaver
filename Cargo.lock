@@ -2766,9 +2766,9 @@ dependencies = [
 
 [[package]]
 name = "jaq-std"
-version = "3.0.1"
+version = "3.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8bdc5a74b0feeb5e6a1dc2dd08c34280a61e37668d10a6a3b27ad69d0fb9ce2e"
+checksum = "7941c8de9c591052050550f228c62ef80d3ecbd84c330f5c454bc8ebb7a04089"
 dependencies = [
  "aho-corasick",
  "base64",
@@ -4747,9 +4747,9 @@ dependencies = [
 
 [[package]]
 name = "saphyr"
-version = "0.0.11"
+version = "0.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8acd6cfc4803660d26a3fb5bd8f5e47bc0eea5229f4d32f7cb4ee21a733e6961"
+checksum = "372edd44fb1d21f97d7160ca1fb3ed522b7f7315b2369cd10e5127379db5af33"
 dependencies = [
  "encoding_rs",
  "hashlink",
@@ -4760,9 +4760,9 @@ dependencies = [
 
 [[package]]
 name = "saphyr-parser"
-version = "0.0.11"
+version = "0.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebfd783fcf1b3f6bafd557be0e1427ec54f826f513c3cdd749f9844484df2a13"
+checksum = "a0b1b76852c5643f558e7347e4de549474c3ecb7154295a189f4668428c1b453"
 dependencies = [
  "arraydeque",
  "thiserror 2.0.20",

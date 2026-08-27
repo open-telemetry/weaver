@@ -32,6 +32,7 @@ use crate::extensions::{ansi, case, code, otel, util};
 use crate::file_loader::FileLoader;
 use crate::filter::Filter;
 use crate::registry::{ResolvedGroup, ResolvedRegistry};
+use crate::v2::registry::ForgeResolvedRegistry;
 
 pub mod config;
 pub mod debug;
@@ -179,6 +180,10 @@ pub(crate) struct TemplateEngine {
 
     // Global parameters for snippet generation.
     snippet_params: Params,
+
+    /// The v2 registry under generation, when the context is one. The
+    /// `lookup_entity` Jinja function reads it.
+    v2_registry: Option<Arc<ForgeResolvedRegistry>>,
 }
 
 /// Global context for the template engine.
@@ -275,7 +280,14 @@ impl TemplateEngine {
             file_loader: Arc::new(loader),
             target_config: config,
             snippet_params: params,
+            v2_registry: None,
         })
+    }
+
+    /// Gives the engine the v2 registry under generation, so a template can
+    /// look up the entities that `entity_associations` names.
+    pub(crate) fn set_v2_registry(&mut self, registry: Arc<ForgeResolvedRegistry>) {
+        self.v2_registry = Some(registry);
     }
 
     /// Generate a template snippet from serializable context and a snippet identifier.
@@ -846,7 +858,12 @@ impl TemplateEngine {
         env.set_lstrip_blocks(whitespace_control.lstrip_blocks.unwrap_or_default());
         env.set_keep_trailing_newline(whitespace_control.keep_trailing_newline.unwrap_or_default());
 
-        install_weaver_extensions(&mut env, &self.target_config, true)?;
+        install_weaver_extensions(
+            &mut env,
+            &self.target_config,
+            true,
+            self.v2_registry.clone(),
+        )?;
 
         Ok(env)
     }
@@ -886,13 +903,14 @@ pub(crate) fn install_weaver_extensions(
     env: &mut Environment<'_>,
     config: &WeaverConfig,
     comment_flag: bool,
+    v2_registry: Option<Arc<ForgeResolvedRegistry>>,
 ) -> Result<(), Error> {
     code::add_filters(env, config, comment_flag)?;
     ansi::add_filters(env);
     case::add_filters(env);
     otel::add_filters(env);
     util::add_filters(env, config);
-    util::add_functions(env);
+    util::add_functions(env, v2_registry);
     otel::add_tests(env);
     Ok(())
 }
@@ -901,6 +919,7 @@ pub(crate) fn install_weaver_extensions(
 mod tests {
     use std::fs;
     use std::path::{Path, PathBuf};
+    use std::sync::Arc;
 
     use globset::Glob;
     use serde::Serialize;
@@ -919,12 +938,17 @@ mod tests {
     use crate::extensions::case::case_converter;
     use crate::file_loader::FileSystemFileLoader;
     use crate::registry::ResolvedRegistry;
-    use crate::v2::entity::Entity;
+    use crate::v2::attribute::Attribute;
+    use crate::v2::entity::{Entity, EntityAssociation, EntityAttribute, EntityRef};
     use crate::v2::event::Event;
     use crate::v2::metric::Metric;
+    use crate::v2::provenance::Provenance;
     use crate::v2::registry::{ForgeResolvedRegistry, Refinements, Registry as V2Registry};
     use crate::v2::span::Span;
     use crate::{run_filter_raw, OutputDirective, TemplateEngine};
+    use weaver_semconv::attribute::{
+        AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
+    };
     use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
     use weaver_semconv::v2::{signal_id::SignalId, span::SpanName, CommonFields};
 
@@ -1526,6 +1550,150 @@ mod tests {
             .expect("Failed to generate registry assets");
 
         assert!(diff_dir(expected_output, observed_output).unwrap());
+    }
+
+    /// A template reads the identity attributes of an entity that a dependency
+    /// defines. The target's filter keeps only the spans, so the definition
+    /// cannot come from the context.
+    #[test]
+    fn test_lookup_entity_function() {
+        let target = "entity_lookup";
+        let observed_output = PathBuf::from(format!("observed_output/{target}"));
+        fs::remove_dir_all(&observed_output).unwrap_or_default();
+
+        let mut engine = prepare_engine(target, Params::default());
+        let registry = Arc::new(prepare_association_registry());
+        engine.set_v2_registry(Arc::clone(&registry));
+
+        engine
+            .generate(
+                registry.as_ref(),
+                observed_output.as_path(),
+                &OutputDirective::File,
+            )
+            .inspect_err(|e| {
+                print_dedup_errors(e.clone());
+            })
+            .expect("Failed to generate registry assets");
+
+        assert!(diff_dir(
+            PathBuf::from(format!("expected_output/{target}")),
+            observed_output
+        )
+        .unwrap());
+    }
+
+    /// A registry with a span that names an entity of its dependency and one of
+    /// its own.
+    fn prepare_association_registry() -> ForgeResolvedRegistry {
+        fn identity(key: &str) -> EntityAttribute {
+            EntityAttribute {
+                base: Attribute {
+                    key: key.to_owned(),
+                    r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                    examples: None,
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                },
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            }
+        }
+        fn entity(r#type: &str, identity_keys: &[&str]) -> Entity {
+            Entity {
+                r#type: SignalId::from(r#type.to_owned()),
+                identity: identity_keys.iter().map(|k| identity(k)).collect(),
+                description: vec![],
+                requirement_level: None,
+                common: CommonFields::default(),
+                provenance: Default::default(),
+            }
+        }
+        fn dependency_entity(r#type: &str, url: &SchemaUrl) -> EntityRef {
+            EntityRef {
+                r#type: r#type.to_owned().into(),
+                provenance: Provenance {
+                    source: Some(url.clone()),
+                    path: None,
+                },
+            }
+        }
+        fn empty_refinements() -> Refinements {
+            Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities: vec![],
+            }
+        }
+
+        let dependency_url: SchemaUrl = "https://example.com/base/1.0.0"
+            .try_into()
+            .expect("Should be valid schema url");
+        let dependency = ForgeResolvedRegistry {
+            schema_url: dependency_url.clone(),
+            registry: V2Registry {
+                attributes: vec![],
+                attribute_groups: vec![],
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities: vec![
+                    entity("host", &["host.id", "host.name"]),
+                    entity("container", &["container.id"]),
+                ],
+            },
+            refinements: empty_refinements(),
+            dependencies: vec![],
+        };
+
+        ForgeResolvedRegistry {
+            schema_url: "https://example.com/main/1.0.0"
+                .try_into()
+                .expect("Should be valid schema url"),
+            registry: V2Registry {
+                attributes: vec![],
+                attribute_groups: vec![],
+                metrics: vec![],
+                spans: vec![Span {
+                    requirement_level: None,
+                    r#type: SignalId::from("db.client".to_owned()),
+                    kind: SpanKindSpec::Client,
+                    name: SpanName {
+                        note: "A database client span.".to_owned(),
+                    },
+                    attributes: vec![],
+                    entity_associations: vec![
+                        // One leaf, and one tree for the template to walk.
+                        EntityAssociation::Ref(EntityRef::local("service".to_owned().into())),
+                        EntityAssociation::AllOf {
+                            all_of: vec![
+                                EntityAssociation::Ref(EntityRef::local(
+                                    "service".to_owned().into(),
+                                )),
+                                EntityAssociation::OneOf {
+                                    one_of: vec![
+                                        EntityAssociation::Ref(dependency_entity(
+                                            "host",
+                                            &dependency_url,
+                                        )),
+                                        EntityAssociation::Ref(dependency_entity(
+                                            "container",
+                                            &dependency_url,
+                                        )),
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                }],
+                events: vec![],
+                entities: vec![entity("service", &["service.name"])],
+            },
+            refinements: empty_refinements(),
+            dependencies: vec![dependency],
+        }
     }
 
     #[test]

@@ -295,6 +295,47 @@ groups:
 ]
 ```
 
+## The `semconv` Library
+
+Weaver loads `defaults/rego/semconv.rego` into every registry check. It holds
+helpers in the `semconv` package that a policy can call. Call them by their full
+path, `data.semconv.<name>`, because the `import data.semconv` shorthand does
+not work for function calls.
+
+### Entity Associations (v2)
+
+A signal names the entities it belongs to with `entity_associations`. An
+association can be a tree. A `one_of` or `all_of` node contains more
+associations, and only a leaf names an entity. A leaf gives the entity type and,
+in `provenance.source`, the registry that defines it. A leaf with no provenance
+names an entity of the registry under check.
+
+An `after_resolution` policy on a v2 registry gets the materialized registry as
+`input`, so both the local definitions and those of every dependency are in
+reach. Two functions read them:
+
+- `entity_refs(association)` returns the set of leaves in an association, or in a
+  list of associations. It walks every level of the tree.
+- `lookup_entity(ref)` returns the entity definition a leaf names. It reads the
+  registry the leaf names, which is often a dependency, because a registry does
+  not copy the entities of its dependencies. A leaf names an entity type or the
+  id of an entity refinement, and the entity type wins. The result is undefined
+  when no registry defines the name.
+- `defining_registry(ref)` returns the registry a leaf names, for a policy that
+  needs more of it than the one entity.
+
+```rego
+deny contains finding if {
+	some metric in input.registry.metrics
+	some ref in data.semconv.entity_refs(metric.entity_associations)
+	entity := data.semconv.lookup_entity(ref)
+	entity.stability != "stable"
+	finding := {...}
+}
+```
+
+`tests/v2_check_entities/` holds a working policy and a registry to run it on.
+
 ## Creating Rules for Findings
 
 The Weaver Policy Engine allows for the dynamic creation and enforcement of
