@@ -6,18 +6,11 @@ use std::collections::{BTreeSet, HashMap};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_semconv::{
-    deprecated::Deprecated,
-    schema_url::SchemaUrl,
-    v2::CommonFields,
-};
+use weaver_semconv::{deprecated::Deprecated, schema_url::SchemaUrl, v2::CommonFields};
 use weaver_version::v2::{RegistryChanges, SchemaChanges, SchemaItemChange};
 
 use crate::v2::{
-    attribute::Attribute,
-    catalog::AttributeCatalog,
-    refinements::Refinements,
-    registry::Registry,
+    attribute::Attribute, catalog::AttributeCatalog, refinements::Refinements, registry::Registry,
     stats::Stats,
 };
 

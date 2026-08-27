@@ -11,14 +11,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::ops::Not;
+use weaver_semconv::deprecated::Deprecated;
+use weaver_semconv::schema_url::SchemaUrl;
+use weaver_semconv::stability::Stability;
 #[cfg(test)]
 use weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec;
 use weaver_semconv::v1::attribute::{
     AttributeRole, AttributeSpec, AttributeType, Examples, RequirementLevel,
 };
-use weaver_semconv::deprecated::Deprecated;
-use weaver_semconv::schema_url::SchemaUrl;
-use weaver_semconv::stability::Stability;
 use weaver_semconv::YamlValue;
 
 /// An attribute definition.

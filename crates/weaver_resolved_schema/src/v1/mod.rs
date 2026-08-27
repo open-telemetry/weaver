@@ -5,8 +5,8 @@
 //! A Resolved Telemetry Schema is self-contained and doesn't contain any
 //! external references to other schemas or semantic conventions.
 
-use std::collections::{BTreeSet, HashMap};
 use serde::Serialize;
+use std::collections::{BTreeSet, HashMap};
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::manifest::RegistryManifest;
 use weaver_semconv::schema_url::SchemaUrl;
@@ -494,8 +494,8 @@ mod tests {
     use super::*;
     use crate::v1::attribute::Attribute;
     use weaver_semconv::deprecated::Deprecated;
-    use weaver_semconv::v1::group::GroupType;
     use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
+    use weaver_semconv::v1::group::GroupType;
     use weaver_version::schema_changes::{SchemaItemChange, SchemaItemType};
 
     #[test]

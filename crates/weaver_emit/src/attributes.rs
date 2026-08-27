@@ -30,11 +30,7 @@ pub fn get_attribute_name_value_v2(attribute: &weaver_forge::v2::attribute::Attr
         .examples
         .clone()
         .map(weaver_semconv::convert::v2_examples_to_v1);
-    internal_get_attribute_name_value(
-        attribute.key.clone(),
-        &r_type,
-        examples.as_ref(),
-    )
+    internal_get_attribute_name_value(attribute.key.clone(), &r_type, examples.as_ref())
 }
 
 fn internal_get_attribute_name_value(

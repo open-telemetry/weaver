@@ -208,9 +208,9 @@ impl VersionedSignal {
     pub fn instrument(&self) -> Option<InstrumentSpec> {
         match self {
             VersionedSignal::Group(group) => group.as_ref().instrument.clone(),
-            VersionedSignal::Metric(metric) => {
-                Some(weaver_semconv::convert::v2_instrument_to_v1(metric.instrument))
-            }
+            VersionedSignal::Metric(metric) => Some(weaver_semconv::convert::v2_instrument_to_v1(
+                metric.instrument,
+            )),
             VersionedSignal::Span(_) => None,
             VersionedSignal::Event(_) => None,
         }

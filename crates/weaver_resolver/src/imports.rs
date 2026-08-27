@@ -795,8 +795,7 @@ impl ImportableDependency for V2Schema {
                 Some(GroupLineage::new(v2_provenance(self, &deps, &m.provenance))),
             );
             group.metric_name = Some(m.name.to_string());
-            group.instrument =
-                Some(weaver_semconv::convert::v2_instrument_to_v1(m.instrument));
+            group.instrument = Some(weaver_semconv::convert::v2_instrument_to_v1(m.instrument));
             group.unit = Some(m.unit.clone());
             group.entity_associations = to_named_associations(&m.entity_associations);
             _ = origins.insert(
@@ -911,10 +910,8 @@ impl ImportableDependency for V2Schema {
                 attributes,
                 Some(GroupLineage::new(v2_provenance(self, &deps, &s.provenance))),
             );
-            group.span_kind =
-                Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
-            group.span_name =
-                Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
+            group.span_kind = Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
+            group.span_name = Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
             group.name = Some(s.r#type.to_string());
             group.entity_associations = to_named_associations(&s.entity_associations);
             _ = origins.insert(

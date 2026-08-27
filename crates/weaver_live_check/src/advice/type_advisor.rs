@@ -625,7 +625,8 @@ impl Advisor for TypeAdvisor {
                             AttributeType::PrimitiveOrArray(primitive_or_array_type_spec) => {
                                 primitive_or_array_type_spec
                             }
-                            AttributeType::Template(template_type_spec) => match template_type_spec {
+                            AttributeType::Template(template_type_spec) => match template_type_spec
+                            {
                                 TemplateTypeSpec::Boolean => &PrimitiveOrArrayTypeSpec::Boolean,
                                 TemplateTypeSpec::Int => &PrimitiveOrArrayTypeSpec::Int,
                                 TemplateTypeSpec::Double => &PrimitiveOrArrayTypeSpec::Double,
@@ -927,7 +928,9 @@ mod tests {
             name: "test_metric".to_owned(),
             unit: "".to_owned(),
             data_points: None,
-            instrument: SampleInstrument::Supported(weaver_semconv::v1::group::InstrumentSpec::Counter),
+            instrument: SampleInstrument::Supported(
+                weaver_semconv::v1::group::InstrumentSpec::Counter,
+            ),
             instrumentation_scope: None,
             live_check_result: None,
             resource: None,
@@ -997,7 +1000,9 @@ mod tests {
             name: "test_metric".to_owned(),
             unit: "".to_owned(),
             data_points: None,
-            instrument: SampleInstrument::Supported(weaver_semconv::v1::group::InstrumentSpec::Counter),
+            instrument: SampleInstrument::Supported(
+                weaver_semconv::v1::group::InstrumentSpec::Counter,
+            ),
             instrumentation_scope: None,
             live_check_result: None,
             resource: None,
@@ -1041,7 +1046,9 @@ mod tests {
             name: "test_metric".to_owned(),
             unit: "".to_owned(),
             data_points: None,
-            instrument: SampleInstrument::Supported(weaver_semconv::v1::group::InstrumentSpec::Counter),
+            instrument: SampleInstrument::Supported(
+                weaver_semconv::v1::group::InstrumentSpec::Counter,
+            ),
             instrumentation_scope: None,
             live_check_result: None,
             resource: None,

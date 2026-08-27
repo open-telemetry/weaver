@@ -5,11 +5,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::v2::{
-    attribute::AttributeOrGroupRef,
-    signal_id::SignalId,
-    CommonFields,
-};
+use crate::v2::{attribute::AttributeOrGroupRef, signal_id::SignalId, CommonFields};
 
 /// Internal attribute group implementation
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
@@ -84,7 +80,8 @@ brief: Test group
 stability: development
 visibility: public
 "#;
-        let attr_group = serde_yaml::from_str::<AttributeGroup>(yaml).expect("Failed to parse YAML string");
+        let attr_group =
+            serde_yaml::from_str::<AttributeGroup>(yaml).expect("Failed to parse YAML string");
         match attr_group {
             AttributeGroup::Public(p) => {
                 assert_eq!(p.id.to_string(), "my_attr_group");

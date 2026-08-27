@@ -101,9 +101,7 @@ impl Registry {
                     total_with_note += 1;
                 }
                 let _ = metric_names.insert(metric.name.to_string());
-                *instrument_breakdown
-                    .entry(metric.instrument)
-                    .or_insert(0) += 1;
+                *instrument_breakdown.entry(metric.instrument).or_insert(0) += 1;
                 *unit_breakdown.entry(metric.unit.clone()).or_insert(0) += 1;
                 *stability_breakdown
                     .entry(metric.common.stability.clone())
@@ -253,9 +251,7 @@ mod test {
     fn test_stats() {
         let catalog = vec![Attribute {
             key: "key".to_owned(),
-            r#type: AttributeType::PrimitiveOrArray(
-                PrimitiveOrArrayTypeSpec::String,
-            ),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
             examples: None,
             common: CommonFields {
                 brief: "test".to_owned(),
@@ -307,9 +303,7 @@ mod test {
                 r#type: "test.entity".to_owned().into(),
                 identity: vec![EntityAttributeRef {
                     base: AttributeRef(0),
-                    requirement_level: RequirementLevel::Basic(
-                        BasicRequirementLevelSpec::Required,
-                    ),
+                    requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
                 }],
                 description: vec![],
                 requirement_level: None,

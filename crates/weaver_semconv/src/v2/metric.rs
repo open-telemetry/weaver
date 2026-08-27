@@ -13,11 +13,7 @@ use crate::{
     entity_association::EntityAssociation,
     signal_requirement_level::SignalRequirementLevel,
     stability::Stability,
-    v2::{
-        attribute::AttributeOrGroupRef,
-        signal_id::SignalId,
-        CommonFields,
-    },
+    v2::{attribute::AttributeOrGroupRef, signal_id::SignalId, CommonFields},
     YamlValue,
 };
 

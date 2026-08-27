@@ -73,7 +73,9 @@ impl<'de> Deserialize<'de> for GroupWildcard {
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Glob::new(&s).map(GroupWildcard).map_err(serde::de::Error::custom)
+        Glob::new(&s)
+            .map(GroupWildcard)
+            .map_err(serde::de::Error::custom)
     }
 }
 

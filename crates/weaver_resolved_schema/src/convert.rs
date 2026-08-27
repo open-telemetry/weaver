@@ -15,6 +15,7 @@ use crate::v1::{
     registry::{Group as V1Group, Registry as V1Registry},
     ResolvedTelemetrySchema as V1ResolvedSchema,
 };
+use crate::v2::V2_RESOLVED_FILE_FORMAT;
 use crate::v2::{
     attribute::{Attribute as V2Attribute, AttributeRef as V2AttributeRef},
     attribute_group::{self, AttributeGroup as V2AttributeGroup},
@@ -27,7 +28,6 @@ use crate::v2::{
     span::{self, Span as V2Span, SpanRefinement as V2SpanRefinement},
     ResolvedTelemetrySchema as V2ResolvedSchema,
 };
-use crate::v2::V2_RESOLVED_FILE_FORMAT;
 
 /// Temporary catalog used to index V2 attributes and map V1 attributes to V2 AttributeRefs.
 #[derive(Debug, Clone, Default)]
@@ -60,7 +60,10 @@ impl V2CatalogBuilder {
 
     fn convert_ref(&self, attribute: &V1Attribute) -> Option<V2AttributeRef> {
         let v2_type = weaver_semconv::convert::v1_attribute_type_to_v2(attribute.r#type.clone());
-        let v2_examples = attribute.examples.clone().map(weaver_semconv::convert::v1_examples_to_v2);
+        let v2_examples = attribute
+            .examples
+            .clone()
+            .map(weaver_semconv::convert::v1_examples_to_v2);
 
         self.lookup.get(&attribute.name)?.iter().find_map(|idx| {
             self.attributes
@@ -241,7 +244,15 @@ pub fn convert_v1_to_v2(
     c: V1Catalog,
     r: V1Registry,
     dependencies: BTreeSet<SchemaUrl>,
-) -> Result<(Vec<V2Attribute>, V2Registry, V2Refinements, BTreeSet<SchemaUrl>), crate::error::Error> {
+) -> Result<
+    (
+        Vec<V2Attribute>,
+        V2Registry,
+        V2Refinements,
+        BTreeSet<SchemaUrl>,
+    ),
+    crate::error::Error,
+> {
     let deps_list: Vec<_> = dependencies.iter().cloned().collect();
 
     let get_provenance = |g: &V1Group| -> V2Provenance {
@@ -325,7 +336,8 @@ pub fn convert_v1_to_v2(
         let mut desc_attrs = Vec::new();
         for attr_ref in g.attributes.iter() {
             let (attr, base) = convert_attribute_ref(&g.id, attr_ref, &c, &v2_catalog)?;
-            let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(attr.requirement_level.clone());
+            let req_level =
+                weaver_semconv::convert::v1_requirement_level_to_v2(attr.requirement_level.clone());
             let entity_attr = entity::EntityAttributeRef {
                 base,
                 requirement_level: req_level,
@@ -402,7 +414,9 @@ pub fn convert_v1_to_v2(
                 let mut span_attributes = Vec::new();
                 for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
                     if let Some(a) = v2_catalog.convert_ref(attr) {
-                        let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(attr.requirement_level.clone());
+                        let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(
+                            attr.requirement_level.clone(),
+                        );
                         span_attributes.push(span::SpanAttributeRef {
                             base: a,
                             requirement_level: req_level,
@@ -489,7 +503,9 @@ pub fn convert_v1_to_v2(
                 let mut event_attributes = Vec::new();
                 for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
                     if let Some(a) = v2_catalog.convert_ref(attr) {
-                        let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(attr.requirement_level.clone());
+                        let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(
+                            attr.requirement_level.clone(),
+                        );
                         event_attributes.push(event::EventAttributeRef {
                             base: a,
                             requirement_level: req_level,
@@ -540,7 +556,9 @@ pub fn convert_v1_to_v2(
                 let mut metric_attributes = Vec::new();
                 for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
                     if let Some(a) = v2_catalog.convert_ref(attr) {
-                        let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(attr.requirement_level.clone());
+                        let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(
+                            attr.requirement_level.clone(),
+                        );
                         metric_attributes.push(metric::MetricAttributeRef {
                             base: a,
                             requirement_level: req_level,
@@ -604,7 +622,9 @@ pub fn convert_v1_to_v2(
                     let mut attributes = Vec::new();
                     for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
                         if let Some(a) = v2_catalog.convert_ref(attr) {
-                            let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(attr.requirement_level.clone());
+                            let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(
+                                attr.requirement_level.clone(),
+                            );
                             attributes.push(attribute_group::AttributeGroupAttributeRef {
                                 base: a,
                                 requirement_level: req_level,
@@ -765,20 +785,14 @@ mod tests {
         assert_eq!(attribute_catalog.len(), 1);
         assert_eq!(registry.spans.len(), 1);
         assert_eq!(registry.spans[0].attributes.len(), 2);
-        assert_eq!(
-            registry.spans[0].attributes[0].base,
-            AttributeRef(0)
-        );
+        assert_eq!(registry.spans[0].attributes[0].base, AttributeRef(0));
         assert_eq!(
             registry.spans[0].attributes[0].requirement_level,
             weaver_semconv::v2::attribute::RequirementLevel::Basic(
                 weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required
             )
         );
-        assert_eq!(
-            registry.spans[0].attributes[1].base,
-            AttributeRef(0)
-        );
+        assert_eq!(registry.spans[0].attributes[1].base, AttributeRef(0));
         assert_eq!(
             registry.spans[0].attributes[1].requirement_level,
             weaver_semconv::v2::attribute::RequirementLevel::Basic(

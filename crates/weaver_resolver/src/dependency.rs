@@ -488,8 +488,7 @@ impl GroupRefinementLookup for V2Schema {
                 attributes,
             );
             summary.metric_name = Some(m.name.to_string());
-            summary.instrument =
-                Some(weaver_semconv::convert::v2_instrument_to_v1(m.instrument));
+            summary.instrument = Some(weaver_semconv::convert::v2_instrument_to_v1(m.instrument));
             summary.unit = Some(m.unit.clone());
             return Some(summary);
         }
@@ -544,10 +543,8 @@ impl GroupRefinementLookup for V2Schema {
                 s.requirement_level.clone(),
                 attributes,
             );
-            summary.span_kind =
-                Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
-            summary.span_name =
-                Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
+            summary.span_kind = Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
+            summary.span_name = Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
             return Some(summary);
         }
         None
@@ -843,7 +840,10 @@ pub(crate) mod tests {
         let result_span = d.lookup_group_summary("span.d");
         assert!(result_span.is_some(), "Should find span.d");
         let span_summary = result_span.unwrap();
-        assert_eq!(span_summary.r#type, weaver_semconv::v1::group::GroupType::Span);
+        assert_eq!(
+            span_summary.r#type,
+            weaver_semconv::v1::group::GroupType::Span
+        );
         assert_eq!(
             span_summary.span_kind,
             Some(weaver_semconv::v1::group::SpanKindSpec::Client)

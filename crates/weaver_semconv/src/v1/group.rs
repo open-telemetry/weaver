@@ -765,11 +765,11 @@ pub struct ImportsWithProvenance {
 
 #[cfg(test)]
 mod tests {
+    use crate::deprecated::Deprecated;
     use crate::v1::any_value::AnyValueCommonSpec;
     use crate::v1::attribute::{
         BasicRequirementLevelSpec, EnumEntriesSpec, Examples, RequirementLevel, ValueSpec,
     };
-    use crate::deprecated::Deprecated;
     use crate::Error::{
         CompoundError, InvalidAttributeWarning, InvalidExampleWarning, InvalidGroup,
         InvalidGroupMissingExtendsOrAttributes, InvalidGroupMissingType, InvalidGroupStability,

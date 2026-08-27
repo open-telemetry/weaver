@@ -10,7 +10,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::stability::Stability;
-use crate::v1::attribute::{BasicRequirementLevelSpec, EnumEntriesSpec, Examples, RequirementLevel};
+use crate::v1::attribute::{
+    BasicRequirementLevelSpec, EnumEntriesSpec, Examples, RequirementLevel,
+};
 
 /// The AnyValueTypeSpec is a specification of a value that can be of any type.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]

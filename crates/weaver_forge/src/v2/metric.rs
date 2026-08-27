@@ -7,12 +7,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
     signal_requirement_level::SignalRequirementLevel,
-    v2::{
-        attribute::RequirementLevel,
-        metric::InstrumentSpec,
-        signal_id::SignalId,
-        CommonFields,
-    },
+    v2::{attribute::RequirementLevel, metric::InstrumentSpec, signal_id::SignalId, CommonFields},
 };
 
 /// The definition of a metric signal.

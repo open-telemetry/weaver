@@ -3,11 +3,7 @@
 use crate::v2::provenance::Provenance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_semconv::v2::{
-    attribute::RequirementLevel,
-    signal_id::SignalId,
-    CommonFields,
-};
+use weaver_semconv::v2::{attribute::RequirementLevel, signal_id::SignalId, CommonFields};
 
 use crate::v2::attribute::Attribute;
 

@@ -4,11 +4,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
     signal_requirement_level::SignalRequirementLevel,
-    v2::{
-        attribute::RequirementLevel,
-        signal_id::SignalId,
-        CommonFields,
-    },
+    v2::{attribute::RequirementLevel, signal_id::SignalId, CommonFields},
 };
 
 use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};

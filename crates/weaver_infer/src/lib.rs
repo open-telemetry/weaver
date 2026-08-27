@@ -960,7 +960,10 @@ mod tests {
             .resources
             .get("service.name")
             .expect("resource attribute should exist");
-        assert_eq!(attr.examples, Some(Examples::String("my-service".to_owned())));
+        assert_eq!(
+            attr.examples,
+            Some(Examples::String("my-service".to_owned()))
+        );
     }
 
     #[test]

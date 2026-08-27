@@ -701,10 +701,9 @@ impl AttributeLookup for V2Schema {
                             .clone()
                             .map(weaver_semconv::convert::v2_examples_to_v1),
                         tag: None,
-                        requirement_level:
-                            weaver_semconv::v1::attribute::RequirementLevel::Basic(
-                                weaver_semconv::v1::attribute::BasicRequirementLevelSpec::Required,
-                            ),
+                        requirement_level: weaver_semconv::v1::attribute::RequirementLevel::Basic(
+                            weaver_semconv::v1::attribute::BasicRequirementLevelSpec::Required,
+                        ),
                         sampling_relevant: None,
                         note: attr.common.note.clone(),
                         stability: Some(attr.common.stability.clone()),
@@ -741,7 +740,9 @@ impl AttributeLookup for V2Schema {
 mod tests {
     use super::*;
     use weaver_semconv::v1::attribute::BasicRequirementLevelSpec::{Recommended, Required};
-    use weaver_semconv::v1::attribute::{AttributeType, PrimitiveOrArrayTypeSpec, RequirementLevel};
+    use weaver_semconv::v1::attribute::{
+        AttributeType, PrimitiveOrArrayTypeSpec, RequirementLevel,
+    };
 
     #[test]
     fn test_attribute_catalog() {
@@ -940,9 +941,9 @@ mod tests {
     #[test]
     fn test_lookup_attribute_local_vs_dependency_conflict() {
         use std::collections::HashMap;
+        use weaver_resolved_schema::v1::ResolvedTelemetrySchema as V1Schema;
         use weaver_resolved_schema::v2::attribute::Attribute as AttributeV2;
         use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
-        use weaver_resolved_schema::v1::ResolvedTelemetrySchema as V1Schema;
 
         let attr_name = "error.type";
 

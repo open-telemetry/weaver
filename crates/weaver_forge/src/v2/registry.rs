@@ -1071,11 +1071,7 @@ mod tests {
             dependencies: BTreeSet::new(),
             registry: v2::registry::Registry {
                 // Intentionally out of alphabetical order
-                attributes: vec![
-                    AttributeRef(0),
-                    AttributeRef(1),
-                    AttributeRef(2),
-                ],
+                attributes: vec![AttributeRef(0), AttributeRef(1), AttributeRef(2)],
                 spans: vec![
                     span::Span {
                         r#type: SignalId::from("z-span".to_owned()),

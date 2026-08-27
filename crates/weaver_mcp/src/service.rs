@@ -573,9 +573,7 @@ mod tests {
             registry: Registry {
                 attributes: vec![Attribute {
                     key: "http.request.method".to_owned(),
-                    r#type: AttributeType::PrimitiveOrArray(
-                        PrimitiveOrArrayTypeSpec::String,
-                    ),
+                    r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                     examples: None,
                     common: CommonFields {
                         brief: "HTTP request method".to_owned(),

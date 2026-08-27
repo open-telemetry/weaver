@@ -250,8 +250,7 @@ mod tests {
         group::{GroupType, InstrumentSpec, SpanKindSpec},
     };
     use weaver_semconv::v2::attribute::{
-        AttributeType as V2AttributeType,
-        BasicRequirementLevelSpec as V2BasicRequirementLevelSpec,
+        AttributeType as V2AttributeType, BasicRequirementLevelSpec as V2BasicRequirementLevelSpec,
         EnumEntriesSpec as V2EnumEntriesSpec, Examples as V2Examples,
         PrimitiveOrArrayTypeSpec as V2PrimitiveOrArrayTypeSpec,
         RequirementLevel as V2RequirementLevel, TemplateTypeSpec as V2TemplateTypeSpec,

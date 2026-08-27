@@ -595,9 +595,7 @@ mod tests {
     fn make_attribute(key: &str, brief: &str, note: &str, deprecated: bool) -> Attribute {
         Attribute {
             key: key.to_owned(),
-            r#type: AttributeType::PrimitiveOrArray(
-                PrimitiveOrArrayTypeSpec::String,
-            ),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
             examples: None,
             common: CommonFields {
                 brief: brief.to_owned(),
@@ -635,9 +633,7 @@ mod tests {
     fn make_development_attribute(key: &str, brief: &str) -> Attribute {
         Attribute {
             key: key.to_owned(),
-            r#type: AttributeType::PrimitiveOrArray(
-                PrimitiveOrArrayTypeSpec::String,
-            ),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
             examples: None,
             common: CommonFields {
                 brief: brief.to_owned(),

@@ -24,10 +24,10 @@ use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
 use weaver_semconv::v1::attribute::AttributeSpec;
+use weaver_semconv::v1::group::AttributeGroupVisibilitySpec;
 use weaver_semconv::v1::group::{
     GroupSpecWithProvenance, GroupType, GroupWildcard, ImportsWithProvenance,
 };
-use weaver_semconv::v1::group::AttributeGroupVisibilitySpec;
 
 use crate::dependency::{GroupSource, GroupSummary};
 

@@ -14,8 +14,7 @@ use crate::v1::{
     group::{
         AttributeGroupVisibilitySpec as V1VisibilitySpec, GroupSpec as V1GroupSpec,
         GroupType as V1GroupType, GroupWildcard as V1GroupWildcard,
-        InstrumentSpec as V1InstrumentSpec, SpanKindSpec as V1SpanKindSpec,
-        SpanName as V1SpanName,
+        InstrumentSpec as V1InstrumentSpec, SpanKindSpec as V1SpanKindSpec, SpanName as V1SpanName,
     },
     semconv::{Imports as V1Imports, SemConvSpecV1},
 };
@@ -41,7 +40,9 @@ use crate::v2::{
 
 /// Converts a V2 primitive or array type to V1.
 #[must_use]
-pub fn v2_primitive_or_array_type_to_v1(t: V2PrimitiveOrArrayTypeSpec) -> V1PrimitiveOrArrayTypeSpec {
+pub fn v2_primitive_or_array_type_to_v1(
+    t: V2PrimitiveOrArrayTypeSpec,
+) -> V1PrimitiveOrArrayTypeSpec {
     match t {
         V2PrimitiveOrArrayTypeSpec::Boolean => V1PrimitiveOrArrayTypeSpec::Boolean,
         V2PrimitiveOrArrayTypeSpec::Int => V1PrimitiveOrArrayTypeSpec::Int,
@@ -133,7 +134,9 @@ pub fn v2_examples_to_v1(e: V2Examples) -> V1Examples {
 
 /// Converts V2 basic requirement level to V1.
 #[must_use]
-pub fn v2_basic_requirement_level_to_v1(b: V2BasicRequirementLevelSpec) -> V1BasicRequirementLevelSpec {
+pub fn v2_basic_requirement_level_to_v1(
+    b: V2BasicRequirementLevelSpec,
+) -> V1BasicRequirementLevelSpec {
     match b {
         V2BasicRequirementLevelSpec::Required => V1BasicRequirementLevelSpec::Required,
         V2BasicRequirementLevelSpec::Recommended => V1BasicRequirementLevelSpec::Recommended,
@@ -204,7 +207,10 @@ pub fn v2_attribute_ref_to_v1(attr_ref: AttributeRef) -> V1AttributeSpec {
 
 /// Converts a V2 attribute ref with a specific role into a V1 AttributeSpec.
 #[must_use]
-pub fn v2_attribute_ref_to_v1_with_role(attr_ref: AttributeRef, role: V1AttributeRole) -> V1AttributeSpec {
+pub fn v2_attribute_ref_to_v1_with_role(
+    attr_ref: AttributeRef,
+    role: V1AttributeRole,
+) -> V1AttributeSpec {
     V1AttributeSpec::Ref {
         r#ref: attr_ref.r#ref,
         brief: attr_ref.brief,
@@ -233,7 +239,10 @@ pub fn v2_span_attribute_ref_to_v1(attr_ref: SpanAttributeRef) -> V1AttributeSpe
         brief: attr_ref.base.brief,
         examples: attr_ref.base.examples.map(v2_examples_to_v1),
         tag: None,
-        requirement_level: attr_ref.base.requirement_level.map(v2_requirement_level_to_v1),
+        requirement_level: attr_ref
+            .base
+            .requirement_level
+            .map(v2_requirement_level_to_v1),
         sampling_relevant: attr_ref.sampling_relevant,
         note: attr_ref.base.note,
         stability: None,
@@ -424,7 +433,9 @@ pub fn v2_span_to_v1(span: Span) -> V1GroupSpec {
         entity_associations: span.entity_associations,
         visibility: None,
         is_v2: true,
-        span_name: Some(V1SpanName { note: span.name.note }),
+        span_name: Some(V1SpanName {
+            note: span.name.note,
+        }),
         requirement_level: span.requirement_level,
     }
 }
@@ -735,7 +746,11 @@ pub fn v2_to_v1_spec(spec: SemConvSpecV2, file_name: &str) -> SemConvSpecV1 {
         groups.push(V1GroupSpec {
             id: format!("registry.{file_name}"),
             r#type: V1GroupType::AttributeGroup,
-            attributes: spec.attributes.into_iter().map(v2_attribute_to_v1).collect(),
+            attributes: spec
+                .attributes
+                .into_iter()
+                .map(v2_attribute_to_v1)
+                .collect(),
             brief: "<synthetic v2>".to_owned(),
             is_v2: true,
             span_name: None,
@@ -748,20 +763,42 @@ pub fn v2_to_v1_spec(spec: SemConvSpecV2, file_name: &str) -> SemConvSpecV1 {
     groups.extend(spec.events.into_iter().map(v2_event_to_v1));
     groups.extend(spec.metrics.into_iter().map(v2_metric_to_v1));
     groups.extend(spec.spans.into_iter().map(v2_span_to_v1));
-    groups.extend(spec.attribute_groups.into_iter().map(v2_attribute_group_to_v1));
+    groups.extend(
+        spec.attribute_groups
+            .into_iter()
+            .map(v2_attribute_group_to_v1),
+    );
 
     // Add all refinements
-    groups.extend(spec.entity_refinements.into_iter().map(v2_entity_refinement_to_v1));
-    groups.extend(spec.event_refinements.into_iter().map(v2_event_refinement_to_v1));
-    groups.extend(spec.metric_refinements.into_iter().map(v2_metric_refinement_to_v1));
-    groups.extend(spec.span_refinements.into_iter().map(v2_span_refinement_to_v1));
+    groups.extend(
+        spec.entity_refinements
+            .into_iter()
+            .map(v2_entity_refinement_to_v1),
+    );
+    groups.extend(
+        spec.event_refinements
+            .into_iter()
+            .map(v2_event_refinement_to_v1),
+    );
+    groups.extend(
+        spec.metric_refinements
+            .into_iter()
+            .map(v2_metric_refinement_to_v1),
+    );
+    groups.extend(
+        spec.span_refinements
+            .into_iter()
+            .map(v2_span_refinement_to_v1),
+    );
 
     SemConvSpecV1::new(groups, v2_imports_to_v1(spec.imports))
 }
 
 /// Converts a V1 primitive or array type to V2.
 #[must_use]
-pub fn v1_primitive_or_array_type_to_v2(t: V1PrimitiveOrArrayTypeSpec) -> V2PrimitiveOrArrayTypeSpec {
+pub fn v1_primitive_or_array_type_to_v2(
+    t: V1PrimitiveOrArrayTypeSpec,
+) -> V2PrimitiveOrArrayTypeSpec {
     match t {
         V1PrimitiveOrArrayTypeSpec::Boolean => V2PrimitiveOrArrayTypeSpec::Boolean,
         V1PrimitiveOrArrayTypeSpec::Int => V2PrimitiveOrArrayTypeSpec::Int,
@@ -820,7 +857,9 @@ pub fn v1_enum_entry_to_v2(e: V1EnumEntriesSpec) -> V2EnumEntriesSpec {
 #[must_use]
 pub fn v1_attribute_type_to_v2(t: V1AttributeType) -> V2AttributeType {
     match t {
-        V1AttributeType::PrimitiveOrArray(p) => V2AttributeType::PrimitiveOrArray(v1_primitive_or_array_type_to_v2(p)),
+        V1AttributeType::PrimitiveOrArray(p) => {
+            V2AttributeType::PrimitiveOrArray(v1_primitive_or_array_type_to_v2(p))
+        }
         V1AttributeType::Template(tmpl) => V2AttributeType::Template(v1_template_type_to_v2(tmpl)),
         V1AttributeType::Enum { members, .. } => V2AttributeType::Enum {
             members: members.into_iter().map(v1_enum_entry_to_v2).collect(),
@@ -851,7 +890,9 @@ pub fn v1_examples_to_v2(e: V1Examples) -> V2Examples {
 
 /// Converts V1 basic requirement level to V2.
 #[must_use]
-pub fn v1_basic_requirement_level_to_v2(b: V1BasicRequirementLevelSpec) -> V2BasicRequirementLevelSpec {
+pub fn v1_basic_requirement_level_to_v2(
+    b: V1BasicRequirementLevelSpec,
+) -> V2BasicRequirementLevelSpec {
     match b {
         V1BasicRequirementLevelSpec::Required => V2BasicRequirementLevelSpec::Required,
         V1BasicRequirementLevelSpec::Recommended => V2BasicRequirementLevelSpec::Recommended,
@@ -863,8 +904,12 @@ pub fn v1_basic_requirement_level_to_v2(b: V1BasicRequirementLevelSpec) -> V2Bas
 #[must_use]
 pub fn v1_requirement_level_to_v2(r: V1RequirementLevel) -> V2RequirementLevel {
     match r {
-        V1RequirementLevel::Basic(b) => V2RequirementLevel::Basic(v1_basic_requirement_level_to_v2(b)),
-        V1RequirementLevel::ConditionallyRequired { text } => V2RequirementLevel::ConditionallyRequired { text },
+        V1RequirementLevel::Basic(b) => {
+            V2RequirementLevel::Basic(v1_basic_requirement_level_to_v2(b))
+        }
+        V1RequirementLevel::ConditionallyRequired { text } => {
+            V2RequirementLevel::ConditionallyRequired { text }
+        }
         V1RequirementLevel::Recommended { text } => V2RequirementLevel::Recommended { text },
         V1RequirementLevel::OptIn { text } => V2RequirementLevel::OptIn { text },
     }
@@ -895,19 +940,23 @@ pub fn v1_span_kind_to_v2(k: V1SpanKindSpec) -> V2SpanKindSpec {
 
 /// Converts V1 attribute group visibility to V2.
 #[must_use]
-pub fn v1_attribute_group_visibility_to_v2(v: V1VisibilitySpec) -> crate::v2::attribute_group::AttributeGroupVisibilitySpec {
+pub fn v1_attribute_group_visibility_to_v2(
+    v: V1VisibilitySpec,
+) -> crate::v2::attribute_group::AttributeGroupVisibilitySpec {
     match v {
-        V1VisibilitySpec::Public => crate::v2::attribute_group::AttributeGroupVisibilitySpec::Public,
-        V1VisibilitySpec::Internal => crate::v2::attribute_group::AttributeGroupVisibilitySpec::Internal,
+        V1VisibilitySpec::Public => {
+            crate::v2::attribute_group::AttributeGroupVisibilitySpec::Public
+        }
+        V1VisibilitySpec::Internal => {
+            crate::v2::attribute_group::AttributeGroupVisibilitySpec::Internal
+        }
     }
 }
 
 /// Converts V1 span name to V2.
 #[must_use]
 pub fn v1_span_name_to_v2(s: V1SpanName) -> crate::v2::span::SpanName {
-    crate::v2::span::SpanName {
-        note: s.note,
-    }
+    crate::v2::span::SpanName { note: s.note }
 }
 
 #[cfg(test)]

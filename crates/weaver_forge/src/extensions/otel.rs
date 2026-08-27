@@ -658,8 +658,8 @@ mod tests {
     };
 
     use weaver_resolved_schema::v1::attribute::Attribute;
-    use weaver_semconv::v1::any_value::{AnyValueCommonSpec, AnyValueSpec};
     use weaver_semconv::deprecated::Deprecated;
+    use weaver_semconv::v1::any_value::{AnyValueCommonSpec, AnyValueSpec};
     use weaver_semconv::v1::attribute::{
         AttributeSpec, AttributeType, BasicRequirementLevelSpec, EnumEntriesSpec,
         PrimitiveOrArrayTypeSpec, RequirementLevel, TemplateTypeSpec, ValueSpec,
