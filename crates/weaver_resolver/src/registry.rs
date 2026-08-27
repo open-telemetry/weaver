@@ -15,7 +15,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
 use weaver_common::result::WResult;
-use weaver_resolved_schema::convert::v1_v2::v2_namespace_id;
+use weaver_resolved_schema::convert::v2_namespace_id;
 use weaver_resolved_schema::v1::attribute::{AttributeRef, UnresolvedAttribute};
 use weaver_resolved_schema::v1::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::v1::registry::{EntityAssociationOrigins, Group, Registry};

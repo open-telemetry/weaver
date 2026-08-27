@@ -25,11 +25,11 @@ pub fn get_attribute_name_value(attribute: &Attribute) -> KeyValue {
 /// Values are generated based on the attribute type and examples where possible.
 #[must_use]
 pub fn get_attribute_name_value_v2(attribute: &weaver_forge::v2::attribute::Attribute) -> KeyValue {
-    let r_type = weaver_semconv::convert::v1_v2::v2_attribute_type_to_v1(attribute.r#type.clone());
+    let r_type = weaver_semconv::convert::v2_attribute_type_to_v1(attribute.r#type.clone());
     let examples = attribute
         .examples
         .clone()
-        .map(weaver_semconv::convert::v1_v2::v2_examples_to_v1);
+        .map(weaver_semconv::convert::v2_examples_to_v1);
     internal_get_attribute_name_value(
         attribute.key.clone(),
         &r_type,

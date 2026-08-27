@@ -118,7 +118,7 @@ impl AccumulatedSamples {
     }
 
     fn add_span(&mut self, span: SampleSpan) {
-        let kind = weaver_semconv::convert::v1_v2::v1_span_kind_to_v2(span.kind);
+        let kind = weaver_semconv::convert::v1_span_kind_to_v2(span.kind);
         let entry = self
             .spans
             .entry(span.name.clone())
@@ -145,7 +145,7 @@ impl AccumulatedSamples {
         // Skip unsupported instrument types (e.g., Summary, Unspecified) - we can't infer a schema for them
         let instrument = match &metric.instrument {
             SampleInstrument::Supported(i) => {
-                weaver_semconv::convert::v1_v2::v1_instrument_to_v2(i.clone())
+                weaver_semconv::convert::v1_instrument_to_v2(i.clone())
             }
             SampleInstrument::Unsupported(_) => return,
         };
@@ -344,7 +344,7 @@ fn attribute_def_from_sample(sample: &SampleAttribute) -> AttributeDef {
     let attr_type = sample
         .r#type
         .clone()
-        .map(weaver_semconv::convert::v1_v2::v1_primitive_or_array_type_to_v2)
+        .map(weaver_semconv::convert::v1_primitive_or_array_type_to_v2)
         .unwrap_or(PrimitiveOrArrayTypeSpec::String);
 
     let examples = sample.value.as_ref().and_then(|v| add_example(None, v));

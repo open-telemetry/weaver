@@ -68,7 +68,7 @@ pub(crate) fn emit_trace_for_registry_v2(registry: &ForgeResolvedRegistry, regis
 
         // Emit each span to the OTLP receiver.
         for span in registry.registry.spans.iter() {
-            let kind = weaver_semconv::convert::v1_v2::v2_span_kind_to_v1(span.kind);
+            let kind = weaver_semconv::convert::v2_span_kind_to_v1(span.kind);
             let _span =
                 tracer
                     .span_builder(span.r#type.to_string())

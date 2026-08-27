@@ -94,7 +94,7 @@ pub(crate) fn emit_metrics_for_registry_v2(registry: &ForgeResolvedRegistry) {
 
     // Emit each metric to the OTLP receiver.
     for metric in registry.registry.metrics.iter() {
-        let instrument = weaver_semconv::convert::v1_v2::v2_instrument_to_v1(metric.instrument);
+        let instrument = weaver_semconv::convert::v2_instrument_to_v1(metric.instrument);
         let metric_name = metric.name.to_string();
         let unit = metric.unit.clone();
         let description = metric.common.brief.clone();

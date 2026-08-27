@@ -50,7 +50,7 @@ impl Versioned {
     pub fn into_v1(self, file_name: &str) -> SemConvSpecV1 {
         match self {
             Versioned::V1(v1) => v1,
-            Versioned::V2(v2) => crate::convert::v1_v2::v2_to_v1_spec(v2, file_name),
+            Versioned::V2(v2) => crate::convert::v2_to_v1_spec(v2, file_name),
         }
     }
 

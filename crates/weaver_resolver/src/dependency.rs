@@ -363,12 +363,12 @@ fn attr_spec(
         origin: Some(v2_source_url(schema, deps, a.provenance.source)),
         spec: weaver_semconv::v1::attribute::AttributeSpec::Id {
             id: a.key.clone(),
-            r#type: weaver_semconv::convert::v1_v2::v2_attribute_type_to_v1(a.r#type.clone()),
+            r#type: weaver_semconv::convert::v2_attribute_type_to_v1(a.r#type.clone()),
             brief: Some(a.common.brief.clone()),
             examples: a
                 .examples
                 .clone()
-                .map(weaver_semconv::convert::v1_v2::v2_examples_to_v1),
+                .map(weaver_semconv::convert::v2_examples_to_v1),
             tag: None,
             requirement_level,
             sampling_relevant,
@@ -426,7 +426,7 @@ fn entity_group_summary(schema: &V2Schema, deps: &[SchemaUrl], e: &Entity) -> Gr
                     schema,
                     deps,
                     a,
-                    weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                    weaver_semconv::convert::v2_requirement_level_to_v1(
                         ar.requirement_level.clone(),
                     ),
                     None,
@@ -472,7 +472,7 @@ impl GroupRefinementLookup for V2Schema {
                             self,
                             &deps,
                             a,
-                            weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                            weaver_semconv::convert::v2_requirement_level_to_v1(
                                 ar.requirement_level.clone(),
                             ),
                             None,
@@ -489,7 +489,7 @@ impl GroupRefinementLookup for V2Schema {
             );
             summary.metric_name = Some(m.name.to_string());
             summary.instrument =
-                Some(weaver_semconv::convert::v1_v2::v2_instrument_to_v1(m.instrument));
+                Some(weaver_semconv::convert::v2_instrument_to_v1(m.instrument));
             summary.unit = Some(m.unit.clone());
             return Some(summary);
         }
@@ -503,7 +503,7 @@ impl GroupRefinementLookup for V2Schema {
                             self,
                             &deps,
                             a,
-                            weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                            weaver_semconv::convert::v2_requirement_level_to_v1(
                                 ar.requirement_level.clone(),
                             ),
                             None,
@@ -529,7 +529,7 @@ impl GroupRefinementLookup for V2Schema {
                             self,
                             &deps,
                             a,
-                            weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                            weaver_semconv::convert::v2_requirement_level_to_v1(
                                 ar.requirement_level.clone(),
                             ),
                             ar.sampling_relevant,
@@ -545,9 +545,9 @@ impl GroupRefinementLookup for V2Schema {
                 attributes,
             );
             summary.span_kind =
-                Some(weaver_semconv::convert::v1_v2::v2_span_kind_to_v1(s.kind));
+                Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
             summary.span_name =
-                Some(weaver_semconv::convert::v1_v2::v2_span_name_to_v1(s.name.clone()));
+                Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
             return Some(summary);
         }
         None

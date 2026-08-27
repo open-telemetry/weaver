@@ -692,14 +692,14 @@ impl AttributeLookup for V2Schema {
                 Some(AttributeWithSource {
                     attribute: attribute::Attribute {
                         name: attr.key.clone(),
-                        r#type: weaver_semconv::convert::v1_v2::v2_attribute_type_to_v1(
+                        r#type: weaver_semconv::convert::v2_attribute_type_to_v1(
                             attr.r#type.clone(),
                         ),
                         brief: attr.common.brief.clone(),
                         examples: attr
                             .examples
                             .clone()
-                            .map(weaver_semconv::convert::v1_v2::v2_examples_to_v1),
+                            .map(weaver_semconv::convert::v2_examples_to_v1),
                         tag: None,
                         requirement_level:
                             weaver_semconv::v1::attribute::RequirementLevel::Basic(

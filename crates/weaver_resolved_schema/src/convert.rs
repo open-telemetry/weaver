@@ -59,8 +59,8 @@ impl V2CatalogBuilder {
     }
 
     fn convert_ref(&self, attribute: &V1Attribute) -> Option<V2AttributeRef> {
-        let v2_type = weaver_semconv::convert::v1_v2::v1_attribute_type_to_v2(attribute.r#type.clone());
-        let v2_examples = attribute.examples.clone().map(weaver_semconv::convert::v1_v2::v1_examples_to_v2);
+        let v2_type = weaver_semconv::convert::v1_attribute_type_to_v2(attribute.r#type.clone());
+        let v2_examples = attribute.examples.clone().map(weaver_semconv::convert::v1_examples_to_v2);
 
         self.lookup.get(&attribute.name)?.iter().find_map(|idx| {
             self.attributes
@@ -289,8 +289,8 @@ pub fn convert_v1_to_v2(
         .cloned()
         .map(|a| {
             let provenance = attr_provenance(&a);
-            let r#type = weaver_semconv::convert::v1_v2::v1_attribute_type_to_v2(a.r#type);
-            let examples = a.examples.map(weaver_semconv::convert::v1_v2::v1_examples_to_v2);
+            let r#type = weaver_semconv::convert::v1_attribute_type_to_v2(a.r#type);
+            let examples = a.examples.map(weaver_semconv::convert::v1_examples_to_v2);
             V2Attribute {
                 key: a.name,
                 r#type,
@@ -325,7 +325,7 @@ pub fn convert_v1_to_v2(
         let mut desc_attrs = Vec::new();
         for attr_ref in g.attributes.iter() {
             let (attr, base) = convert_attribute_ref(&g.id, attr_ref, &c, &v2_catalog)?;
-            let req_level = weaver_semconv::convert::v1_v2::v1_requirement_level_to_v2(attr.requirement_level.clone());
+            let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(attr.requirement_level.clone());
             let entity_attr = entity::EntityAttributeRef {
                 base,
                 requirement_level: req_level,
@@ -402,7 +402,7 @@ pub fn convert_v1_to_v2(
                 let mut span_attributes = Vec::new();
                 for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
                     if let Some(a) = v2_catalog.convert_ref(attr) {
-                        let req_level = weaver_semconv::convert::v1_v2::v1_requirement_level_to_v2(attr.requirement_level.clone());
+                        let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(attr.requirement_level.clone());
                         span_attributes.push(span::SpanAttributeRef {
                             base: a,
                             requirement_level: req_level,
@@ -415,12 +415,12 @@ pub fn convert_v1_to_v2(
                 let span_kind = g
                     .span_kind
                     .clone()
-                    .map(weaver_semconv::convert::v1_v2::v1_span_kind_to_v2)
+                    .map(weaver_semconv::convert::v1_span_kind_to_v2)
                     .unwrap_or(weaver_semconv::v2::span::SpanKindSpec::Internal);
                 let span_name = g
                     .span_name
                     .clone()
-                    .map(weaver_semconv::convert::v1_v2::v1_span_name_to_v2)
+                    .map(weaver_semconv::convert::v1_span_name_to_v2)
                     .unwrap_or_else(|| SpanName {
                         note: g.name.clone().unwrap_or_default(),
                     });
@@ -489,7 +489,7 @@ pub fn convert_v1_to_v2(
                 let mut event_attributes = Vec::new();
                 for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
                     if let Some(a) = v2_catalog.convert_ref(attr) {
-                        let req_level = weaver_semconv::convert::v1_v2::v1_requirement_level_to_v2(attr.requirement_level.clone());
+                        let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(attr.requirement_level.clone());
                         event_attributes.push(event::EventAttributeRef {
                             base: a,
                             requirement_level: req_level,
@@ -540,7 +540,7 @@ pub fn convert_v1_to_v2(
                 let mut metric_attributes = Vec::new();
                 for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
                     if let Some(a) = v2_catalog.convert_ref(attr) {
-                        let req_level = weaver_semconv::convert::v1_v2::v1_requirement_level_to_v2(attr.requirement_level.clone());
+                        let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(attr.requirement_level.clone());
                         metric_attributes.push(metric::MetricAttributeRef {
                             base: a,
                             requirement_level: req_level,
@@ -552,7 +552,7 @@ pub fn convert_v1_to_v2(
                 let instrument = g
                     .instrument
                     .clone()
-                    .map(weaver_semconv::convert::v1_v2::v1_instrument_to_v2)
+                    .map(weaver_semconv::convert::v1_instrument_to_v2)
                     .expect("instrument must exist on metrics prior to translation to v2");
                 let metric = V2Metric {
                     name: g
@@ -604,7 +604,7 @@ pub fn convert_v1_to_v2(
                     let mut attributes = Vec::new();
                     for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
                         if let Some(a) = v2_catalog.convert_ref(attr) {
-                            let req_level = weaver_semconv::convert::v1_v2::v1_requirement_level_to_v2(attr.requirement_level.clone());
+                            let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(attr.requirement_level.clone());
                             attributes.push(attribute_group::AttributeGroupAttributeRef {
                                 base: a,
                                 requirement_level: req_level,

@@ -587,12 +587,12 @@ fn convert_v2_attribute(
 ) -> Attribute {
     Attribute {
         name: attr.key.clone(),
-        r#type: weaver_semconv::convert::v1_v2::v2_attribute_type_to_v1(attr.r#type.clone()),
+        r#type: weaver_semconv::convert::v2_attribute_type_to_v1(attr.r#type.clone()),
         brief: attr.common.brief.clone(),
         examples: attr
             .examples
             .clone()
-            .map(weaver_semconv::convert::v1_v2::v2_examples_to_v1),
+            .map(weaver_semconv::convert::v2_examples_to_v1),
         tag: None,
         requirement_level,
         sampling_relevant,
@@ -779,7 +779,7 @@ impl ImportableDependency for V2Schema {
                 m.attributes.iter().map(|ar| {
                     V2SignalAttribute::new(
                         &ar.base,
-                        weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                        weaver_semconv::convert::v2_requirement_level_to_v1(
                             ar.requirement_level.clone(),
                         ),
                     )
@@ -796,7 +796,7 @@ impl ImportableDependency for V2Schema {
             );
             group.metric_name = Some(m.name.to_string());
             group.instrument =
-                Some(weaver_semconv::convert::v1_v2::v2_instrument_to_v1(m.instrument));
+                Some(weaver_semconv::convert::v2_instrument_to_v1(m.instrument));
             group.unit = Some(m.unit.clone());
             group.entity_associations = to_named_associations(&m.entity_associations);
             _ = origins.insert(
@@ -817,7 +817,7 @@ impl ImportableDependency for V2Schema {
                 e.attributes.iter().map(|ar| {
                     V2SignalAttribute::new(
                         &ar.base,
-                        weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                        weaver_semconv::convert::v2_requirement_level_to_v1(
                             ar.requirement_level.clone(),
                         ),
                     )
@@ -855,7 +855,7 @@ impl ImportableDependency for V2Schema {
                     .map(|ar| {
                         V2SignalAttribute::new(
                             &ar.base,
-                            weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                            weaver_semconv::convert::v2_requirement_level_to_v1(
                                 ar.requirement_level.clone(),
                             ),
                         )
@@ -864,7 +864,7 @@ impl ImportableDependency for V2Schema {
                     .chain(e.description.iter().map(|ar| {
                         V2SignalAttribute::new(
                             &ar.base,
-                            weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                            weaver_semconv::convert::v2_requirement_level_to_v1(
                                 ar.requirement_level.clone(),
                             ),
                         )
@@ -895,7 +895,7 @@ impl ImportableDependency for V2Schema {
                 s.attributes.iter().map(|ar| {
                     V2SignalAttribute::new(
                         &ar.base,
-                        weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                        weaver_semconv::convert::v2_requirement_level_to_v1(
                             ar.requirement_level.clone(),
                         ),
                     )
@@ -912,9 +912,9 @@ impl ImportableDependency for V2Schema {
                 Some(GroupLineage::new(v2_provenance(self, &deps, &s.provenance))),
             );
             group.span_kind =
-                Some(weaver_semconv::convert::v1_v2::v2_span_kind_to_v1(s.kind));
+                Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
             group.span_name =
-                Some(weaver_semconv::convert::v1_v2::v2_span_name_to_v1(s.name.clone()));
+                Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
             group.name = Some(s.r#type.to_string());
             group.entity_associations = to_named_associations(&s.entity_associations);
             _ = origins.insert(
@@ -936,7 +936,7 @@ impl ImportableDependency for V2Schema {
                 ag.attributes.iter().map(|ar| {
                     V2SignalAttribute::new(
                         &ar.base,
-                        weaver_semconv::convert::v1_v2::v2_requirement_level_to_v1(
+                        weaver_semconv::convert::v2_requirement_level_to_v1(
                             ar.requirement_level.clone(),
                         ),
                     )

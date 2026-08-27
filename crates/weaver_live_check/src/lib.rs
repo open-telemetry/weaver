@@ -142,7 +142,7 @@ impl VersionedAttribute {
         match self {
             VersionedAttribute::V1(attr) => attr.r#type.clone(),
             VersionedAttribute::V2(attr) => {
-                weaver_semconv::convert::v1_v2::v2_attribute_type_to_v1(attr.r#type.clone())
+                weaver_semconv::convert::v2_attribute_type_to_v1(attr.r#type.clone())
             }
         }
     }
@@ -209,7 +209,7 @@ impl VersionedSignal {
         match self {
             VersionedSignal::Group(group) => group.as_ref().instrument.clone(),
             VersionedSignal::Metric(metric) => {
-                Some(weaver_semconv::convert::v1_v2::v2_instrument_to_v1(metric.instrument))
+                Some(weaver_semconv::convert::v2_instrument_to_v1(metric.instrument))
             }
             VersionedSignal::Span(_) => None,
             VersionedSignal::Event(_) => None,
