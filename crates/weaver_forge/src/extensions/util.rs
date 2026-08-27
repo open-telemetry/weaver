@@ -272,8 +272,29 @@ mod tests {
     }
 
     /// A registry that defines `host` and refines it as `host.linux`. It
-    /// depends on a registry that defines its own `host` and a `deployment`.
+    /// depends on a registry that defines its own `host` and a `deployment`,
+    /// which in turn depends on one that defines a `service`.
     fn test_registry() -> ForgeResolvedRegistry {
+        let transitive = ForgeResolvedRegistry {
+            schema_url: "https://example.com/core/1.0.0"
+                .try_into()
+                .expect("a valid schema url"),
+            registry: Registry {
+                attributes: vec![],
+                attribute_groups: vec![],
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities: vec![test_entity("service", "core.service.name")],
+            },
+            refinements: Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+            dependencies: vec![],
+        };
         let dependency = ForgeResolvedRegistry {
             schema_url: "https://example.com/base/1.0.0"
                 .try_into()
@@ -295,7 +316,7 @@ mod tests {
                 events: vec![],
                 entities: vec![],
             },
-            dependencies: vec![],
+            dependencies: vec![transitive],
         };
         ForgeResolvedRegistry {
             schema_url: "https://example.com/main/1.0.0"
@@ -360,6 +381,24 @@ mod tests {
                 .render_str(IDENTITY, &ctx)
                 .expect("the entity of the dependency"),
             "base.deployment.name"
+        );
+    }
+
+    /// `dependencies` is a tree, so a leaf naming a registry that a dependency
+    /// depends on is found below the direct one.
+    #[test]
+    fn test_lookup_entity_from_a_transitive_dependency() {
+        let ctx = serde_json::json!({
+            "ctx": {
+                "type": "service",
+                "provenance": {"source": "https://example.com/core/1.0.0"},
+            }
+        });
+        assert_eq!(
+            env_with_registry()
+                .render_str(IDENTITY, &ctx)
+                .expect("the entity of the transitive dependency"),
+            "core.service.name"
         );
     }
 

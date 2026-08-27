@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "dependencies": {
-      "description": "The registries this one depends on directly, each with its own\ndependencies, as the manifests declared them.\n\nWhere no manifest is available to say what a registry declared, every\ndependency is listed here flat instead.",
+      "description": "The registries this one depends on directly, as its manifest declares them,\neach carrying its own dependencies in turn.\n\nWhere the manifest is unknown, every direct and transitive dependency is\nlisted here instead, with no nesting.",
       "type": "array",
       "items": {
         "$ref": "#"

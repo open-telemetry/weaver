@@ -137,10 +137,7 @@ pub struct WeaverResolver {
     /// Bounded LRU cache mapping exact SchemaUrls to reference-counted resolved schema bundles.
     cache: LruCache<SchemaUrl, Arc<WeaverResolvedSchema>>,
 
-    /// The direct dependencies each manifest declared, by schema.
-    ///
-    /// A resolved schema lists every registry it was built from in one flat
-    /// set, so the direct ones are recorded here as each registry resolves.
+    /// The direct dependencies of each schema, recorded as that schema resolves.
     direct_dependencies: HashMap<SchemaUrl, Vec<SchemaUrl>>,
 
     /// Internal engine configuration.
@@ -186,11 +183,10 @@ impl WeaverResolver {
         )
     }
 
-    /// Records what a registry depends on directly.
+    /// Records what a registry depends on directly, keeping any existing entry.
     ///
-    /// Resolving a registry gives the URLs actually used, so an entry from that
-    /// is kept over one taken from a manifest, which may name a version that
-    /// arbitration later replaced.
+    /// An entry recorded during resolution names the versions actually used,
+    /// where a manifest may name one that version arbitration replaced.
     fn record_direct_dependencies(&mut self, schema_url: &SchemaUrl, direct: Vec<SchemaUrl>) {
         if direct.is_empty() || self.direct_dependencies.contains_key(schema_url) {
             return;
@@ -272,11 +268,11 @@ pub trait SchemaResolver {
         schema_url: &SchemaUrl,
     ) -> WResult<Arc<WeaverResolvedSchema>, Error>;
 
-    /// The direct dependencies this schema's manifest declared.
+    /// The direct dependencies of this schema, or `None` when they are unknown.
     ///
-    /// `None` means unknown, not empty. A schema that arrived already resolved
-    /// lists every registry it was built from in one flat set, with no way to
-    /// tell which of them are direct.
+    /// `None` is not the same as empty: a schema that arrived already resolved
+    /// lists direct and transitive dependencies alike, with no way to tell them
+    /// apart.
     fn direct_dependencies(&self, schema_url: &SchemaUrl) -> Option<&[SchemaUrl]> {
         let _ = schema_url;
         None
@@ -451,8 +447,7 @@ impl WeaverResolver {
             }
         }
 
-        // Record the direct dependencies now. The flat set above cannot be
-        // reduced back to them.
+        // The flat set above cannot be reduced back to the direct dependencies.
         let direct: Vec<SchemaUrl> = resolved_dependencies
             .iter()
             .filter_map(|d| match d {

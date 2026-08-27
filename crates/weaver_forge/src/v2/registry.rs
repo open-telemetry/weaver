@@ -39,11 +39,11 @@ pub struct ForgeResolvedRegistry {
     pub registry: Registry,
     /// The set of refinments defined in this registry.
     pub refinements: Refinements,
-    /// The registries this one depends on directly, each with its own
-    /// dependencies, as the manifests declared them.
+    /// The registries this one depends on directly, as its manifest declares them,
+    /// each carrying its own dependencies in turn.
     ///
-    /// Where no manifest is available to say what a registry declared, every
-    /// dependency is listed here flat instead.
+    /// Where the manifest is unknown, every direct and transitive dependency is
+    /// listed here instead, with no nesting.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dependencies: Vec<ForgeResolvedRegistry>,
 }
@@ -87,20 +87,16 @@ pub struct Refinements {
 impl ForgeResolvedRegistry {
     /// Returns the entity definition that an association leaf names.
     ///
-    /// The reference says where the entity is defined, so this reads one
-    /// registry rather than searching the dependency tree. A registry does not
-    /// copy the entities of its dependencies, so an association often points
-    /// away from this one.
+    /// A registry does not copy the entities of its dependencies, so an
+    /// association often names a registry other than this one.
     pub fn lookup_entity(&self, entity_ref: &EntityRef) -> Result<&Entity, Error> {
         let registry = match &entity_ref.provenance.source {
             // Empty provenance: this registry defines it.
             None => self,
-            // A dependency list holds the whole closure, so a registry that
-            // another dependency re-exports from is here too.
+            // A leaf may name a transitive dependency, which sits below a
+            // direct one in the tree.
             Some(url) => self
-                .dependencies
-                .iter()
-                .find(|dep| &dep.schema_url == url)
+                .find_dependency(url)
                 .ok_or_else(|| Error::EntityNotFound {
                     entity_type: entity_ref.r#type.to_string(),
                     registry: Some(url.to_string()),
@@ -112,6 +108,17 @@ impl ForgeResolvedRegistry {
                 entity_type: entity_ref.r#type.to_string(),
                 registry: entity_ref.provenance.source.as_ref().map(|u| u.to_string()),
             })
+    }
+
+    /// Finds a registry in the dependency tree by schema URL, at any depth.
+    fn find_dependency(&self, schema_url: &SchemaUrl) -> Option<&ForgeResolvedRegistry> {
+        self.dependencies.iter().find_map(|dep| {
+            if &dep.schema_url == schema_url {
+                Some(dep)
+            } else {
+                dep.find_dependency(schema_url)
+            }
+        })
     }
 
     /// The entity this registry defines under `name`.
@@ -143,8 +150,8 @@ impl ForgeResolvedRegistry {
         Self::build(schema, resolver, true)
     }
 
-    /// Builds the registry. Dependencies become a tree when `expand` is set,
-    /// and leaves when it is not.
+    /// Builds the registry, nesting each dependency's own dependencies when
+    /// `expand` is set and leaving them empty when it is not.
     fn build<R: SchemaResolver>(
         schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema,
         resolver: &mut R,
@@ -522,8 +529,8 @@ impl ForgeResolvedRegistry {
 
         let mut non_fatal_errors = Vec::new();
         let mut dependencies = Vec::new();
-        // Use the direct dependencies where the resolver knows them. Otherwise
-        // list them all flat, since there is no way to tell the shape.
+        // Without the direct dependencies the shape is unknown, so list every
+        // dependency at this level and nest none of them.
         let (dep_urls, expand_children) = match resolver.direct_dependencies(&schema.schema_url) {
             _ if !expand => (Vec::new(), false),
             Some(direct) => (direct.to_vec(), true),
@@ -1750,15 +1757,14 @@ mod tests {
         }
     }
 
-    /// The one chain both dependency tree tests expect, nearest first.
+    /// The chain the dependency tree tests expect, nearest first.
     const EXPECTED_CHAIN: &[&str] = &[
         "https://example.com/dependency-tree-middle/1.0.0",
         "https://example.com/dependency-tree-sub/1.0.0",
         "https://example.com/dependency-tree-leaf/1.0.0",
     ];
 
-    /// Walks the dependencies of `registry`, failing if any level holds more
-    /// than one, which is what a flat listing would produce.
+    /// Walks the dependencies of `registry`, failing if any level holds more than one.
     fn chain(registry: &ForgeResolvedRegistry) -> Vec<String> {
         let mut out = Vec::new();
         let mut current = registry;
@@ -1780,9 +1786,7 @@ mod tests {
         out
     }
 
-    /// A resolved schema lists every registry it was built from, so `root`
-    /// names `leaf` even though only `middle` depends on it. The tree has to
-    /// follow the manifests, or a transitive dependency looks like a direct one.
+    /// The resolved schema of `root` lists `leaf`, which only `middle` depends on.
     #[test]
     fn dependency_tree_follows_the_manifests() {
         use weaver_common::vdir::VirtualDirectoryPath;
@@ -1802,7 +1806,6 @@ mod tests {
             WResult::FatalErr(e) => panic!("failed to resolve the root registry: {e}"),
         };
 
-        // All three are listed here. That is what made the old flat tree look right.
         assert_eq!(
             v1.dependencies.len(),
             3,
@@ -1822,9 +1825,7 @@ mod tests {
         );
     }
 
-    /// A registry with two dependencies keeps both, in the order its manifest
-    /// lists them, each with its own subtree. `leaf` sits under both arms,
-    /// because a tree cannot share a node.
+    /// `leaf` appears under both arms: a tree holds a copy per path, not a shared node.
     #[test]
     fn a_registry_with_two_dependencies_keeps_both_arms() {
         use weaver_common::vdir::VirtualDirectoryPath;
@@ -1873,10 +1874,8 @@ mod tests {
         );
     }
 
-    /// The same graph, with middle consumed as an already-resolved artifact
-    /// rather than resolved from its definition files. Its manifest is the only
-    /// record of what it depends on, so without reading it the walk stops being
-    /// faithful below middle.
+    /// The same graph, with `middle` consumed as an already-resolved artifact whose
+    /// publication manifest is the only record of what it depends on.
     #[test]
     fn dependency_tree_follows_a_published_manifest() {
         use weaver_common::vdir::VirtualDirectoryPath;
@@ -1884,8 +1883,8 @@ mod tests {
         use weaver_semconv::registry_repo::RegistryRepo;
 
         let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
-        // The published manifest names sub by schema URL alone, so point that
-        // URL at the definition files rather than fetching it.
+        // The published manifest names sub by schema URL alone, so map that URL to
+        // the definition files rather than fetching it.
         resolver.add_schema_url_override(
             "https://example.com/dependency-tree-sub/1.0.0"
                 .try_into()
@@ -1919,8 +1918,7 @@ mod tests {
         );
     }
 
-    /// An unknown graph is listed flat. Every registry is still reachable, and
-    /// none is given children it might not have.
+    /// An unknown graph is listed flat, so no registry is given children it may not have.
     #[test]
     fn an_unknown_dependency_graph_is_listed_flat() {
         let leaf_url: SchemaUrl = "https://example.com/leaf/1.0.0".try_into().unwrap();

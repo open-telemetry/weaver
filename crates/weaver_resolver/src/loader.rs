@@ -43,16 +43,16 @@ pub enum LoadedSemconvRegistry {
     Resolved {
         /// The resolved schema.
         schema: V1Schema,
-        /// The direct dependencies its manifest declared, empty when it has no
-        /// manifest. A resolved schema does not record these itself.
+        /// The direct dependencies its manifest declares, empty when it has no
+        /// manifest.
         direct_dependencies: Vec<SchemaUrl>,
     },
     /// The semconv repository is already resolved and can be used as-is.
     ResolvedV2 {
         /// The resolved schema.
         schema: V2Schema,
-        /// The direct dependencies its manifest declared, empty when it has no
-        /// manifest. A resolved schema does not record these itself.
+        /// The direct dependencies its manifest declares, empty when it has no
+        /// manifest.
         direct_dependencies: Vec<SchemaUrl>,
     },
 }
@@ -294,9 +294,8 @@ fn load_semconv_repository_recursive(
     // Add current registry to dependency chain
     dependency_chain.push(registry_name.clone());
 
-    // What this registry's manifest says it depends on. A schema that arrives
-    // already resolved lists every registry it was built from in one flat set,
-    // so this is the only record of which of them are direct.
+    // The manifest is the only record of the direct dependencies of a schema that
+    // arrives already resolved.
     let declared_dependencies: Vec<SchemaUrl> = registry_repo
         .manifest()
         .map(|m| {
@@ -331,15 +330,8 @@ fn load_semconv_repository_recursive(
             let res = load_resolved_repository(&resolved_url, auth, declared_dependencies);
 
             // Register dependencies of the resolved schema for conflict resolution.
-            if let WResult::Ok(LoadedSemconvRegistry::ResolvedV2 {
-                schema: ref schema, ..
-            })
-            | WResult::OkWithNFEs(
-                LoadedSemconvRegistry::ResolvedV2 {
-                    schema: ref schema, ..
-                },
-                _,
-            ) = res
+            if let WResult::Ok(LoadedSemconvRegistry::ResolvedV2 { ref schema, .. })
+            | WResult::OkWithNFEs(LoadedSemconvRegistry::ResolvedV2 { ref schema, .. }, _) = res
             {
                 for dep in schema.dependencies.iter() {
                     let dep_name = dep.name().to_owned();

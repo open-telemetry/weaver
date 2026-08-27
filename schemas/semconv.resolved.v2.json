@@ -12,7 +12,7 @@
       }
     },
     "dependencies": {
-      "description": "Every registry this schema was built from, direct and transitive.\n\nDo not narrow this to the dependencies a manifest declared:\n`DependencyRef` is an index into this set, in sorted order.",
+      "description": "Every registry this schema was built from, direct and transitive, sorted by\nschema URL. A `DependencyRef` is an index into this set.",
       "type": "array",
       "items": {
         "$ref": "#/$defs/SchemaUrl"
