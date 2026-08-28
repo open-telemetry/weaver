@@ -32,7 +32,7 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
     "@types/swagger-ui-react": "^5.18.0",
-    "@vitejs/plugin-react": "6.0.5",
+    "@vitejs/plugin-react": "6.1.0",
     "daisyui": "5.7.22",
     "eslint": "10.8.1",
     "eslint-plugin-react-hooks": "7.1.1",
