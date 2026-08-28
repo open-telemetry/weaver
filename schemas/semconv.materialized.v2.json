@@ -5,10 +5,20 @@
   "type": "object",
   "properties": {
     "dependencies": {
-      "description": "The resolved dependencies of this registry.",
-      "type": "array",
-      "items": {
-        "$ref": "#"
+      "description": "Every registry this one depends on, directly or indirectly, keyed by\nschema url.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/ForgeDependency"
+      }
+    },
+    "dependency_graph": {
+      "description": "The direct dependencies of each registry, this one included. A registry\nwith no entry has unknown dependencies, not none.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/SchemaUrl"
+        }
       }
     },
     "refinements": {
@@ -1043,6 +1053,25 @@
             }
           }
         }
+      ]
+    },
+    "ForgeDependency": {
+      "description": "A dependency of a [`ForgeResolvedRegistry`], stored under its schema url.",
+      "type": "object",
+      "properties": {
+        "refinements": {
+          "description": "The set of refinements defined in this registry.",
+          "$ref": "#/$defs/Refinements"
+        },
+        "registry": {
+          "description": "The signals defined in this registry.",
+          "$ref": "#/$defs/Registry"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "registry",
+        "refinements"
       ]
     },
     "InstrumentSpec": {

@@ -251,6 +251,8 @@ Entity references name the entity and the registry that defines it. See
   - **metrics**: Metric refinements — `id` plus all metric properties
   - **events**: Event refinements — `id` plus all event properties
   - **entities**: Entity refinements — `id` plus all entity properties
+- **dependencies**: Every registry this schema was built from, direct and transitive, sorted by
+  schema URL. `provenance.source` is an index into this list.
 
 ## Other schemas
 
@@ -278,11 +280,15 @@ The materialized version of the same metric would look like:
 ```yaml
 schema_url: https://opentelemetry.io/schemas/semconv/1.{future}.0
 dependencies:
-  - schema_url: https://opentelemetry.io/schemas/semconv/1.29.0
+  https://opentelemetry.io/schemas/semconv/1.29.0:
     registry:
       attributes: ...
       metrics: ...
     refinements: ...
+dependency_graph:
+  https://opentelemetry.io/schemas/semconv/1.{future}.0:
+    - https://opentelemetry.io/schemas/semconv/1.29.0
+  https://opentelemetry.io/schemas/semconv/1.29.0: []
 registry:
   attributes:
   ...
@@ -327,7 +333,10 @@ refinements:
 #### Materialized schema properties
 
 - **schema_url**: The Schema URL where this registry is or will be published
-- **dependencies**: An array of materialized dependencies (having the same structure as this materialized schema) that this registry depends on
+- **dependencies**: Every registry this one depends on, directly or indirectly, keyed by schema
+  url. Each holds a `registry` and a `refinements` of the same structure as this schema.
+- **dependency_graph**: The direct dependencies of each registry, keyed by schema url and including
+  this one. Schema urls only. A registry with no entry has unknown dependencies, not none.
 - **registry**: Same structure as in the *resolved* schema, but all attribute references are replaced
   by complete attribute definitions. This applies to all signal types (metrics, spans, events, entities)
   and to `attribute_groups`. An [entity association](#entity-associations) leaf keeps its reference,
@@ -401,8 +410,8 @@ How a leaf names its entity depends on the schema:
   registry defines it. A reference is therefore self-describing: a consumer that holds one knows which
   schema to read next.
 - In the [materialized schema](#materialized-resolved-schema) a leaf is the same object, except that
-  `provenance.source` is the schema url of the defining registry rather than an index. That registry
-  is one of the `dependencies`, which hold the whole dependency closure.
+  `provenance.source` is the schema url of the defining registry rather than an index, and is the
+  key that registry is stored under in `dependencies`.
 
 An association is resolved during [`weaver registry resolve`](/docs/usage.md#weaver-registry-resolve).
 The entity is *not* copied into this registry: there is one definition, in one place. A reference that
