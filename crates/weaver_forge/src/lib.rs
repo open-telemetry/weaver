@@ -943,9 +943,12 @@ mod tests {
     use crate::v2::event::Event;
     use crate::v2::metric::Metric;
     use crate::v2::provenance::Provenance;
-    use crate::v2::registry::{ForgeResolvedRegistry, Refinements, Registry as V2Registry};
+    use crate::v2::registry::{
+        ForgeDependency, ForgeResolvedRegistry, Refinements, Registry as V2Registry,
+    };
     use crate::v2::span::Span;
     use crate::{run_filter_raw, OutputDirective, TemplateEngine};
+    use std::collections::BTreeMap;
     use weaver_semconv::v2::{
         attribute::{
             AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
@@ -1121,7 +1124,8 @@ mod tests {
                 events: vec![],
                 entities: vec![],
             },
-            dependencies: vec![],
+            dependencies: BTreeMap::new(),
+            dependency_graph: BTreeMap::new(),
         };
 
         (engine, registry)
@@ -1633,8 +1637,7 @@ mod tests {
         let dependency_url: SchemaUrl = "https://example.com/base/1.0.0"
             .try_into()
             .expect("Should be valid schema url");
-        let dependency = ForgeResolvedRegistry {
-            schema_url: dependency_url.clone(),
+        let dependency = ForgeDependency {
             registry: V2Registry {
                 attributes: vec![],
                 attribute_groups: vec![],
@@ -1647,7 +1650,6 @@ mod tests {
                 ],
             },
             refinements: empty_refinements(),
-            dependencies: vec![],
         };
 
         ForgeResolvedRegistry {
@@ -1696,7 +1698,8 @@ mod tests {
                 entities: vec![entity("service", &["service.name"])],
             },
             refinements: empty_refinements(),
-            dependencies: vec![dependency],
+            dependencies: BTreeMap::from([(dependency_url, dependency)]),
+            dependency_graph: BTreeMap::new(),
         }
     }
 

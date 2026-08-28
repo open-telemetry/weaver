@@ -757,7 +757,8 @@ mod tests {
                 events: vec![],
                 entities: vec![],
             },
-            dependencies: vec![],
+            dependencies: Default::default(),
+            dependency_graph: Default::default(),
         };
 
         let result = emit(

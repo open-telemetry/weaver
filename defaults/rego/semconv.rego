@@ -91,10 +91,7 @@ defining_registry(ref) := input if {
     not ref.provenance.source
 }
 
-defining_registry(ref) := dependency if {
-    some dependency in input.dependencies
-    dependency.schema_url == ref.provenance.source
-}
+defining_registry(ref) := input.dependencies[ref.provenance.source]
 
 # The entity definition a reference names. A reference names an entity type or
 # the id of an entity refinement. The entity type wins, as it does in weaver.

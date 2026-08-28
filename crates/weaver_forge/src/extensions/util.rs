@@ -229,6 +229,7 @@ fn to_yaml(value: &Value) -> Result<Value, minijinja::Error> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
     use std::fs;
     use std::sync::Arc;
 
@@ -236,9 +237,10 @@ mod tests {
     use crate::v2::attribute::Attribute;
     use crate::v2::entity::{Entity, EntityAttribute, EntityRefinement};
     use crate::v2::provenance::Provenance;
-    use crate::v2::registry::{ForgeResolvedRegistry, Refinements, Registry};
+    use crate::v2::registry::{ForgeDependency, ForgeResolvedRegistry, Refinements, Registry};
     use minijinja::Environment;
     use serde_yaml::{Mapping, Number, Value};
+    use weaver_semconv::schema_url::SchemaUrl;
     use weaver_semconv::v2::attribute::{
         AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
     };
@@ -271,23 +273,16 @@ mod tests {
         }
     }
 
-    /// A registry that defines `host` and refines it as `host.linux`. It
-    /// depends on a registry that defines its own `host` and a `deployment`.
-    fn test_registry() -> ForgeResolvedRegistry {
-        let dependency = ForgeResolvedRegistry {
-            schema_url: "https://example.com/base/1.0.0"
-                .try_into()
-                .expect("a valid schema url"),
+    /// A dependency defining the given entities.
+    fn test_dependency(entities: Vec<Entity>) -> ForgeDependency {
+        ForgeDependency {
             registry: Registry {
                 attributes: vec![],
                 attribute_groups: vec![],
                 metrics: vec![],
                 spans: vec![],
                 events: vec![],
-                entities: vec![
-                    test_entity("host", "base.host.name"),
-                    test_entity("deployment", "base.deployment.name"),
-                ],
+                entities,
             },
             refinements: Refinements {
                 metrics: vec![],
@@ -295,12 +290,23 @@ mod tests {
                 events: vec![],
                 entities: vec![],
             },
-            dependencies: vec![],
-        };
+        }
+    }
+
+    const MAIN_URL: &str = "https://example.com/main/1.0.0";
+    const BASE_URL: &str = "https://example.com/base/1.0.0";
+    const CORE_URL: &str = "https://example.com/core/1.0.0";
+
+    fn url(s: &str) -> SchemaUrl {
+        s.try_into().expect("a valid schema url")
+    }
+
+    /// A registry that defines `host` and refines it as `host.linux`. It
+    /// depends on `base`, which defines its own `host` and a `deployment`, and
+    /// through it on `core`, which defines a `service`.
+    fn test_registry() -> ForgeResolvedRegistry {
         ForgeResolvedRegistry {
-            schema_url: "https://example.com/main/1.0.0"
-                .try_into()
-                .expect("a valid schema url"),
+            schema_url: url(MAIN_URL),
             registry: Registry {
                 attributes: vec![],
                 attribute_groups: vec![],
@@ -318,7 +324,23 @@ mod tests {
                     entity: test_entity("host", "main.host.linux.name"),
                 }],
             },
-            dependencies: vec![dependency],
+            dependencies: BTreeMap::from([
+                (
+                    url(BASE_URL),
+                    test_dependency(vec![
+                        test_entity("host", "base.host.name"),
+                        test_entity("deployment", "base.deployment.name"),
+                    ]),
+                ),
+                (
+                    url(CORE_URL),
+                    test_dependency(vec![test_entity("service", "core.service.name")]),
+                ),
+            ]),
+            dependency_graph: BTreeMap::from([
+                (url(MAIN_URL), vec![url(BASE_URL)]),
+                (url(BASE_URL), vec![url(CORE_URL)]),
+            ]),
         }
     }
 
@@ -360,6 +382,24 @@ mod tests {
                 .render_str(IDENTITY, &ctx)
                 .expect("the entity of the dependency"),
             "base.deployment.name"
+        );
+    }
+
+    /// `core` is reached only through `base`, and resolves the same as a direct
+    /// dependency.
+    #[test]
+    fn test_lookup_entity_from_a_transitive_dependency() {
+        let ctx = serde_json::json!({
+            "ctx": {
+                "type": "service",
+                "provenance": {"source": "https://example.com/core/1.0.0"},
+            }
+        });
+        assert_eq!(
+            env_with_registry()
+                .render_str(IDENTITY, &ctx)
+                .expect("the entity of the transitive dependency"),
+            "core.service.name"
         );
     }
 

@@ -312,7 +312,8 @@ names an entity of the registry under check.
 
 An `after_resolution` policy on a v2 registry gets the materialized registry as
 `input`, so both the local definitions and those of every dependency are in
-reach. Two functions read them:
+reach: `input.dependencies` holds every registry the one under check depends
+on, directly or indirectly, keyed by schema url. Two functions read them:
 
 - `entity_refs(association)` returns the set of leaves in an association, or in a
   list of associations. It walks every level of the tree.

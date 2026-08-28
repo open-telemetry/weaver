@@ -48,7 +48,8 @@ pub struct ResolvedTelemetrySchema {
     pub registry: Registry,
     /// Refinements for the registry
     pub refinements: Refinements,
-    /// The list of dependencies of the current instrumentation application or library.
+    /// Every registry this schema was built from, direct and transitive, sorted by
+    /// schema URL. A `DependencyRef` is an index into this set.
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub dependencies: BTreeSet<SchemaUrl>,
 }
