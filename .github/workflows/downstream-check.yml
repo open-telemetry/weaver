@@ -44,6 +44,8 @@ jobs:
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          lookup-only: true
 
       # The weaver binary embeds ui/dist via include_dir!, and it is not checked
       # in, so it has to be built before anything compiles weaver.
@@ -55,8 +57,7 @@ jobs:
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version-file: ".nvmrc"
-          cache: "pnpm"
-          cache-dependency-path: ui/pnpm-lock.yaml
+          package-manager-cache: false
       - name: Install UI dependencies
         run: pnpm install --frozen-lockfile
         working-directory: ./ui
@@ -75,8 +76,6 @@ jobs:
           context: .
           load: true
           tags: weaver-downstream-check:local
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Run downstream checks
         env:
