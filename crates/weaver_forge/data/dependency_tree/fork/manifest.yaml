@@ -1,5 +1,5 @@
-# Two dependencies, listed in an order that is not alphabetical so the tree
-# cannot pass by sorting.
+# Two dependencies, listed in an order that is not alphabetical so the graph
+# edges cannot pass by sorting.
 name: fork
 description: Depends on middle and branch, which both reach leaf.
 schema_url: https://example.com/dependency-tree-fork/1.0.0

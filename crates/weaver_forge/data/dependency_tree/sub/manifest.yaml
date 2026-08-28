@@ -1,5 +1,5 @@
 name: sub
-description: Sits between middle and leaf, so a flat listing is visibly different from a tree.
+description: Sits between middle and leaf, so the graph has a depth the list does not show.
 schema_url: https://example.com/dependency-tree-sub/1.0.0
 dependencies:
   - name: leaf
