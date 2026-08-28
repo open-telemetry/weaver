@@ -29,7 +29,7 @@ pub mod stats;
 /// Version string denoting V2 resolved schema.
 pub const V2_RESOLVED_FILE_FORMAT: &str = "resolved/2.0";
 
-/// A Resolved Telemetry Schema (Version 2).
+/// A Resolved Telemetry Schema.
 /// A Resolved Telemetry Schema is self-contained and doesn't contain any
 /// external references to other schemas or semantic conventions.
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
