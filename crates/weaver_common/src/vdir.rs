@@ -278,9 +278,9 @@ fn find_asset_url(
 }
 
 /// The extension for a tar gz archive.
-const TAR_GZ_EXT: &str = ".tar.gz";
+pub const TAR_GZ_EXT: &str = ".tar.gz";
 /// The extension for a zip archive.
-const ZIP_EXT: &str = ".zip";
+pub const ZIP_EXT: &str = ".zip";
 
 /// Returns `true` if `s` is a full-length hex object id (commit SHA).
 ///
