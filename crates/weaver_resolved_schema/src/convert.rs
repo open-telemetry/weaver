@@ -693,7 +693,9 @@ mod tests {
     use crate::v1::registry::Group as V1Group;
     use crate::v1::V1_RESOLVED_FILE_FORMAT;
     use crate::v2::attribute::AttributeRef;
+    use weaver_semconv::provenance::Provenance;
     use weaver_semconv::stability::Stability;
+    use weaver_semconv::v1::group::InstrumentSpec as V1InstrumentSpec;
 
     #[test]
     fn test_convert_span_v1_to_v2() {
@@ -836,5 +838,803 @@ mod tests {
             "http://test/schemas/1.0.0".try_into().unwrap()
         );
         assert_eq!(v2_schema.dependencies, dependencies);
+    }
+
+    #[test]
+    fn test_convert_metric_v1_to_v2() {
+        let mut builder = crate::v1::catalog::test_utils::CatalogBuilder::default();
+        let attr_ref = builder.add(
+            V1Attribute {
+                name: "http.response.status_code".to_owned(),
+                r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::Int,
+                ),
+                brief: "Status code".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: weaver_semconv::v1::attribute::RequirementLevel::Basic(
+                    weaver_semconv::v1::attribute::BasicRequirementLevelSpec::Required,
+                ),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: None,
+            },
+            None,
+        );
+        let catalog = builder.build();
+
+        let mut metric_lineage = crate::v1::lineage::GroupLineage::new(Provenance::new(
+            SchemaUrl::new_unknown(),
+            "test.yaml",
+        ));
+        metric_lineage.extends("metric.http.server.duration", GroupType::Metric);
+
+        let registry = V1Registry {
+            registry_url: "http://test/schemas/1.0.0".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![
+                V1Group {
+                    id: "metric.http.server.duration".to_owned(),
+                    r#type: GroupType::Metric,
+                    brief: "Duration".to_owned(),
+                    note: "Note".to_owned(),
+                    prefix: "".to_owned(),
+                    extends: None,
+                    stability: Some(Stability::Stable),
+                    deprecated: None,
+                    name: None,
+                    lineage: None,
+                    display_name: None,
+                    attributes: vec![attr_ref],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: Some("http.server.duration".to_owned()),
+                    instrument: Some(V1InstrumentSpec::Histogram),
+                    unit: Some("ms".to_owned()),
+                    requirement_level: None,
+                    body: None,
+                    annotations: None,
+                    entity_associations: vec![],
+                    visibility: None,
+                    is_v2: false,
+                    span_name: None,
+                },
+                V1Group {
+                    id: "metric.http.server.duration.refined".to_owned(),
+                    r#type: GroupType::Metric,
+                    brief: "Refined duration".to_owned(),
+                    note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    extends: Some("metric.http.server.duration".to_owned()),
+                    stability: Some(Stability::Stable),
+                    deprecated: None,
+                    name: None,
+                    lineage: Some(metric_lineage),
+                    display_name: None,
+                    attributes: vec![],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: Some("http.server.duration".to_owned()),
+                    instrument: Some(V1InstrumentSpec::Histogram),
+                    unit: Some("ms".to_owned()),
+                    requirement_level: None,
+                    body: None,
+                    annotations: None,
+                    entity_associations: vec![],
+                    visibility: None,
+                    is_v2: false,
+                    span_name: None,
+                },
+            ],
+        };
+
+        let (attribute_catalog, reg, refs, _) =
+            convert_v1_to_v2(catalog, registry, BTreeSet::new()).unwrap();
+        assert_eq!(attribute_catalog.len(), 1);
+        assert_eq!(reg.metrics.len(), 1);
+        assert_eq!(&*reg.metrics[0].name, "http.server.duration");
+        assert_eq!(
+            reg.metrics[0].instrument,
+            weaver_semconv::v2::metric::InstrumentSpec::Histogram
+        );
+        assert_eq!(reg.metrics[0].unit, "ms");
+        assert_eq!(refs.metrics.len(), 2);
+    }
+
+    #[test]
+    fn test_convert_event_v1_to_v2() {
+        let catalog = V1Catalog::default();
+        let mut event_lineage = crate::v1::lineage::GroupLineage::new(Provenance::new(
+            SchemaUrl::new_unknown(),
+            "test.yaml",
+        ));
+        event_lineage.extends("event.exception", GroupType::Event);
+
+        let registry = V1Registry {
+            registry_url: "http://test/schemas/1.0.0".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![
+                V1Group {
+                    id: "event.exception".to_owned(),
+                    r#type: GroupType::Event,
+                    brief: "An exception occurred".to_owned(),
+                    note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    extends: None,
+                    stability: Some(Stability::Stable),
+                    deprecated: None,
+                    name: Some("exception".to_owned()),
+                    lineage: None,
+                    display_name: None,
+                    attributes: vec![],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    requirement_level: None,
+                    body: None,
+                    annotations: None,
+                    entity_associations: vec![],
+                    visibility: None,
+                    is_v2: false,
+                    span_name: None,
+                },
+                V1Group {
+                    id: "event.exception.refined".to_owned(),
+                    r#type: GroupType::Event,
+                    brief: "Refined exception".to_owned(),
+                    note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    extends: Some("event.exception".to_owned()),
+                    stability: Some(Stability::Stable),
+                    deprecated: None,
+                    name: Some("exception".to_owned()),
+                    lineage: Some(event_lineage),
+                    display_name: None,
+                    attributes: vec![],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    requirement_level: None,
+                    body: None,
+                    annotations: None,
+                    entity_associations: vec![],
+                    visibility: None,
+                    is_v2: false,
+                    span_name: None,
+                },
+            ],
+        };
+
+        let (_, reg, refs, _) = convert_v1_to_v2(catalog, registry, BTreeSet::new()).unwrap();
+        assert_eq!(reg.events.len(), 1);
+        assert_eq!(&*reg.events[0].name, "exception");
+        assert_eq!(refs.events.len(), 2);
+    }
+
+    #[test]
+    fn test_convert_entity_v1_to_v2() {
+        let mut builder = crate::v1::catalog::test_utils::CatalogBuilder::default();
+        let id_ref = builder.add(
+            V1Attribute {
+                name: "k8s.pod.uid".to_owned(),
+                r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                brief: "Pod UID".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: weaver_semconv::v1::attribute::RequirementLevel::Basic(
+                    weaver_semconv::v1::attribute::BasicRequirementLevelSpec::Required,
+                ),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: Some(weaver_semconv::v1::attribute::AttributeRole::Identifying),
+            },
+            None,
+        );
+        let desc_ref = builder.add(
+            V1Attribute {
+                name: "k8s.pod.name".to_owned(),
+                r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                brief: "Pod name".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: weaver_semconv::v1::attribute::RequirementLevel::Basic(
+                    weaver_semconv::v1::attribute::BasicRequirementLevelSpec::Recommended,
+                ),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: None,
+            },
+            None,
+        );
+        let catalog = builder.build();
+
+        let mut entity_lineage = crate::v1::lineage::GroupLineage::new(Provenance::new(
+            SchemaUrl::new_unknown(),
+            "test.yaml",
+        ));
+        entity_lineage.extends("entity.k8s.pod", GroupType::Entity);
+
+        let registry = V1Registry {
+            registry_url: "http://test/schemas/1.0.0".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![
+                V1Group {
+                    id: "entity.k8s.pod".to_owned(),
+                    r#type: GroupType::Entity,
+                    brief: "Kubernetes pod".to_owned(),
+                    note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    extends: None,
+                    stability: Some(Stability::Stable),
+                    deprecated: None,
+                    name: Some("k8s.pod".to_owned()),
+                    lineage: None,
+                    display_name: None,
+                    attributes: vec![id_ref, desc_ref],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    requirement_level: None,
+                    body: None,
+                    annotations: None,
+                    entity_associations: vec![],
+                    visibility: None,
+                    is_v2: false,
+                    span_name: None,
+                },
+                V1Group {
+                    id: "entity.k8s.pod.refined".to_owned(),
+                    r#type: GroupType::Entity,
+                    brief: "Refined pod".to_owned(),
+                    note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    extends: Some("entity.k8s.pod".to_owned()),
+                    stability: Some(Stability::Stable),
+                    deprecated: None,
+                    name: None,
+                    lineage: Some(entity_lineage),
+                    display_name: None,
+                    attributes: vec![],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    requirement_level: None,
+                    body: None,
+                    annotations: None,
+                    entity_associations: vec![],
+                    visibility: None,
+                    is_v2: false,
+                    span_name: None,
+                },
+            ],
+        };
+
+        let (_, reg, refs, _) = convert_v1_to_v2(catalog, registry, BTreeSet::new()).unwrap();
+        assert_eq!(reg.entities.len(), 1);
+        assert_eq!(&*reg.entities[0].r#type, "k8s.pod");
+        assert_eq!(reg.entities[0].identity.len(), 1);
+        assert_eq!(reg.entities[0].description.len(), 1);
+        assert_eq!(refs.entities.len(), 2);
+    }
+
+    #[test]
+    fn test_convert_attribute_group_v1_to_v2() {
+        let mut builder = crate::v1::catalog::test_utils::CatalogBuilder::default();
+        let attr_ref = builder.add(
+            V1Attribute {
+                name: "custom.attr".to_owned(),
+                r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                brief: "".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: weaver_semconv::v1::attribute::RequirementLevel::Basic(
+                    weaver_semconv::v1::attribute::BasicRequirementLevelSpec::Required,
+                ),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: None,
+            },
+            None,
+        );
+        let catalog = builder.build();
+
+        let registry = V1Registry {
+            registry_url: "http://test/schemas/1.0.0".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![
+                V1Group {
+                    id: "attribute_group.public_grp".to_owned(),
+                    r#type: GroupType::AttributeGroup,
+                    brief: "Public group".to_owned(),
+                    note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    extends: None,
+                    stability: Some(Stability::Stable),
+                    deprecated: None,
+                    name: None,
+                    lineage: None,
+                    display_name: None,
+                    attributes: vec![attr_ref],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    requirement_level: None,
+                    body: None,
+                    annotations: None,
+                    entity_associations: vec![],
+                    visibility: Some(
+                        weaver_semconv::v1::group::AttributeGroupVisibilitySpec::Public,
+                    ),
+                    is_v2: false,
+                    span_name: None,
+                },
+                V1Group {
+                    id: "attribute_group.internal_grp".to_owned(),
+                    r#type: GroupType::AttributeGroup,
+                    brief: "Internal group".to_owned(),
+                    note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    extends: None,
+                    stability: Some(Stability::Stable),
+                    deprecated: None,
+                    name: None,
+                    lineage: None,
+                    display_name: None,
+                    attributes: vec![attr_ref],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    requirement_level: None,
+                    body: None,
+                    annotations: None,
+                    entity_associations: vec![],
+                    visibility: Some(
+                        weaver_semconv::v1::group::AttributeGroupVisibilitySpec::Internal,
+                    ),
+                    is_v2: false,
+                    span_name: None,
+                },
+            ],
+        };
+
+        let (_, reg, _, _) = convert_v1_to_v2(catalog, registry, BTreeSet::new()).unwrap();
+        // Only public group should be present in V2 registry
+        assert_eq!(reg.attribute_groups.len(), 1);
+        assert_eq!(&*reg.attribute_groups[0].id, "public_grp");
+    }
+
+    #[test]
+    fn test_v2_namespace_id_all_variants() {
+        let make_group = |id: &str, r#type: GroupType, name: Option<&str>, extends: bool| {
+            let lineage = if extends {
+                let mut lin = crate::v1::lineage::GroupLineage::new(Provenance::new(
+                    SchemaUrl::new_unknown(),
+                    "test.yaml",
+                ));
+                lin.extends("base", r#type.clone());
+                Some(lin)
+            } else {
+                None
+            };
+            V1Group {
+                id: id.to_owned(),
+                r#type: r#type.clone(),
+                brief: "".to_owned(),
+                note: "".to_owned(),
+                prefix: "".to_owned(),
+                extends: None,
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                name: name.map(|s| s.to_owned()),
+                lineage,
+                display_name: None,
+                attributes: vec![],
+                span_kind: None,
+                events: vec![],
+                metric_name: name.map(|s| s.to_owned()),
+                instrument: None,
+                unit: None,
+                requirement_level: None,
+                body: None,
+                annotations: None,
+                entity_associations: vec![],
+                visibility: None,
+                is_v2: false,
+                span_name: None,
+            }
+        };
+
+        assert_eq!(
+            v2_namespace_id(&make_group("span.client", GroupType::Span, None, false)),
+            Some(SignalId::from("client"))
+        );
+        assert_eq!(
+            v2_namespace_id(&make_group(
+                "attribute_group.common",
+                GroupType::AttributeGroup,
+                None,
+                false
+            )),
+            Some(SignalId::from("common"))
+        );
+        assert_eq!(
+            v2_namespace_id(&make_group(
+                "entity.k8s.pod",
+                GroupType::Entity,
+                Some("k8s.pod"),
+                false
+            )),
+            Some(SignalId::from("k8s.pod"))
+        );
+        assert_eq!(
+            v2_namespace_id(&make_group(
+                "entity.k8s.pod.refined",
+                GroupType::Entity,
+                None,
+                true
+            )),
+            Some(SignalId::from("k8s.pod.refined"))
+        );
+        assert_eq!(
+            v2_namespace_id(&make_group(
+                "event.exception",
+                GroupType::Event,
+                Some("exception"),
+                false
+            )),
+            Some(SignalId::from("exception"))
+        );
+        assert_eq!(
+            v2_namespace_id(&make_group(
+                "event.exception.refined",
+                GroupType::Event,
+                None,
+                true
+            )),
+            Some(SignalId::from("exception.refined"))
+        );
+        assert_eq!(
+            v2_namespace_id(&make_group(
+                "metric.duration",
+                GroupType::Metric,
+                Some("duration"),
+                false
+            )),
+            Some(SignalId::from("duration"))
+        );
+        assert_eq!(
+            v2_namespace_id(&make_group(
+                "metric.duration.refined",
+                GroupType::Metric,
+                None,
+                true
+            )),
+            Some(SignalId::from("duration.refined"))
+        );
+        assert_eq!(
+            v2_namespace_id(&make_group(
+                "metric_group.test",
+                GroupType::MetricGroup,
+                None,
+                false
+            )),
+            None
+        );
+        assert_eq!(
+            v2_namespace_id(&make_group("scope.test", GroupType::Scope, None, false)),
+            None
+        );
+        assert_eq!(
+            v2_namespace_id(&make_group(
+                "undefined.test",
+                GroupType::Undefined,
+                None,
+                false
+            )),
+            None
+        );
+    }
+
+    #[test]
+    fn test_convert_errors() {
+        // Test EventNameNotFound
+        let registry_no_event_name = V1Registry {
+            registry_url: "http://test/schemas/1.0.0".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![V1Group {
+                id: "event.unnamed".to_owned(),
+                r#type: GroupType::Event,
+                brief: "".to_owned(),
+                note: "".to_owned(),
+                prefix: "".to_owned(),
+                extends: None,
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                name: None, // Missing name!
+                lineage: None,
+                display_name: None,
+                attributes: vec![],
+                span_kind: None,
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                requirement_level: None,
+                body: None,
+                annotations: None,
+                entity_associations: vec![],
+                visibility: None,
+                is_v2: false,
+                span_name: None,
+            }],
+        };
+        let err = convert_v1_to_v2(
+            V1Catalog::default(),
+            registry_no_event_name,
+            BTreeSet::new(),
+        )
+        .unwrap_err();
+        assert!(matches!(err, crate::error::Error::EventNameNotFound { .. }));
+
+        // Test RefinementBaseNotFound for span
+        let mut span_lin_no_base = crate::v1::lineage::GroupLineage::new(Provenance::new(
+            SchemaUrl::new_unknown(),
+            "test.yaml",
+        ));
+        span_lin_no_base.extends_group_type = Some(GroupType::Span);
+        let registry_no_span_base = V1Registry {
+            registry_url: "http://test/schemas/1.0.0".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![V1Group {
+                id: "span.refined".to_owned(),
+                r#type: GroupType::Span,
+                brief: "".to_owned(),
+                note: "".to_owned(),
+                prefix: "".to_owned(),
+                extends: Some("span.base".to_owned()),
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                name: None,
+                lineage: Some(span_lin_no_base),
+                display_name: None,
+                attributes: vec![],
+                span_kind: None,
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                requirement_level: None,
+                body: None,
+                annotations: None,
+                entity_associations: vec![],
+                visibility: None,
+                is_v2: false,
+                span_name: None,
+            }],
+        };
+        let err = convert_v1_to_v2(V1Catalog::default(), registry_no_span_base, BTreeSet::new())
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            crate::error::Error::RefinementBaseNotFound { .. }
+        ));
+
+        // Test EntityAssociationNotFound
+        let registry_bad_assoc = V1Registry {
+            registry_url: "http://test/schemas/1.0.0".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![V1Group {
+                id: "span.db".to_owned(),
+                r#type: GroupType::Span,
+                brief: "".to_owned(),
+                note: "".to_owned(),
+                prefix: "".to_owned(),
+                extends: None,
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                name: None,
+                lineage: None,
+                display_name: None,
+                attributes: vec![],
+                span_kind: None,
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                requirement_level: None,
+                body: None,
+                annotations: None,
+                entity_associations: vec![
+                    weaver_semconv::entity_association::EntityAssociation::Ref(
+                        "nonexistent.entity".to_owned(),
+                    ),
+                ],
+                visibility: None,
+                is_v2: false,
+                span_name: None,
+            }],
+        };
+        let err = convert_v1_to_v2(V1Catalog::default(), registry_bad_assoc, BTreeSet::new())
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            crate::error::Error::EntityAssociationNotFound { .. }
+        ));
+
+        // Test InvalidSchemaUrl on TryInto
+        let bad_schema = V1ResolvedSchema {
+            file_format: V1_RESOLVED_FILE_FORMAT.to_owned(),
+            schema_url: "not a url".to_owned(),
+            registry_id: "reg".to_owned(),
+            catalog: V1Catalog::default(),
+            registry: V1Registry {
+                registry_url: "http://reg".to_owned(),
+                entity_association_origins: Default::default(),
+                groups: vec![],
+            },
+            instrumentation_library: None,
+            resource: None,
+            dependencies: BTreeSet::new(),
+            versions: None,
+            registry_manifest: None,
+        };
+        let res: Result<V2ResolvedSchema, _> = bad_schema.try_into();
+        assert!(matches!(
+            res.unwrap_err(),
+            crate::error::Error::InvalidSchemaUrl { .. }
+        ));
+    }
+
+    #[test]
+    fn test_convert_entity_associations_complex_and_provenance() {
+        use weaver_semconv::entity_association::EntityAssociation as SpecAssociation;
+        let dep_url: SchemaUrl = "http://external.dep/1.0.0".try_into().unwrap();
+        let mut deps = BTreeSet::new();
+        let _ = deps.insert(dep_url.clone());
+
+        let mut origins = BTreeMap::new();
+        let mut group_origins = BTreeMap::new();
+        let _ = group_origins.insert("db.remote_instance".to_owned(), dep_url);
+        let _ = origins.insert("span.db_query".to_owned(), group_origins);
+
+        let entity_group = V1Group {
+            id: "entity.local_server".to_owned(),
+            r#type: GroupType::Entity,
+            brief: "".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            name: Some("local_server".to_owned()),
+            lineage: None,
+            display_name: None,
+            attributes: vec![],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            requirement_level: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: false,
+            span_name: None,
+        };
+
+        let span_group = V1Group {
+            id: "span.db_query".to_owned(),
+            r#type: GroupType::Span,
+            brief: "".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            name: None,
+            lineage: None,
+            display_name: None,
+            attributes: vec![],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            requirement_level: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![
+                SpecAssociation::OneOf {
+                    one_of: vec![
+                        SpecAssociation::Ref("local_server".to_owned()),
+                        SpecAssociation::Ref("db.remote_instance".to_owned()),
+                    ],
+                },
+                SpecAssociation::AllOf {
+                    all_of: vec![SpecAssociation::Ref("local_server".to_owned())],
+                },
+            ],
+            visibility: None,
+            is_v2: false,
+            span_name: None,
+        };
+
+        let registry = V1Registry {
+            registry_url: "http://test/schemas/1.0.0".to_owned(),
+            entity_association_origins: origins,
+            groups: vec![entity_group, span_group],
+        };
+
+        let (_, reg, _, _) = convert_v1_to_v2(V1Catalog::default(), registry, deps).unwrap();
+        assert_eq!(reg.spans.len(), 1);
+        let span = &reg.spans[0];
+        assert_eq!(span.entity_associations.len(), 2);
+        match &span.entity_associations[0] {
+            entity::EntityAssociation::OneOf { one_of } => {
+                assert_eq!(one_of.len(), 2);
+                match &one_of[0] {
+                    entity::EntityAssociation::Ref(entity_ref) => {
+                        assert_eq!(&*entity_ref.r#type, "local_server");
+                        assert!(entity_ref.provenance.source.is_none());
+                    }
+                    _ => panic!("Expected EntityAssociation::Ref"),
+                }
+                match &one_of[1] {
+                    entity::EntityAssociation::Ref(entity_ref) => {
+                        assert_eq!(&*entity_ref.r#type, "db.remote_instance");
+                        assert_eq!(
+                            entity_ref.provenance.source,
+                            Some(provenance::DependencyRef(0))
+                        );
+                    }
+                    _ => panic!("Expected EntityAssociation::Ref"),
+                }
+            }
+            _ => panic!("Expected EntityAssociation::OneOf"),
+        }
     }
 }

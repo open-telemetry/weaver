@@ -408,6 +408,646 @@ mod tests {
         }
     }
 
+    #[test]
+    fn v2_detect_span_and_attribute_group_diff() {
+        let mut baseline = empty_v2_schema();
+        baseline.registry.spans.push(span::Span {
+            r#type: "http.client".to_owned().into(),
+            kind: weaver_semconv::v2::span::SpanKindSpec::Client,
+            name: weaver_semconv::v2::span::SpanName {
+                note: "HTTP".to_owned(),
+            },
+            attributes: vec![],
+            entity_associations: vec![],
+            requirement_level: None,
+            common: CommonFields::default(),
+            provenance: Default::default(),
+        });
+        baseline
+            .registry
+            .attribute_groups
+            .push(attribute_group::AttributeGroup {
+                id: "http.client.group".to_owned().into(),
+                attributes: vec![],
+                common: CommonFields::default(),
+                provenance: Default::default(),
+            });
+
+        let mut latest = empty_v2_schema();
+        latest.registry.spans.push(span::Span {
+            r#type: "http.client".to_owned().into(),
+            kind: weaver_semconv::v2::span::SpanKindSpec::Client,
+            name: weaver_semconv::v2::span::SpanName {
+                note: "HTTP".to_owned(),
+            },
+            attributes: vec![],
+            entity_associations: vec![],
+            requirement_level: None,
+            common: CommonFields {
+                deprecated: Some(Deprecated::Renamed {
+                    renamed_to: "http.client.v2".to_owned(),
+                    note: Some("Use v2".to_owned()),
+                }),
+                ..Default::default()
+            },
+            provenance: Default::default(),
+        });
+        latest
+            .registry
+            .attribute_groups
+            .push(attribute_group::AttributeGroup {
+                id: "http.server.group".to_owned().into(),
+                attributes: vec![],
+                common: CommonFields::default(),
+                provenance: Default::default(),
+            });
+
+        let diff = latest.diff(&baseline);
+        assert!(!diff.is_empty());
+        assert_eq!(diff.registry.span_changes.len(), 1);
+        match &diff.registry.span_changes[0] {
+            SchemaItemChange::Renamed {
+                old_name,
+                new_name,
+                note,
+            } => {
+                assert_eq!(old_name, "http.client");
+                assert_eq!(new_name, "http.client.v2");
+                assert_eq!(note, "Use v2");
+            }
+            c => panic!("Unexpected span change: {:?}", c),
+        }
+
+        // Attribute group changes: http.server.group added, http.client.group removed
+        assert_eq!(diff.registry.attribute_group_changes.len(), 2);
+    }
+
+    #[test]
+    fn v2_detect_unchanged_deprecation_skips_diff() {
+        let mut baseline = empty_v2_schema();
+        let dep = Some(Deprecated::Obsoleted {
+            note: "same note".to_owned(),
+        });
+        baseline.registry.events.push(Event {
+            name: "same.event".to_owned().into(),
+            attributes: vec![],
+            entity_associations: vec![],
+            requirement_level: None,
+            common: CommonFields {
+                deprecated: dep.clone(),
+                ..Default::default()
+            },
+            provenance: Default::default(),
+        });
+        let mut latest = empty_v2_schema();
+        latest.registry.events.push(Event {
+            name: "same.event".to_owned().into(),
+            attributes: vec![],
+            entity_associations: vec![],
+            requirement_level: None,
+            common: CommonFields {
+                deprecated: dep,
+                ..Default::default()
+            },
+            provenance: Default::default(),
+        });
+        let diff = latest.diff(&baseline);
+        assert!(diff.registry.event_changes.is_empty());
+    }
+
+    #[test]
+    fn v2_resolved_schema_stats() {
+        use std::collections::BTreeMap;
+        use weaver_semconv::v2::attribute::{
+            AttributeType, BasicRequirementLevelSpec, EnumEntriesSpec, PrimitiveOrArrayTypeSpec,
+            RequirementLevel, ValueSpec,
+        };
+        use weaver_semconv::v2::metric::InstrumentSpec;
+        use weaver_semconv::v2::span::{SpanKindSpec, SpanName};
+
+        let catalog = vec![
+            AttributeV2 {
+                key: "http.status_code".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
+                examples: None,
+                common: CommonFields {
+                    brief: "HTTP response status code".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+                provenance: Default::default(),
+            },
+            AttributeV2 {
+                key: "http.request.method".to_owned(),
+                r#type: AttributeType::Enum {
+                    members: vec![
+                        EnumEntriesSpec {
+                            id: "GET".to_owned(),
+                            value: ValueSpec::String("GET".to_owned()),
+                            brief: None,
+                            note: None,
+                            stability: None,
+                            deprecated: None,
+                            annotations: None,
+                        },
+                        EnumEntriesSpec {
+                            id: "POST".to_owned(),
+                            value: ValueSpec::String("POST".to_owned()),
+                            brief: None,
+                            note: None,
+                            stability: None,
+                            deprecated: None,
+                            annotations: None,
+                        },
+                        EnumEntriesSpec {
+                            id: "DELETE".to_owned(),
+                            value: ValueSpec::String("DELETE".to_owned()),
+                            brief: None,
+                            note: None,
+                            stability: None,
+                            deprecated: None,
+                            annotations: None,
+                        },
+                    ],
+                },
+                examples: None,
+                common: CommonFields {
+                    brief: "HTTP method".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+                provenance: Default::default(),
+            },
+            AttributeV2 {
+                key: "network.peer.address".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                examples: None,
+                common: CommonFields {
+                    brief: "Peer address".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Alpha,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+                provenance: Default::default(),
+            },
+            AttributeV2 {
+                key: "k8s.pod.name".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                examples: None,
+                common: CommonFields {
+                    brief: "Pod name".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Beta,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+                provenance: Default::default(),
+            },
+            AttributeV2 {
+                key: "deprecated.old_metric_tag".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Boolean),
+                examples: None,
+                common: CommonFields {
+                    brief: "Old tag".to_owned(),
+                    note: "Use new tag".to_owned(),
+                    stability: Stability::Development,
+                    deprecated: Some(Deprecated::Obsoleted {
+                        note: "Replaced".to_owned(),
+                    }),
+                    annotations: BTreeMap::new(),
+                },
+                provenance: Default::default(),
+            },
+        ];
+
+        let schema = ResolvedTelemetrySchema {
+            file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
+            schema_url: "http://test/schemas/1.0"
+                .try_into()
+                .expect("Should be valid schema url"),
+            attribute_catalog: catalog,
+            registry: Registry {
+                attributes: vec![
+                    AttributeRef(0),
+                    AttributeRef(1),
+                    AttributeRef(2),
+                    AttributeRef(3),
+                    AttributeRef(4),
+                ],
+                spans: vec![
+                    span::Span {
+                        r#type: "http.server.request".to_owned().into(),
+                        kind: SpanKindSpec::Server,
+                        name: SpanName {
+                            note: "HTTP server span".to_owned(),
+                        },
+                        attributes: vec![span::SpanAttributeRef {
+                            base: AttributeRef(0),
+                            requirement_level: RequirementLevel::Basic(
+                                BasicRequirementLevelSpec::Required,
+                            ),
+                            sampling_relevant: Some(false),
+                        }],
+                        entity_associations: vec![],
+                        requirement_level: None,
+                        common: CommonFields {
+                            brief: "Server request span".to_owned(),
+                            note: "".to_owned(),
+                            stability: Stability::Stable,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                        provenance: Default::default(),
+                    },
+                    span::Span {
+                        r#type: "internal.processing".to_owned().into(),
+                        kind: SpanKindSpec::Internal,
+                        name: SpanName {
+                            note: "Background processing".to_owned(),
+                        },
+                        attributes: vec![],
+                        entity_associations: vec![],
+                        requirement_level: None,
+                        common: CommonFields {
+                            brief: "Internal background compute".to_owned(),
+                            note: "Worker processing".to_owned(),
+                            stability: Stability::Development,
+                            deprecated: Some(Deprecated::Obsoleted {
+                                note: "Deprecated worker".to_owned(),
+                            }),
+                            annotations: BTreeMap::new(),
+                        },
+                        provenance: Default::default(),
+                    },
+                ],
+                metrics: vec![
+                    Metric {
+                        name: "http.server.duration".to_owned().into(),
+                        instrument: InstrumentSpec::Histogram,
+                        unit: "ms".to_owned(),
+                        attributes: vec![],
+                        entity_associations: vec![],
+                        requirement_level: None,
+                        common: CommonFields {
+                            brief: "Server request duration".to_owned(),
+                            note: "".to_owned(),
+                            stability: Stability::Stable,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                        provenance: Default::default(),
+                    },
+                    Metric {
+                        name: "system.memory.usage".to_owned().into(),
+                        instrument: InstrumentSpec::Gauge,
+                        unit: "By".to_owned(),
+                        attributes: vec![],
+                        entity_associations: vec![],
+                        requirement_level: None,
+                        common: CommonFields {
+                            brief: "Memory usage".to_owned(),
+                            note: "RAM usage in bytes".to_owned(),
+                            stability: Stability::Beta,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                        provenance: Default::default(),
+                    },
+                    Metric {
+                        name: "rpc.client.requests".to_owned().into(),
+                        instrument: InstrumentSpec::Counter,
+                        unit: "{requests}".to_owned(),
+                        attributes: vec![],
+                        entity_associations: vec![],
+                        requirement_level: None,
+                        common: CommonFields {
+                            brief: "RPC requests".to_owned(),
+                            note: "".to_owned(),
+                            stability: Stability::Development,
+                            deprecated: Some(Deprecated::Obsoleted {
+                                note: "Use v2".to_owned(),
+                            }),
+                            annotations: BTreeMap::new(),
+                        },
+                        provenance: Default::default(),
+                    },
+                ],
+                events: vec![
+                    Event {
+                        name: "process.crash".to_owned().into(),
+                        attributes: vec![],
+                        entity_associations: vec![],
+                        requirement_level: None,
+                        common: CommonFields {
+                            brief: "Process crashed".to_owned(),
+                            note: "Crash stacktrace included".to_owned(),
+                            stability: Stability::Stable,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                        provenance: Default::default(),
+                    },
+                    Event {
+                        name: "user.auth_fail".to_owned().into(),
+                        attributes: vec![],
+                        entity_associations: vec![],
+                        requirement_level: None,
+                        common: CommonFields {
+                            brief: "User auth failed".to_owned(),
+                            note: "".to_owned(),
+                            stability: Stability::Beta,
+                            deprecated: Some(Deprecated::Obsoleted {
+                                note: "Replaced with security event".to_owned(),
+                            }),
+                            annotations: BTreeMap::new(),
+                        },
+                        provenance: Default::default(),
+                    },
+                ],
+                entities: vec![
+                    Entity {
+                        r#type: "k8s.pod".to_owned().into(),
+                        identity: vec![
+                            entity::EntityAttributeRef {
+                                base: AttributeRef(3),
+                                requirement_level: RequirementLevel::Basic(
+                                    BasicRequirementLevelSpec::Required,
+                                ),
+                            },
+                            entity::EntityAttributeRef {
+                                base: AttributeRef(2),
+                                requirement_level: RequirementLevel::Recommended {
+                                    text: "Recommended for clustering".to_owned(),
+                                },
+                            },
+                        ],
+                        description: vec![],
+                        requirement_level: None,
+                        common: CommonFields {
+                            brief: "Kubernetes pod".to_owned(),
+                            note: "".to_owned(),
+                            stability: Stability::Stable,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                        provenance: Default::default(),
+                    },
+                    Entity {
+                        r#type: "host".to_owned().into(),
+                        identity: vec![entity::EntityAttributeRef {
+                            base: AttributeRef(2),
+                            requirement_level: RequirementLevel::Basic(
+                                BasicRequirementLevelSpec::Required,
+                            ),
+                        }],
+                        description: vec![],
+                        requirement_level: None,
+                        common: CommonFields {
+                            brief: "Host machine".to_owned(),
+                            note: "Physical or VM host".to_owned(),
+                            stability: Stability::Alpha,
+                            deprecated: None,
+                            annotations: BTreeMap::new(),
+                        },
+                        provenance: Default::default(),
+                    },
+                ],
+                attribute_groups: vec![
+                    attribute_group::AttributeGroup {
+                        id: "http.client.headers".to_owned().into(),
+                        attributes: vec![],
+                        common: CommonFields::default(),
+                        provenance: Default::default(),
+                    },
+                    attribute_group::AttributeGroup {
+                        id: "network.connection".to_owned().into(),
+                        attributes: vec![],
+                        common: CommonFields::default(),
+                        provenance: Default::default(),
+                    },
+                ],
+            },
+            refinements: Refinements {
+                spans: vec![span::SpanRefinement {
+                    id: "http.server.request".to_owned().into(),
+                    span: span::Span {
+                        r#type: "http.server.request".to_owned().into(),
+                        kind: SpanKindSpec::Server,
+                        name: SpanName {
+                            note: "HTTP server span".to_owned(),
+                        },
+                        attributes: vec![],
+                        entity_associations: vec![],
+                        requirement_level: None,
+                        common: CommonFields::default(),
+                        provenance: Default::default(),
+                    },
+                }],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+            dependencies: BTreeSet::new(),
+        };
+
+        let stats = schema.stats();
+
+        // Validate attribute statistics
+        assert_eq!(stats.registry.attributes.attribute_count, 5);
+        assert_eq!(
+            stats
+                .registry
+                .attributes
+                .attribute_type_breakdown
+                .get("int"),
+            Some(&1)
+        );
+        assert_eq!(
+            stats
+                .registry
+                .attributes
+                .attribute_type_breakdown
+                .get("string"),
+            Some(&2)
+        );
+        assert_eq!(
+            stats
+                .registry
+                .attributes
+                .attribute_type_breakdown
+                .get("enum(card:003)"),
+            Some(&1)
+        );
+        assert_eq!(
+            stats
+                .registry
+                .attributes
+                .attribute_type_breakdown
+                .get("boolean"),
+            Some(&1)
+        );
+        assert_eq!(
+            stats
+                .registry
+                .attributes
+                .stability_breakdown
+                .get(&Stability::Stable),
+            Some(&2)
+        );
+        assert_eq!(
+            stats
+                .registry
+                .attributes
+                .stability_breakdown
+                .get(&Stability::Alpha),
+            Some(&1)
+        );
+        assert_eq!(
+            stats
+                .registry
+                .attributes
+                .stability_breakdown
+                .get(&Stability::Beta),
+            Some(&1)
+        );
+        assert_eq!(
+            stats
+                .registry
+                .attributes
+                .stability_breakdown
+                .get(&Stability::Development),
+            Some(&1)
+        );
+        assert_eq!(stats.registry.attributes.deprecated_count, 1);
+
+        // Validate span statistics
+        assert_eq!(stats.registry.spans.common.count, 2);
+        assert_eq!(
+            stats
+                .registry
+                .spans
+                .span_kind_breakdown
+                .get(&SpanKindSpec::Server),
+            Some(&1)
+        );
+        assert_eq!(
+            stats
+                .registry
+                .spans
+                .span_kind_breakdown
+                .get(&SpanKindSpec::Internal),
+            Some(&1)
+        );
+        assert_eq!(
+            stats
+                .registry
+                .spans
+                .common
+                .stability_breakdown
+                .get(&Stability::Stable),
+            Some(&1)
+        );
+        assert_eq!(
+            stats
+                .registry
+                .spans
+                .common
+                .stability_breakdown
+                .get(&Stability::Development),
+            Some(&1)
+        );
+        assert_eq!(stats.registry.spans.common.total_with_note, 1);
+        assert_eq!(stats.registry.spans.common.deprecated_count, 1);
+
+        // Validate metric statistics
+        assert_eq!(stats.registry.metrics.common.count, 3);
+        assert_eq!(
+            stats
+                .registry
+                .metrics
+                .instrument_breakdown
+                .get(&InstrumentSpec::Histogram),
+            Some(&1)
+        );
+        assert_eq!(
+            stats
+                .registry
+                .metrics
+                .instrument_breakdown
+                .get(&InstrumentSpec::Gauge),
+            Some(&1)
+        );
+        assert_eq!(
+            stats
+                .registry
+                .metrics
+                .instrument_breakdown
+                .get(&InstrumentSpec::Counter),
+            Some(&1)
+        );
+        assert_eq!(stats.registry.metrics.unit_breakdown.get("ms"), Some(&1));
+        assert_eq!(stats.registry.metrics.unit_breakdown.get("By"), Some(&1));
+        assert_eq!(
+            stats.registry.metrics.unit_breakdown.get("{requests}"),
+            Some(&1)
+        );
+        assert_eq!(stats.registry.metrics.metric_names.len(), 3);
+        assert!(stats
+            .registry
+            .metrics
+            .metric_names
+            .contains("http.server.duration"));
+        assert!(stats
+            .registry
+            .metrics
+            .metric_names
+            .contains("system.memory.usage"));
+        assert!(stats
+            .registry
+            .metrics
+            .metric_names
+            .contains("rpc.client.requests"));
+        assert_eq!(stats.registry.metrics.common.total_with_note, 1);
+        assert_eq!(stats.registry.metrics.common.deprecated_count, 1);
+
+        // Validate event statistics
+        assert_eq!(stats.registry.events.common.count, 2);
+        assert!(stats.registry.events.event_names.contains("process.crash"));
+        assert!(stats.registry.events.event_names.contains("user.auth_fail"));
+        assert_eq!(stats.registry.events.common.total_with_note, 1);
+        assert_eq!(stats.registry.events.common.deprecated_count, 1);
+
+        // Validate entity statistics
+        assert_eq!(stats.registry.entities.common.count, 2);
+        assert!(stats.registry.entities.entity_types.contains("k8s.pod"));
+        assert!(stats.registry.entities.entity_types.contains("host"));
+        assert_eq!(
+            stats
+                .registry
+                .entities
+                .entity_identity_length_distribution
+                .get(&2),
+            Some(&1)
+        );
+        assert_eq!(
+            stats
+                .registry
+                .entities
+                .entity_identity_length_distribution
+                .get(&1),
+            Some(&1)
+        );
+        assert_eq!(stats.registry.entities.common.total_with_note, 1);
+
+        // Validate attribute group statistics
+        assert_eq!(stats.registry.attribute_groups.common.count, 2);
+    }
+
     fn empty_v2_schema() -> ResolvedTelemetrySchema {
         ResolvedTelemetrySchema {
             file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),

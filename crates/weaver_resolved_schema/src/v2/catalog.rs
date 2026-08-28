@@ -28,3 +28,40 @@ impl AttributeCatalog for Vec<Attribute> {
         self.get(attribute_ref.0 as usize)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use weaver_semconv::v2::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
+    use weaver_semconv::v2::CommonFields;
+
+    #[test]
+    fn test_attribute_catalog_lookups() {
+        let attr = Attribute {
+            key: "http.status_code".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
+            examples: None,
+            common: CommonFields::default(),
+            provenance: Default::default(),
+        };
+        let catalog = vec![attr.clone()];
+
+        // Test Vec<Attribute>
+        assert_eq!(catalog.attribute(&AttributeRef(0)), Some(&attr));
+        assert_eq!(
+            catalog.attribute_key(&AttributeRef(0)),
+            Some("http.status_code")
+        );
+        assert_eq!(catalog.attribute(&AttributeRef(1)), None);
+        assert_eq!(catalog.attribute_key(&AttributeRef(1)), None);
+
+        // Test &[Attribute] slice
+        let slice: &[Attribute] = &catalog;
+        assert_eq!(slice.attribute(&AttributeRef(0)), Some(&attr));
+        assert_eq!(
+            slice.attribute_key(&AttributeRef(0)),
+            Some("http.status_code")
+        );
+        assert_eq!(slice.attribute(&AttributeRef(5)), None);
+    }
+}

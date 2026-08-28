@@ -103,3 +103,34 @@ impl Signal for Span {
         &self.common
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use weaver_semconv::v2::span::{SpanKindSpec, SpanName};
+
+    #[test]
+    fn test_span_signal() {
+        let span = Span {
+            r#type: SignalId::from("http.client"),
+            kind: SpanKindSpec::Client,
+            name: SpanName {
+                note: "HTTP {http.request.method}".to_owned(),
+            },
+            attributes: vec![],
+            entity_associations: vec![],
+            requirement_level: None,
+            common: CommonFields {
+                brief: "Client span".to_owned(),
+                note: "".to_owned(),
+                stability: Default::default(),
+                deprecated: None,
+                annotations: Default::default(),
+            },
+            provenance: Default::default(),
+        };
+
+        assert_eq!(span.id(), "http.client");
+        assert_eq!(span.common().brief, "Client span");
+    }
+}

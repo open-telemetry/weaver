@@ -90,3 +90,29 @@ impl Signal for Event {
         &self.common
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_event_signal() {
+        let event = Event {
+            name: SignalId::from("exception"),
+            attributes: vec![],
+            entity_associations: vec![],
+            requirement_level: None,
+            common: CommonFields {
+                brief: "Exception event".to_owned(),
+                note: "".to_owned(),
+                stability: Default::default(),
+                deprecated: None,
+                annotations: Default::default(),
+            },
+            provenance: Default::default(),
+        };
+
+        assert_eq!(event.id(), "exception");
+        assert_eq!(event.common().brief, "Exception event");
+    }
+}

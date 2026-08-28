@@ -59,3 +59,27 @@ impl Signal for AttributeGroup {
         &self.common
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_attribute_group_signal() {
+        let group = AttributeGroup {
+            id: SignalId::from("http.client.group"),
+            attributes: vec![],
+            common: CommonFields {
+                brief: "HTTP client group".to_owned(),
+                note: "".to_owned(),
+                stability: Default::default(),
+                deprecated: None,
+                annotations: Default::default(),
+            },
+            provenance: Default::default(),
+        };
+
+        assert_eq!(group.id(), "http.client.group");
+        assert_eq!(group.common().brief, "HTTP client group");
+    }
+}
