@@ -197,6 +197,7 @@ pub struct SpanRefinement {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::v2::attribute::AttributeRef;
 
     #[test]
     fn test_span_attribute_ref_rejects_stability_and_deprecated() {
@@ -209,5 +210,41 @@ mod tests {
                 .expect_err("stability/deprecated must not be allowed on span attribute refs");
             assert!(err.to_string().contains(&format!("unknown field `{name}`")));
         }
+    }
+
+    #[test]
+    fn test_span_kind_spec_display() {
+        assert_eq!(SpanKindSpec::Internal.to_string(), "internal");
+        assert_eq!(SpanKindSpec::Server.to_string(), "server");
+        assert_eq!(SpanKindSpec::Client.to_string(), "client");
+        assert_eq!(SpanKindSpec::Producer.to_string(), "producer");
+        assert_eq!(SpanKindSpec::Consumer.to_string(), "consumer");
+    }
+
+    #[test]
+    fn test_split_span_attributes_and_groups() {
+        let items = vec![
+            SpanAttributeOrGroupRef::Attribute(SpanAttributeRef {
+                base: AttributeRef {
+                    r#ref: "http.status".to_owned(),
+                    brief: None,
+                    examples: None,
+                    requirement_level: None,
+                    note: None,
+                    annotations: Default::default(),
+                },
+                sampling_relevant: Some(true),
+            }),
+            SpanAttributeOrGroupRef::Group(SpanGroupRef {
+                ref_group: "http.shared".to_owned(),
+            }),
+        ];
+
+        let (attrs, groups) = split_span_attributes_and_groups(items);
+        assert_eq!(attrs.len(), 1);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(attrs[0].base.r#ref, "http.status");
+        assert_eq!(attrs[0].sampling_relevant, Some(true));
+        assert_eq!(groups[0], "http.shared");
     }
 }

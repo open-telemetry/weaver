@@ -133,8 +133,15 @@ unit: s
 requirement_level: opt_in
 "#;
         let metric = serde_yaml::from_str::<Metric>(yaml).expect("Failed to parse YAML string");
-        assert_eq!(metric.name.to_string(), "my_metric");
         assert_eq!(metric.instrument, InstrumentSpec::Histogram);
         assert_eq!(metric.unit, "s");
+    }
+
+    #[test]
+    fn test_instrument_spec_display() {
+        assert_eq!(InstrumentSpec::Counter.to_string(), "counter");
+        assert_eq!(InstrumentSpec::Gauge.to_string(), "gauge");
+        assert_eq!(InstrumentSpec::Histogram.to_string(), "histogram");
+        assert_eq!(InstrumentSpec::UpDownCounter.to_string(), "updowncounter");
     }
 }

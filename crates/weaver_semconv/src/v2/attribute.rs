@@ -559,4 +559,151 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_display_implementations() {
+        assert_eq!(PrimitiveOrArrayTypeSpec::Boolean.to_string(), "boolean");
+        assert_eq!(PrimitiveOrArrayTypeSpec::Int.to_string(), "int");
+        assert_eq!(PrimitiveOrArrayTypeSpec::Double.to_string(), "double");
+        assert_eq!(PrimitiveOrArrayTypeSpec::String.to_string(), "string");
+        assert_eq!(PrimitiveOrArrayTypeSpec::Any.to_string(), "any");
+        assert_eq!(PrimitiveOrArrayTypeSpec::Strings.to_string(), "string[]");
+        assert_eq!(PrimitiveOrArrayTypeSpec::Ints.to_string(), "int[]");
+        assert_eq!(PrimitiveOrArrayTypeSpec::Doubles.to_string(), "double[]");
+        assert_eq!(PrimitiveOrArrayTypeSpec::Booleans.to_string(), "boolean[]");
+
+        assert_eq!(TemplateTypeSpec::Boolean.to_string(), "template[boolean]");
+        assert_eq!(TemplateTypeSpec::Int.to_string(), "template[int]");
+        assert_eq!(TemplateTypeSpec::Double.to_string(), "template[double]");
+        assert_eq!(TemplateTypeSpec::String.to_string(), "template[string]");
+        assert_eq!(TemplateTypeSpec::Any.to_string(), "template[any]");
+        assert_eq!(TemplateTypeSpec::Strings.to_string(), "template[string[]]");
+        assert_eq!(TemplateTypeSpec::Ints.to_string(), "template[int[]]");
+        assert_eq!(TemplateTypeSpec::Doubles.to_string(), "template[double[]]");
+        assert_eq!(
+            TemplateTypeSpec::Booleans.to_string(),
+            "template[boolean[]]"
+        );
+
+        assert_eq!(ValueSpec::Int(42).to_string(), "42");
+        assert_eq!(ValueSpec::Double(2.5.into()).to_string(), "2.5");
+        assert_eq!(ValueSpec::String("abc".to_owned()).to_string(), "abc");
+        assert_eq!(ValueSpec::Bool(true).to_string(), "true");
+
+        assert_eq!(BasicRequirementLevelSpec::Required.to_string(), "required");
+        assert_eq!(
+            BasicRequirementLevelSpec::Recommended.to_string(),
+            "recommended"
+        );
+        assert_eq!(BasicRequirementLevelSpec::OptIn.to_string(), "opt-in");
+
+        assert_eq!(
+            RequirementLevel::Basic(BasicRequirementLevelSpec::Required).to_string(),
+            "required"
+        );
+        assert_eq!(
+            RequirementLevel::ConditionallyRequired {
+                text: "when active".to_owned()
+            }
+            .to_string(),
+            "conditionally required (condition: when active)"
+        );
+        assert_eq!(
+            RequirementLevel::Recommended {
+                text: "for speed".to_owned()
+            }
+            .to_string(),
+            "recommended (for speed)"
+        );
+        assert_eq!(
+            RequirementLevel::OptIn {
+                text: "exp".to_owned()
+            }
+            .to_string(),
+            "opt in (exp)"
+        );
+
+        assert_eq!(
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String).to_string(),
+            "string"
+        );
+        assert_eq!(
+            AttributeType::Template(TemplateTypeSpec::Int).to_string(),
+            "template[int]"
+        );
+        let entry = EnumEntriesSpec {
+            id: "success".to_owned(),
+            value: ValueSpec::Int(200),
+            brief: None,
+            note: None,
+            stability: None,
+            deprecated: None,
+            annotations: Default::default(),
+        };
+        assert_eq!(entry.to_string(), "id=success, type=200");
+
+        assert_eq!(
+            AttributeType::Enum {
+                members: vec![entry]
+            }
+            .to_string(),
+            "enum {success}"
+        );
+    }
+
+    #[test]
+    fn test_value_spec_from_implementations() {
+        assert_eq!(ValueSpec::from(100i64), ValueSpec::Int(100));
+        assert_eq!(ValueSpec::from(2.5f64), ValueSpec::Double(2.5.into()));
+        assert_eq!(ValueSpec::from("val"), ValueSpec::String("val".to_owned()));
+        assert_eq!(
+            ValueSpec::from("val".to_owned()),
+            ValueSpec::String("val".to_owned())
+        );
+    }
+
+    #[test]
+    fn test_examples_helpers() {
+        assert_eq!(Examples::from_f64(3.5), Examples::Double(3.5.into()));
+        assert_eq!(
+            Examples::from_f64s(vec![1.0, 2.0]),
+            Examples::Doubles(vec![1.0.into(), 2.0.into()])
+        );
+    }
+
+    #[test]
+    fn test_split_attributes_and_groups() {
+        let items = vec![
+            AttributeOrGroupRef::Attribute(AttributeRef {
+                r#ref: "attr1".to_owned(),
+                brief: None,
+                examples: None,
+                requirement_level: None,
+                note: None,
+                annotations: Default::default(),
+            }),
+            AttributeOrGroupRef::Group(GroupRef {
+                ref_group: SignalId::from("my_group"),
+            }),
+        ];
+
+        let (attrs, groups) = split_attributes_and_groups(items);
+        assert_eq!(attrs.len(), 1);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0], SignalId::from("my_group"));
+    }
+
+    #[test]
+    fn test_enum_entries_spec_deserialization_fallback() {
+        let yaml = r#"
+id: error_code
+brief: An error code
+"#;
+        let entry: EnumEntriesSpec =
+            serde_yaml::from_str(yaml).expect("Failed to deserialize EnumEntriesSpec");
+        assert_eq!(entry.id, "error_code");
+        // When value is omitted, it defaults to String(id)
+        assert_eq!(entry.value, ValueSpec::String("error_code".to_owned()));
+        assert_eq!(entry.brief, Some("An error code".to_owned()));
+    }
 }

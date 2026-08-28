@@ -962,15 +962,510 @@ pub fn v1_span_name_to_v2(s: V1SpanName) -> crate::v2::span::SpanName {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::deprecated::Deprecated;
+    use crate::stability::Stability;
+    use crate::v1::group::SpanName as V1SpanName;
+    use crate::v2::attribute::GroupRef;
+    use crate::v2::signal_id::SignalId;
+    use crate::v2::span::{SpanGroupRef, SpanName};
+    use crate::v2::{CommonFields, GroupWildcard as V2GroupWildcard};
+    use crate::YamlValue;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn test_primitive_or_array_type_conversions() {
+        let v2_types = [
+            V2PrimitiveOrArrayTypeSpec::Boolean,
+            V2PrimitiveOrArrayTypeSpec::Int,
+            V2PrimitiveOrArrayTypeSpec::Double,
+            V2PrimitiveOrArrayTypeSpec::String,
+            V2PrimitiveOrArrayTypeSpec::Any,
+            V2PrimitiveOrArrayTypeSpec::Strings,
+            V2PrimitiveOrArrayTypeSpec::Ints,
+            V2PrimitiveOrArrayTypeSpec::Doubles,
+            V2PrimitiveOrArrayTypeSpec::Booleans,
+        ];
+
+        let v1_types = [
+            V1PrimitiveOrArrayTypeSpec::Boolean,
+            V1PrimitiveOrArrayTypeSpec::Int,
+            V1PrimitiveOrArrayTypeSpec::Double,
+            V1PrimitiveOrArrayTypeSpec::String,
+            V1PrimitiveOrArrayTypeSpec::Any,
+            V1PrimitiveOrArrayTypeSpec::Strings,
+            V1PrimitiveOrArrayTypeSpec::Ints,
+            V1PrimitiveOrArrayTypeSpec::Doubles,
+            V1PrimitiveOrArrayTypeSpec::Booleans,
+        ];
+
+        for (v2, v1) in v2_types.iter().zip(v1_types.iter()) {
+            assert_eq!(v2_primitive_or_array_type_to_v1(v2.clone()), v1.clone());
+            assert_eq!(v1_primitive_or_array_type_to_v2(v1.clone()), v2.clone());
+        }
+    }
+
+    #[test]
+    fn test_template_type_conversions() {
+        let v2_templates = [
+            V2TemplateTypeSpec::Boolean,
+            V2TemplateTypeSpec::Int,
+            V2TemplateTypeSpec::Double,
+            V2TemplateTypeSpec::String,
+            V2TemplateTypeSpec::Any,
+            V2TemplateTypeSpec::Strings,
+            V2TemplateTypeSpec::Ints,
+            V2TemplateTypeSpec::Doubles,
+            V2TemplateTypeSpec::Booleans,
+        ];
+
+        let v1_templates = [
+            V1TemplateTypeSpec::Boolean,
+            V1TemplateTypeSpec::Int,
+            V1TemplateTypeSpec::Double,
+            V1TemplateTypeSpec::String,
+            V1TemplateTypeSpec::Any,
+            V1TemplateTypeSpec::Strings,
+            V1TemplateTypeSpec::Ints,
+            V1TemplateTypeSpec::Doubles,
+            V1TemplateTypeSpec::Booleans,
+        ];
+
+        for (v2, v1) in v2_templates.iter().zip(v1_templates.iter()) {
+            assert_eq!(v2_template_type_to_v1(v2.clone()), v1.clone());
+            assert_eq!(v1_template_type_to_v2(v1.clone()), v2.clone());
+        }
+    }
+
+    #[test]
+    fn test_value_conversions() {
+        let test_cases = [
+            (V2ValueSpec::Int(42), V1ValueSpec::Int(42)),
+            (
+                V2ValueSpec::Double(2.5.into()),
+                V1ValueSpec::Double(2.5.into()),
+            ),
+            (
+                V2ValueSpec::String("hello".to_owned()),
+                V1ValueSpec::String("hello".to_owned()),
+            ),
+            (V2ValueSpec::Bool(true), V1ValueSpec::Bool(true)),
+        ];
+
+        for (v2, v1) in test_cases {
+            assert_eq!(v2_value_to_v1(v2.clone()), v1.clone());
+            assert_eq!(v1_value_to_v2(v1.clone()), v2.clone());
+        }
+    }
+
+    #[test]
+    fn test_enum_entry_conversions() {
+        let mut annotations = BTreeMap::new();
+        let _ = annotations.insert(
+            "custom_key".to_owned(),
+            YamlValue(serde_yaml::Value::String("custom_val".to_owned())),
+        );
+
+        let v2_enum_entry = V2EnumEntriesSpec {
+            id: "ok".to_owned(),
+            value: V2ValueSpec::String("SUCCESS".to_owned()),
+            brief: Some("Success status".to_owned()),
+            note: Some("Detailed status note".to_owned()),
+            stability: Some(Stability::Stable),
+            deprecated: Some(Deprecated::Renamed {
+                renamed_to: "new_ok".to_owned(),
+                note: Some("Use new_ok instead".to_owned()),
+            }),
+            annotations: Some(annotations.clone()),
+        };
+
+        let v1_enum_entry = v2_enum_entry_to_v1(v2_enum_entry.clone());
+        assert_eq!(v1_enum_entry.id, "ok");
+        assert_eq!(
+            v1_enum_entry.value,
+            V1ValueSpec::String("SUCCESS".to_owned())
+        );
+        assert_eq!(v1_enum_entry.brief, Some("Success status".to_owned()));
+        assert_eq!(v1_enum_entry.note, Some("Detailed status note".to_owned()));
+        assert_eq!(v1_enum_entry.stability, Some(Stability::Stable));
+        assert_eq!(v1_enum_entry.annotations, Some(annotations));
+
+        let converted_back_v2 = v1_enum_entry_to_v2(v1_enum_entry);
+        assert_eq!(converted_back_v2.id, v2_enum_entry.id);
+        assert_eq!(converted_back_v2.value, v2_enum_entry.value);
+        assert_eq!(converted_back_v2.brief, v2_enum_entry.brief);
+        assert_eq!(converted_back_v2.note, v2_enum_entry.note);
+        assert_eq!(converted_back_v2.stability, v2_enum_entry.stability);
+        assert_eq!(converted_back_v2.deprecated, v2_enum_entry.deprecated);
+    }
+
+    #[test]
+    fn test_attribute_type_conversions() {
+        let primitive_v2 = V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String);
+        let primitive_v1 = v2_attribute_type_to_v1(primitive_v2.clone());
+        assert_eq!(
+            primitive_v1,
+            V1AttributeType::PrimitiveOrArray(V1PrimitiveOrArrayTypeSpec::String)
+        );
+        assert_eq!(v1_attribute_type_to_v2(primitive_v1), primitive_v2);
+
+        let template_v2 = V2AttributeType::Template(V2TemplateTypeSpec::Int);
+        let template_v1 = v2_attribute_type_to_v1(template_v2.clone());
+        assert_eq!(
+            template_v1,
+            V1AttributeType::Template(V1TemplateTypeSpec::Int)
+        );
+        assert_eq!(v1_attribute_type_to_v2(template_v1), template_v2);
+
+        let enum_v2 = V2AttributeType::Enum {
+            members: vec![V2EnumEntriesSpec {
+                id: "item1".to_owned(),
+                value: V2ValueSpec::Int(1),
+                brief: None,
+                note: None,
+                stability: None,
+                deprecated: None,
+                annotations: Default::default(),
+            }],
+        };
+        let enum_v1 = v2_attribute_type_to_v1(enum_v2.clone());
+        assert!(matches!(enum_v1, V1AttributeType::Enum { ref members, .. } if members.len() == 1));
+        assert_eq!(v1_attribute_type_to_v2(enum_v1), enum_v2);
+    }
+
+    #[test]
+    fn test_examples_conversions() {
+        let examples_cases = [
+            (V2Examples::Bool(true), V1Examples::Bool(true)),
+            (V2Examples::Int(42), V1Examples::Int(42)),
+            (
+                V2Examples::Double(2.5.into()),
+                V1Examples::Double(2.5.into()),
+            ),
+            (
+                V2Examples::String("example".to_owned()),
+                V1Examples::String("example".to_owned()),
+            ),
+            (
+                V2Examples::Any(V2ValueSpec::Int(10)),
+                V1Examples::Any(V1ValueSpec::Int(10)),
+            ),
+            (
+                V2Examples::Ints(vec![1, 2, 3]),
+                V1Examples::Ints(vec![1, 2, 3]),
+            ),
+            (
+                V2Examples::Doubles(vec![1.1.into(), 2.2.into()]),
+                V1Examples::Doubles(vec![1.1.into(), 2.2.into()]),
+            ),
+            (
+                V2Examples::Bools(vec![true, false]),
+                V1Examples::Bools(vec![true, false]),
+            ),
+            (
+                V2Examples::Strings(vec!["a".to_owned(), "b".to_owned()]),
+                V1Examples::Strings(vec!["a".to_owned(), "b".to_owned()]),
+            ),
+            (
+                V2Examples::Anys(vec![
+                    V2ValueSpec::String("val".to_owned()),
+                    V2ValueSpec::Bool(true),
+                ]),
+                V1Examples::Anys(vec![
+                    V1ValueSpec::String("val".to_owned()),
+                    V1ValueSpec::Bool(true),
+                ]),
+            ),
+            (
+                V2Examples::ListOfInts(vec![vec![1, 2], vec![3]]),
+                V1Examples::ListOfInts(vec![vec![1, 2], vec![3]]),
+            ),
+            (
+                V2Examples::ListOfDoubles(vec![vec![1.1.into()]]),
+                V1Examples::ListOfDoubles(vec![vec![1.1.into()]]),
+            ),
+            (
+                V2Examples::ListOfBools(vec![vec![true, false]]),
+                V1Examples::ListOfBools(vec![vec![true, false]]),
+            ),
+            (
+                V2Examples::ListOfStrings(vec![vec!["s1".to_owned(), "s2".to_owned()]]),
+                V1Examples::ListOfStrings(vec![vec!["s1".to_owned(), "s2".to_owned()]]),
+            ),
+        ];
+
+        for (v2, v1) in examples_cases {
+            assert_eq!(v2_examples_to_v1(v2.clone()), v1.clone());
+            assert_eq!(v1_examples_to_v2(v1.clone()), v2.clone());
+        }
+    }
+
+    #[test]
+    fn test_requirement_level_conversions() {
+        let req_cases = [
+            (
+                V2RequirementLevel::Basic(V2BasicRequirementLevelSpec::Required),
+                V1RequirementLevel::Basic(V1BasicRequirementLevelSpec::Required),
+            ),
+            (
+                V2RequirementLevel::Basic(V2BasicRequirementLevelSpec::Recommended),
+                V1RequirementLevel::Basic(V1BasicRequirementLevelSpec::Recommended),
+            ),
+            (
+                V2RequirementLevel::Basic(V2BasicRequirementLevelSpec::OptIn),
+                V1RequirementLevel::Basic(V1BasicRequirementLevelSpec::OptIn),
+            ),
+            (
+                V2RequirementLevel::ConditionallyRequired {
+                    text: "when enabled".to_owned(),
+                },
+                V1RequirementLevel::ConditionallyRequired {
+                    text: "when enabled".to_owned(),
+                },
+            ),
+            (
+                V2RequirementLevel::Recommended {
+                    text: "for diagnostics".to_owned(),
+                },
+                V1RequirementLevel::Recommended {
+                    text: "for diagnostics".to_owned(),
+                },
+            ),
+            (
+                V2RequirementLevel::OptIn {
+                    text: "experimental feature".to_owned(),
+                },
+                V1RequirementLevel::OptIn {
+                    text: "experimental feature".to_owned(),
+                },
+            ),
+        ];
+
+        for (v2, v1) in req_cases {
+            assert_eq!(v2_requirement_level_to_v1(v2.clone()), v1.clone());
+            assert_eq!(v1_requirement_level_to_v2(v1.clone()), v2.clone());
+        }
+    }
+
+    #[test]
+    fn test_instrument_conversions() {
+        let cases = [
+            (V2InstrumentSpec::Counter, V1InstrumentSpec::Counter),
+            (V2InstrumentSpec::Gauge, V1InstrumentSpec::Gauge),
+            (V2InstrumentSpec::Histogram, V1InstrumentSpec::Histogram),
+            (
+                V2InstrumentSpec::UpDownCounter,
+                V1InstrumentSpec::UpDownCounter,
+            ),
+        ];
+
+        for (v2, v1) in cases {
+            assert_eq!(v2_instrument_to_v1(v2), v1);
+            assert_eq!(v1_instrument_to_v2(v1), v2);
+        }
+    }
+
+    #[test]
+    fn test_span_kind_conversions() {
+        let cases = [
+            (V2SpanKindSpec::Internal, V1SpanKindSpec::Internal),
+            (V2SpanKindSpec::Server, V1SpanKindSpec::Server),
+            (V2SpanKindSpec::Client, V1SpanKindSpec::Client),
+            (V2SpanKindSpec::Producer, V1SpanKindSpec::Producer),
+            (V2SpanKindSpec::Consumer, V1SpanKindSpec::Consumer),
+        ];
+
+        for (v2, v1) in cases {
+            assert_eq!(v2_span_kind_to_v1(v2), v1);
+            assert_eq!(v1_span_kind_to_v2(v1), v2);
+        }
+    }
+
+    #[test]
+    fn test_span_name_and_visibility_conversions() {
+        let v2_span_name = SpanName {
+            note: "HTTP {method}".to_owned(),
+        };
+        let v1_span_name = v2_span_name_to_v1(v2_span_name.clone());
+        assert_eq!(v1_span_name.note, "HTTP {method}");
+        assert_eq!(v1_span_name_to_v2(v1_span_name).note, v2_span_name.note);
+
+        assert_eq!(
+            v1_attribute_group_visibility_to_v2(V1VisibilitySpec::Public),
+            crate::v2::attribute_group::AttributeGroupVisibilitySpec::Public
+        );
+        assert_eq!(
+            v1_attribute_group_visibility_to_v2(V1VisibilitySpec::Internal),
+            crate::v2::attribute_group::AttributeGroupVisibilitySpec::Internal
+        );
+    }
+
+    #[test]
+    fn test_attribute_def_and_ref_to_v1() {
+        let mut annotations = BTreeMap::new();
+        let _ = annotations.insert(
+            "tier".to_owned(),
+            YamlValue(serde_yaml::Value::String("core".to_owned())),
+        );
+
+        let attr_def = AttributeDef {
+            key: "http.status_code".to_owned(),
+            r#type: V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::Int),
+            examples: Some(V2Examples::Int(200)),
+            common: CommonFields {
+                brief: "HTTP response status code".to_owned(),
+                note: "Note text".to_owned(),
+                stability: Stability::Stable,
+                deprecated: Some(Deprecated::Renamed {
+                    renamed_to: "response.status_code".to_owned(),
+                    note: Some("Use response.status_code".to_owned()),
+                }),
+                annotations: annotations.clone(),
+            },
+        };
+
+        let v1_spec = v2_attribute_to_v1(attr_def);
+        match v1_spec {
+            V1AttributeSpec::Id {
+                id,
+                r#type,
+                brief,
+                examples,
+                stability,
+                deprecated,
+                annotations: ans,
+                ..
+            } => {
+                assert_eq!(id, "http.status_code");
+                assert_eq!(
+                    r#type,
+                    V1AttributeType::PrimitiveOrArray(V1PrimitiveOrArrayTypeSpec::Int)
+                );
+                assert_eq!(brief, Some("HTTP response status code".to_owned()));
+                assert_eq!(examples, Some(V1Examples::Int(200)));
+                assert_eq!(stability, Some(Stability::Stable));
+                assert!(deprecated.is_some());
+                assert_eq!(ans, Some(annotations.clone()));
+            }
+            V1AttributeSpec::Ref { .. } => panic!("Expected V1AttributeSpec::Id"),
+        }
+
+        let attr_ref = AttributeRef {
+            r#ref: "http.status_code".to_owned(),
+            brief: Some("Override brief".to_owned()),
+            examples: Some(V2Examples::Int(404)),
+            requirement_level: Some(V2RequirementLevel::Basic(
+                V2BasicRequirementLevelSpec::Required,
+            )),
+            note: Some("Override note".to_owned()),
+            annotations: annotations.clone(),
+        };
+
+        let v1_ref = v2_attribute_ref_to_v1(attr_ref.clone());
+        match v1_ref {
+            V1AttributeSpec::Ref {
+                r#ref,
+                brief,
+                examples,
+                requirement_level,
+                note,
+                annotations: ans,
+                role,
+                ..
+            } => {
+                assert_eq!(r#ref, "http.status_code");
+                assert_eq!(brief, Some("Override brief".to_owned()));
+                assert_eq!(examples, Some(V1Examples::Int(404)));
+                assert_eq!(
+                    requirement_level,
+                    Some(V1RequirementLevel::Basic(
+                        V1BasicRequirementLevelSpec::Required
+                    ))
+                );
+                assert_eq!(note, Some("Override note".to_owned()));
+                assert_eq!(ans, Some(annotations.clone()));
+                assert_eq!(role, None);
+            }
+            V1AttributeSpec::Id { .. } => panic!("Expected V1AttributeSpec::Ref"),
+        }
+
+        let v1_role_ref = v2_attribute_ref_to_v1_with_role(attr_ref, V1AttributeRole::Identifying);
+        match v1_role_ref {
+            V1AttributeSpec::Ref { role, .. } => {
+                assert_eq!(role, Some(V1AttributeRole::Identifying));
+            }
+            V1AttributeSpec::Id { .. } => panic!("Expected V1AttributeSpec::Ref with role"),
+        }
+    }
+
+    #[test]
+    fn test_split_attributes_and_groups() {
+        let items = vec![
+            AttributeOrGroupRef::Attribute(AttributeRef {
+                r#ref: "attr1".to_owned(),
+                brief: None,
+                examples: None,
+                requirement_level: None,
+                note: None,
+                annotations: Default::default(),
+            }),
+            AttributeOrGroupRef::Group(GroupRef {
+                ref_group: SignalId::from("my_group"),
+            }),
+        ];
+
+        let (attrs, groups) = split_attributes_and_groups_to_v1(items);
+        assert_eq!(attrs.len(), 1);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0], "my_group");
+    }
+
+    #[test]
+    fn test_split_span_attributes_and_groups() {
+        let items = vec![
+            SpanAttributeOrGroupRef::Attribute(SpanAttributeRef {
+                base: AttributeRef {
+                    r#ref: "attr1".to_owned(),
+                    brief: None,
+                    examples: None,
+                    requirement_level: None,
+                    note: None,
+                    annotations: Default::default(),
+                },
+                sampling_relevant: Some(true),
+            }),
+            SpanAttributeOrGroupRef::Group(SpanGroupRef {
+                ref_group: "span_group".to_owned(),
+            }),
+        ];
+
+        let (attrs, groups) = split_span_attributes_and_groups_to_v1(items);
+        assert_eq!(attrs.len(), 1);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0], "span_group");
+        match &attrs[0] {
+            V1AttributeSpec::Ref {
+                sampling_relevant, ..
+            } => {
+                assert_eq!(*sampling_relevant, Some(true));
+            }
+            V1AttributeSpec::Id { .. } => panic!("Expected V1AttributeSpec::Ref"),
+        }
+    }
 
     #[test]
     fn test_metric_translation() {
         let yaml = r#"name: my_metric
 brief: Test metric
+note: Metric note
 stability: stable
 instrument: histogram
 unit: s
 requirement_level: opt_in
+annotations:
+  custom: val
+attributes:
+  - ref: some_attr
+  - ref_group: some_group
 "#;
         let metric = serde_yaml::from_str::<Metric>(yaml).expect("Failed to parse YAML string");
         let v1_group = v2_metric_to_v1(metric);
@@ -979,6 +1474,166 @@ requirement_level: opt_in
         assert_eq!(v1_group.metric_name, Some("my_metric".to_owned()));
         assert_eq!(v1_group.instrument, Some(V1InstrumentSpec::Histogram));
         assert_eq!(v1_group.unit, Some("s".to_owned()));
+        assert_eq!(v1_group.attributes.len(), 1);
+        assert_eq!(v1_group.include_groups.len(), 1);
+        assert_eq!(v1_group.include_groups[0], "some_group");
+        assert!(v1_group.annotations.is_some());
+        assert!(v1_group.is_v2);
+    }
+
+    #[test]
+    fn test_metric_refinement_translation() {
+        let refinement = MetricRefinement {
+            id: SignalId::from("my_metric_refinement"),
+            r#ref: SignalId::from("original_metric"),
+            brief: Some("Refined brief".to_owned()),
+            note: Some("Refined note".to_owned()),
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            attributes: vec![AttributeOrGroupRef::Attribute(AttributeRef {
+                r#ref: "extra_attr".to_owned(),
+                brief: None,
+                examples: None,
+                requirement_level: None,
+                note: None,
+                annotations: Default::default(),
+            })],
+            annotations: Default::default(),
+            entity_associations: vec![],
+        };
+
+        let v1_group = v2_metric_refinement_to_v1(refinement);
+        assert_eq!(v1_group.id, "my_metric_refinement");
+        assert_eq!(v1_group.r#type, V1GroupType::Metric);
+        assert_eq!(v1_group.extends, Some("metric.original_metric".to_owned()));
+        assert_eq!(v1_group.brief, "Refined brief");
+        assert_eq!(v1_group.attributes.len(), 1);
+        assert!(v1_group.is_v2);
+    }
+
+    #[test]
+    fn test_span_translation() {
+        let span = Span {
+            r#type: SignalId::from("http.client"),
+            kind: V2SpanKindSpec::Client,
+            name: SpanName {
+                note: "HTTP {http.request.method}".to_owned(),
+            },
+            common: CommonFields {
+                brief: "Client HTTP span".to_owned(),
+                note: "Span details".to_owned(),
+                stability: Stability::Stable,
+                deprecated: None,
+                annotations: Default::default(),
+            },
+            attributes: vec![SpanAttributeOrGroupRef::Attribute(SpanAttributeRef {
+                base: AttributeRef {
+                    r#ref: "http.request.method".to_owned(),
+                    brief: None,
+                    examples: None,
+                    requirement_level: None,
+                    note: None,
+                    annotations: Default::default(),
+                },
+                sampling_relevant: Some(true),
+            })],
+            entity_associations: vec![],
+            requirement_level: None,
+        };
+
+        let v1_group = v2_span_to_v1(span);
+        assert_eq!(v1_group.id, "span.http.client");
+        assert_eq!(v1_group.r#type, V1GroupType::Span);
+        assert_eq!(v1_group.span_kind, Some(V1SpanKindSpec::Client));
+        assert_eq!(
+            v1_group.span_name,
+            Some(V1SpanName {
+                note: "HTTP {http.request.method}".to_owned()
+            })
+        );
+        assert_eq!(v1_group.attributes.len(), 1);
+        assert!(v1_group.is_v2);
+    }
+
+    #[test]
+    fn test_span_refinement_translation() {
+        let refinement = SpanRefinement {
+            id: SignalId::from("http.client.refined"),
+            r#ref: SignalId::from("http.client"),
+            name: Some(SpanName {
+                note: "Overridden name".to_owned(),
+            }),
+            brief: Some("Refined span brief".to_owned()),
+            note: Some("Refined span note".to_owned()),
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            attributes: vec![],
+            annotations: Default::default(),
+            entity_associations: vec![],
+        };
+
+        let v1_group = v2_span_refinement_to_v1(refinement);
+        assert_eq!(v1_group.id, "http.client.refined");
+        assert_eq!(v1_group.r#type, V1GroupType::Span);
+        assert_eq!(v1_group.extends, Some("span.http.client".to_owned()));
+        assert_eq!(
+            v1_group.span_name,
+            Some(V1SpanName {
+                note: "Overridden name".to_owned()
+            })
+        );
+        assert!(v1_group.is_v2);
+    }
+
+    #[test]
+    fn test_event_translation() {
+        let event = Event {
+            name: SignalId::from("exception"),
+            common: CommonFields {
+                brief: "An exception occurred".to_owned(),
+                note: "Event details".to_owned(),
+                stability: Stability::Stable,
+                deprecated: None,
+                annotations: Default::default(),
+            },
+            attributes: vec![AttributeOrGroupRef::Attribute(AttributeRef {
+                r#ref: "exception.type".to_owned(),
+                brief: None,
+                examples: None,
+                requirement_level: None,
+                note: None,
+                annotations: Default::default(),
+            })],
+            entity_associations: vec![],
+            requirement_level: None,
+        };
+
+        let v1_group = v2_event_to_v1(event);
+        assert_eq!(v1_group.id, "event.exception");
+        assert_eq!(v1_group.r#type, V1GroupType::Event);
+        assert_eq!(v1_group.name, Some("exception".to_owned()));
+        assert_eq!(v1_group.attributes.len(), 1);
+        assert!(v1_group.is_v2);
+    }
+
+    #[test]
+    fn test_event_refinement_translation() {
+        let refinement = EventRefinement {
+            id: SignalId::from("exception.refined"),
+            r#ref: SignalId::from("exception"),
+            brief: Some("Refined exception".to_owned()),
+            note: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            attributes: vec![],
+            annotations: Default::default(),
+            entity_associations: vec![],
+        };
+
+        let v1_group = v2_event_refinement_to_v1(refinement);
+        assert_eq!(v1_group.id, "exception.refined");
+        assert_eq!(v1_group.r#type, V1GroupType::Event);
+        assert_eq!(v1_group.extends, Some("event.exception".to_owned()));
         assert!(v1_group.is_v2);
     }
 
@@ -998,5 +1653,159 @@ stability: stable
         assert_eq!(v1_group.r#type, V1GroupType::Entity);
         assert_eq!(v1_group.attributes.len(), 2);
         assert!(v1_group.is_v2);
+    }
+
+    #[test]
+    fn test_entity_refinement_translation() {
+        let refinement = EntityRefinement {
+            id: SignalId::from("host.refined"),
+            r#ref: SignalId::from("host"),
+            identity: vec![AttributeRef {
+                r#ref: "host.id".to_owned(),
+                brief: None,
+                examples: None,
+                requirement_level: None,
+                note: None,
+                annotations: Default::default(),
+            }],
+            description: vec![AttributeRef {
+                r#ref: "host.name".to_owned(),
+                brief: None,
+                examples: None,
+                requirement_level: None,
+                note: None,
+                annotations: Default::default(),
+            }],
+            brief: Some("Refined host".to_owned()),
+            note: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            annotations: Default::default(),
+        };
+
+        let v1_group = v2_entity_refinement_to_v1(refinement);
+        assert_eq!(v1_group.id, "host.refined");
+        assert_eq!(v1_group.r#type, V1GroupType::Entity);
+        assert_eq!(v1_group.extends, Some("entity.host".to_owned()));
+        assert_eq!(v1_group.attributes.len(), 2);
+        assert!(v1_group.is_v2);
+    }
+
+    #[test]
+    fn test_attribute_group_translation() {
+        let internal_ag =
+            AttributeGroup::Internal(crate::v2::attribute_group::InternalAttributeGroup {
+                id: SignalId::from("internal.group"),
+                attributes: vec![AttributeOrGroupRef::Attribute(AttributeRef {
+                    r#ref: "some.attr".to_owned(),
+                    brief: None,
+                    examples: None,
+                    requirement_level: None,
+                    note: None,
+                    annotations: Default::default(),
+                })],
+            });
+
+        let v1_internal = v2_attribute_group_to_v1(internal_ag);
+        assert_eq!(v1_internal.id, "internal.group");
+        assert_eq!(v1_internal.r#type, V1GroupType::AttributeGroup);
+        assert_eq!(v1_internal.visibility, Some(V1VisibilitySpec::Internal));
+        assert_eq!(v1_internal.attributes.len(), 1);
+
+        let public_ag = AttributeGroup::Public(crate::v2::attribute_group::PublicAttributeGroup {
+            id: SignalId::from("public.group"),
+            common: CommonFields {
+                brief: "Public attribute group".to_owned(),
+                note: "Group notes".to_owned(),
+                stability: Stability::Stable,
+                deprecated: None,
+                annotations: Default::default(),
+            },
+            attributes: vec![],
+        });
+
+        let v1_public = v2_attribute_group_to_v1(public_ag);
+        assert_eq!(v1_public.id, "public.group");
+        assert_eq!(v1_public.r#type, V1GroupType::AttributeGroup);
+        assert_eq!(v1_public.visibility, Some(V1VisibilitySpec::Public));
+        assert_eq!(v1_public.brief, "Public attribute group");
+    }
+
+    #[test]
+    fn test_imports_translation() {
+        let v2_imports = V2Imports {
+            metrics: Some(vec![V2GroupWildcard(
+                globset::Glob::new("metric.*").unwrap(),
+            )]),
+            events: Some(vec![V2GroupWildcard(
+                globset::Glob::new("event.*").unwrap(),
+            )]),
+            entities: Some(vec![V2GroupWildcard(
+                globset::Glob::new("entity.*").unwrap(),
+            )]),
+            spans: Some(vec![V2GroupWildcard(globset::Glob::new("span.*").unwrap())]),
+            attribute_groups: Some(vec![V2GroupWildcard(
+                globset::Glob::new("group.*").unwrap(),
+            )]),
+        };
+
+        let v1_imports = v2_imports_to_v1(Some(v2_imports)).expect("Imports should be present");
+        assert_eq!(v1_imports.metrics.as_ref().map(|v| v.len()), Some(1));
+        assert_eq!(v1_imports.events.as_ref().map(|v| v.len()), Some(1));
+        assert_eq!(v1_imports.entities.as_ref().map(|v| v.len()), Some(1));
+        assert_eq!(v1_imports.spans.as_ref().map(|v| v.len()), Some(1));
+        assert_eq!(
+            v1_imports.attribute_groups.as_ref().map(|v| v.len()),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn test_v2_to_v1_full_spec_translation() {
+        let spec_v2 = SemConvSpecV2 {
+            attributes: vec![AttributeDef {
+                key: "http.method".to_owned(),
+                r#type: V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
+                examples: Some(V2Examples::String("GET".to_owned())),
+                common: CommonFields {
+                    brief: "HTTP method".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+            }],
+            metrics: vec![Metric {
+                name: SignalId::from("http.server.duration"),
+                instrument: V2InstrumentSpec::Histogram,
+                unit: "ms".to_owned(),
+                common: CommonFields {
+                    brief: "Server duration".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+                attributes: vec![],
+                entity_associations: vec![],
+                requirement_level: None,
+            }],
+            events: vec![],
+            entities: vec![],
+            spans: vec![],
+            attribute_groups: vec![],
+            metric_refinements: vec![],
+            event_refinements: vec![],
+            entity_refinements: vec![],
+            span_refinements: vec![],
+            imports: None,
+        };
+
+        let spec_v1 = v2_to_v1_spec(spec_v2, "http");
+        // Should produce a synthetic attribute group + 1 metric group
+        assert_eq!(spec_v1.groups.len(), 2);
+        assert_eq!(spec_v1.groups[0].id, "registry.http");
+        assert_eq!(spec_v1.groups[0].brief, "<synthetic v2>");
+        assert_eq!(spec_v1.groups[1].id, "metric.http.server.duration");
     }
 }

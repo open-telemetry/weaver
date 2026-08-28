@@ -430,4 +430,130 @@ mod tests {
         assert!(spec.spans().is_empty());
         assert!(!spec.is_empty());
     }
+
+    #[test]
+    fn test_validate_missing_requirement_level_warning() {
+        let spec = SemConvSpecV2 {
+            attributes: vec![],
+            entities: vec![Entity {
+                r#type: SignalId::from("k8s.pod"),
+                identity: vec![AttributeRef {
+                    r#ref: "k8s.pod.uid".to_owned(),
+                    brief: None,
+                    examples: None,
+                    requirement_level: None,
+                    note: None,
+                    annotations: Default::default(),
+                }],
+                description: vec![],
+                common: CommonFields {
+                    brief: "Kubernetes pod".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+                requirement_level: None, // Triggers warning
+            }],
+            events: vec![],
+            metrics: vec![],
+            spans: vec![],
+            attribute_groups: vec![],
+            entity_refinements: vec![],
+            event_refinements: vec![],
+            metric_refinements: vec![],
+            span_refinements: vec![],
+            imports: None,
+        };
+
+        let result = spec.validate("test_prov");
+        match result {
+            WResult::OkWithNFEs(_, warnings) => {
+                assert_eq!(warnings.len(), 1);
+                assert!(matches!(
+                    warnings[0],
+                    Error::MissingRequirementLevelWarning { .. }
+                ));
+            }
+            _ => panic!("Expected OkWithNFEs"),
+        }
+    }
+
+    #[test]
+    fn test_validate_entity_missing_identity() {
+        let spec = SemConvSpecV2 {
+            attributes: vec![],
+            entities: vec![Entity {
+                r#type: SignalId::from("invalid.entity"),
+                identity: vec![], // Missing identity -> fatal error
+                description: vec![],
+                common: CommonFields {
+                    brief: "Invalid entity".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+                requirement_level: None,
+            }],
+            events: vec![],
+            metrics: vec![],
+            spans: vec![],
+            attribute_groups: vec![],
+            entity_refinements: vec![],
+            event_refinements: vec![],
+            metric_refinements: vec![],
+            span_refinements: vec![],
+            imports: None,
+        };
+
+        let result = spec.validate("test_prov");
+        assert!(matches!(result, WResult::FatalErr(_)));
+    }
+
+    #[test]
+    fn test_validate_identity_and_description_overlap() {
+        let spec = SemConvSpecV2 {
+            attributes: vec![],
+            entities: vec![Entity {
+                r#type: SignalId::from("overlap.entity"),
+                identity: vec![AttributeRef {
+                    r#ref: "shared.attr".to_owned(),
+                    brief: None,
+                    examples: None,
+                    requirement_level: None,
+                    note: None,
+                    annotations: Default::default(),
+                }],
+                description: vec![AttributeRef {
+                    r#ref: "shared.attr".to_owned(), // Duplicate in description
+                    brief: None,
+                    examples: None,
+                    requirement_level: None,
+                    note: None,
+                    annotations: Default::default(),
+                }],
+                common: CommonFields {
+                    brief: "Overlap entity".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+                requirement_level: None,
+            }],
+            events: vec![],
+            metrics: vec![],
+            spans: vec![],
+            attribute_groups: vec![],
+            entity_refinements: vec![],
+            event_refinements: vec![],
+            metric_refinements: vec![],
+            span_refinements: vec![],
+            imports: None,
+        };
+
+        let result = spec.validate("test_prov");
+        assert!(matches!(result, WResult::FatalErr(_)));
+    }
 }

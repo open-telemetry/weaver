@@ -26,6 +26,12 @@ impl From<String> for SignalId {
     }
 }
 
+impl From<&str> for SignalId {
+    fn from(value: &str) -> Self {
+        SignalId(value.to_owned())
+    }
+}
+
 // Allow `&SignalId` to be used for getting `&str`.
 impl Deref for SignalId {
     type Target = str;

@@ -90,4 +90,31 @@ visibility: public
             AttributeGroup::Internal(_) => panic!("Expected public attribute group"),
         }
     }
+
+    #[test]
+    fn test_attribute_group_internal_parsing() {
+        let yaml = r#"id: my_internal_group
+visibility: internal
+attributes:
+  - ref: my.attr
+"#;
+        let attr_group =
+            serde_yaml::from_str::<AttributeGroup>(yaml).expect("Failed to parse YAML string");
+        match attr_group {
+            AttributeGroup::Internal(i) => {
+                assert_eq!(i.id.to_string(), "my_internal_group");
+                assert_eq!(i.attributes.len(), 1);
+            }
+            AttributeGroup::Public(_) => panic!("Expected internal attribute group"),
+        }
+    }
+
+    #[test]
+    fn test_attribute_group_visibility_display() {
+        assert_eq!(
+            AttributeGroupVisibilitySpec::Internal.to_string(),
+            "internal"
+        );
+        assert_eq!(AttributeGroupVisibilitySpec::Public.to_string(), "public");
+    }
 }
