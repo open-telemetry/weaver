@@ -18,6 +18,10 @@ mod validate;
 
 #[cfg(not(tarpaulin_include))]
 fn main() -> anyhow::Result<()> {
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .map_err(|_| anyhow::anyhow!("Failed to install the ring Rustls crypto provider"))?;
+
     let task = std::env::args().nth(1);
 
     match task {
