@@ -718,7 +718,8 @@ mod tests {
 
     /// A materialized v2 registry, cut down to what the entity helpers read.
     /// The main registry and its dependency both define `host`, and each brief
-    /// says where the definition came from.
+    /// says where the definition came from. `core` is transitive: only `dep`
+    /// depends on it.
     fn entity_input(associations: serde_json::Value) -> serde_json::Value {
         serde_json::json!({
             "schema_url": "https://example.com/main/1.0.0",
@@ -729,11 +730,20 @@ mod tests {
             "refinements": {
                 "entities": [{"id": "host.linux", "type": "host", "brief": "main host on linux"}],
             },
-            "dependencies": [{
-                "schema_url": "https://example.com/dep/1.0.0",
-                "registry": {"entities": [{"type": "host", "brief": "dep host"}]},
-                "refinements": {"entities": []},
-            }],
+            "dependencies": {
+                "https://example.com/dep/1.0.0": {
+                    "registry": {"entities": [{"type": "host", "brief": "dep host"}]},
+                    "refinements": {"entities": []},
+                },
+                "https://example.com/core/1.0.0": {
+                    "registry": {"entities": [{"type": "service", "brief": "core service"}]},
+                    "refinements": {"entities": []},
+                },
+            },
+            "dependency_graph": {
+                "https://example.com/main/1.0.0": ["https://example.com/dep/1.0.0"],
+                "https://example.com/dep/1.0.0": ["https://example.com/core/1.0.0"],
+            },
         })
     }
 
@@ -742,6 +752,14 @@ mod tests {
         serde_json::json!({
             "type": r#type,
             "provenance": {"source": "https://example.com/dep/1.0.0"},
+        })
+    }
+
+    /// A reference into the dependency of the dependency.
+    fn core_ref(r#type: &str) -> serde_json::Value {
+        serde_json::json!({
+            "type": r#type,
+            "provenance": {"source": "https://example.com/core/1.0.0"},
         })
     }
 
@@ -794,6 +812,16 @@ mod tests {
         assert_eq!(
             resolved_entities(&entity_input(associations)),
             vec!["host -> dep host", "host -> main host"]
+        );
+    }
+
+    /// A leaf can name a registry that only a dependency depends on.
+    #[test]
+    fn test_lookup_entity_from_a_transitive_dependency() {
+        let associations = serde_json::json!([core_ref("service")]);
+        assert_eq!(
+            resolved_entities(&entity_input(associations)),
+            vec!["service -> core service"]
         );
     }
 

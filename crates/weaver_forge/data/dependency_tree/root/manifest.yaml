@@ -1,0 +1,9 @@
+# `registry_path` is resolved against the process working directory, which for
+# this crate's tests is `crates/weaver_forge`.
+name: root
+description: Depends on middle only. Leaf must not appear as a dependency of root.
+schema_url: https://example.com/dependency-tree-root/1.0.0
+dependencies:
+  - name: middle
+    schema_url: https://example.com/dependency-tree-middle/1.0.0
+    registry_path: data/dependency_tree/middle
