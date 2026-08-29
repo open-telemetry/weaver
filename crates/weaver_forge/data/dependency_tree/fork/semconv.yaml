@@ -1,0 +1,8 @@
+file_format: definition/2
+
+attributes:
+  - key: fork.key
+    type: string
+    stability: stable
+    brief: Defined by the fork registry.
+    examples: ["x"]

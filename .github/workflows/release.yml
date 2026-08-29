@@ -79,8 +79,10 @@ jobs:
       # (PRs run on the *source* but secrets are usually on the *target* -- that's *good*
       # but also really annoying to build CI around when it needs secrets to work right.)
       - id: plan
+        env:
+          DIST_PLAN_ARGS: ${{ (!github.event.pull_request && format('host --steps=create --tag={0}', github.ref_name)) || 'plan' }}
         run: |
-          dist ${{ (!github.event.pull_request && format('host --steps=create --tag={0}', github.ref_name)) || 'plan' }} --output-format=json > plan-dist-manifest.json
+          dist $DIST_PLAN_ARGS --output-format=json > plan-dist-manifest.json
           echo "dist ran successfully"
           cat plan-dist-manifest.json
           echo "manifest=$(jq -c "." plan-dist-manifest.json)" >> "$GITHUB_OUTPUT"
@@ -111,7 +113,7 @@ jobs:
       # - N "local" tasks that build each platform's binaries and platform-specific installers
       matrix: ${{ fromJson(needs.plan.outputs.val).ci.github.artifacts_matrix }}
     runs-on: ${{ matrix.runner }}
-    container: ${{ matrix.container && matrix.container.image || null }}
+    container: ${{ matrix.container && matrix.container.image || null }} # zizmor: ignore[unpinned-images] cargo-dist selects the build image from its run-scoped plan.
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BUILD_MANIFEST_NAME: target/distrib/${{ join(matrix.targets, '-') }}-dist-manifest.json
@@ -143,15 +145,14 @@ jobs:
       - name: "Setup Node.js"
         uses: "actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238"
         with:
-          "cache": "pnpm"
-          "cache-dependency-path": "ui/pnpm-lock.yaml"
           "node-version-file": ".nvmrc"
+          "package-manager-cache": false
       - name: "Install UI dependencies"
         run: "cd ui && pnpm install --frozen-lockfile"
       - name: "Build UI"
         run: "cd ui && pnpm build"
       - name: Install dist
-        run: ${{ matrix.install_dist.run }}
+        run: ${{ matrix.install_dist.run }} # zizmor: ignore[template-injection] cargo-dist emits this script in the run-scoped build plan.
       # Get the dist-manifest
       - name: Fetch local artifacts
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
@@ -160,12 +161,15 @@ jobs:
           path: target/distrib/
           merge-multiple: true
       - name: Install dependencies
-        run: |
+        run: | # zizmor: ignore[template-injection] cargo-dist emits this script in the run-scoped build plan.
           ${{ matrix.packages_install }}
       - name: Build artifacts
+        env:
+          DIST_ARGS: ${{ matrix.dist_args }}
+          TAG_FLAG: ${{ needs.plan.outputs.tag-flag }}
         run: |
           # Actually do builds and make zips and whatnot
-          dist build ${{ needs.plan.outputs.tag-flag }} --print=linkage --output-format=json ${{ matrix.dist_args }} > dist-manifest.json
+          dist build $TAG_FLAG --print=linkage --output-format=json $DIST_ARGS > dist-manifest.json
           echo "dist ran successfully"
       - name: Attest
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26
@@ -222,7 +226,7 @@ jobs:
       - id: cargo-dist
         shell: bash
         run: |
-          dist build ${{ needs.plan.outputs.tag-flag }} --output-format=json "--artifacts=global" > dist-manifest.json
+          dist build ${NEEDS_PLAN_OUTPUTS_TAG_FLAG} --output-format=json "--artifacts=global" > dist-manifest.json
           echo "dist ran successfully"
 
           # Parse out what we just built and upload it to scratch storage
@@ -231,6 +235,8 @@ jobs:
           echo "EOF" >> "$GITHUB_OUTPUT"
 
           cp dist-manifest.json "$BUILD_MANIFEST_NAME"
+        env:
+          NEEDS_PLAN_OUTPUTS_TAG_FLAG: ${{ needs.plan.outputs.tag-flag }}
       - name: "Upload artifacts"
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
@@ -274,10 +280,12 @@ jobs:
       - id: host
         shell: bash
         run: |
-          dist host ${{ needs.plan.outputs.tag-flag }} --steps=upload --steps=release --output-format=json > dist-manifest.json
+          dist host ${NEEDS_PLAN_OUTPUTS_TAG_FLAG} --steps=upload --steps=release --output-format=json > dist-manifest.json
           echo "artifacts uploaded and released successfully"
           cat dist-manifest.json
           echo "manifest=$(jq -c "." dist-manifest.json)" >> "$GITHUB_OUTPUT"
+        env:
+          NEEDS_PLAN_OUTPUTS_TAG_FLAG: ${{ needs.plan.outputs.tag-flag }}
       - name: "Upload dist-manifest.json"
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
@@ -301,11 +309,12 @@ jobs:
           ANNOUNCEMENT_TITLE: "${{ fromJson(steps.host.outputs.manifest).announcement_title }}"
           ANNOUNCEMENT_BODY: "${{ fromJson(steps.host.outputs.manifest).announcement_github_body }}"
           RELEASE_COMMIT: "${{ github.sha }}"
+          NEEDS_PLAN_OUTPUTS_TAG: ${{ needs.plan.outputs.tag }}
         run: |
           # Write and read notes from a file to avoid quoting breaking things
           echo "$ANNOUNCEMENT_BODY" > $RUNNER_TEMP/notes.txt
 
-          gh release create "${{ needs.plan.outputs.tag }}" --target "$RELEASE_COMMIT" $PRERELEASE_FLAG --title "$ANNOUNCEMENT_TITLE" --notes-file "$RUNNER_TEMP/notes.txt" artifacts/*
+          gh release create "${NEEDS_PLAN_OUTPUTS_TAG}" --target "$RELEASE_COMMIT" $PRERELEASE_FLAG --title "$ANNOUNCEMENT_TITLE" --notes-file "$RUNNER_TEMP/notes.txt" artifacts/*
 
   announce:
     needs:

@@ -137,6 +137,9 @@ pub struct WeaverResolver {
     /// Bounded LRU cache mapping exact SchemaUrls to reference-counted resolved schema bundles.
     cache: LruCache<SchemaUrl, Arc<WeaverResolvedSchema>>,
 
+    /// The direct dependencies of each schema, recorded as that schema resolves.
+    direct_dependencies: HashMap<SchemaUrl, Vec<SchemaUrl>>,
+
     /// Internal engine configuration.
     config: WeaverResolverConfig,
 }
@@ -147,6 +150,7 @@ impl WeaverResolver {
     pub fn new(config: WeaverResolverConfig) -> Self {
         Self {
             cache: LruCache::new(config.cache_capacity),
+            direct_dependencies: HashMap::new(),
             config,
         }
     }
@@ -179,6 +183,17 @@ impl WeaverResolver {
         )
     }
 
+    /// Records what a registry depends on directly, keeping any existing entry.
+    ///
+    /// An entry recorded during resolution names the versions actually used,
+    /// where a manifest may name one that version arbitration replaced.
+    fn record_direct_dependencies(&mut self, schema_url: &SchemaUrl, direct: Vec<SchemaUrl>) {
+        if direct.is_empty() || self.direct_dependencies.contains_key(schema_url) {
+            return;
+        }
+        let _ = self.direct_dependencies.insert(schema_url.clone(), direct);
+    }
+
     /// Dynamically resolves a LoadedSemconvRegistry dependency, serving pre-resolved schemas from cache if available.
     fn resolve_dependency(
         &mut self,
@@ -195,13 +210,13 @@ impl WeaverResolver {
                     }
                 }
             }
-            LoadedSemconvRegistry::Resolved(s) => {
-                match SchemaUrl::try_from(s.schema_url.as_str()) {
+            LoadedSemconvRegistry::Resolved { schema, .. } => {
+                match SchemaUrl::try_from(schema.schema_url.as_str()) {
                     Ok(url) => url,
                     Err(_) => return WResult::FatalErr(Error::FailToResolveSchemaUrl {}),
                 }
             }
-            LoadedSemconvRegistry::ResolvedV2(s) => s.schema_url.clone(),
+            LoadedSemconvRegistry::ResolvedV2 { schema, .. } => schema.schema_url.clone(),
         };
 
         if let Some(cached) = self.cache.get(&schema_url) {
@@ -252,6 +267,16 @@ pub trait SchemaResolver {
         &mut self,
         schema_url: &SchemaUrl,
     ) -> WResult<Arc<WeaverResolvedSchema>, Error>;
+
+    /// The direct dependencies of this schema, or `None` when they are unknown.
+    ///
+    /// `None` is not the same as empty: a schema that arrived already resolved
+    /// lists direct and transitive dependencies alike, with no way to tell them
+    /// apart.
+    fn direct_dependencies(&self, schema_url: &SchemaUrl) -> Option<&[SchemaUrl]> {
+        let _ = schema_url;
+        None
+    }
 }
 
 impl SchemaResolver for WeaverResolver {
@@ -260,6 +285,12 @@ impl SchemaResolver for WeaverResolver {
         schema_url: &SchemaUrl,
     ) -> WResult<Arc<WeaverResolvedSchema>, Error> {
         self.resolve_schema(schema_url)
+    }
+
+    fn direct_dependencies(&self, schema_url: &SchemaUrl) -> Option<&[SchemaUrl]> {
+        self.direct_dependencies
+            .get(schema_url)
+            .map(|urls| urls.as_slice())
     }
 }
 
@@ -416,6 +447,18 @@ impl WeaverResolver {
             }
         }
 
+        // The flat set above cannot be reduced back to the direct dependencies.
+        let direct: Vec<SchemaUrl> = resolved_dependencies
+            .iter()
+            .filter_map(|d| match d {
+                ResolvedDependency::V1(schema) => {
+                    SchemaUrl::try_from(schema.schema_url.as_str()).ok()
+                }
+                ResolvedDependency::V2(schema) => Some(schema.schema_url.clone()),
+            })
+            .collect();
+        let _ = self.direct_dependencies.insert(schema_url.clone(), direct);
+
         let mut chosen_versions = HashMap::new();
         for d in &resolved_dependencies {
             collect_chosen_versions(d, &mut chosen_versions);
@@ -481,16 +524,24 @@ impl WeaverResolver {
                     WResult::FatalErr(e) => WResult::FatalErr(e),
                 }
             }
-            LoadedSemconvRegistry::Resolved(schema) => {
+            LoadedSemconvRegistry::Resolved {
+                schema,
+                direct_dependencies,
+            } => {
                 let arc = Arc::new(WeaverResolvedSchema::V1(schema));
                 if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
+                    self.record_direct_dependencies(&url, direct_dependencies);
                     _ = self.cache.put(url, arc.clone());
                 }
                 WResult::Ok(arc)
             }
-            LoadedSemconvRegistry::ResolvedV2(schema) => {
+            LoadedSemconvRegistry::ResolvedV2 {
+                schema,
+                direct_dependencies,
+            } => {
                 let arc = Arc::new(WeaverResolvedSchema::V2(schema));
                 if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
+                    self.record_direct_dependencies(&url, direct_dependencies);
                     _ = self.cache.put(url, arc.clone());
                 }
                 WResult::Ok(arc)
@@ -2293,6 +2344,75 @@ groups:
             .filter(|e| !is_unstable_format_warning(e))
             .collect();
         (v2, nfes)
+    }
+
+    /// Loads and resolves a `signal-name-preservation` fixture.
+    fn load_signal_name_fixture(name: &str) -> WeaverResolvedSchema {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: format!("data/signal-name-preservation/{name}"),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("failed to create registry repo");
+        match WeaverResolver::new(WeaverResolverConfig::default())
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+        {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Failed to resolve `{name}`: {e}"),
+        }
+    }
+
+    /// Asserts the materialized v2 signal names/types match the expected values.
+    fn check_v2_signal_names(v2: &V2Schema, entity: &str, metric: &str, event: &str, span: &str) {
+        let entities: Vec<String> = v2
+            .registry
+            .entities
+            .iter()
+            .map(|e| e.r#type.to_string())
+            .collect();
+        let metrics: Vec<String> = v2
+            .registry
+            .metrics
+            .iter()
+            .map(|m| m.name.to_string())
+            .collect();
+        let events: Vec<String> = v2
+            .registry
+            .events
+            .iter()
+            .map(|e| e.name.to_string())
+            .collect();
+        let spans: Vec<String> = v2
+            .registry
+            .spans
+            .iter()
+            .map(|s| s.r#type.to_string())
+            .collect();
+        let mut wrong = Vec::new();
+        for (label, want, got) in [
+            ("entity type", entity, &entities),
+            ("metric name", metric, &metrics),
+            ("event name", event, &events),
+            ("span type", span, &spans),
+        ] {
+            if got.len() != 1 || got.first().map(String::as_str) != Some(want) {
+                wrong.push(format!("{label}: want {want:?}, got {got:?}"));
+            }
+        }
+        assert!(
+            wrong.is_empty(),
+            "unexpected v2 signal names -> {}",
+            wrong.join("; ")
+        );
+    }
+
+    /// A v2 (`definition/2`) registry names a signal directly, with no id
+    /// prefix, so the materialized name is kept verbatim.
+    #[test]
+    fn test_v2_schema_preserves_signal_names() {
+        let resolved = load_signal_name_fixture("v2");
+        let v1 = resolved.as_v1().expect("a v1 schema").clone();
+        let v2: V2Schema = v1.try_into().expect("v1 -> v2 conversion");
+        check_v2_signal_names(&v2, "entity.test", "metric.test", "event.test", "span.test");
     }
 
     /// The non-fatal errors of one of the `entity-assoc-imports` registries.
