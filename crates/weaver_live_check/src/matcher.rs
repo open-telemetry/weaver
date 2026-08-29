@@ -509,7 +509,7 @@ mod tests {
     use weaver_forge::v2::attribute::Attribute as V2Attribute;
     use weaver_forge::v2::attribute_group::AttributeGroupAttribute;
     use weaver_forge::v2::provenance::Provenance;
-    use weaver_forge::v2::registry::ForgeResolvedRegistry;
+    use weaver_forge::v2::registry::{ForgeDependency, ForgeResolvedRegistry};
     use weaver_forge::v2::span::SpanAttribute;
     use weaver_semconv::attribute::{
         AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
@@ -1489,8 +1489,10 @@ signal = "myapp.checkout"
                 .is_none());
         }
 
+        const DEPENDENCY_URL: &str = "https://example.com/shared/1.0.0";
+
         /// The fixture registry, with `dependency` as its one dependency.
-        fn v2_live_checker_with_dependency(dependency: ForgeResolvedRegistry) -> LiveChecker {
+        fn v2_live_checker_with_dependency(dependency: ForgeDependency) -> LiveChecker {
             let mut registry: ForgeResolvedRegistry =
                 serde_json::from_str(include_str!("../fixtures/registry-v2.json"))
                     .expect("the fixture registry parses");
@@ -1502,7 +1504,10 @@ signal = "myapp.checkout"
             }
             registry.registry.attributes =
                 vec![base_attribute("myapp.checkout.id", Stability::Stable)];
-            registry.dependencies = vec![dependency];
+            registry.dependencies = BTreeMap::from([(
+                DEPENDENCY_URL.try_into().expect("valid schema url"),
+                dependency,
+            )]);
             LiveChecker::new(
                 Arc::new(VersionedRegistry::V2(Box::new(registry))),
                 vec![Box::new(TypeAdvisor)],
@@ -1511,16 +1516,16 @@ signal = "myapp.checkout"
 
         /// A registry declaring `myapp.checkout.stage`, which the fixture span
         /// does not.
-        fn dependency_registry() -> ForgeResolvedRegistry {
+        fn dependency_registry() -> ForgeDependency {
             let mut registry: ForgeResolvedRegistry =
                 serde_json::from_str(include_str!("../fixtures/registry-v2.json"))
                     .expect("the fixture registry parses");
-            registry.schema_url = "https://example.com/shared/1.0.0"
-                .try_into()
-                .expect("valid schema url");
             registry.registry.attributes =
                 vec![base_attribute("myapp.checkout.stage", Stability::Stable)];
-            registry
+            ForgeDependency {
+                registry: registry.registry,
+                refinements: registry.refinements,
+            }
         }
 
         /// The finding ids on the span, after a full live check.
@@ -1691,7 +1696,7 @@ attribute_groups = ["myapp.common"]
             let found = live_checker
                 .find_base_attribute("myapp.checkout.stage")
                 .expect("the dependency declares it");
-            assert_eq!(found.schema_urls(), "https://example.com/shared/1.0.0");
+            assert_eq!(found.schema_urls(), DEPENDENCY_URL);
 
             let ids = check_findings(&mut live_checker);
             assert_eq!(ids, ["unexpected_attribute"]);

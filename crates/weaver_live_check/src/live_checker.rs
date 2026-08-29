@@ -375,10 +375,17 @@ impl LiveChecker {
         let VersionedRegistry::V2(registry) = self.registry.as_ref() else {
             return;
         };
-        // This registry first, so its own definition wins over a dependency's.
-        for source in std::iter::once(registry.as_ref()).chain(registry.dependencies.iter()) {
-            let schema_url = source.schema_url.to_string();
-            for attribute in &source.registry.attributes {
+        // This registry first, then nearest first, so a definition here wins over
+        // a dependency's and a direct dependency's over a transitive one's.
+        let sources = std::iter::once((&registry.schema_url, &registry.registry)).chain(
+            registry
+                .dependencies_nearest_first()
+                .into_iter()
+                .map(|(url, dependency)| (url, &dependency.registry)),
+        );
+        for (url, source) in sources {
+            let schema_url = url.to_string();
+            for attribute in &source.attributes {
                 let _ = self
                     .base_attributes
                     .entry(attribute.key.clone())
