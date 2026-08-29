@@ -180,8 +180,7 @@ impl LiveCheckRunner for SampleAttribute {
         let mut result = LiveCheckResult::new();
         // A sample that matched no matcher is only checked against the base
         // definitions, and only when the config asks for them.
-        if !live_checker.matchers().is_empty()
-            && !live_checker.is_searching_all_attributes()
+        if !live_checker.is_searching_all_attributes()
             && parent.as_deref().is_some_and(SampleMatch::is_unmatched)
         {
             self.live_check_result = Some(result);

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     live_checker::LiveChecker, matcher::SampleMatch, sample_attribute::SampleAttribute, Advisable,
-    Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
+    Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef, SampleType,
 };
 
 /// Identifies the instrumentation scope that produced a telemetry signal.
@@ -49,12 +49,28 @@ impl LiveCheckRunner for SampleInstrumentationScope {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent: Option<Rc<SampleMatch>>,
+        _parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent.clone(), parent_signal)?);
+        let sample_match =
+            Rc::new(live_checker.match_for(SampleType::InstrumentationScope, self, None));
+        live_checker.record_match(&sample_match);
+        let mut result = self.run_advisors(
+            live_checker,
+            stats,
+            Some(Rc::clone(&sample_match)),
+            parent_signal,
+        )?;
+        sample_match.add_findings(
+            &SampleRef::InstrumentationScope(self),
+            &self.attributes,
+            &mut result,
+            live_checker,
+            parent_signal,
+        );
+        self.live_check_result = Some(result);
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         self.attributes
-            .run_live_check(live_checker, stats, parent, parent_signal)
+            .run_live_check(live_checker, stats, Some(sample_match), parent_signal)
     }
 }

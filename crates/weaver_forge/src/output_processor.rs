@@ -155,6 +155,28 @@ impl OutputProcessor {
         templates_path: Option<PathBuf>,
         output: OutputTarget,
     ) -> Result<Self, Error> {
+        Self::with_params(
+            format,
+            prefix,
+            embedded_templates,
+            templates_path,
+            output,
+            Params::default(),
+        )
+    }
+
+    /// Create an OutputProcessor that passes `params` to a template format.
+    ///
+    /// The parameters reach a template as the `params` global, and are ignored
+    /// by a builtin format.
+    pub fn with_params(
+        format: &str,
+        prefix: &str,
+        embedded_templates: Option<&'static Dir<'static>>,
+        templates_path: Option<PathBuf>,
+        output: OutputTarget,
+        params: Params,
+    ) -> Result<Self, Error> {
         // Check for mute output target
         if matches!(output, OutputTarget::Mute) {
             return Ok(Self {
@@ -173,7 +195,7 @@ impl OutputProcessor {
         } else if has_templates
             && Self::has_template_dir(format, embedded_templates, templates_path.as_ref())
         {
-            Self::load_template_kind(format, embedded_templates, templates_path, output)?
+            Self::load_template_kind(format, embedded_templates, templates_path, output, params)?
         } else if let Some(builtin) = BuiltinFormat::from_name(&format_lower) {
             OutputKind::Builtin {
                 format: builtin,
@@ -184,7 +206,7 @@ impl OutputProcessor {
         } else {
             // Not a builtin and no template directory found — attempt template
             // load anyway to produce a descriptive error message.
-            Self::load_template_kind(format, embedded_templates, templates_path, output)?
+            Self::load_template_kind(format, embedded_templates, templates_path, output, params)?
         };
 
         Ok(Self { kind })
@@ -216,6 +238,7 @@ impl OutputProcessor {
         embedded_templates: Option<&'static Dir<'static>>,
         templates_path: Option<PathBuf>,
         output: OutputTarget,
+        params: Params,
     ) -> Result<OutputKind, Error> {
         let embedded = embedded_templates.ok_or_else(|| Error::InvalidTemplateDir {
             template_dir: PathBuf::from(format),
@@ -224,7 +247,7 @@ impl OutputProcessor {
         let templates = templates_path.unwrap_or_default();
         let loader = EmbeddedFileLoader::try_new(embedded, templates, format)?;
         let config = WeaverConfig::try_from_loader(&loader)?;
-        let engine = TemplateEngine::try_new(config, loader, Params::default())?;
+        let engine = TemplateEngine::try_new(config, loader, params)?;
         Ok(OutputKind::Template(Box::new(TemplateOutput {
             engine,
             target: output,

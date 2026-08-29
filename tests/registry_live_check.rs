@@ -350,3 +350,54 @@ when = 'instrumentation_scope.name == "nope"'"#,
     // The matcher errored, so it matched nothing and the span is unmatched.
     assert!(output.contains("unmatched_sample"), "got: {output}");
 }
+
+/// Renders the ansi template, which `run_live_check_on` mutes, with the colour
+/// escapes removed so a label can be matched.
+fn run_ansi(extra_args: &[&str]) -> String {
+    let mut cmd = Command::cargo_bin("weaver").expect("weaver binary not found");
+    let out = cmd
+        .arg("registry")
+        .arg("live-check")
+        .args(["-r", V1_REGISTRY])
+        .args(["--input-source", INPUT, "--input-format", "text"])
+        .args(["--format", "ansi", "--fail-on", "none"])
+        .args(extra_args)
+        .timeout(std::time::Duration::from_secs(60))
+        .output()
+        .expect("failed to execute weaver binary");
+    strip_ansi(&combined(&out))
+}
+
+/// The text with the colour escapes removed.
+fn strip_ansi(text: &str) -> String {
+    let mut plain = String::with_capacity(text.len());
+    let mut chars = text.chars();
+    while let Some(character) = chars.next() {
+        if character == '\u{1b}' {
+            for escaped in chars.by_ref() {
+                if escaped == 'm' {
+                    break;
+                }
+            }
+        } else {
+            plain.push(character);
+        }
+    }
+    plain
+}
+
+/// The ansi output labels a finding with its level by default.
+#[test]
+fn the_ansi_output_labels_a_finding_with_its_level() {
+    let output = run_ansi(&[]);
+    assert!(output.contains("[violation]"), "got: {output}");
+    assert!(!output.contains("[missing_attribute]"), "got: {output}");
+}
+
+/// `--param show_finding_id=true` labels it with the finding id instead.
+#[test]
+fn a_param_switches_the_ansi_label_to_the_finding_id() {
+    let output = run_ansi(&["-D", "show_finding_id=true"]);
+    assert!(output.contains("[missing_attribute]"), "got: {output}");
+    assert!(!output.contains("[violation]"), "got: {output}");
+}

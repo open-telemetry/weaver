@@ -1,0 +1,123 @@
+# Matcher configuration for the `matchers_otlp` end-to-end test. Every matcher
+# here is asserted on, either by its match count or by the findings it causes.
+
+# Spans
+
+[["live-check".matchers]]
+id = "acme.checkout.by-name"
+sample_type = "span"
+when = 'name == "checkout"'
+signal = "acme.checkout"
+attribute_groups = ["acme.session", "acme.customer"]
+
+[["live-check".matchers]]
+id = "acme.checkout.legacy"
+sample_type = "span"
+when = 'name == "checkout-legacy" && kind == "client"'
+signal = "acme.checkout"
+
+[["live-check".matchers]]
+id = "acme.span.on-error"
+sample_type = "span"
+when = 'status.code == "error"'
+attribute_groups = ["acme.customer"]
+
+[["live-check".matchers]]
+id = "acme.cart.by-attribute"
+sample_type = "span"
+when = '"acme.cart.item.count" in attributes'
+signal = "acme.cart"
+
+[["live-check".matchers]]
+id = "acme.cart.conflict"
+sample_type = "span"
+when = 'name == "cart"'
+signal = "acme.checkout"
+
+[["live-check".matchers]]
+id = "acme.span.by-scope"
+sample_type = "span"
+when = 'instrumentation_scope.name == "acme.cart"'
+attribute_groups = ["acme.customer"]
+
+[["live-check".matchers]]
+id = "acme.span.by-resource"
+sample_type = "span"
+when = 'name == "cart" && resource.attributes["acme.tenant.id"] == "t-42"'
+attribute_groups = ["acme.customer"]
+
+[["live-check".matchers]]
+id = "acme.never"
+sample_type = "span"
+when = 'name == "no-such-span"'
+
+[["live-check".matchers]]
+id = "acme.errors"
+sample_type = "span"
+when = 'attributes["acme.absent.key"] == "x"'
+
+# Logs
+
+[["live-check".matchers]]
+id = "acme.log.by-event-name"
+sample_type = "log"
+when = 'event_name == "acme.checkout.completed"'
+signal = "acme.checkout.completed"
+
+[["live-check".matchers]]
+id = "acme.log.by-severity"
+sample_type = "log"
+when = 'severity_number >= 17'
+attribute_groups = ["acme.session"]
+
+[["live-check".matchers]]
+id = "acme.log.by-body"
+sample_type = "log"
+when = 'body.contains("declined")'
+attribute_groups = ["acme.session"]
+
+# Metrics
+
+[["live-check".matchers]]
+id = "acme.metric.by-name"
+sample_type = "metric"
+when = 'name == "acme.cart.items"'
+signal = "acme.cart.items"
+
+# Names a signal whose unit and instrument disagree with the sample.
+[["live-check".matchers]]
+id = "acme.metric.mismatched"
+sample_type = "metric"
+when = 'name == "acme.checkout.attempts"'
+signal = "acme.checkout.duration"
+
+[["live-check".matchers]]
+id = "acme.metric.by-unit"
+sample_type = "metric"
+when = 'unit == "s" && instrument == "histogram"'
+signal = "acme.checkout.duration"
+
+# Span events, span links, resources and instrumentation scopes
+
+[["live-check".matchers]]
+id = "acme.span-event.step"
+sample_type = "span_event"
+when = 'name == "acme.checkout.step"'
+attribute_groups = ["acme.step"]
+
+[["live-check".matchers]]
+id = "acme.span-link.session"
+sample_type = "span_link"
+when = '"acme.session.id" in attributes'
+attribute_groups = ["acme.customer"]
+
+[["live-check".matchers]]
+id = "acme.resource.tenant"
+sample_type = "resource"
+when = 'attributes["acme.tenant.id"] == "t-42"'
+attribute_groups = ["acme.service"]
+
+[["live-check".matchers]]
+id = "acme.scope.acme"
+sample_type = "instrumentation_scope"
+when = 'name.startsWith("acme.")'

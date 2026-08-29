@@ -677,6 +677,9 @@ pub trait Advisable {
     fn entity_type(&self) -> &str;
 
     /// Run advisors on this entity
+    ///
+    /// The result is not recorded in the statistics: a caller may add its own
+    /// findings to it, so it records the finished result itself.
     fn run_advisors(
         &mut self,
         live_checker: &mut LiveChecker,
@@ -702,7 +705,6 @@ pub trait Advisable {
         }
 
         stats.inc_entity_count(self.entity_type());
-        stats.maybe_add_live_check_result(Some(&result));
 
         Ok(result)
     }

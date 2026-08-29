@@ -80,6 +80,11 @@ impl LiveCheckRunner for SampleLog {
             };
             semconv_event
         };
+        // The match comes before the advisors, so a matcher's `signal` is what
+        // the attributes are checked against.
+        let sample_match = live_checker.match_for(SampleType::Log, self, semconv_event);
+        live_checker.record_match(&sample_match);
+        let semconv_event = sample_match.signal.clone();
         for advisor in live_checker.advisors.iter_mut() {
             let sample_ref = SampleRef::Log(self);
             let advice_list = advisor.advise(
@@ -132,8 +137,6 @@ impl LiveCheckRunner for SampleLog {
             );
         }
 
-        let sample_match = live_checker.match_for(SampleType::Log, self, semconv_event.clone());
-        live_checker.record_match(&sample_match);
         sample_match.add_findings(
             &SampleRef::Log(self),
             &self.attributes,

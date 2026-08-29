@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use clap::Args;
 use include_dir::{include_dir, Dir};
+use serde_yaml::Value;
 
 use log::info;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
@@ -31,6 +32,7 @@ use weaver_live_check::{
 };
 use weaver_macros::weaver_command;
 
+use crate::registry::generate::{generate_params_shared, parse_key_val};
 use crate::registry::{load_config, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
@@ -94,6 +96,15 @@ pub struct RegistryLiveCheckArgs {
     #[command(flatten)]
     #[shared(policy)]
     policy: PolicyArgs,
+
+    /// Parameters key=value, defined in the command line, to pass to the templates.
+    /// The value must be a valid YAML value.
+    #[arg(short = 'D', long, value_parser = parse_key_val)]
+    pub param: Option<Vec<(String, Value)>>,
+
+    /// Parameters, defined in a YAML file, to pass to the templates.
+    #[arg(long)]
+    pub params: Option<PathBuf>,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
@@ -280,12 +291,13 @@ pub(crate) fn command(
     } else {
         OutputTarget::from_optional_dir(config.output.as_ref())
     };
-    let mut output = OutputProcessor::new(
+    let mut output = OutputProcessor::with_params(
         &config.format,
         "live_check",
         Some(&DEFAULT_LIVE_CHECK_TEMPLATES),
         Some(config.templates.clone()),
         target,
+        generate_params_shared(&args.param, &args.params)?,
     )?;
 
     info!("Weaver Registry Live Check");

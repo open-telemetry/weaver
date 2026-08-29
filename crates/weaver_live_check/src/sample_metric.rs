@@ -81,6 +81,7 @@ impl LiveCheckRunner for SampleNumberDataPoint {
     ) -> Result<(), Error> {
         self.live_check_result =
             Some(self.run_advisors(live_checker, stats, parent.clone(), parent_signal)?);
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         self.attributes
             .run_live_check(live_checker, stats, parent.clone(), parent_signal)?;
         self.exemplars
@@ -141,6 +142,7 @@ impl LiveCheckRunner for SampleHistogramDataPoint {
     ) -> Result<(), Error> {
         self.live_check_result =
             Some(self.run_advisors(live_checker, stats, parent.clone(), parent_signal)?);
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         self.attributes
             .run_live_check(live_checker, stats, parent.clone(), parent_signal)?;
         self.exemplars
@@ -216,6 +218,7 @@ impl LiveCheckRunner for SampleExponentialHistogramDataPoint {
     ) -> Result<(), Error> {
         self.live_check_result =
             Some(self.run_advisors(live_checker, stats, parent.clone(), parent_signal)?);
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         self.attributes
             .run_live_check(live_checker, stats, parent.clone(), parent_signal)?;
         self.exemplars
@@ -261,6 +264,7 @@ impl LiveCheckRunner for SampleExemplar {
     ) -> Result<(), Error> {
         self.live_check_result =
             Some(self.run_advisors(live_checker, stats, parent.clone(), parent_signal)?);
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         self.filtered_attributes.run_live_check(
             live_checker,
             stats,
@@ -324,6 +328,11 @@ impl LiveCheckRunner for SampleMetric {
             let sample_ref = SampleRef::Metric(self);
             result.add_advice(finding, live_checker.finding_modifier.as_ref(), &sample_ref);
         };
+        // The match comes before the advisors, so a matcher's `signal` is what
+        // the instrument, unit and attributes are checked against.
+        let sample_match = live_checker.match_for(SampleType::Metric, self, semconv_metric);
+        live_checker.record_match(&sample_match);
+        let semconv_metric = sample_match.signal.clone();
         for advisor in live_checker.advisors.iter_mut() {
             let sample_ref = SampleRef::Metric(self);
             let advice_list = advisor.advise(
@@ -376,8 +385,6 @@ impl LiveCheckRunner for SampleMetric {
             );
         }
 
-        let sample_match = live_checker.match_for(SampleType::Metric, self, semconv_metric.clone());
-        live_checker.record_match(&sample_match);
         sample_match.add_findings(
             &SampleRef::Metric(self),
             &[],

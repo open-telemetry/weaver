@@ -1,0 +1,3 @@
+name: acme-shared
+description: Attributes shared across Acme registries, depended on by acme-matchers.
+schema_url: https://acme.example.com/shared/1.0.0

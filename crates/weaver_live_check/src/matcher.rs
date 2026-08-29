@@ -154,7 +154,11 @@ impl Matchers {
         }
         let mut seen_attribute_groups: Vec<&str> = Vec::new();
         for (index, matcher) in self.matchers.iter().enumerate() {
-            match matcher.applies_to(sample_type, bindings) {
+            if matcher.sample_type != sample_type {
+                continue;
+            }
+            sample_match.targeted = true;
+            match matcher.applies_to(bindings) {
                 Ok(true) => {}
                 Ok(false) => continue,
                 Err(error) => {
@@ -211,18 +215,11 @@ impl Matchers {
 }
 
 impl Matcher {
-    /// Whether the matcher applies to this sample.
+    /// Whether the matcher's `when` passes for this sample.
     ///
     /// A `when` that errors does not match, and returns the error for the
     /// caller to record.
-    fn applies_to(
-        &self,
-        sample_type: SampleType,
-        bindings: &dyn Bindings,
-    ) -> Result<bool, weaver_cel::Error> {
-        if self.sample_type != sample_type {
-            return Ok(false);
-        }
+    fn applies_to(&self, bindings: &dyn Bindings) -> Result<bool, weaver_cel::Error> {
         let Some(when) = &self.when else {
             return Ok(true);
         };
@@ -301,13 +298,19 @@ pub struct SampleMatch {
     /// The matchers whose `when` errored on this sample, as indices into the
     /// configured matchers, with the message.
     pub errors: Vec<(usize, String)>,
+
+    /// Whether any matcher targets this sample's type.
+    pub targeted: bool,
 }
 
 impl SampleMatch {
-    /// Whether the sample matched no matcher and has no signal.
+    /// Whether a matcher targets this sample's type and none claimed it.
+    ///
+    /// A sample type no matcher is written for is never unmatched, so a
+    /// registry checked without matchers reports what it always did.
     #[must_use]
     pub fn is_unmatched(&self) -> bool {
-        self.applied.is_empty() && self.signal.is_none()
+        self.targeted && self.applied.is_empty() && self.signal.is_none()
     }
 
     /// The definition this match holds for an attribute, from the signal
@@ -354,8 +357,8 @@ impl SampleMatch {
 
     /// Adds the findings this match raises to a sample's result.
     ///
-    /// `unmatched_sample` is only raised when matchers are configured, so a
-    /// registry checked without them reports what it always did.
+    /// `unmatched_sample` is only raised for a sample type some matcher
+    /// targets. See [`SampleMatch::is_unmatched`].
     pub fn add_findings(
         &self,
         sample_ref: &SampleRef<'_>,
@@ -365,7 +368,8 @@ impl SampleMatch {
         parent_signal: &Sample,
     ) {
         let emitter = live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref());
-        if !self.is_unmatched() && self.holds_attribute_definitions() {
+        let holds_definitions = self.holds_attribute_definitions();
+        if !self.is_unmatched() {
             for attribute in attributes {
                 if self.expects(live_checker, &attribute.name) {
                     continue;
@@ -373,6 +377,14 @@ impl SampleMatch {
                 // The base definition names the schema to reference or import
                 // the attribute from.
                 let found = live_checker.find_base_attribute(&attribute.name);
+                // Falling through to a dependency's definition is itself
+                // unexpected, so it is reported even for a match that names no
+                // expected set of its own.
+                let only_a_dependency_declares_it =
+                    found.is_some() && live_checker.find_attribute(&attribute.name).is_none();
+                if !holds_definitions && !only_a_dependency_declares_it {
+                    continue;
+                }
                 let context = match found {
                     Some(base) => json!({
                         ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: attribute.name,
@@ -380,16 +392,19 @@ impl SampleMatch {
                     }),
                     None => json!({ ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: attribute.name }),
                 };
-                let message = match found {
-                    Some(base) => format!(
-                        "Attribute '{}' is not on the signal or its attribute groups. It is defined in {}.",
-                        attribute.name,
-                        base.schema_urls()
-                    ),
-                    None => format!(
-                        "Attribute '{}' is not on the signal or its attribute groups.",
+                let defined_in = found
+                    .map(|base| format!(" It is defined in {}.", base.schema_urls()))
+                    .unwrap_or_default();
+                let message = if holds_definitions {
+                    format!(
+                        "Attribute '{}' is not on the signal or its attribute groups.{defined_in}",
                         attribute.name
-                    ),
+                    )
+                } else {
+                    format!(
+                        "Attribute '{}' is not declared by this registry.{defined_in}",
+                        attribute.name
+                    )
                 };
                 let finding = FindingBuilder::new(FindingId::UnexpectedAttribute)
                     .context(context)
@@ -400,7 +415,7 @@ impl SampleMatch {
                 result.add_advice(finding, live_checker.finding_modifier.as_ref(), sample_ref);
             }
         }
-        if !live_checker.matchers().is_empty() && self.is_unmatched() {
+        if self.is_unmatched() {
             let finding = FindingBuilder::new(FindingId::UnmatchedSample)
                 .message("Sample matched no matcher.")
                 .level(FindingLevel::Information)
@@ -1270,7 +1285,7 @@ when = 'name == "no-such-span"'
             let live_checker = v2_live_checker();
             let sample = checkout_span();
             let sample_match = live_checker.match_for(SampleType::Span, &sample, None);
-            assert!(sample_match.is_unmatched());
+            assert!(!sample_match.is_unmatched());
             let mut result = LiveCheckResult::new();
             let parent = Sample::Span(sample.clone());
             sample_match.add_findings(
