@@ -5,12 +5,12 @@ All notable changes to this project will be documented in this file.
 # Unreleased
 
 - Live-check matchers ([#1721](https://github.com/open-telemetry/weaver/pull/1721) by @jerbly)
-  - Add `[[live-check.matchers]]`, which picks the v2 signal and attribute groups a sample is checked against with a CEL expression. v2 registries only.
+  - Added `[[live-check.matchers]]`, which picks the v2 signal and attribute groups a sample is checked against with a CEL expression. v2 registries only.
   - New findings: `kind_mismatch` and `unexpected_attribute`. A v2 metric or log raises `unexpected_attribute` against its natural signal or against the matcher's where one sets `signal`.
-  - A v2 registry compares an attribute with the signal and attribute groups its match holds, and nothing else. `search_all_attributes` searches the whole registry and its dependencies as before, and the plain attribute-name inputs now need it. v1 is unchanged.
-  - Every sample carries a `match_info` giving the signal, the attribute groups and what each matcher that applied contributed. The ansi output lists it under the sample, colouring a sample nothing matched and a matcher whose `signal` was ignored. It is not a finding.
+  - By default a v2 registry compares an attribute with the signal and attribute groups its match holds. However, when `search_all_attributes` is used, it searches the whole registry and its dependencies. v1 is unchanged.
+  - Every sample carries a `match_info` giving the signal, the attribute groups and what each matcher that applied contributed.
   - Statistics count what each matcher matched and errored on, and a matcher that matched nothing is reported as a warning.
-  - Add `-D`/`--param` and `--params` to pass parameters to the output template. The ansi format reads `show_finding_id`, which labels a finding with its id rather than its level.
+  - Added `-D`/`--param` and `--params` to pass parameters to the output template. The ansi format reads `show_finding_id`, which labels a finding with its id rather than its level.
 - Add `entity_refs` and `lookup_entity` to the `semconv` Rego library, so an `after_resolution` policy can read the entity definition that an `entity_associations` leaf names, including one a dependency defines. `entity_refs` walks the `one_of` and `all_of` levels of an association. ([#1719](https://github.com/open-telemetry/weaver/pull/1719) by @jerbly)
 - Add a `lookup_entity` Jinja function, which turns an `entity_associations` leaf into the entity definition it names, for `weaver registry generate` on a v2 registry. ([#1718](https://github.com/open-telemetry/weaver/pull/1718) by @jerbly)
 - Live-check now follows a v2 `entity_associations` reference into a dependency, or to an entity refinement, neither of which the checker could see before: those entities went unchecked, so a resource missing their required attributes passed clean. A Rego advice policy can read the same v2 definitions, as `data.entities`. ([#1716](https://github.com/open-telemetry/weaver/pull/1716) by @jerbly)
