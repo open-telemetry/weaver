@@ -47,19 +47,19 @@
 {% macro display_match(match_info, indent=0) %}
 {% if match_info is defined and match_info is not none %}
 {% if match_info.signal %}
-{{ " " * indent }}  {{ ((match_info.signal_matcher or "none") ~ " -> signal: " ~ match_info.signal) | ansi_bright_black }}
+{{ " " * indent }}  {{ ((match_info.signal_matcher or "none") ~ " -> signal: " ~ match_info.signal) | ansi_bright_black | ansi_italic }}
 {% else %}
-{% set no_match = "no match" | ansi_yellow if match_info.signal_expected else "no match" | ansi_bright_black %}
-{{ " " * indent }}  {{ ("none -> signal: ") | ansi_bright_black }}{{ no_match }}
+{% set no_match = "no match" | ansi_yellow | ansi_italic if match_info.signal_expected else "no match" | ansi_bright_black | ansi_italic %}
+{{ " " * indent }}  {{ ("none -> signal: ") | ansi_bright_black | ansi_italic }}{{ no_match }}
 {% endif %}
 {% for entry in match_info.entries %}
 {% if entry.attribute_groups %}
-{{ " " * indent }}  {{ (entry.matcher ~ " -> attribute_groups: " ~ (entry.attribute_groups | join(", "))) | ansi_bright_black }}
+{{ " " * indent }}  {{ (entry.matcher ~ " -> attribute_groups: " ~ (entry.attribute_groups | join(", "))) | ansi_bright_black | ansi_italic }}
 {% endif %}
 {% endfor %}
 {% for entry in match_info.entries %}
 {% if entry.ignored %}
-{{ " " * indent }}  {{ (entry.matcher ~ " -> signal: " ~ entry.signal ~ " ") | ansi_bright_black }}{{ ("(conflict, ignored)") | ansi_red }}
+{{ " " * indent }}  {{ (entry.matcher ~ " -> signal: " ~ entry.signal ~ " ") | ansi_bright_black | ansi_italic }}{{ ("(conflict, ignored)") | ansi_red | ansi_italic }}
 {% endif %}
 {% endfor %}
 {% endif %}
