@@ -492,9 +492,9 @@ dependencies = [
 
 [[package]]
 name = "cel"
-version = "0.14.3"
+version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f82399e72d100a28a0cac14251a8aba16d124af2a237d8a60ab7997ba7380cc3"
+checksum = "9f93082a93da8fd78394852602ced1e2e7754ed8c29dc813fa80b01a1baf9032"
 dependencies = [
  "antlr4rust",
  "chrono",
