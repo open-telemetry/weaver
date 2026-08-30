@@ -397,6 +397,12 @@ impl LiveChecker {
         self.searching_all_attributes
     }
 
+    /// Whether the registry under check is v2
+    #[must_use]
+    pub fn is_v2(&self) -> bool {
+        matches!(self.registry.as_ref(), VersionedRegistry::V2(_))
+    }
+
     /// Index the base attributes of this registry and its dependencies
     ///
     /// # Errors
@@ -607,6 +613,11 @@ mod tests {
         ];
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
             .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
@@ -1511,6 +1522,11 @@ mod tests {
         let advisors: Vec<Box<dyn Advisor>> = vec![];
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
             &Some("data/policies/live_check_advice/".into()),
@@ -1601,6 +1617,11 @@ mod tests {
         ];
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
             .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
@@ -1663,6 +1684,11 @@ mod tests {
                 .expect("Unable to parse JSON");
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
             &Some("data/policies/live_check_advice/".into()),
@@ -1721,6 +1747,11 @@ mod tests {
         ];
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
             .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
@@ -1803,6 +1834,11 @@ mod tests {
                 .expect("Unable to parse JSON");
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
             &Some("data/policies/live_check_advice/".into()),
@@ -1853,6 +1889,11 @@ mod tests {
                 .expect("Unable to parse JSON");
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
             &Some("data/policies/live_check_advice/".into()),
@@ -2153,6 +2194,11 @@ mod tests {
         ];
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
             .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
@@ -2234,6 +2280,11 @@ mod tests {
         let advisors: Vec<Box<dyn Advisor>> = vec![];
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
             &Some("data/policies/bad_advice/".into()),
@@ -2300,6 +2351,11 @@ mod tests {
         let mut samples = vec![sample];
         let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
 
         let mut stats =
             LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
@@ -2377,6 +2433,11 @@ mod tests {
         });
         let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
 
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
@@ -2438,6 +2499,11 @@ mod tests {
         ];
         let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
 
         let mut stats =
             LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
@@ -2778,6 +2844,11 @@ mod tests {
         let registry = make_entity_registry(use_v2);
         let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let mut stats =
             LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
 
@@ -4023,6 +4094,11 @@ mod tests {
         let registry = make_metric_entity_registry(use_v2);
         let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let mut stats =
             LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
 

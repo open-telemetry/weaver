@@ -21,7 +21,7 @@ Here's a table of the current Samples and Signals and description of how they ar
 | Span                                                  | Span               | None                   | Not matched. The span name is free-form so no span signal is chosen, and every attribute is matched on its own key against the whole registry.                                                                                                                      |
 | Span event                                            | Event              | `name`                 | Not matched. Unlike a log, the name is never looked up as an event. The attributes are matched on their own keys.                                                                                                                                                   |
 | Span link                                             | None               | None                   | Not matched. The attributes are matched on their own keys.                                                                                                                                                                                                          |
-| Resource                                              | None               | None                   | Not matched on its own, so the attributes are matched on their own keys. When a metric or event declares `entity_associations` we look up those entities and check the attributes they ask for against the resource, but that check belongs to the metric or event. |
+| Resource                                              | None               | None                   | Not matched on its own, so its attributes are checked against a matcher's attribute groups, or with `search_all_attributes`. When a metric or event declares `entity_associations` we look up those entities and check the attributes they ask for against the resource, but that check belongs to the metric or event. |
 | Instrumentation scope                                 | None               | Scope name and version | Not matched. There is no scope signal in semconv. The attributes are matched on their own keys.                                                                                                                                                                     |
 | Profile                                               | None               | None                   | Not matched. There is no profile signal in semconv. The attributes are matched on their own keys.                                                                                                                                                                   |
 
@@ -396,7 +396,7 @@ This is why a matcher that only adds attributes leaves `signal` out. If it decla
 
 | Finding                | Level       | When we raise it                                                                                                                                                |
 | ---------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `unmatched_sample`     | Information | An untyped sample matched no matcher. Its attributes are still checked one at a time against the registry if `search_all_attributes` is set.                    |
+| `unmatched_sample`     | Information | An untyped sample matched no matcher. Its attributes are only checked against the registry if `search_all_attributes` is set.                    |
 | `unexpected_attribute` | Improvement | A sample has an attribute that is not in the comparison set. A metric or a log has one as soon as its name resolves, so this fires with no matchers configured; a span needs a matcher. When a matcher sets `signal` the comparison set comes from that signal, not from the one the name resolved to. |
 | `matcher_conflict`     | Information | More than one of the applied matchers had a `signal`.                                                                                                           |
 | `kind_mismatch`        | Violation   | A matched span has a different `kind` to the one on the span signal.<br><br>(Since we can now compare spans this unlocks the ability to check the span's kind.) |
@@ -411,6 +411,8 @@ search_all_attributes = true
 ```
 
 With this set we search the base attribute definitions in your registry and its dependencies. Attributes found through this route will have a finding including the `schema_url`. This could be a clue to help the author to improve their registry through a reference or import clause.
+
+Without it a v2 registry compares an attribute with the signal and attribute groups its match holds and nothing else, so an attribute outside that set is left to `unexpected_attribute`. The plain attribute-name inputs, `--input-format text` and a JSON file of bare attributes, have no match at all and need this setting. A v1 registry always searches every attribute it holds.
 
 ---
 # Bonus: conditionally required attributes

@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 - Live-check matchers ([#1721](https://github.com/open-telemetry/weaver/pull/1721) by @jerbly)
   - Add `[[live-check.matchers]]`, which picks the v2 signal and attribute groups a sample is checked against with a CEL expression. v2 registries only.
   - New findings: `unmatched_sample`, `matcher_conflict`, `kind_mismatch` and `unexpected_attribute`. A v2 metric or log raises `unexpected_attribute` against its natural signal or against the matcher's where one sets `signal`.
-  - `search_all_attributes` searches the registry's dependencies for an attribute the signal and its attribute groups do not declare. Off by default, v2 only.
+  - A v2 registry compares an attribute with the signal and attribute groups its match holds, and nothing else. `search_all_attributes` searches the whole registry and its dependencies as before, and the plain attribute-name inputs now need it. v1 is unchanged.
   - Statistics count what each matcher matched and errored on, and a matcher that matched nothing is reported as a warning.
   - Add `-D`/`--param` and `--params` to pass parameters to the output template. The ansi format reads `show_finding_id`, which labels a finding with its id rather than its level.
 - Add `entity_refs` and `lookup_entity` to the `semconv` Rego library, so an `after_resolution` policy can read the entity definition that an `entity_associations` leaf names, including one a dependency defines. `entity_refs` walks the `one_of` and `all_of` levels of an association. ([#1719](https://github.com/open-telemetry/weaver/pull/1719) by @jerbly)

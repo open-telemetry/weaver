@@ -1562,9 +1562,9 @@ signal = "myapp.checkout"
             assert_eq!(ids, ["not_stable"]);
         }
 
-        /// A signal does not have to declare every attribute a sample carries.
+        /// The catalog holds it, but only the signal's own copy is compared.
         #[test]
-        fn an_attribute_the_signal_does_not_declare_falls_back_to_the_base() {
+        fn an_attribute_the_signal_does_not_declare_is_missing() {
             let ids = check_attributes(
                 vec![
                     base_attribute("myapp.checkout.id", Stability::Stable),
@@ -1575,7 +1575,7 @@ signal = "myapp.checkout"
                     RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
                 )],
             );
-            assert_eq!(ids, ["not_stable"]);
+            assert_eq!(ids, ["missing_attribute"]);
         }
 
         /// A v1 group holds no refinements.
@@ -1749,7 +1749,6 @@ attribute_groups = ["myapp.common"]
             assert_eq!(ids, ["not_stable"]);
         }
 
-        /// Without the base definitions the attribute is unknown.
         #[test]
         fn without_search_all_attributes_a_dependency_definition_is_not_used() {
             let mut dependency = dependency_registry();
