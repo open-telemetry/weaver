@@ -19,6 +19,8 @@ use crate::{
     Error, LiveCheckResult, Sample, SampleRef, SampleType, VersionedAttribute, VersionedRegistry,
     VersionedSignal, ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY, SCHEMA_URL_ADVICE_CONTEXT_KEY,
 };
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use weaver_checker::FindingLevel;
 
@@ -212,6 +214,37 @@ impl Matchers {
     }
 
     /// Counts a match against the matchers that produced it.
+    /// What a match compared the sample with, by name.
+    #[must_use]
+    pub fn match_info(&self, sample_match: &SampleMatch, signal_expected: bool) -> MatchInfo {
+        MatchInfo {
+            signal: sample_match
+                .signal
+                .as_deref()
+                .map(|signal| signal.name().to_owned()),
+            signal_matcher: sample_match.signal_matcher.clone(),
+            attribute_groups: sample_match
+                .attribute_groups
+                .iter()
+                .map(|attribute_group| attribute_group.id.to_string())
+                .collect(),
+            entries: sample_match
+                .applied
+                .iter()
+                .filter_map(|index| self.matchers.get(*index))
+                .map(|matcher| MatchEntry {
+                    matcher: matcher.id.clone(),
+                    signal: matcher.signal.clone(),
+                    attribute_groups: matcher.attribute_groups.clone(),
+                    ignored: sample_match.conflicts.contains(&matcher.id),
+                })
+                .collect(),
+            unmatched: sample_match.is_unmatched(),
+            signal_expected,
+        }
+    }
+
+    /// Counts a match against the matchers that produced it.
     pub fn record_match(&mut self, sample_match: &SampleMatch) {
         for &index in &sample_match.applied {
             if let Some(matcher) = self.matchers.get_mut(index) {
@@ -402,7 +435,7 @@ impl SampleMatch {
         parent_signal: &Sample,
     ) {
         self.add_attribute_findings(sample_ref, attributes, result, live_checker, parent_signal);
-        self.add_sample_findings(sample_ref, result, live_checker, parent_signal);
+        self.set_match_info(sample_ref, result, live_checker);
     }
 
     /// Adds the findings this match raises about a set of attributes.
@@ -476,34 +509,65 @@ impl SampleMatch {
         }
     }
 
-    /// Adds the findings this match raises about the sample itself.
-    pub fn add_sample_findings(
+    /// Records what this match compared the sample with.
+    pub fn set_match_info(
         &self,
         sample_ref: &SampleRef<'_>,
         result: &mut LiveCheckResult,
         live_checker: &LiveChecker,
-        parent_signal: &Sample,
     ) {
-        let emitter = live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref());
-        if self.is_unmatched() {
-            let finding = FindingBuilder::new(FindingId::UnmatchedSample)
-                .message("Sample matched no matcher.")
-                .level(FindingLevel::Information)
-                .signal(parent_signal)
-                .build_and_emit(sample_ref, emitter, parent_signal);
-            result.add_advice(finding, live_checker.finding_modifier.as_ref(), sample_ref);
-        }
-        for ignored in &self.conflicts {
-            let winner = self.signal_matcher.as_deref().unwrap_or_default();
-            let finding = FindingBuilder::new(FindingId::MatcherConflict)
-                .message(format!(
-                    "Matcher `{ignored}` also sets a signal; matcher `{winner}` set it first."
-                ))
-                .level(FindingLevel::Information)
-                .signal(parent_signal)
-                .build_and_emit(sample_ref, emitter, parent_signal);
-            result.add_advice(finding, live_checker.finding_modifier.as_ref(), sample_ref);
-        }
+        result.match_info = Some(
+            live_checker
+                .matchers()
+                .match_info(self, sample_ref.expects_signal()),
+        );
+    }
+}
+
+/// What one matcher contributed to a sample's match.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct MatchEntry {
+    /// The matcher.
+    pub matcher: String,
+    /// The signal it names, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signal: Option<String>,
+    /// The attribute groups it names.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attribute_groups: Vec<String>,
+    /// Whether its signal was ignored because one was already set.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub ignored: bool,
+}
+
+/// What a sample was compared with.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct MatchInfo {
+    /// The signal, by span type, metric name, event name or v1 group id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signal: Option<String>,
+    /// The matcher whose `signal` won, absent when the sample's own name
+    /// resolved it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signal_matcher: Option<String>,
+    /// The attribute groups, in priority order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attribute_groups: Vec<String>,
+    /// What each matcher that applied contributed, in declaration order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub entries: Vec<MatchEntry>,
+    /// Whether a matcher targets this sample's type and none claimed it.
+    pub unmatched: bool,
+    /// Whether this sample type resolves a signal at all, so that having none
+    /// is a gap rather than the shape of the sample.
+    pub signal_expected: bool,
+}
+
+impl MatchInfo {
+    /// Whether the sample was compared with anything.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.signal.is_none() && self.attribute_groups.is_empty()
     }
 }
 
@@ -1324,6 +1388,16 @@ attribute_groups = ["myapp.common"]
         }
 
         /// The finding ids a match raises for a sample.
+        /// The match a config produces for a span sample.
+        fn match_info(toml_str: &str, sample: &SampleSpan) -> MatchInfo {
+            let mut live_checker = v2_live_checker_with(sample_span_attributes(), Vec::new());
+            live_checker
+                .set_matchers(&matcher_configs(toml_str))
+                .expect("they check out");
+            let sample_match = live_checker.match_for(SampleType::Span, sample, None);
+            live_checker.matchers().match_info(&sample_match, true)
+        }
+
         fn findings(toml_str: &str, sample: &SampleSpan) -> Vec<String> {
             let mut live_checker = v2_live_checker_with(sample_span_attributes(), Vec::new());
             live_checker
@@ -1347,8 +1421,8 @@ attribute_groups = ["myapp.common"]
         }
 
         #[test]
-        fn a_span_that_matches_nothing_raises_unmatched_sample() {
-            let ids = findings(
+        fn a_span_that_matches_nothing_is_unmatched() {
+            let info = match_info(
                 r#"
 [[live-check.matchers]]
 id = "myapp.never"
@@ -1357,7 +1431,8 @@ when = 'name == "no-such-span"'
 "#,
                 &checkout_span(),
             );
-            assert_eq!(ids, ["unmatched_sample"]);
+            assert!(info.unmatched);
+            assert!(info.entries.is_empty());
         }
 
         /// A span reaches no signal by name, so it has nothing to check against.
@@ -1410,8 +1485,8 @@ when = 'name == "no-such-span"'
         }
 
         #[test]
-        fn a_second_signal_raises_matcher_conflict() {
-            let ids = findings(
+        fn a_second_signal_is_a_conflict() {
+            let info = match_info(
                 r#"
 [[live-check.matchers]]
 id = "myapp.first"
@@ -1425,7 +1500,15 @@ signal = "myapp.checkout"
 "#,
                 &checkout_span(),
             );
-            assert_eq!(ids, ["matcher_conflict"]);
+            assert_eq!(info.signal_matcher.as_deref(), Some("myapp.first"));
+            let ignored: Vec<&str> = info
+                .entries
+                .iter()
+                .filter(|entry| entry.ignored)
+                .map(|entry| entry.matcher.as_str())
+                .collect();
+            assert_eq!(ignored, ["myapp.second"]);
+            assert!(!info.unmatched);
         }
 
         #[test]
@@ -1944,15 +2027,17 @@ when = 'name == "no-such-span"'
             let parent = Sample::Span(span.clone());
             span.run_live_check(&mut live_checker, &mut stats, None, &parent)
                 .expect("the check runs");
-            let ids: Vec<_> = span
-                .live_check_result
-                .as_ref()
-                .expect("it has a result")
+            let result = span.live_check_result.as_ref().expect("it has a result");
+            let ids: Vec<_> = result
                 .all_advice
                 .iter()
                 .map(|finding| finding.id.clone())
                 .collect();
-            assert_eq!(ids, ["unmatched_sample"]);
+            assert!(ids.is_empty(), "got: {ids:?}");
+            assert!(result
+                .match_info
+                .as_ref()
+                .is_some_and(|info| info.unmatched));
         }
 
         #[test]
@@ -1969,7 +2054,14 @@ when = 'name == "no-such-span"'
                     RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
                 )],
             );
-            assert_eq!(ids, ["unmatched_sample"]);
+            assert!(ids.is_empty(), "got: {ids:?}");
+            assert!(
+                span.live_check_result
+                    .as_ref()
+                    .and_then(|result| result.match_info.as_ref())
+                    .is_some_and(|info| info.unmatched),
+                "the span records that nothing matched it"
+            );
         }
     }
 

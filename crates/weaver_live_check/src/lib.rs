@@ -21,7 +21,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
-use crate::matcher::SampleMatch;
+use crate::matcher::{MatchInfo, SampleMatch, SignalKind};
 use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::{
@@ -194,6 +194,18 @@ pub enum VersionedSignal {
 }
 
 impl VersionedSignal {
+    /// The name the signal is known by: a span type, a metric or event name,
+    /// or a v1 group id
+    #[must_use]
+    pub fn name(&self) -> &str {
+        match self {
+            VersionedSignal::Group(group) => &group.as_ref().id,
+            VersionedSignal::Metric(metric) => &metric.name,
+            VersionedSignal::Span(span) => &span.r#type,
+            VersionedSignal::Event(event) => &event.name,
+        }
+    }
+
     /// Get the deprecated field of the signal
     #[must_use]
     pub fn deprecated(&self) -> &Option<Deprecated> {
@@ -445,6 +457,16 @@ impl SampleRef<'_> {
         }
     }
 
+    /// Whether this sample resolves a registry signal, so that having none is a
+    /// gap. A log with no `event_name` is not a typed signal.
+    #[must_use]
+    pub fn expects_signal(&self) -> bool {
+        match self {
+            SampleRef::Log(log) => !log.event_name.is_empty(),
+            other => SignalKind::for_sample_type(other.sample_type()).is_some(),
+        }
+    }
+
     /// Returns the sample type.
     #[must_use]
     pub fn sample_type(&self) -> SampleType {
@@ -572,6 +594,9 @@ pub struct LiveCheckResult {
     pub all_advice: Vec<PolicyFinding>,
     /// The highest advice level
     pub highest_advice_level: Option<FindingLevel>,
+    /// What the sample was compared with. Only whole samples carry one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub match_info: Option<MatchInfo>,
 }
 
 impl LiveCheckResult {
@@ -581,6 +606,7 @@ impl LiveCheckResult {
         LiveCheckResult {
             all_advice: Vec::new(),
             highest_advice_level: None,
+            match_info: None,
         }
     }
 

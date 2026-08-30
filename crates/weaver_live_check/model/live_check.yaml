@@ -47,14 +47,6 @@ attributes:
           brief: "An enum attribute value is not in the set of allowed members"
           stability: development
         # Matcher findings
-        - id: unmatched_sample
-          value: "unmatched_sample"
-          brief: "An untyped sample matched no matcher"
-          stability: development
-        - id: matcher_conflict
-          value: "matcher_conflict"
-          brief: "More than one of the matchers that applied to a sample set a signal"
-          stability: development
         - id: unexpected_attribute
           value: "unexpected_attribute"
           brief: "A matched sample has an attribute that is not on its signal or attribute groups"

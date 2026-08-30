@@ -246,6 +246,8 @@ fn emit_spans(provider: &SdkTracerProvider) {
         "acme.checkout.step",
         vec![KeyValue::new("acme.checkout.stage", "cart")],
     );
+    // Matched by nothing, and a span event resolves no signal by name.
+    span.add_event("acme.checkout.note", Vec::new());
     span.set_status(Status::Ok);
     span.end();
 
@@ -300,6 +302,13 @@ fn emit_logs(provider: &SdkLoggerProvider) {
     record.set_severity_text("ERROR");
     record.set_body(AnyValue::from("payment declined"));
     record.add_attribute(Key::from("acme.session.id"), AnyValue::from("s-9"));
+    logger.emit(record);
+
+    // No event name, so not a typed signal and no matcher looks at it.
+    let mut record = logger.create_log_record();
+    record.set_severity_number(Severity::Info);
+    record.set_severity_text("INFO");
+    record.set_body(AnyValue::from("no event name"));
     logger.emit(record);
 
     // Not in the registry; `acme.log.renamed` names its signal.
@@ -463,6 +472,7 @@ async fn matchers_check_telemetry_from_the_sdk() {
     the_definition_used_comes_from_the_signal_then_the_first_group(&report);
     span_events_and_links_match_on_their_own(&report);
     a_scope_takes_attribute_groups(&report);
+    every_sample_records_its_match(&report);
     the_advisors_run_on_the_matched_definitions(&findings);
     a_matcher_signal_drives_the_metric_checks(&findings);
     a_matcher_signal_answers_the_natural_match(&findings);
@@ -683,22 +693,6 @@ fn the_findings_name_the_telemetry_that_caused_them(findings: &[&Value]) {
         "got: {unexpected:?}"
     );
 
-    // Signal types arrive on their own export streams, so sort before comparing.
-    let mut unmatched: Vec<&str> = with_id(findings, "unmatched_sample")
-        .iter()
-        .filter_map(|finding| finding["signal_name"].as_str())
-        .collect();
-    unmatched.sort_unstable();
-    assert_eq!(unmatched, ["acme.unknown.total", "unknown-op"]);
-
-    let conflicts = with_id(findings, "matcher_conflict");
-    assert_eq!(conflicts.len(), 1, "got: {conflicts:?}");
-    let message = conflicts[0]["message"].as_str().expect("a message");
-    assert!(
-        message.contains("acme.cart.conflict") && message.contains("acme.cart.by-attribute"),
-        "got: {message}"
-    );
-
     let kinds = with_id(findings, "kind_mismatch");
     assert_eq!(kinds.len(), 1, "got: {kinds:?}");
     assert_eq!(kinds[0]["signal_name"], "checkout-legacy");
@@ -759,6 +753,85 @@ fn a_scope_takes_attribute_groups(report: &Value) {
         collect_findings(scope, &mut findings);
     }
     let _ = finding_for(&findings, "unexpected_attribute", "acme.scope.stray");
+}
+
+/// Matched or not, a sample records what it was compared with.
+fn every_sample_records_its_match(report: &Value) {
+    let matched = &span(report, "checkout")["live_check_result"]["match_info"];
+    assert_eq!(matched["signal"], "acme.checkout");
+    assert_eq!(matched["signal_matcher"], "acme.checkout.by-name");
+    assert_eq!(
+        matched["attribute_groups"],
+        serde_json::json!(["acme.session", "acme.customer"])
+    );
+    assert_eq!(
+        matched["entries"],
+        serde_json::json!([{
+            "matcher": "acme.checkout.by-name",
+            "signal": "acme.checkout",
+            "attribute_groups": ["acme.session", "acme.customer"],
+        }])
+    );
+
+    let unmatched = &span(report, "unknown-op")["live_check_result"]["match_info"];
+    assert_eq!(unmatched["unmatched"], true);
+    assert!(unmatched["signal"].is_null(), "got: {unmatched}");
+    assert!(unmatched["attribute_groups"].is_null(), "got: {unmatched}");
+
+    // The first matcher to set a signal wins; the later one is a conflict.
+    let conflicted = &span(report, "cart")["live_check_result"]["match_info"];
+    assert_eq!(conflicted["signal_matcher"], "acme.cart.by-attribute");
+    let ignored: Vec<&str> = conflicted["entries"]
+        .as_array()
+        .expect("the entries")
+        .iter()
+        .filter(|entry| entry["ignored"] == true)
+        .filter_map(|entry| entry["matcher"].as_str())
+        .collect();
+    assert_eq!(ignored, ["acme.cart.conflict"]);
+
+    // The signal a matcher named, not the one the metric's own name gives.
+    let renamed = &report["samples"]
+        .as_array()
+        .expect("the report carries the samples")
+        .iter()
+        .map(|sample| &sample["metric"])
+        .find(|metric| metric["name"] == "acme.checkout.attempts")
+        .expect("the metric sample")["live_check_result"]["match_info"];
+    assert_eq!(renamed["signal"], "acme.checkout.duration");
+    assert_eq!(renamed["signal_matcher"], "acme.metric.mismatched");
+
+    // A span event resolves a signal only through a matcher, so one no matcher
+    // claimed expects a signal it does not have.
+    let note = &span(report, "checkout")["span_events"]
+        .as_array()
+        .expect("the span events")
+        .iter()
+        .find(|event| event["name"] == "acme.checkout.note")
+        .expect("the span event")["live_check_result"]["match_info"];
+    assert_eq!(note["signal_expected"], true);
+    assert_eq!(note["unmatched"], true);
+
+    // A log with no event name is not a typed signal, so having none is no gap.
+    let untyped = log_match_info(report, "");
+    assert_eq!(untyped["signal_expected"], false);
+    assert_eq!(untyped["unmatched"], true);
+    assert_eq!(
+        log_match_info(report, "acme.checkout.failed")["signal_expected"],
+        true
+    );
+}
+
+/// The match of the log sample with this event name.
+fn log_match_info<'a>(report: &'a Value, event_name: &str) -> &'a Value {
+    &report["samples"]
+        .as_array()
+        .expect("the report carries the samples")
+        .iter()
+        .map(|sample| &sample["log"])
+        .find(|log| log["event_name"] == event_name)
+        .unwrap_or_else(|| panic!("no log sample named `{event_name}`"))["live_check_result"]
+        ["match_info"]
 }
 
 fn span_events_and_links_match_on_their_own(report: &Value) {

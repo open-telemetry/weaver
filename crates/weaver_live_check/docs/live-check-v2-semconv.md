@@ -290,7 +290,7 @@ instrumentation_scope.name.startsWith("myapp.")
 signal = "myapp.checkout"
 ```
 
-A span that carries the same attributes but comes from somewhere else no longer matches `myapp.checkout`. It falls back to the attribute by attribute check and an `unmatched_sample` finding.
+A span that carries the same attributes but comes from somewhere else no longer matches `myapp.checkout`. Its `match_info` says no matcher applied.
 
 A scope also carries a `schema_url`, which is the schema the telemetry claims to follow. We ingest it today and hand it to policies, but we do nothing else with it. It is worth comparing it with the `schema_url` of the registry we are checking against, because if the two disagree then the samples were built against a different version of the schema and some of the findings that follow are explained by that. A finding at information level when they differ would tell you so straight away.
 
@@ -386,7 +386,7 @@ For each sample:
 
 1. First we take the natural match, so a metric by its name and a log by its `event_name`.
 2. Then we apply every matcher whose `sample_type` and `when` both pass.
-3. The first matcher with a `signal` sets it, and it overrides the natural match. If another matcher also has a `signal` we ignore it and report `matcher_conflict` once at information level.
+3. The first matcher with a `signal` sets it, and it overrides the natural match. If another matcher also has a `signal` we ignore it and name it in the sample's `match_info`.
 4. The `attribute_groups` from all of the applied matchers are added in the order they're defined in the toml, first definition wins.
 5. The sample and its attributes are then compared with the primary signal and the secondary groups together.
 
@@ -396,12 +396,35 @@ This is why a matcher that only adds attributes leaves `signal` out. If it decla
 
 | Finding                | Level       | When we raise it                                                                                                                                                |
 | ---------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `unmatched_sample`     | Information | An untyped sample matched no matcher. Its attributes are only checked against the registry if `search_all_attributes` is set.                    |
 | `unexpected_attribute` | Improvement | A sample has an attribute that is not in the comparison set. A metric or a log has one as soon as its name resolves, so this fires with no matchers configured; a span needs a matcher. When a matcher sets `signal` the comparison set comes from that signal, not from the one the name resolved to. |
-| `matcher_conflict`     | Information | More than one of the applied matchers had a `signal`.                                                                                                           |
 | `kind_mismatch`        | Violation   | A matched span has a different `kind` to the one on the span signal.<br><br>(Since we can now compare spans this unlocks the ability to check the span's kind.) |
 
 We count matched samples against the `id` of the matcher, so coverage can tell you which matchers fired and which never did.
+
+## What a sample was checked against
+
+Every sample carries a `match_info` in its result, holding the signal, the matcher whose `signal` won, the attribute groups, and one entry per matcher that applied. The ansi output puts one line under the sample for each thing a matcher contributed, dimmed:
+
+```text
+Span checkout `server`
+  acme.checkout.by-name -> signal: acme.checkout
+  acme.checkout.by-name -> attribute_groups: acme.session, acme.customer
+
+Span cart `internal`
+  acme.cart.by-attribute -> signal: acme.cart
+  acme.span.by-scope -> attribute_groups: acme.customer
+  acme.cart.conflict -> signal: acme.checkout (conflict, ignored)
+
+Span unknown-op `internal`
+  none -> signal: no match
+
+Metric acme.cart.items `counter`, `{item}`
+  none -> signal: acme.cart.items
+```
+
+`none` means the sample's own name resolved the signal, or that nothing set one. `no match` is yellow on a sample that resolves a signal and has none: a span, a span event, a metric, or a log carrying an `event_name`. It is grey on a resource, a scope, a span link, a profile and a log with no `event_name`, none of which name a signal. `(conflict, ignored)` is red.
+
+It is not a finding, so it does not reach `finding_filters`, `fail_on` or the emitted OTLP logs.
 
 ## Related configuration
 

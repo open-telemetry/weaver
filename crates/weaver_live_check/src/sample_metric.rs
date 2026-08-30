@@ -385,12 +385,7 @@ impl LiveCheckRunner for SampleMetric {
 
         // A metric's attributes are on its data points, which check them
         // against this match.
-        sample_match.add_sample_findings(
-            &SampleRef::Metric(self),
-            &mut result,
-            live_checker,
-            parent_signal,
-        );
+        sample_match.set_match_info(&SampleRef::Metric(self), &mut result, live_checker);
         let semconv_metric = Some(Rc::new(sample_match));
 
         // Get advice for the data points

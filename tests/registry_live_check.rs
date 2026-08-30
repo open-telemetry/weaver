@@ -267,21 +267,21 @@ fn run_with_matcher_on_spans(matcher: &str) -> (Output, tempfile::TempDir) {
     (out, dir)
 }
 
-/// A span that matches no matcher is reported, so a gap in the matchers shows.
+/// A span that matches no matcher says so, showing a gap in the matchers.
 #[test]
-fn a_span_that_matches_no_matcher_reports_unmatched_sample() {
+fn a_span_that_matches_no_matcher_says_nothing_applied() {
     let (out, _dir) = run_with_matcher_on_spans(
         r#"id = "myapp.never"
 sample_type = "span"
 when = 'name == "no-such-span"'"#,
     );
     let output = combined(&out);
-    assert!(output.contains("unmatched_sample"), "got: {output}");
+    assert!(output.contains("\"unmatched\": true"), "got: {output}");
 }
 
 /// Without matchers the report is what it always was.
 #[test]
-fn no_matchers_reports_no_unmatched_sample() {
+fn no_matchers_reports_no_match_problem() {
     let out = Command::cargo_bin("weaver")
         .expect("weaver binary not found")
         .arg("registry")
@@ -295,7 +295,7 @@ fn no_matchers_reports_no_unmatched_sample() {
         .output()
         .expect("failed to execute weaver binary");
     let output = combined(&out);
-    assert!(!output.contains("unmatched_sample"), "got: {output}");
+    assert!(!output.contains("\"unmatched\": true"), "got: {output}");
 }
 
 /// A matcher that applies to no sample is reported, so dead config shows.
@@ -348,7 +348,7 @@ when = 'instrumentation_scope.name == "nope"'"#,
         "got: {output}"
     );
     // The matcher errored, so it matched nothing and the span is unmatched.
-    assert!(output.contains("unmatched_sample"), "got: {output}");
+    assert!(output.contains("\"unmatched\": true"), "got: {output}");
 }
 
 /// Renders the ansi template, which `run_live_check_on` mutes, with the colour
