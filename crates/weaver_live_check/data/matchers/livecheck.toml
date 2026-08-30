@@ -121,3 +121,23 @@ attribute_groups = ["acme.service"]
 id = "acme.scope.acme"
 sample_type = "instrumentation_scope"
 when = 'name.startsWith("acme.")'
+
+# An instrumentation scope cannot name a signal, but takes attribute groups.
+[["live-check".matchers]]
+id = "acme.scope.checkout"
+sample_type = "instrumentation_scope"
+when = 'name == "acme.checkout"'
+attribute_groups = ["acme.customer"]
+
+# Names a signal the sample's own name does not resolve to.
+[["live-check".matchers]]
+id = "acme.metric.renamed"
+sample_type = "metric"
+when = 'name == "acme.legacy.checkout.attempts"'
+signal = "acme.checkout.attempts"
+
+[["live-check".matchers]]
+id = "acme.log.renamed"
+sample_type = "log"
+when = 'event_name == "acme.checkout.dropped"'
+signal = "acme.checkout.abandoned"

@@ -397,7 +397,7 @@ impl SampleMatch {
                     .unwrap_or_default();
                 let message = if holds_definitions {
                     format!(
-                        "Attribute '{}' is not on the signal or its attribute groups.{defined_in}",
+                        "Attribute '{}' is not in the matched signal or attribute groups.{defined_in}",
                         attribute.name
                     )
                 } else {

@@ -56,35 +56,34 @@ impl LiveCheckRunner for SampleLog {
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
-        let semconv_event = if self.event_name.is_empty() {
-            // We allow Logd without event_names to be checked, but they cannot be matched to the registry
+        // A log with no event_name has no name to match on.
+        let natural = if self.event_name.is_empty() {
             None
         } else {
-            // find the event in the registry
-            let semconv_event = live_checker.find_event(&self.event_name);
-            if semconv_event.is_none() {
-                let finding = FindingBuilder::new(FindingId::MissingEvent)
-                    .message(format!(
-                        "Event '{}' does not exist in the registry.",
-                        self.event_name
-                    ))
-                    .level(FindingLevel::Violation)
-                    .signal(parent_signal)
-                    .build_and_emit(
-                        &SampleRef::Log(self),
-                        live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
-                        parent_signal,
-                    );
-                let sample_ref = SampleRef::Log(self);
-                result.add_advice(finding, live_checker.finding_modifier.as_ref(), &sample_ref);
-            };
-            semconv_event
+            live_checker.find_event(&self.event_name)
         };
         // The match comes before the advisors, so a matcher's `signal` is what
         // the attributes are checked against.
-        let sample_match = live_checker.match_for(SampleType::Log, self, semconv_event);
+        let sample_match = live_checker.match_for(SampleType::Log, self, natural);
         live_checker.record_match(&sample_match);
         let semconv_event = sample_match.signal.clone();
+        // Raised only when no matcher named a signal.
+        if semconv_event.is_none() && !self.event_name.is_empty() {
+            let finding = FindingBuilder::new(FindingId::MissingEvent)
+                .message(format!(
+                    "Event '{}' does not exist in the registry.",
+                    self.event_name
+                ))
+                .level(FindingLevel::Violation)
+                .signal(parent_signal)
+                .build_and_emit(
+                    &SampleRef::Log(self),
+                    live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
+                    parent_signal,
+                );
+            let sample_ref = SampleRef::Log(self);
+            result.add_advice(finding, live_checker.finding_modifier.as_ref(), &sample_ref);
+        }
         for advisor in live_checker.advisors.iter_mut() {
             let sample_ref = SampleRef::Log(self);
             let advice_list = advisor.advise(

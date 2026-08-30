@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 # Unreleased
 
 - Live-check matchers ([#1721](https://github.com/open-telemetry/weaver/pull/1721) by @jerbly)
-  - Add `[[live-check.matchers]]`, which matches a sample to a v2 signal and attribute groups with a CEL expression over the sample. v2 registries only.
+  - Add `[[live-check.matchers]]`, which matches a sample to a v2 signal and attribute groups with a CEL expression over the sample. v2 registries only. A named signal replaces the metric or event name lookup, so a renamed signal no longer draws `missing_metric` or `missing_event`.
   - New findings: `unmatched_sample`, `matcher_conflict`, `kind_mismatch` and `unexpected_attribute`.
   - Fix an attribute resolving to its base definition rather than the matched signal's, so a refined `stability`, `deprecated` or `annotations` was ignored.
   - Add `search_all_attributes` to `[live-check]`, which searches the registry's dependencies for an attribute that is on neither the signal nor its attribute groups. Off by default.

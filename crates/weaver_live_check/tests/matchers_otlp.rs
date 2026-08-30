@@ -204,7 +204,15 @@ async fn emit_telemetry(endpoint: &str) {
 }
 
 fn emit_spans(provider: &SdkTracerProvider) {
-    let checkout = provider.tracer(CHECKOUT_SCOPE);
+    // Matched by `acme.scope.checkout`, whose group declares the session id.
+    let checkout = provider.tracer_with_scope(
+        InstrumentationScope::builder(CHECKOUT_SCOPE)
+            .with_attributes([
+                KeyValue::new("acme.session.id", "s-9"),
+                KeyValue::new("acme.scope.stray", "x"),
+            ])
+            .build(),
+    );
 
     // Matched by `acme.checkout.by-name`. `acme.stray.field` is defined
     // nowhere and `acme.tenant.id` only in the dependency, so both are
@@ -293,6 +301,15 @@ fn emit_logs(provider: &SdkLoggerProvider) {
     record.set_body(AnyValue::from("payment declined"));
     record.add_attribute(Key::from("acme.session.id"), AnyValue::from("s-9"));
     logger.emit(record);
+
+    // Not in the registry; `acme.log.renamed` names its signal.
+    let mut record = logger.create_log_record();
+    record.set_event_name("acme.checkout.dropped");
+    record.set_severity_number(Severity::Info);
+    record.set_severity_text("INFO");
+    record.set_body(AnyValue::from("checkout abandoned"));
+    record.add_attribute(Key::from("acme.session.id"), AnyValue::from("s-9"));
+    logger.emit(record);
 }
 
 fn emit_metrics(provider: &SdkMeterProvider) {
@@ -321,6 +338,12 @@ fn emit_metrics(provider: &SdkMeterProvider) {
         .with_unit("{thing}")
         .build()
         .add(1, &[]);
+    // Not in the registry; `acme.metric.renamed` names its signal.
+    meter
+        .u64_counter("acme.legacy.checkout.attempts")
+        .with_unit("{attempt}")
+        .build()
+        .add(1, &[KeyValue::new("acme.checkout.stage", "payment")]);
 }
 
 /// What a matcher did, from `statistics.matchers`.
@@ -355,6 +378,17 @@ fn annotation_source<'a>(sample: &'a Value, key: &str) -> Option<&'a str> {
         .iter()
         .find(|finding| finding["id"] == "annotation_source")?["context"]["source"]
         .as_str()
+}
+
+/// The instrumentation scope samples with this name, one per signal type.
+fn scopes<'a>(report: &'a Value, name: &str) -> Vec<&'a Value> {
+    report["samples"]
+        .as_array()
+        .expect("the report carries the samples")
+        .iter()
+        .map(|sample| &sample["instrumentation_scope"])
+        .filter(|scope| scope["name"] == name)
+        .collect()
 }
 
 /// Every finding in the report, from every sample and every nested sample.
@@ -416,8 +450,10 @@ async fn matchers_check_telemetry_from_the_sdk() {
     the_findings_name_the_telemetry_that_caused_them(&findings);
     the_definition_used_comes_from_the_signal_then_the_first_group(&report);
     span_events_and_links_match_on_their_own(&report);
+    a_scope_takes_attribute_groups(&report);
     the_advisors_run_on_the_matched_definitions(&findings);
     a_matcher_signal_drives_the_metric_checks(&findings);
+    a_matcher_signal_answers_the_natural_match(&findings);
     the_entity_associations_are_checked_against_the_resource(&findings);
     the_statistics_count_every_finding(&report, &findings);
 }
@@ -488,6 +524,21 @@ fn the_entity_associations_are_checked_against_the_resource(findings: &[&Value])
     assert_eq!(unsatisfied[0]["signal_name"], "acme.checkout.completed");
 }
 
+/// A missing metric or event is raised only when no matcher named a signal.
+fn a_matcher_signal_answers_the_natural_match(findings: &[&Value]) {
+    let missing: Vec<&str> = with_id(findings, "missing_metric")
+        .iter()
+        .filter_map(|finding| finding["signal_name"].as_str())
+        .collect();
+    assert_eq!(missing, ["acme.unknown.total"]);
+
+    let missing: Vec<&str> = with_id(findings, "missing_event")
+        .iter()
+        .filter_map(|finding| finding["signal_name"].as_str())
+        .collect();
+    assert_eq!(missing, ["acme.checkout.failed"]);
+}
+
 /// A metric is checked against the signal its matcher names, not the one its
 /// own name resolves to.
 fn a_matcher_signal_drives_the_metric_checks(findings: &[&Value]) {
@@ -538,6 +589,9 @@ fn every_matcher_counts_what_it_matched(report: &Value) {
         ("acme.span-link.session", 1),
         ("acme.resource.tenant", 3),
         ("acme.scope.acme", 4),
+        ("acme.scope.checkout", 3),
+        ("acme.metric.renamed", 1),
+        ("acme.log.renamed", 1),
     ] {
         assert_eq!(matcher(report, id)["matched"], matched, "matcher `{id}`");
     }
@@ -629,6 +683,27 @@ fn the_definition_used_comes_from_the_signal_then_the_first_group(report: &Value
         annotation_source(checkout, "acme.session.id"),
         Some("group-session")
     );
+}
+
+/// An instrumentation scope cannot name a signal, but takes attribute groups.
+fn a_scope_takes_attribute_groups(report: &Value) {
+    // Only the tracer's copy of the scope carries attributes.
+    let scopes = scopes(report, CHECKOUT_SCOPE);
+    // The catalog definition is annotated `catalog`.
+    assert_eq!(
+        scopes
+            .iter()
+            .find_map(|scope| annotation_source(scope, "acme.session.id")),
+        Some("group-customer")
+    );
+
+    // The group gives the scope an expected set, so an attribute outside it is
+    // unexpected.
+    let mut findings = Vec::new();
+    for scope in &scopes {
+        collect_findings(scope, &mut findings);
+    }
+    let _ = finding_for(&findings, "unexpected_attribute", "acme.scope.stray");
 }
 
 fn span_events_and_links_match_on_their_own(report: &Value) {

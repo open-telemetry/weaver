@@ -237,3 +237,12 @@ events:
     attributes:
       - ref: acme.checkout.id
         requirement_level: required
+
+  # No entity associations, so naming it adds no entity findings.
+  - name: acme.checkout.abandoned
+    brief: A checkout was abandoned.
+    stability: stable
+    requirement_level: recommended
+    attributes:
+      - ref: acme.session.id
+        requirement_level: required

@@ -312,8 +312,13 @@ impl LiveCheckRunner for SampleMetric {
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
-        // find the metric in the registry
-        let semconv_metric = live_checker.find_metric(&self.name);
+        // The match comes before the advisors, so a matcher's `signal` is what
+        // the instrument, unit and attributes are checked against.
+        let natural = live_checker.find_metric(&self.name);
+        let sample_match = live_checker.match_for(SampleType::Metric, self, natural);
+        live_checker.record_match(&sample_match);
+        let semconv_metric = sample_match.signal.clone();
+        // Raised only when no matcher named a signal.
         if semconv_metric.is_none() {
             let finding = FindingBuilder::new(FindingId::MissingMetric)
                 .message("Metric does not exist in the registry.")
@@ -327,12 +332,7 @@ impl LiveCheckRunner for SampleMetric {
 
             let sample_ref = SampleRef::Metric(self);
             result.add_advice(finding, live_checker.finding_modifier.as_ref(), &sample_ref);
-        };
-        // The match comes before the advisors, so a matcher's `signal` is what
-        // the instrument, unit and attributes are checked against.
-        let sample_match = live_checker.match_for(SampleType::Metric, self, semconv_metric);
-        live_checker.record_match(&sample_match);
-        let semconv_metric = sample_match.signal.clone();
+        }
         for advisor in live_checker.advisors.iter_mut() {
             let sample_ref = SampleRef::Metric(self);
             let advice_list = advisor.advise(
