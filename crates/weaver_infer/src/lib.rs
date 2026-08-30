@@ -1050,6 +1050,8 @@ mod tests {
             status: None,
             attributes: vec![],
             span_events: vec![SampleSpanEvent {
+                resource: None,
+                instrumentation_scope: None,
                 name: "exception".to_owned(),
                 attributes: vec![SampleAttribute {
                     name: "exception.type".to_owned(),
@@ -1164,11 +1166,15 @@ mod tests {
             resource: None,
         }));
         acc.add_sample(Sample::SpanEvent(SampleSpanEvent {
+            resource: None,
+            instrumentation_scope: None,
             name: "ignored".to_owned(),
             attributes: vec![],
             live_check_result: None,
         }));
         acc.add_sample(Sample::SpanLink(SampleSpanLink {
+            resource: None,
+            instrumentation_scope: None,
             attributes: vec![],
             live_check_result: None,
         }));
@@ -1446,6 +1452,8 @@ mod tests {
             status: None,
             attributes: vec![],
             span_events: vec![SampleSpanEvent {
+                resource: None,
+                instrumentation_scope: None,
                 name: "exception".to_owned(),
                 attributes: vec![
                     SampleAttribute {
@@ -1579,6 +1587,8 @@ mod tests {
             status: None,
             attributes: vec![],
             span_events: vec![SampleSpanEvent {
+                resource: None,
+                instrumentation_scope: None,
                 name: "exception".to_owned(),
                 attributes: vec![SampleAttribute {
                     name: "span.attr".to_owned(),

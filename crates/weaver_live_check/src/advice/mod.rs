@@ -15,14 +15,14 @@ mod deprecated_advisor;
 mod enum_advisor;
 mod rego_advisor;
 mod stability_advisor;
-mod type_advisor;
+pub(crate) mod type_advisor;
 
 // Public re-exports
 pub use deprecated_advisor::DeprecatedAdvisor;
 pub use enum_advisor::EnumAdvisor;
 pub use rego_advisor::RegoAdvisor;
 pub use stability_advisor::StabilityAdvisor;
-pub(crate) use type_advisor::check_entity_associations;
+pub(crate) use type_advisor::add_entity_association_findings;
 pub use type_advisor::TypeAdvisor;
 
 /// Provides advice on a sample

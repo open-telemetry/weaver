@@ -16,6 +16,8 @@ where a `when` expression selects the samples a matcher applies to.
 | `Expression::evaluate` | Runs it against a set of bindings, returning a bool. |
 | `Expression::referenced` | The variables the expression reads, known after compiling. |
 | `Bindings` | Implemented by the caller to supply variable values. |
+| `Referenced::union` | The variables a set of expressions read, for one binding pass. |
+| `Scope` / `Expression::evaluate_in` | Binds once, then evaluates several expressions against it. |
 | `Error` | `CompileFailed`, `EvalFailed` or `NotBoolean`, each carrying the source text. |
 
 `Context` and `Value` are re-exported so implementors of `Bindings` need no
@@ -58,7 +60,8 @@ fn main() -> Result<(), weaver_cel::Error> {
 ## Notes
 
 `bind` is passed the `Referenced` set so it can skip work: an expression that
-only reads `name` never builds the attribute map.
+only reads `name` never builds the attribute map. Several expressions against
+one sample go through a `Scope`, which binds the union of what they read once.
 
 Reading an absent map key or an unbound variable is an error, not `false`.
 Guard with `in`, as in `"a.b" in attributes && attributes["a.b"] == "x"`, which

@@ -109,12 +109,24 @@ impl Bindings for SampleSpanEvent {
             context.add_variable_from_value("name", self.name.as_str());
         }
         bind_attributes(&self.attributes, referenced, context);
+        bind_signal_context(
+            self.resource.as_deref(),
+            self.instrumentation_scope.as_deref(),
+            referenced,
+            context,
+        );
     }
 }
 
 impl Bindings for SampleSpanLink {
     fn bind(&self, referenced: &Referenced, context: &mut Context<'_>) {
         bind_attributes(&self.attributes, referenced, context);
+        bind_signal_context(
+            self.resource.as_deref(),
+            self.instrumentation_scope.as_deref(),
+            referenced,
+            context,
+        );
     }
 }
 
@@ -123,20 +135,22 @@ impl Bindings for SampleLog {
         if referenced.wants("event_name") {
             context.add_variable_from_value("event_name", self.event_name.as_str());
         }
+        // An absent field is left unbound, so reading it errors rather than
+        // testing a default.
         if referenced.wants("severity_text") {
-            context.add_variable_from_value(
-                "severity_text",
-                self.severity_text.as_deref().unwrap_or_default(),
-            );
+            if let Some(severity_text) = self.severity_text.as_deref() {
+                context.add_variable_from_value("severity_text", severity_text);
+            }
         }
         if referenced.wants("severity_number") {
-            context.add_variable_from_value(
-                "severity_number",
-                i64::from(self.severity_number.unwrap_or_default()),
-            );
+            if let Some(severity_number) = self.severity_number {
+                context.add_variable_from_value("severity_number", i64::from(severity_number));
+            }
         }
         if referenced.wants("body") {
-            context.add_variable_from_value("body", self.body.as_deref().unwrap_or_default());
+            if let Some(body) = self.body.as_deref() {
+                context.add_variable_from_value("body", body);
+            }
         }
         bind_attributes(&self.attributes, referenced, context);
         bind_signal_context(
@@ -160,8 +174,7 @@ impl Bindings for SampleMetric {
             context.add_variable_from_value("instrument", enum_name(&self.instrument));
         }
         if referenced.wants("attributes") {
-            context
-                .add_variable_from_value("attributes", attribute_map(data_point_attributes(self)));
+            context.add_variable_from_value("attributes", agreed_attribute_map(self));
         }
         bind_signal_context(
             self.resource.as_deref(),
@@ -270,6 +283,26 @@ fn bind_signal_context(
             );
         }
     }
+}
+
+/// The attributes every data point of a metric holds the same value for.
+fn agreed_attribute_map(metric: &SampleMetric) -> HashMap<String, Value> {
+    let mut agreed: HashMap<String, Value> = HashMap::new();
+    let mut disputed: Vec<String> = Vec::new();
+    for attribute in data_point_attributes(metric) {
+        let value = attribute.value.as_ref().map_or(Value::Null, json_to_cel);
+        match agreed.get(&attribute.name) {
+            Some(held) if *held == value => {}
+            Some(_) => disputed.push(attribute.name.clone()),
+            None => {
+                let _ = agreed.insert(attribute.name.clone(), value);
+            }
+        }
+    }
+    for name in disputed {
+        let _ = agreed.remove(&name);
+    }
+    agreed
 }
 
 /// Builds the map for `attributes["key"]`.
@@ -471,6 +504,21 @@ mod tests {
             assert_eq!(matcher.attribute_groups, ["myapp.common"]);
         }
 
+        #[test]
+        fn an_absent_optional_field_errors_rather_than_defaulting() {
+            let log: SampleLog = parse(
+                r#"{ "event_name": "myapp.order.placed", "attributes": [], "live_check_result": null }"#,
+            );
+            for when in [
+                "severity_number < 10",
+                r#"severity_text == """#,
+                r#"body.contains("x")"#,
+            ] {
+                let error = evaluate(when, &log).expect_err("it errors");
+                assert!(matches!(error, Error::EvalFailed { .. }), "{when}: {error}");
+            }
+        }
+
         /// The fixture has no `when`.
         #[test]
         fn every_log_matches() {
@@ -507,6 +555,42 @@ mod tests {
             parse(include_str!(
                 "../fixtures/cel/metric-common/metric-myapp-checkout-duration.json"
             ))
+        }
+
+        #[test]
+        fn a_key_the_data_points_disagree_on_is_left_out() {
+            let metric: SampleMetric = parse(
+                r#"{
+                  "name": "myapp.checkout.duration",
+                  "instrument": "histogram",
+                  "unit": "s",
+                  "data_points": [
+                    { "attributes": [{ "name": "myapp.checkout.stage", "value": "payment" },
+                                     { "name": "myapp.tenant.code", "value": "acme-eu" }],
+                      "value": 0.42 },
+                    { "attributes": [{ "name": "myapp.checkout.stage", "value": "cart" },
+                                     { "name": "myapp.tenant.code", "value": "acme-eu" }],
+                      "value": 1.13 }
+                  ],
+                  "live_check_result": null
+                }"#,
+            );
+            assert!(
+                evaluate(r#"attributes["myapp.tenant.code"] == "acme-eu""#, &metric)
+                    .expect("it evaluates"),
+                "the points agree on the tenant"
+            );
+            assert!(
+                !evaluate(r#""myapp.checkout.stage" in attributes"#, &metric)
+                    .expect("it evaluates"),
+                "the points disagree on the stage"
+            );
+            let error = evaluate(
+                r#"attributes["myapp.checkout.stage"] == "payment""#,
+                &metric,
+            )
+            .expect_err("reading it errors");
+            assert!(matches!(error, Error::EvalFailed { .. }), "{error}");
         }
 
         #[test]

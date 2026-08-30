@@ -132,6 +132,8 @@ fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSampl
                         }
                         for event in span.events {
                             let mut sample_event = SampleSpanEvent {
+                                resource: None,
+                                instrumentation_scope: None,
                                 name: event.name,
                                 attributes: Vec::new(),
                                 live_check_result: None,

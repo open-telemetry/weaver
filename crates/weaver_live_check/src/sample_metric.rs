@@ -11,14 +11,14 @@ use weaver_checker::FindingLevel;
 use weaver_semconv::group::InstrumentSpec;
 
 use crate::{
-    advice::{check_entity_associations, emit_findings, FindingBuilder},
+    advice::{add_entity_association_findings, FindingBuilder},
     live_checker::LiveChecker,
     matcher::SampleMatch,
     sample_attribute::SampleAttribute,
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_resource::SampleResource,
     Advisable, Error, FindingId, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample,
-    SampleRef, SampleType, VersionedSignal,
+    SampleRef, SampleType,
 };
 
 /// Represents the instrument type of a metric
@@ -79,8 +79,17 @@ impl LiveCheckRunner for SampleNumberDataPoint {
         parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent.clone(), parent_signal)?);
+        let mut result = self.run_advisors(live_checker, stats, parent.clone(), parent_signal)?;
+        if let Some(sample_match) = parent.as_deref() {
+            sample_match.add_attribute_findings(
+                &SampleRef::NumberDataPoint(self),
+                &self.attributes,
+                &mut result,
+                live_checker,
+                parent_signal,
+            );
+        }
+        self.live_check_result = Some(result);
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         self.attributes
             .run_live_check(live_checker, stats, parent.clone(), parent_signal)?;
@@ -140,8 +149,17 @@ impl LiveCheckRunner for SampleHistogramDataPoint {
         parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent.clone(), parent_signal)?);
+        let mut result = self.run_advisors(live_checker, stats, parent.clone(), parent_signal)?;
+        if let Some(sample_match) = parent.as_deref() {
+            sample_match.add_attribute_findings(
+                &SampleRef::HistogramDataPoint(self),
+                &self.attributes,
+                &mut result,
+                live_checker,
+                parent_signal,
+            );
+        }
+        self.live_check_result = Some(result);
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         self.attributes
             .run_live_check(live_checker, stats, parent.clone(), parent_signal)?;
@@ -216,8 +234,17 @@ impl LiveCheckRunner for SampleExponentialHistogramDataPoint {
         parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent.clone(), parent_signal)?);
+        let mut result = self.run_advisors(live_checker, stats, parent.clone(), parent_signal)?;
+        if let Some(sample_match) = parent.as_deref() {
+            sample_match.add_attribute_findings(
+                &SampleRef::ExponentialHistogramDataPoint(self),
+                &self.attributes,
+                &mut result,
+                live_checker,
+                parent_signal,
+            );
+        }
+        self.live_check_result = Some(result);
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         self.attributes
             .run_live_check(live_checker, stats, parent.clone(), parent_signal)?;
@@ -348,46 +375,18 @@ impl LiveCheckRunner for SampleMetric {
                 &sample_ref,
             );
         }
-        // Check entity attribute requirements against the resource (empty slice if no resource)
-        let resource_attributes: &[SampleAttribute] = parent_signal
-            .resource()
-            .map(|r| r.attributes.as_slice())
-            .unwrap_or(&[]);
-        // A v1 group and a v2 metric hold the same expression in two shapes, so
-        // each arm calls the check with the shape it holds.
-        let findings = match semconv_metric.as_deref() {
-            Some(VersionedSignal::Group(g)) => check_entity_associations(
-                &g.entity_associations,
-                live_checker,
-                resource_attributes,
-                parent_signal,
-            ),
-            Some(VersionedSignal::Metric(m)) => check_entity_associations(
-                &m.entity_associations,
-                live_checker,
-                resource_attributes,
-                parent_signal,
-            ),
-            _ => Vec::new(),
-        };
-        if !findings.is_empty() {
-            let sample_ref = SampleRef::Metric(self);
-            emit_findings(
-                &findings,
-                &sample_ref,
-                live_checker.otlp_emitter.as_deref(),
-                parent_signal,
-            );
-            result.add_advice_list(
-                findings,
-                live_checker.finding_modifier.as_ref(),
-                &sample_ref,
-            );
-        }
-
-        sample_match.add_findings(
+        add_entity_association_findings(
+            semconv_metric.as_deref(),
             &SampleRef::Metric(self),
-            &[],
+            &mut result,
+            live_checker,
+            parent_signal,
+        );
+
+        // A metric's attributes are on its data points, which check them
+        // against this match.
+        sample_match.add_sample_findings(
+            &SampleRef::Metric(self),
             &mut result,
             live_checker,
             parent_signal,

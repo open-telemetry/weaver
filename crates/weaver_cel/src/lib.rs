@@ -8,9 +8,10 @@
 
 mod bindings;
 mod expression;
+mod free_variables;
 
 pub use bindings::Bindings;
-pub use expression::{Expression, Referenced};
+pub use expression::{Expression, Referenced, Scope};
 
 /// Re-exported so implementors of [`Bindings`] need no direct `cel` dependency.
 pub use cel::{Context, Value};

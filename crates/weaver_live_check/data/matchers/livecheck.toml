@@ -1,3 +1,4 @@
+#:schema ../../../../schemas/weaver-config.json
 # Matcher configuration for the `matchers_otlp` end-to-end test. Every matcher
 # here is asserted on, either by its match count or by the findings it causes.
 
@@ -25,7 +26,8 @@ attribute_groups = ["acme.customer"]
 [["live-check".matchers]]
 id = "acme.cart.by-attribute"
 sample_type = "span"
-when = '"acme.cart.item.count" in attributes'
+# A comprehension binds its own loop variable.
+when = 'attributes.exists(k, k == "acme.cart.item.count")'
 signal = "acme.cart"
 
 [["live-check".matchers]]
@@ -102,13 +104,14 @@ signal = "acme.checkout.duration"
 [["live-check".matchers]]
 id = "acme.span-event.step"
 sample_type = "span_event"
-when = 'name == "acme.checkout.step"'
+when = 'name == "acme.checkout.step" && resource.attributes["acme.tenant.id"] == "t-42"'
+signal = "acme.checkout.abandoned"
 attribute_groups = ["acme.step"]
 
 [["live-check".matchers]]
 id = "acme.span-link.session"
 sample_type = "span_link"
-when = '"acme.session.id" in attributes'
+when = '"acme.session.id" in attributes && instrumentation_scope.name == "acme.checkout"'
 attribute_groups = ["acme.customer"]
 
 [["live-check".matchers]]
@@ -141,3 +144,6 @@ id = "acme.log.renamed"
 sample_type = "log"
 when = 'event_name == "acme.checkout.dropped"'
 signal = "acme.checkout.abandoned"
+
+# [[live-check.finding_filters]]
+# exclude = ["unexpected_attribute"]

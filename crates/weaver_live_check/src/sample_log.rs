@@ -9,14 +9,14 @@ use serde::{Deserialize, Serialize};
 use weaver_checker::FindingLevel;
 
 use crate::{
-    advice::{check_entity_associations, emit_findings, FindingBuilder},
+    advice::{add_entity_association_findings, FindingBuilder},
     live_checker::LiveChecker,
     matcher::SampleMatch,
     sample_attribute::SampleAttribute,
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_resource::SampleResource,
     Error, FindingId, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
-    SampleType, VersionedSignal,
+    SampleType,
 };
 
 /// Represents a sample telemetry log parsed from any source
@@ -99,42 +99,13 @@ impl LiveCheckRunner for SampleLog {
                 &sample_ref,
             );
         }
-        // Check entity attribute requirements against the resource (empty slice if no resource)
-        let resource_attributes: &[SampleAttribute] = parent_signal
-            .resource()
-            .map(|r| r.attributes.as_slice())
-            .unwrap_or(&[]);
-        // A v1 group and a v2 event hold the same expression in two shapes, so
-        // each arm calls the check with the shape it holds.
-        let findings = match semconv_event.as_deref() {
-            Some(VersionedSignal::Group(g)) => check_entity_associations(
-                &g.entity_associations,
-                live_checker,
-                resource_attributes,
-                parent_signal,
-            ),
-            Some(VersionedSignal::Event(e)) => check_entity_associations(
-                &e.entity_associations,
-                live_checker,
-                resource_attributes,
-                parent_signal,
-            ),
-            _ => Vec::new(),
-        };
-        if !findings.is_empty() {
-            let sample_ref = SampleRef::Log(self);
-            emit_findings(
-                &findings,
-                &sample_ref,
-                live_checker.otlp_emitter.as_deref(),
-                parent_signal,
-            );
-            result.add_advice_list(
-                findings,
-                live_checker.finding_modifier.as_ref(),
-                &sample_ref,
-            );
-        }
+        add_entity_association_findings(
+            semconv_event.as_deref(),
+            &SampleRef::Log(self),
+            &mut result,
+            live_checker,
+            parent_signal,
+        );
 
         sample_match.add_findings(
             &SampleRef::Log(self),

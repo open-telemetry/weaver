@@ -24,8 +24,23 @@ use weaver_forge::v2::entity::{Entity as V2Entity, EntityRef};
 #[cfg(test)]
 use crate::CumulativeStatistics;
 
+/// Attributes of one signal or attribute group, keyed by attribute key.
+type AttributeIndex = HashMap<String, Rc<VersionedAttribute>>;
+
 /// Signal attributes, keyed by signal id and then by attribute key.
-type RefinedAttributes = HashMap<String, HashMap<String, Rc<VersionedAttribute>>>;
+type RefinedAttributes = HashMap<String, AttributeIndex>;
+
+/// The longest template attribute in `index` that `key` extends.
+fn find_template_in(index: &AttributeIndex, key: &str) -> Option<Rc<VersionedAttribute>> {
+    index
+        .iter()
+        .filter(|(name, attribute)| {
+            matches!(attribute.r#type(), AttributeType::Template(_))
+                && key.starts_with(name.as_str())
+        })
+        .max_by_key(|(name, _)| name.len())
+        .map(|(_, attribute)| Rc::clone(attribute))
+}
 
 /// A base attribute definition, and the schema urls of every registry that
 /// declares it.
@@ -343,13 +358,28 @@ impl LiveChecker {
         signal: &VersionedSignal,
         key: &str,
     ) -> Option<Rc<VersionedAttribute>> {
+        self.refined_index(signal)?.get(key).map(Rc::clone)
+    }
+
+    /// Find a template attribute of a signal that this key extends
+    #[must_use]
+    pub fn find_refined_template(
+        &self,
+        signal: &VersionedSignal,
+        key: &str,
+    ) -> Option<Rc<VersionedAttribute>> {
+        find_template_in(self.refined_index(signal)?, key)
+    }
+
+    /// The attributes a signal declares, keyed by attribute key
+    fn refined_index(&self, signal: &VersionedSignal) -> Option<&AttributeIndex> {
         let (index, id) = match signal {
             VersionedSignal::Span(span) => (&self.refined_span_attributes, &*span.r#type),
             VersionedSignal::Metric(metric) => (&self.refined_metric_attributes, &*metric.name),
             VersionedSignal::Event(event) => (&self.refined_event_attributes, &*event.name),
             VersionedSignal::Group(_) => return None,
         };
-        index.get(id)?.get(key).map(Rc::clone)
+        index.get(id)
     }
 
     /// Find an attribute in the base definitions of this registry and its
@@ -369,12 +399,14 @@ impl LiveChecker {
 
     /// Index the base attributes of this registry and its dependencies
     ///
-    /// Does nothing for a v1 registry.
-    pub fn search_all_attributes(&mut self) {
-        self.searching_all_attributes = true;
+    /// # Errors
+    ///
+    /// Returns an error for a v1 registry, which has no dependencies to search.
+    pub fn search_all_attributes(&mut self) -> Result<(), Error> {
         let VersionedRegistry::V2(registry) = self.registry.as_ref() else {
-            return;
+            return Err(Error::SearchAllAttributesRequiresV2Registry);
         };
+        self.searching_all_attributes = true;
         // This registry first, then nearest first, so a definition here wins over
         // a dependency's and a direct dependency's over a transitive one's.
         let sources = std::iter::once((&registry.schema_url, &registry.registry)).chain(
@@ -396,6 +428,7 @@ impl LiveChecker {
                     });
             }
         }
+        Ok(())
     }
 
     /// Find an attribute that a v2 attribute group declares
@@ -409,6 +442,19 @@ impl LiveChecker {
             .get(attribute_group_id)?
             .get(key)
             .map(Rc::clone)
+    }
+
+    /// Find a template attribute of a v2 attribute group that this key extends
+    #[must_use]
+    pub fn find_attribute_group_template(
+        &self,
+        attribute_group_id: &str,
+        key: &str,
+    ) -> Option<Rc<VersionedAttribute>> {
+        find_template_in(
+            self.attribute_group_attributes.get(attribute_group_id)?,
+            key,
+        )
     }
 
     /// Find a span in the registry by its type

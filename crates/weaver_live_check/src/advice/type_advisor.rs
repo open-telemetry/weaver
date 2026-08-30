@@ -7,6 +7,7 @@ use std::{collections::HashSet, rc::Rc};
 use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_forge::registry::ResolvedGroup;
 use weaver_forge::v2::{
+    attribute_group::AttributeGroupAttribute,
     entity::{Entity as V2Entity, EntityAssociation as V2EntityAssociation, EntityRef},
     event::EventAttribute,
     metric::MetricAttribute,
@@ -23,8 +24,8 @@ use weaver_semconv::entity_association::EntityAssociation;
 use super::{emit_findings, Advisor, FindingBuilder};
 use crate::{
     enum_name, live_checker::LiveChecker, otlp_logger::OtlpEmitter,
-    sample_attribute::SampleAttribute, sample_metric::SampleInstrument, Error, FindingId, Sample,
-    SampleRef, VersionedAttribute, VersionedEntity, VersionedSignal,
+    sample_attribute::SampleAttribute, sample_metric::SampleInstrument, Error, FindingId,
+    LiveCheckResult, Sample, SampleRef, VersionedAttribute, VersionedEntity, VersionedSignal,
     ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY, ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY,
     ENTITY_TYPE_ADVICE_CONTEXT_KEY, EXPECTED_VALUE_ADVICE_CONTEXT_KEY,
     INSTRUMENT_ADVICE_CONTEXT_KEY, UNIT_ADVICE_CONTEXT_KEY,
@@ -34,7 +35,7 @@ use crate::{
 pub struct TypeAdvisor;
 
 /// Trait to abstract over different attribute types for checking
-trait CheckableAttribute {
+pub(crate) trait CheckableAttribute {
     fn key(&self) -> &str;
     fn requirement_level(&self) -> &RequirementLevel;
     fn attribute_type(&self) -> &AttributeType;
@@ -83,6 +84,20 @@ impl CheckableAttribute for SpanAttribute {
 }
 
 impl CheckableAttribute for EventAttribute {
+    fn key(&self) -> &str {
+        &self.base.key
+    }
+
+    fn requirement_level(&self) -> &RequirementLevel {
+        &self.requirement_level
+    }
+
+    fn attribute_type(&self) -> &AttributeType {
+        &self.base.r#type
+    }
+}
+
+impl CheckableAttribute for AttributeGroupAttribute {
     fn key(&self) -> &str {
         &self.base.key
     }
@@ -316,6 +331,58 @@ pub(crate) fn check_entity_associations<A: AssocExpr>(
     }
 }
 
+/// Adds the findings a signal's `entity_associations` raise against the resource.
+pub(crate) fn add_entity_association_findings(
+    signal: Option<&VersionedSignal>,
+    sample_ref: &SampleRef<'_>,
+    result: &mut LiveCheckResult,
+    live_checker: &LiveChecker,
+    parent_signal: &Sample,
+) {
+    let resource_attributes: &[SampleAttribute] = parent_signal
+        .resource()
+        .map(|resource| resource.attributes.as_slice())
+        .unwrap_or(&[]);
+    // A v1 group and a v2 signal hold the same expression in two shapes.
+    let findings = match signal {
+        Some(VersionedSignal::Group(group)) => check_entity_associations(
+            &group.entity_associations,
+            live_checker,
+            resource_attributes,
+            parent_signal,
+        ),
+        Some(VersionedSignal::Span(span)) => check_entity_associations(
+            &span.entity_associations,
+            live_checker,
+            resource_attributes,
+            parent_signal,
+        ),
+        Some(VersionedSignal::Metric(metric)) => check_entity_associations(
+            &metric.entity_associations,
+            live_checker,
+            resource_attributes,
+            parent_signal,
+        ),
+        Some(VersionedSignal::Event(event)) => check_entity_associations(
+            &event.entity_associations,
+            live_checker,
+            resource_attributes,
+            parent_signal,
+        ),
+        None => Vec::new(),
+    };
+    if findings.is_empty() {
+        return;
+    }
+    emit_findings(
+        &findings,
+        sample_ref,
+        live_checker.otlp_emitter.as_deref(),
+        parent_signal,
+    );
+    result.add_advice_list(findings, live_checker.finding_modifier.as_ref(), sample_ref);
+}
+
 /// Recursively evaluates a single entity association expression.
 fn evaluate_association<A: AssocExpr>(
     assoc: &A,
@@ -442,7 +509,7 @@ fn entity_association_not_satisfied<A: AssocExpr>(
 /// | Recommended            | Improvement             |
 /// | Opt-In                 | Information             |
 /// | Conditionally Required | Information             |
-fn check_attributes<T: CheckableAttribute>(
+pub(crate) fn check_attributes<T: CheckableAttribute>(
     semconv_attributes: &[T],
     sample_attributes: &[SampleAttribute],
     sample: &Sample,
@@ -740,6 +807,26 @@ impl Advisor for TypeAdvisor {
                         signal_name: parent_signal.signal_name(),
                     });
                 }
+                emit_findings(
+                    &advice_list,
+                    &sample,
+                    otlp_emitter.as_deref(),
+                    parent_signal,
+                );
+                Ok(advice_list)
+            }
+            SampleRef::SpanEvent(sample_span_event) => {
+                let Some(semconv_event) = registry_group else {
+                    return Ok(Vec::new());
+                };
+                let VersionedSignal::Event(event) = &*semconv_event else {
+                    return Ok(Vec::new());
+                };
+                let advice_list = check_attributes(
+                    &event.attributes,
+                    &sample_span_event.attributes,
+                    parent_signal,
+                );
                 emit_findings(
                     &advice_list,
                     &sample,

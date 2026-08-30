@@ -324,14 +324,26 @@ fn emit_metrics(provider: &SdkMeterProvider) {
         .f64_histogram("acme.checkout.duration")
         .with_unit("s")
         .build()
-        .record(0.42, &[KeyValue::new("acme.checkout.stage", "payment")]);
+        .record(
+            0.42,
+            &[
+                KeyValue::new("acme.checkout.stage", "payment"),
+                KeyValue::new("acme.point.stray", "x"),
+            ],
+        );
     // `acme.metric.mismatched` names `acme.checkout.duration`, a histogram in
     // seconds, and the stage is not one of the variants that signal allows.
     meter
         .u64_counter("acme.checkout.attempts")
         .with_unit("{attempt}")
         .build()
-        .add(1, &[KeyValue::new("acme.checkout.stage", "refund")]);
+        .add(
+            1,
+            &[
+                KeyValue::new("acme.checkout.stage", "refund"),
+                KeyValue::new("acme.checkout.coupon", "SAVE10"),
+            ],
+        );
     // In neither the registry nor a matcher.
     meter
         .u64_counter("acme.unknown.total")
@@ -454,6 +466,8 @@ async fn matchers_check_telemetry_from_the_sdk() {
     the_advisors_run_on_the_matched_definitions(&findings);
     a_matcher_signal_drives_the_metric_checks(&findings);
     a_matcher_signal_answers_the_natural_match(&findings);
+    a_matched_attribute_group_checks_its_requirement_levels(&findings);
+    a_data_point_checks_its_attributes_against_the_metric_match(&findings);
     the_entity_associations_are_checked_against_the_resource(&findings);
     the_statistics_count_every_finding(&report, &findings);
 }
@@ -524,6 +538,23 @@ fn the_entity_associations_are_checked_against_the_resource(findings: &[&Value])
     assert_eq!(unsatisfied[0]["signal_name"], "acme.checkout.completed");
 }
 
+fn a_data_point_checks_its_attributes_against_the_metric_match(findings: &[&Value]) {
+    let stray = finding_for(findings, "unexpected_attribute", "acme.point.stray");
+    assert_eq!(stray["signal_name"], "acme.checkout.duration");
+}
+
+fn a_matched_attribute_group_checks_its_requirement_levels(findings: &[&Value]) {
+    let missing: Vec<&str> = with_id(findings, "recommended_attribute_not_present")
+        .iter()
+        .filter(|finding| finding["context"]["attribute_key"] == "acme.customer.tier")
+        .filter_map(|finding| finding["signal_name"].as_str())
+        .collect();
+    assert!(
+        missing.contains(&"checkout-legacy"),
+        "`acme.span.on-error` puts `acme.customer` on it: {missing:?}"
+    );
+}
+
 /// A missing metric or event is raised only when no matcher named a signal.
 fn a_matcher_signal_answers_the_natural_match(findings: &[&Value]) {
     let missing: Vec<&str> = with_id(findings, "missing_metric")
@@ -547,6 +578,10 @@ fn a_matcher_signal_drives_the_metric_checks(findings: &[&Value]) {
         assert_eq!(found.len(), 1, "got: {found:?}");
         assert_eq!(found[0]["signal_name"], "acme.checkout.attempts");
     }
+    // Only the natural signal declares the coupon, so this is unexpected
+    // against the one the matcher named instead.
+    let coupon = finding_for(findings, "unexpected_attribute", "acme.checkout.coupon");
+    assert_eq!(coupon["signal_name"], "acme.checkout.attempts");
 }
 
 /// A finding a match raises is added after the advisors have run, so it is the
@@ -634,6 +669,10 @@ fn the_findings_name_the_telemetry_that_caused_them(findings: &[&Value]) {
         !unexpected.contains(&"acme.session.id"),
         "an attribute group holds it: {unexpected:?}"
     );
+    assert!(
+        !unexpected.contains(&"acme.request.header.accept"),
+        "the signal's template `acme.request.header` covers it: {unexpected:?}"
+    );
     // A resource has an expected set of its own, from the matcher's group.
     assert!(
         !unexpected.contains(&"service.name"),
@@ -664,10 +703,26 @@ fn the_findings_name_the_telemetry_that_caused_them(findings: &[&Value]) {
     assert_eq!(kinds.len(), 1, "got: {kinds:?}");
     assert_eq!(kinds[0]["signal_name"], "checkout-legacy");
 
-    let missing = with_id(findings, "required_attribute_not_present");
-    assert_eq!(missing.len(), 1, "got: {missing:?}");
-    assert_eq!(missing[0]["context"]["attribute_key"], "acme.checkout.id");
-    assert_eq!(missing[0]["signal_name"], "checkout-legacy");
+    let mut missing: Vec<(&str, &str)> = with_id(findings, "required_attribute_not_present")
+        .iter()
+        .map(|finding| {
+            (
+                finding["context"]["attribute_key"]
+                    .as_str()
+                    .expect("an attribute key"),
+                finding["signal_name"].as_str().expect("a signal name"),
+            )
+        })
+        .collect();
+    missing.sort_unstable();
+    // The second is on the span event, from the event its matcher names.
+    assert_eq!(
+        missing,
+        [
+            ("acme.checkout.id", "checkout-legacy"),
+            ("acme.session.id", "checkout"),
+        ]
+    );
 }
 
 fn the_definition_used_comes_from_the_signal_then_the_first_group(report: &Value) {

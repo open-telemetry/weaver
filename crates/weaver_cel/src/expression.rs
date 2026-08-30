@@ -3,10 +3,37 @@
 //! Compiled expressions.
 
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
-use cel::{Context, Program, Value};
+use cel::{Context, Env, Program, Value};
 
-use crate::{Bindings, Error};
+use crate::{free_variables::free_variables, Bindings, Error};
+
+thread_local! {
+    /// The CEL standard environment, built once per thread because
+    /// `Context::default` rebuilds the whole function table.
+    static STDLIB: Arc<Env> = Arc::new(Env::stdlib());
+}
+
+/// Variables bound once, for evaluating several expressions against one sample.
+pub struct Scope<'a> {
+    context: Context<'a>,
+}
+
+impl Scope<'_> {
+    /// Binds the variables in `referenced`.
+    #[must_use]
+    pub fn new(referenced: &Referenced, bindings: &dyn Bindings) -> Self {
+        let mut context = Context::Root {
+            env: STDLIB.with(Arc::clone),
+            variables: Default::default(),
+            functions: Default::default(),
+            resolver: None,
+        };
+        bindings.bind(referenced, &mut context);
+        Self { context }
+    }
+}
 
 /// A compiled expression. Compiled once, evaluated per sample.
 #[derive(Debug)]
@@ -24,12 +51,7 @@ impl Expression {
             error: error.to_string(),
         })?;
         let referenced = Referenced {
-            variables: program
-                .references()
-                .variables()
-                .into_iter()
-                .map(str::to_owned)
-                .collect(),
+            variables: free_variables(program.expression()),
         };
         Ok(Self {
             source: source.to_owned(),
@@ -55,11 +77,19 @@ impl Expression {
     /// Reading an absent map key or an unbound variable is an error, not
     /// false.
     pub fn evaluate(&self, bindings: &dyn Bindings) -> Result<bool, Error> {
-        let mut context = Context::default();
-        bindings.bind(&self.referenced, &mut context);
+        self.evaluate_in(&Scope::new(&self.referenced, bindings))
+    }
+
+    /// Evaluates the expression against variables a scope already bound.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the expression fails to evaluate, or returns a
+    /// value that is not a bool.
+    pub fn evaluate_in(&self, scope: &Scope<'_>) -> Result<bool, Error> {
         let value = self
             .program
-            .execute(&context)
+            .execute(&scope.context)
             .map_err(|error| Error::EvalFailed {
                 expression: self.source.clone(),
                 error: error.to_string(),
@@ -81,6 +111,16 @@ pub struct Referenced {
 }
 
 impl Referenced {
+    /// The variables read by any of these expressions.
+    #[must_use]
+    pub fn union<'a>(expressions: impl Iterator<Item = &'a Expression>) -> Self {
+        Self {
+            variables: expressions
+                .flat_map(|expression| expression.referenced.variables.iter().cloned())
+                .collect(),
+        }
+    }
+
     /// Whether the expression reads this variable.
     #[must_use]
     pub fn wants(&self, variable: &str) -> bool {
@@ -98,6 +138,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
+    use crate::Scope;
 
     /// A stand-in sample: a name, some attributes, and a record of what was bound.
     struct TestBindings {
@@ -201,6 +242,49 @@ mod tests {
             expression.referenced().variables().collect::<Vec<_>>(),
             ["name"]
         );
+    }
+
+    #[test]
+    fn a_comprehension_binds_its_own_loop_variable() {
+        let expression = Expression::compile(r#"attributes.exists(k, k.startsWith("myapp."))"#)
+            .expect("compiles");
+        assert_eq!(
+            expression.referenced().variables().collect::<Vec<_>>(),
+            ["attributes"]
+        );
+        assert!(expression.evaluate(&sample()).expect("it evaluates"));
+    }
+
+    #[test]
+    fn a_name_used_free_outside_a_comprehension_is_still_referenced() {
+        let expression =
+            Expression::compile(r#"attributes.exists(name, name != "") && name != """#)
+                .expect("compiles");
+        assert!(expression.referenced().wants("name"));
+    }
+
+    #[test]
+    fn a_scope_binds_once_for_every_expression_in_it() {
+        let expressions: Vec<Expression> = [
+            r#"name.startsWith("checkout")"#,
+            r#"attributes["myapp.checkout.stage"] == "payment""#,
+            r#"name.endsWith("payment")"#,
+        ]
+        .iter()
+        .map(|source| Expression::compile(source).expect("compiles"))
+        .collect();
+        let referenced = Referenced::union(expressions.iter());
+        assert_eq!(
+            referenced.variables().collect::<Vec<_>>(),
+            ["attributes", "name"]
+        );
+
+        let bindings = sample();
+        let scope = Scope::new(&referenced, &bindings);
+        for expression in &expressions {
+            assert!(expression.evaluate_in(&scope).expect("it evaluates"));
+        }
+        assert_eq!(*bindings.bound.borrow(), ["name", "attributes"]);
     }
 
     /// An expression that only reads `name` does not build the attribute map.

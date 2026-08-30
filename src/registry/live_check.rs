@@ -327,7 +327,7 @@ pub(crate) fn command(
     live_checker.set_matchers(&config.matchers)?;
 
     if config.search_all_attributes {
-        live_checker.search_all_attributes();
+        live_checker.search_all_attributes()?;
     }
 
     let rego_advisor = RegoAdvisor::new(

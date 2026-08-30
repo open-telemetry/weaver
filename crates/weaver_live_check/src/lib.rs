@@ -307,6 +307,10 @@ pub enum Error {
         id: String,
     },
 
+    /// `search_all_attributes` is set against a v1 registry.
+    #[error("`search_all_attributes` requires a v2 registry. A v1 registry has no dependencies to search.")]
+    SearchAllAttributesRequiresV2Registry,
+
     /// A matcher sets `signal` for a sample type that has no signal.
     #[error("Matcher `{id}` sets `signal`, which a `{sample_type}` matcher does not allow. Use `attribute_groups` instead.")]
     MatcherSignalNotAllowed {

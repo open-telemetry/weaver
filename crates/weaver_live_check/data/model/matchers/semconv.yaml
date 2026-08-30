@@ -155,6 +155,7 @@ attribute_groups:
           acme:
             source: group-customer
       - ref: acme.customer.tier
+        requirement_level: recommended
 
 spans:
   - type: acme.checkout
@@ -224,6 +225,10 @@ metrics:
     requirement_level: recommended
     attributes:
       - ref: acme.checkout.stage
+        requirement_level: recommended
+      # Only this metric declares it, so a sample carrying it is unexpected
+      # against the signal `acme.metric.mismatched` names instead.
+      - ref: acme.checkout.coupon
         requirement_level: recommended
 
 events:
