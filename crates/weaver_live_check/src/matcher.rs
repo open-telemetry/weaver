@@ -510,12 +510,17 @@ impl SampleMatch {
     }
 
     /// Records what this match compared the sample with.
+    ///
+    /// A v1 registry takes no matchers, so it reports nothing here.
     pub fn set_match_info(
         &self,
         sample_ref: &SampleRef<'_>,
         result: &mut LiveCheckResult,
         live_checker: &LiveChecker,
     ) {
+        if !live_checker.is_v2() {
+            return;
+        }
         result.match_info = Some(
             live_checker
                 .matchers()

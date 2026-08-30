@@ -424,7 +424,7 @@ Metric acme.cart.items `counter`, `{item}`
 
 `none` means the sample's own name resolved the signal, or that nothing set one. `no match` is yellow on a sample that resolves a signal and has none: a span, a span event, a metric, or a log carrying an `event_name`. It is grey on a resource, a scope, a span link, a profile and a log with no `event_name`, none of which name a signal. `(conflict, ignored)` is red.
 
-It is not a finding, so it does not reach `finding_filters`, `fail_on` or the emitted OTLP logs.
+It is not a finding, so it does not reach `finding_filters`, `fail_on` or the emitted OTLP logs. A v1 registry takes no matchers and carries no `match_info`.
 
 ## Related configuration
 
