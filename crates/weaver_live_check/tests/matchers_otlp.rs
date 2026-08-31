@@ -76,7 +76,39 @@ async fn matchers_check_telemetry_from_the_sdk() {
     a_matched_attribute_group_checks_its_requirement_levels(&findings);
     a_data_point_checks_its_attributes_against_the_metric_match(&findings);
     the_entity_associations_are_checked_against_the_resource(&findings);
+    the_coverage_credits_the_signal_the_match_resolved(&report);
     the_statistics_count_every_finding(&report, &findings);
+}
+
+/// A matcher's `signal` renames what a metric or log is counted under, so the
+/// registry signal takes the coverage and the wire name is not a stranger.
+fn the_coverage_credits_the_signal_the_match_resolved(report: &Value) {
+    let statistics = &report["statistics"];
+    for (seen, unseen, signal, wire_name) in [
+        (
+            "seen_registry_metrics",
+            "seen_non_registry_metrics",
+            "acme.checkout.attempts",
+            "acme.legacy.checkout.attempts",
+        ),
+        (
+            "seen_registry_events",
+            "seen_non_registry_events",
+            "acme.checkout.abandoned",
+            "acme.checkout.dropped",
+        ),
+    ] {
+        assert_eq!(
+            statistics[seen][signal], 1,
+            "`{signal}` is the signal the matcher named: {}",
+            statistics[seen]
+        );
+        assert!(
+            statistics[unseen][wire_name].is_null(),
+            "`{wire_name}` resolved a registry signal: {}",
+            statistics[unseen]
+        );
+    }
 }
 
 /// The per-attribute advisors read the definition the match resolved, and the

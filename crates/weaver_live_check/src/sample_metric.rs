@@ -18,7 +18,7 @@ use crate::{
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_resource::SampleResource,
     Advisable, Error, FindingId, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample,
-    SampleRef, SampleType,
+    SampleRef, SampleType, VersionedSignal,
 };
 
 /// Represents the instrument type of a metric
@@ -345,6 +345,13 @@ impl LiveCheckRunner for SampleMetric {
         let sample_match = live_checker.match_for(SampleType::Metric, self, natural);
         live_checker.record_match(&sample_match);
         let semconv_metric = sample_match.signal.clone();
+        // Coverage is credited to the signal the match resolved, which a
+        // matcher can rename. A v1 group's id is not the metric name, so v1
+        // keeps the sample's own.
+        let coverage_name = match semconv_metric.as_deref() {
+            Some(VersionedSignal::Metric(metric)) => metric.name.to_string(),
+            _ => self.name.clone(),
+        };
         // Raised only when no matcher named a signal.
         if semconv_metric.is_none() {
             let finding = FindingBuilder::new(FindingId::MissingMetric)
@@ -420,7 +427,7 @@ impl LiveCheckRunner for SampleMetric {
         self.live_check_result = Some(result);
         stats.inc_entity_count("metric");
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
-        stats.add_metric_name_to_coverage(self.name.clone());
+        stats.add_metric_name_to_coverage(coverage_name);
         Ok(())
     }
 }

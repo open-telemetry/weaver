@@ -16,7 +16,7 @@ use crate::{
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_resource::SampleResource,
     Error, FindingId, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
-    SampleType,
+    SampleType, VersionedSignal,
 };
 
 /// Represents a sample telemetry log parsed from any source
@@ -67,6 +67,13 @@ impl LiveCheckRunner for SampleLog {
         let sample_match = live_checker.match_for(SampleType::Log, self, natural);
         live_checker.record_match(&sample_match);
         let semconv_event = sample_match.signal.clone();
+        // Coverage is credited to the signal the match resolved, which a
+        // matcher can rename. A v1 group's id is not the event name, so v1
+        // keeps the sample's own.
+        let coverage_name = match semconv_event.as_deref() {
+            Some(VersionedSignal::Event(event)) => event.name.to_string(),
+            _ => self.event_name.clone(),
+        };
         // Raised only when no matcher named a signal.
         if semconv_event.is_none() && !self.event_name.is_empty() {
             let finding = FindingBuilder::new(FindingId::MissingEvent)
@@ -123,7 +130,7 @@ impl LiveCheckRunner for SampleLog {
         self.live_check_result = Some(result);
         stats.inc_entity_count("log");
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
-        stats.add_event_name_to_coverage(self.event_name.clone());
+        stats.add_event_name_to_coverage(coverage_name);
         Ok(())
     }
 }
