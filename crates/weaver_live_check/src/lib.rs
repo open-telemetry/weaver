@@ -138,12 +138,12 @@ impl VersionedAttribute {
 
     /// Get the type of the attribute
     #[must_use]
-    pub fn r#type(&self) -> AttributeType {
+    pub fn r#type(&self) -> std::borrow::Cow<'_, AttributeType> {
         match self {
-            VersionedAttribute::V1(attr) => attr.r#type.clone(),
-            VersionedAttribute::V2(attr) => {
-                weaver_semconv::convert::v2_attribute_type_to_v1(attr.r#type.clone())
-            }
+            VersionedAttribute::V1(attr) => std::borrow::Cow::Borrowed(&attr.r#type),
+            VersionedAttribute::V2(attr) => std::borrow::Cow::Owned(
+                weaver_semconv::convert::v2_attribute_type_to_v1(attr.r#type.clone()),
+            ),
         }
     }
 

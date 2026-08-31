@@ -40,7 +40,7 @@ use crate::v2::{
 
 /// Converts a V2 primitive or array type to V1.
 #[must_use]
-pub fn v2_primitive_or_array_type_to_v1(
+pub(crate) fn v2_primitive_or_array_type_to_v1(
     t: V2PrimitiveOrArrayTypeSpec,
 ) -> V1PrimitiveOrArrayTypeSpec {
     match t {
@@ -58,7 +58,7 @@ pub fn v2_primitive_or_array_type_to_v1(
 
 /// Converts a V2 template type to V1.
 #[must_use]
-pub fn v2_template_type_to_v1(t: V2TemplateTypeSpec) -> V1TemplateTypeSpec {
+pub(crate) fn v2_template_type_to_v1(t: V2TemplateTypeSpec) -> V1TemplateTypeSpec {
     match t {
         V2TemplateTypeSpec::Boolean => V1TemplateTypeSpec::Boolean,
         V2TemplateTypeSpec::Int => V1TemplateTypeSpec::Int,
@@ -74,7 +74,7 @@ pub fn v2_template_type_to_v1(t: V2TemplateTypeSpec) -> V1TemplateTypeSpec {
 
 /// Converts a V2 value to V1.
 #[must_use]
-pub fn v2_value_to_v1(v: V2ValueSpec) -> V1ValueSpec {
+pub(crate) fn v2_value_to_v1(v: V2ValueSpec) -> V1ValueSpec {
     match v {
         V2ValueSpec::Int(i) => V1ValueSpec::Int(i),
         V2ValueSpec::Double(d) => V1ValueSpec::Double(d),
@@ -85,7 +85,7 @@ pub fn v2_value_to_v1(v: V2ValueSpec) -> V1ValueSpec {
 
 /// Converts a V2 enum entry to V1.
 #[must_use]
-pub fn v2_enum_entry_to_v1(e: V2EnumEntriesSpec) -> V1EnumEntriesSpec {
+pub(crate) fn v2_enum_entry_to_v1(e: V2EnumEntriesSpec) -> V1EnumEntriesSpec {
     V1EnumEntriesSpec {
         id: e.id,
         value: v2_value_to_v1(e.value),
@@ -134,7 +134,7 @@ pub fn v2_examples_to_v1(e: V2Examples) -> V1Examples {
 
 /// Converts V2 basic requirement level to V1.
 #[must_use]
-pub fn v2_basic_requirement_level_to_v1(
+pub(crate) fn v2_basic_requirement_level_to_v1(
     b: V2BasicRequirementLevelSpec,
 ) -> V1BasicRequirementLevelSpec {
     match b {
@@ -161,7 +161,7 @@ pub fn v2_requirement_level_to_v1(r: V2RequirementLevel) -> V1RequirementLevel {
 
 /// Converts a V2 attribute definition into a V1 AttributeSpec.
 #[must_use]
-pub fn v2_attribute_to_v1(attr: AttributeDef) -> V1AttributeSpec {
+pub(crate) fn v2_attribute_to_v1(attr: AttributeDef) -> V1AttributeSpec {
     V1AttributeSpec::Id {
         id: attr.key,
         r#type: v2_attribute_type_to_v1(attr.r#type),
@@ -184,7 +184,7 @@ pub fn v2_attribute_to_v1(attr: AttributeDef) -> V1AttributeSpec {
 
 /// Converts a V2 attribute ref into a V1 AttributeSpec.
 #[must_use]
-pub fn v2_attribute_ref_to_v1(attr_ref: AttributeRef) -> V1AttributeSpec {
+pub(crate) fn v2_attribute_ref_to_v1(attr_ref: AttributeRef) -> V1AttributeSpec {
     V1AttributeSpec::Ref {
         r#ref: attr_ref.r#ref,
         brief: attr_ref.brief,
@@ -207,7 +207,7 @@ pub fn v2_attribute_ref_to_v1(attr_ref: AttributeRef) -> V1AttributeSpec {
 
 /// Converts a V2 attribute ref with a specific role into a V1 AttributeSpec.
 #[must_use]
-pub fn v2_attribute_ref_to_v1_with_role(
+pub(crate) fn v2_attribute_ref_to_v1_with_role(
     attr_ref: AttributeRef,
     role: V1AttributeRole,
 ) -> V1AttributeSpec {
@@ -233,7 +233,7 @@ pub fn v2_attribute_ref_to_v1_with_role(
 
 /// Converts a V2 span attribute ref into a V1 AttributeSpec.
 #[must_use]
-pub fn v2_span_attribute_ref_to_v1(attr_ref: SpanAttributeRef) -> V1AttributeSpec {
+pub(crate) fn v2_span_attribute_ref_to_v1(attr_ref: SpanAttributeRef) -> V1AttributeSpec {
     V1AttributeSpec::Ref {
         r#ref: attr_ref.base.r#ref,
         brief: attr_ref.base.brief,
@@ -260,7 +260,7 @@ pub fn v2_span_attribute_ref_to_v1(attr_ref: SpanAttributeRef) -> V1AttributeSpe
 /// Helper function to split a vector of AttributeOrGroupRef into separate vectors
 /// of V1 AttributeSpec and group reference strings.
 #[must_use]
-pub fn split_attributes_and_groups_to_v1(
+pub(crate) fn split_attributes_and_groups_to_v1(
     attributes_and_groups: Vec<AttributeOrGroupRef>,
 ) -> (Vec<V1AttributeSpec>, Vec<String>) {
     let mut attributes = Vec::new();
@@ -281,7 +281,7 @@ pub fn split_attributes_and_groups_to_v1(
 /// Helper function to split a vector of SpanAttributeOrGroupRef into separate vectors
 /// of V1 AttributeSpec and group reference strings.
 #[must_use]
-pub fn split_span_attributes_and_groups_to_v1(
+pub(crate) fn split_span_attributes_and_groups_to_v1(
     attributes: Vec<SpanAttributeOrGroupRef>,
 ) -> (Vec<V1AttributeSpec>, Vec<String>) {
     let mut attribute_refs = Vec::new();
@@ -332,7 +332,7 @@ pub fn v2_span_name_to_v1(s: crate::v2::span::SpanName) -> V1SpanName {
 
 /// Converts a V2 metric into a V1 GroupSpec.
 #[must_use]
-pub fn v2_metric_to_v1(metric: Metric) -> V1GroupSpec {
+pub(crate) fn v2_metric_to_v1(metric: Metric) -> V1GroupSpec {
     let (attribute_refs, include_groups) = split_attributes_and_groups_to_v1(metric.attributes);
     V1GroupSpec {
         id: format!("metric.{}", &metric.name),
@@ -368,7 +368,7 @@ pub fn v2_metric_to_v1(metric: Metric) -> V1GroupSpec {
 
 /// Converts a V2 metric refinement into a V1 GroupSpec.
 #[must_use]
-pub fn v2_metric_refinement_to_v1(r: MetricRefinement) -> V1GroupSpec {
+pub(crate) fn v2_metric_refinement_to_v1(r: MetricRefinement) -> V1GroupSpec {
     let (attribute_refs, include_groups) = split_attributes_and_groups_to_v1(r.attributes);
     V1GroupSpec {
         id: r.id.to_string(),
@@ -404,7 +404,7 @@ pub fn v2_metric_refinement_to_v1(r: MetricRefinement) -> V1GroupSpec {
 
 /// Converts a V2 span into a V1 GroupSpec.
 #[must_use]
-pub fn v2_span_to_v1(span: Span) -> V1GroupSpec {
+pub(crate) fn v2_span_to_v1(span: Span) -> V1GroupSpec {
     let (attribute_refs, include_groups) = split_span_attributes_and_groups_to_v1(span.attributes);
     V1GroupSpec {
         id: format!("span.{}", &span.r#type),
@@ -442,7 +442,7 @@ pub fn v2_span_to_v1(span: Span) -> V1GroupSpec {
 
 /// Converts a V2 span refinement into a V1 GroupSpec.
 #[must_use]
-pub fn v2_span_refinement_to_v1(r: SpanRefinement) -> V1GroupSpec {
+pub(crate) fn v2_span_refinement_to_v1(r: SpanRefinement) -> V1GroupSpec {
     let (attribute_refs, include_groups) = split_span_attributes_and_groups_to_v1(r.attributes);
     V1GroupSpec {
         id: r.id.to_string(),
@@ -478,7 +478,7 @@ pub fn v2_span_refinement_to_v1(r: SpanRefinement) -> V1GroupSpec {
 
 /// Converts a V2 event into a V1 GroupSpec.
 #[must_use]
-pub fn v2_event_to_v1(event: Event) -> V1GroupSpec {
+pub(crate) fn v2_event_to_v1(event: Event) -> V1GroupSpec {
     let (attribute_refs, include_groups) = split_attributes_and_groups_to_v1(event.attributes);
     V1GroupSpec {
         id: format!("event.{}", &event.name),
@@ -514,7 +514,7 @@ pub fn v2_event_to_v1(event: Event) -> V1GroupSpec {
 
 /// Converts a V2 event refinement into a V1 GroupSpec.
 #[must_use]
-pub fn v2_event_refinement_to_v1(r: EventRefinement) -> V1GroupSpec {
+pub(crate) fn v2_event_refinement_to_v1(r: EventRefinement) -> V1GroupSpec {
     let (attribute_refs, include_groups) = split_attributes_and_groups_to_v1(r.attributes);
     V1GroupSpec {
         id: r.id.to_string(),
@@ -550,7 +550,7 @@ pub fn v2_event_refinement_to_v1(r: EventRefinement) -> V1GroupSpec {
 
 /// Converts a V2 entity into a V1 GroupSpec.
 #[must_use]
-pub fn v2_entity_to_v1(entity: Entity) -> V1GroupSpec {
+pub(crate) fn v2_entity_to_v1(entity: Entity) -> V1GroupSpec {
     let attributes = entity
         .identity
         .into_iter()
@@ -597,7 +597,7 @@ pub fn v2_entity_to_v1(entity: Entity) -> V1GroupSpec {
 
 /// Converts a V2 entity refinement into a V1 GroupSpec.
 #[must_use]
-pub fn v2_entity_refinement_to_v1(r: EntityRefinement) -> V1GroupSpec {
+pub(crate) fn v2_entity_refinement_to_v1(r: EntityRefinement) -> V1GroupSpec {
     let attributes = r
         .identity
         .into_iter()
@@ -643,7 +643,7 @@ pub fn v2_entity_refinement_to_v1(r: EntityRefinement) -> V1GroupSpec {
 
 /// Converts a V2 attribute group into a V1 GroupSpec.
 #[must_use]
-pub fn v2_attribute_group_to_v1(ag: AttributeGroup) -> V1GroupSpec {
+pub(crate) fn v2_attribute_group_to_v1(ag: AttributeGroup) -> V1GroupSpec {
     match ag {
         AttributeGroup::Internal(internal) => {
             let (attribute_refs, include_groups) =
@@ -715,7 +715,7 @@ pub fn v2_attribute_group_to_v1(ag: AttributeGroup) -> V1GroupSpec {
 
 /// Converts V2 imports to V1 imports.
 #[must_use]
-pub fn v2_imports_to_v1(imports: Option<V2Imports>) -> Option<V1Imports> {
+pub(crate) fn v2_imports_to_v1(imports: Option<V2Imports>) -> Option<V1Imports> {
     imports.map(|i| V1Imports {
         metrics: i
             .metrics
@@ -814,7 +814,7 @@ pub fn v1_primitive_or_array_type_to_v2(
 
 /// Converts a V1 template type to V2.
 #[must_use]
-pub fn v1_template_type_to_v2(t: V1TemplateTypeSpec) -> V2TemplateTypeSpec {
+pub(crate) fn v1_template_type_to_v2(t: V1TemplateTypeSpec) -> V2TemplateTypeSpec {
     match t {
         V1TemplateTypeSpec::Boolean => V2TemplateTypeSpec::Boolean,
         V1TemplateTypeSpec::Int => V2TemplateTypeSpec::Int,
@@ -830,7 +830,7 @@ pub fn v1_template_type_to_v2(t: V1TemplateTypeSpec) -> V2TemplateTypeSpec {
 
 /// Converts a V1 value spec to V2.
 #[must_use]
-pub fn v1_value_to_v2(v: V1ValueSpec) -> V2ValueSpec {
+pub(crate) fn v1_value_to_v2(v: V1ValueSpec) -> V2ValueSpec {
     match v {
         V1ValueSpec::Int(i) => V2ValueSpec::Int(i),
         V1ValueSpec::Double(d) => V2ValueSpec::Double(d),
@@ -841,7 +841,7 @@ pub fn v1_value_to_v2(v: V1ValueSpec) -> V2ValueSpec {
 
 /// Converts a V1 enum entry to V2.
 #[must_use]
-pub fn v1_enum_entry_to_v2(e: V1EnumEntriesSpec) -> V2EnumEntriesSpec {
+pub(crate) fn v1_enum_entry_to_v2(e: V1EnumEntriesSpec) -> V2EnumEntriesSpec {
     V2EnumEntriesSpec {
         id: e.id,
         value: v1_value_to_v2(e.value),
@@ -849,7 +849,7 @@ pub fn v1_enum_entry_to_v2(e: V1EnumEntriesSpec) -> V2EnumEntriesSpec {
         note: e.note,
         stability: e.stability,
         deprecated: e.deprecated,
-        annotations: Default::default(),
+        annotations: e.annotations,
     }
 }
 
@@ -890,7 +890,7 @@ pub fn v1_examples_to_v2(e: V1Examples) -> V2Examples {
 
 /// Converts V1 basic requirement level to V2.
 #[must_use]
-pub fn v1_basic_requirement_level_to_v2(
+pub(crate) fn v1_basic_requirement_level_to_v2(
     b: V1BasicRequirementLevelSpec,
 ) -> V2BasicRequirementLevelSpec {
     match b {
@@ -935,21 +935,6 @@ pub fn v1_span_kind_to_v2(k: V1SpanKindSpec) -> V2SpanKindSpec {
         V1SpanKindSpec::Server => V2SpanKindSpec::Server,
         V1SpanKindSpec::Producer => V2SpanKindSpec::Producer,
         V1SpanKindSpec::Consumer => V2SpanKindSpec::Consumer,
-    }
-}
-
-/// Converts V1 attribute group visibility to V2.
-#[must_use]
-pub fn v1_attribute_group_visibility_to_v2(
-    v: V1VisibilitySpec,
-) -> crate::v2::attribute_group::AttributeGroupVisibilitySpec {
-    match v {
-        V1VisibilitySpec::Public => {
-            crate::v2::attribute_group::AttributeGroupVisibilitySpec::Public
-        }
-        V1VisibilitySpec::Internal => {
-            crate::v2::attribute_group::AttributeGroupVisibilitySpec::Internal
-        }
     }
 }
 
@@ -1096,6 +1081,7 @@ mod tests {
         assert_eq!(converted_back_v2.note, v2_enum_entry.note);
         assert_eq!(converted_back_v2.stability, v2_enum_entry.stability);
         assert_eq!(converted_back_v2.deprecated, v2_enum_entry.deprecated);
+        assert_eq!(converted_back_v2.annotations, v2_enum_entry.annotations);
     }
 
     #[test]
@@ -1281,22 +1267,13 @@ mod tests {
     }
 
     #[test]
-    fn test_span_name_and_visibility_conversions() {
+    fn test_span_name_conversions() {
         let v2_span_name = SpanName {
             note: "HTTP {method}".to_owned(),
         };
         let v1_span_name = v2_span_name_to_v1(v2_span_name.clone());
         assert_eq!(v1_span_name.note, "HTTP {method}");
         assert_eq!(v1_span_name_to_v2(v1_span_name).note, v2_span_name.note);
-
-        assert_eq!(
-            v1_attribute_group_visibility_to_v2(V1VisibilitySpec::Public),
-            crate::v2::attribute_group::AttributeGroupVisibilitySpec::Public
-        );
-        assert_eq!(
-            v1_attribute_group_visibility_to_v2(V1VisibilitySpec::Internal),
-            crate::v2::attribute_group::AttributeGroupVisibilitySpec::Internal
-        );
     }
 
     #[test]

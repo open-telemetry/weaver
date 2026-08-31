@@ -206,7 +206,7 @@ impl LiveCheckRunner for SampleAttribute {
         } else {
             // Provide an info advice if the attribute is a template
             if let Some(attribute) = &semconv_attribute {
-                if let AttributeType::Template(_) = attribute.r#type() {
+                if let AttributeType::Template(_) = attribute.r#type().as_ref() {
                     let sample_ref = SampleRef::Attribute(self);
                     let finding = FindingBuilder::new(FindingId::TemplateAttribute)
                         .context(json!({ ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: self.name.clone(), "template_name": attribute.name() }))

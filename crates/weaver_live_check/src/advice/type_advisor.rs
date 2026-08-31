@@ -621,7 +621,7 @@ impl Advisor for TypeAdvisor {
                 match (registry_attribute, sample_attribute.r#type.as_ref()) {
                     (Some(semconv_attribute), Some(attribute_type)) => {
                         let semconv_type = semconv_attribute.r#type();
-                        let semconv_attribute_type = match &semconv_type {
+                        let semconv_attribute_type = match semconv_type.as_ref() {
                             AttributeType::PrimitiveOrArray(primitive_or_array_type_spec) => {
                                 primitive_or_array_type_spec
                             }

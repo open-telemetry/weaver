@@ -34,7 +34,8 @@ impl Advisor for EnumAdvisor {
                     sample_attribute.r#type.as_ref(),
                 ) {
                     (Some(semconv_attribute), Some(attribute_value), Some(attribute_type)) => {
-                        if let AttributeType::Enum { members, .. } = semconv_attribute.r#type() {
+                        let semconv_type = semconv_attribute.r#type();
+                        if let AttributeType::Enum { members, .. } = semconv_type.as_ref() {
                             let mut is_found = false;
                             for member in members {
                                 if match attribute_type {

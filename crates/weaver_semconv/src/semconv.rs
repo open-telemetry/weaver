@@ -440,4 +440,143 @@ mod tests {
             .unwrap();
         assert!(matches!(v2.spec, Versioned::V2(_)));
     }
+
+    #[test]
+    fn test_provenance_path_to_name_helper() {
+        assert_eq!(
+            provenance_path_to_name("data/database.yaml"),
+            "data.database"
+        );
+        assert_eq!(provenance_path_to_name("simple.yaml"), "simple");
+        assert_eq!(
+            provenance_path_to_name("a/b/c/file.semconv.yaml"),
+            "a.b.c.file.semconv"
+        );
+    }
+
+    #[test]
+    fn test_semconv_spec_with_provenance_from_file_v2() {
+        let spec = r#"
+        file_format: 'definition/2'
+        attributes:
+        - key: "attr1"
+          stability: "stable"
+          brief: "description1"
+          type: "string"
+          examples: "example1"
+        spans:
+        - type: "group2"
+          stability: "stable"
+          brief: "description2"
+          kind: "server"
+          requirement_level: recommended
+          name:
+           note: "{myspan}"
+          attributes:
+            - ref: "attr1"
+        imports:
+          metrics:
+            - foo/*
+        "#;
+
+        let (semconv_spec, _) = semconv_from_file(spec)
+            .into_result_with_non_fatal()
+            .unwrap();
+
+        let spec_v1 = semconv_spec.clone().into_v1().spec;
+        assert_eq!(spec_v1.groups.len(), 2);
+        let mut group_ids: Vec<&str> = spec_v1.groups.iter().map(|g| g.id.as_str()).collect();
+        group_ids.sort();
+        assert_eq!(
+            format!(
+                "registry.{}",
+                provenance_path_to_name(&semconv_spec.provenance.path)
+            ),
+            group_ids[0]
+        );
+        assert_eq!("span.group2", group_ids[1]);
+    }
+
+    #[test]
+    fn test_error_message_bad_format() {
+        let spec = r#"
+        file_format: 'definition/24'
+        attributes:
+        - key: "attr1"
+          stability: "stable"
+          brief: "description1"
+          type: "string"
+          examples: "example1"
+        "#;
+
+        let result = semconv_from_file(spec);
+        assert!(result.is_fatal());
+        let error_message = match result {
+            WResult::FatalErr(e) => e.to_string(),
+            _ => panic!("Expected fatal error"),
+        };
+        assert!(
+            error_message.contains("Invalid file format: `file_format: definition/24`. Expected 'file_format: definition/1' or 'file_format: definition/2'"),
+            "Actual error message: {error_message}"
+        );
+    }
+
+    #[test]
+    fn test_error_message_invalid_v1() {
+        let spec = r#"
+        file_format: 'definition/1'
+        attributes:
+        - key: "attr1"
+        "#;
+
+        let result = semconv_from_file(spec);
+        assert!(result.is_fatal());
+        let error_message = match result {
+            WResult::FatalErr(e) => e.to_string(),
+            _ => panic!("Expected fatal error"),
+        };
+        assert!(
+            error_message.contains("Object contains unexpected properties: attributes. These properties are not defined in the schema."),
+            "Actual error message: {error_message}"
+        );
+    }
+
+    #[test]
+    fn test_error_message_invalid_unversioned() {
+        let spec = r#"
+        attributes:
+        - key: "attr1"
+        "#;
+
+        let result = semconv_from_file(spec);
+        assert!(result.is_fatal());
+        let error_message = match result {
+            WResult::FatalErr(e) => e.to_string(),
+            _ => panic!("Expected fatal error"),
+        };
+        assert!(
+            error_message.contains("Object contains unexpected properties: attributes. These properties are not defined in the schema."),
+            "Actual error message: {error_message}"
+        );
+    }
+
+    #[test]
+    fn test_error_message_invalid_format_2() {
+        let spec = r#"
+        file_format: 'definition/2'
+        groups:
+          - id: group
+        "#;
+
+        let result = semconv_from_file(spec);
+        assert!(result.is_fatal());
+        let error_message = match result {
+            WResult::FatalErr(e) => e.to_string(),
+            _ => panic!("Expected fatal error"),
+        };
+        assert!(
+            error_message.contains("Object contains unexpected properties: groups. These properties are not defined in the schema."),
+            "Actual error message: {error_message}"
+        );
+    }
 }

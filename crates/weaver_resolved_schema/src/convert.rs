@@ -1637,4 +1637,302 @@ mod tests {
             _ => panic!("Expected EntityAssociation::OneOf"),
         }
     }
+
+    /// A catalog entry stores a missing stability as the default stability (e.g. Alpha or Stable).
+    /// A lookup for a span attribute with no stability must find that entry and retain it.
+    #[test]
+    fn test_convert_span_keeps_attribute_without_stability() {
+        let mut builder = crate::v1::catalog::test_utils::CatalogBuilder::default();
+        let ref0 = builder.add(
+            V1Attribute {
+                name: "test.key".to_owned(),
+                r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                brief: "test brief".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: weaver_semconv::v1::attribute::RequirementLevel::Basic(
+                    weaver_semconv::v1::attribute::BasicRequirementLevelSpec::Required,
+                ),
+                sampling_relevant: Some(false),
+                note: "".to_owned(),
+                stability: None, // No stability specified in V1
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: None,
+            },
+            None,
+        );
+        let catalog = builder.build();
+
+        let span_group = V1Group {
+            id: "span.test_span".to_owned(),
+            r#type: GroupType::Span,
+            brief: "span brief".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            name: None,
+            lineage: None,
+            display_name: None,
+            attributes: vec![ref0],
+            span_kind: Some(weaver_semconv::v1::group::SpanKindSpec::Server),
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            requirement_level: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: false,
+            span_name: None,
+        };
+
+        let registry = V1Registry {
+            registry_url: "http://test/schemas/1.0.0".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![span_group],
+        };
+
+        let (catalog_v2, reg, _, _) = convert_v1_to_v2(catalog, registry, BTreeSet::new()).unwrap();
+        assert_eq!(catalog_v2.len(), 1);
+        assert_eq!(reg.spans.len(), 1);
+        assert_eq!(reg.spans[0].attributes.len(), 1);
+        assert_eq!(reg.spans[0].attributes[0].base, AttributeRef(0));
+    }
+
+    /// A catalog entry stores a missing stability as default stability.
+    /// An entity with attributes having no stability must retain them in identity and description.
+    #[test]
+    fn test_convert_entity_keeps_attribute_without_stability() {
+        let mut builder = crate::v1::catalog::test_utils::CatalogBuilder::default();
+        let ref_id = builder.add(
+            V1Attribute {
+                name: "k8s.pod.uid".to_owned(),
+                r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                brief: "Pod UID".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: weaver_semconv::v1::attribute::RequirementLevel::Basic(
+                    weaver_semconv::v1::attribute::BasicRequirementLevelSpec::Required,
+                ),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: None,
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: Some(weaver_semconv::v1::attribute::AttributeRole::Identifying),
+            },
+            None,
+        );
+        let ref_desc = builder.add(
+            V1Attribute {
+                name: "k8s.pod.name".to_owned(),
+                r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                brief: "Pod Name".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: weaver_semconv::v1::attribute::RequirementLevel::Basic(
+                    weaver_semconv::v1::attribute::BasicRequirementLevelSpec::Recommended,
+                ),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: None,
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: Some(weaver_semconv::v1::attribute::AttributeRole::Descriptive),
+            },
+            None,
+        );
+        let catalog = builder.build();
+
+        let entity_group = V1Group {
+            id: "entity.k8s.pod".to_owned(),
+            r#type: GroupType::Entity,
+            brief: "Kubernetes pod".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            name: Some("k8s.pod".to_owned()),
+            lineage: None,
+            display_name: None,
+            attributes: vec![ref_id, ref_desc],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            requirement_level: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: false,
+            span_name: None,
+        };
+
+        let registry = V1Registry {
+            registry_url: "http://test/schemas/1.0.0".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![entity_group],
+        };
+
+        let (catalog_v2, reg, _, _) = convert_v1_to_v2(catalog, registry, BTreeSet::new()).unwrap();
+        assert_eq!(catalog_v2.len(), 2);
+        assert_eq!(reg.entities.len(), 1);
+        let entity = &reg.entities[0];
+        assert_eq!(entity.identity.len(), 1);
+        assert_eq!(entity.identity[0].base, AttributeRef(1));
+        assert_eq!(entity.description.len(), 1);
+        assert_eq!(entity.description[0].base, AttributeRef(0));
+    }
+
+    /// Tests that span refinement name and note propagate when converting from V1 to V2.
+    #[test]
+    fn test_span_refinement_name_note_propagates() {
+        let span_refinement_group = V1Group {
+            id: "span.http.client.refinement".to_owned(),
+            r#type: GroupType::Span,
+            brief: "HTTP client span refinement".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: Some("http.client".to_owned()),
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            name: None,
+            lineage: None,
+            display_name: None,
+            attributes: vec![],
+            span_kind: Some(weaver_semconv::v1::group::SpanKindSpec::Client),
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            requirement_level: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: false,
+            span_name: Some(weaver_semconv::v1::group::SpanName {
+                note: "HTTP {http.request.method}".to_owned(),
+            }),
+        };
+
+        let registry = V1Registry {
+            registry_url: "http://test/schemas/1.0.0".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![span_refinement_group],
+        };
+
+        let (_, _, refinements, _) =
+            convert_v1_to_v2(V1Catalog::default(), registry, BTreeSet::new()).unwrap();
+        assert_eq!(refinements.spans.len(), 1);
+        let refinement = &refinements.spans[0];
+        assert_eq!(&*refinement.id, "http.client.refinement");
+        assert_eq!(
+            refinement.span.kind,
+            weaver_semconv::v2::span::SpanKindSpec::Client
+        );
+        assert_eq!(refinement.span.name.note, "HTTP {http.request.method}");
+    }
+
+    /// Converting a public attribute group carries the group-specific requirement level.
+    #[test]
+    fn test_convert_public_attribute_group_carries_requirement_level() {
+        let mut builder = crate::v1::catalog::test_utils::CatalogBuilder::default();
+        let ref0 = builder.add(
+            V1Attribute {
+                name: "group.attr".to_owned(),
+                r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                brief: "group attr brief".to_owned(),
+                examples: None,
+                tag: None,
+                // Overridden requirement level within this group:
+                requirement_level: weaver_semconv::v1::attribute::RequirementLevel::Basic(
+                    weaver_semconv::v1::attribute::BasicRequirementLevelSpec::Required,
+                ),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: None,
+            },
+            None,
+        );
+        let catalog = builder.build();
+
+        let group = V1Group {
+            id: "attribute_group.test.group".to_owned(),
+            r#type: GroupType::AttributeGroup,
+            brief: "a public group".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            attributes: vec![ref0],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            requirement_level: None,
+            name: None,
+            lineage: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: Some(weaver_semconv::v1::group::AttributeGroupVisibilitySpec::Public),
+            is_v2: false,
+            span_name: None,
+        };
+
+        let registry = V1Registry {
+            registry_url: "http://test/schemas/1.0.0".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![group],
+        };
+
+        let (_, v2_registry, _, _) = convert_v1_to_v2(catalog, registry, BTreeSet::new())
+            .expect("Failed to convert v1 to v2");
+        assert_eq!(v2_registry.attribute_groups.len(), 1);
+        let group = &v2_registry.attribute_groups[0];
+        assert_eq!(&*group.id, "test.group");
+        assert_eq!(group.attributes.len(), 1);
+        assert_eq!(group.attributes[0].base, AttributeRef(0));
+        assert_eq!(
+            group.attributes[0].requirement_level,
+            weaver_semconv::v2::attribute::RequirementLevel::Basic(
+                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required
+            )
+        );
+    }
 }

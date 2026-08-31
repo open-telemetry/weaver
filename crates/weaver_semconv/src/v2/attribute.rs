@@ -14,27 +14,6 @@ use crate::v2::{signal_id::SignalId, CommonFields};
 use crate::YamlValue;
 use weaver_common::ordered_float::OrderedF64;
 
-/// The different roles for attributes in groups.
-#[derive(
-    Serialize, Deserialize, Debug, Default, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
-)]
-#[serde(rename_all = "snake_case")]
-pub enum AttributeRole {
-    /// The attribute is considered identifying for the signal it is associated with.
-    #[default]
-    Identifying,
-    /// The attribute is considered descriptive for the signal it is associated with.
-    Descriptive,
-}
-
-impl AttributeRole {
-    /// True if role is Identifying.
-    #[must_use]
-    pub fn is_identifying(&self) -> bool {
-        matches!(self, Self::Identifying)
-    }
-}
-
 /// Primitive or array types.
 #[derive(
     Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
