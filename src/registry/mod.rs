@@ -74,7 +74,7 @@ pub enum Error {
     OutputWrite { path: PathBuf, error: String },
 
     /// A matcher's `when` errored while running.
-    #[error("Matcher `{id}` errored on {count} sample(s) and matched none of them. First error: {error}")]
+    #[error("Matcher `{id}` errored on {count} sample(s). First error: {error}")]
     #[diagnostic(severity(warning))]
     MatcherFailedAtRuntime {
         id: String,

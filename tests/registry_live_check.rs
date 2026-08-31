@@ -244,8 +244,14 @@ fn a_v1_registry_without_matchers_still_runs() {
 
 /// One span sample, for the matcher tests.
 const SPAN_INPUT: &str = "crates/weaver_live_check/data/matcher_span.json";
+/// Two spans, only one of which carries `myapp.checkout.id`.
+const MIXED_SPAN_INPUT: &str = "crates/weaver_live_check/data/matcher_spans_mixed.json";
 
 fn run_with_matcher_on_spans(matcher: &str) -> (Output, tempfile::TempDir) {
+    run_with_matcher_on_input(matcher, SPAN_INPUT)
+}
+
+fn run_with_matcher_on_input(matcher: &str, input: &str) -> (Output, tempfile::TempDir) {
     let dir = tempfile::tempdir().expect("temp dir");
     let config = dir.path().join(".weaver.toml");
     std::fs::write(&config, format!("[[\"live-check\".matchers]]\n{matcher}\n"))
@@ -255,7 +261,7 @@ fn run_with_matcher_on_spans(matcher: &str) -> (Output, tempfile::TempDir) {
         .arg("registry")
         .arg("live-check")
         .args(["-r", REGISTRY, "--v2"])
-        .args(["--input-source", SPAN_INPUT])
+        .args(["--input-source", input])
         .args(["--input-format", "json"])
         .args(["--format", "json"])
         .args(["--fail-on", "none"])
@@ -348,6 +354,28 @@ when = 'instrumentation_scope.name == "nope"'"#,
     );
     // The matcher errored, so it matched nothing and the span is unmatched.
     assert!(output.contains("\"unmatched\": true"), "got: {output}");
+}
+
+/// An absent key is a CEL error, not `false`, so a `when` indexing an optional
+/// attribute matches some samples and errors on others.
+#[test]
+fn a_matcher_that_both_matches_and_errors_reports_only_the_error_count() {
+    let (out, _dir) = run_with_matcher_on_input(
+        r#"id = "myapp.optional"
+sample_type = "span"
+when = 'attributes["myapp.checkout.id"] == "abc"'"#,
+        MIXED_SPAN_INPUT,
+    );
+    let output = combined(&out);
+    assert!(
+        output.contains("Matcher `myapp.optional` errored on 1 sample(s)."),
+        "got: {output}"
+    );
+    assert!(
+        !output.contains("matched none"),
+        "the report says it matched one: {output}"
+    );
+    assert!(!output.contains("applied to no samples"), "got: {output}");
 }
 
 /// Renders the ansi template, which `run_live_check_on` mutes, with the colour
