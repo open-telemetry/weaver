@@ -91,3 +91,74 @@ impl SemConvSpecV1 {
         self.imports.as_ref()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::stability::Stability;
+    use crate::v1::attribute::{
+        AttributeSpec, AttributeType, BasicRequirementLevelSpec, Examples,
+        PrimitiveOrArrayTypeSpec, RequirementLevel,
+    };
+    use crate::v1::group::{GroupSpec, GroupType};
+
+    #[test]
+    fn test_semconv_spec_v1_validate_ok() {
+        let group = GroupSpec {
+            id: "group.test".to_owned(),
+            r#type: GroupType::AttributeGroup,
+            brief: "test group".to_owned(),
+            attributes: vec![AttributeSpec::Id {
+                id: "test.attr".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: Some("test attr".to_owned()),
+                examples: Some(Examples::String("example".to_owned())),
+                tag: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                annotations: None,
+                role: None,
+            }],
+            ..Default::default()
+        };
+
+        let spec = SemConvSpecV1::new(vec![group], None);
+        assert_eq!(spec.groups().len(), 1);
+        assert!(spec.imports().is_none());
+
+        let result = spec.validate("test_prov");
+        assert!(matches!(result, WResult::Ok(_)));
+    }
+
+    #[test]
+    fn test_semconv_spec_v1_validate_with_nfes() {
+        let group = GroupSpec {
+            id: "group.invalid".to_owned(),
+            r#type: GroupType::AttributeGroup,
+            brief: "invalid group".to_owned(),
+            attributes: vec![AttributeSpec::Id {
+                id: "invalid.attr".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: Some("invalid attr".to_owned()),
+                // Int example for a String attribute triggers an invalid example error (NFE)
+                examples: Some(Examples::Int(12345)),
+                tag: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                annotations: None,
+                role: None,
+            }],
+            ..Default::default()
+        };
+
+        let spec = SemConvSpecV1::new(vec![group], None);
+        let result = spec.validate("test_prov");
+        assert!(matches!(result, WResult::OkWithNFEs(_, errors) if !errors.is_empty()));
+    }
+}

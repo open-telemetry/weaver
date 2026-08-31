@@ -457,4 +457,73 @@ mod tests {
         let ids: Vec<_> = resolved.groups.iter().map(|g| g.id.as_str()).collect();
         assert_eq!(ids, vec!["metric.hw.errors", "v1.derived.metric"]);
     }
+
+    #[test]
+    fn test_try_from_resolved_schema() {
+        let schema = ResolvedTelemetrySchema::new("1.0", "http://test/schema", "");
+        let registry = ResolvedRegistry::try_from_resolved_schema(&schema)
+            .expect("Failed to create resolved registry from schema");
+        assert_eq!(registry.registry_url, "");
+        assert!(registry.groups.is_empty());
+    }
+
+    #[test]
+    fn test_try_from_resolved_registry_missing_attribute_compound_error() {
+        use weaver_resolved_schema::v1::attribute::AttributeRef;
+
+        let group = Group {
+            id: "group.missing_attr".to_owned(),
+            r#type: GroupType::AttributeGroup,
+            brief: "test".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: None,
+            deprecated: None,
+            attributes: vec![AttributeRef(100), AttributeRef(200)],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            requirement_level: None,
+            name: None,
+            lineage: None,
+            display_name: None,
+            body: None,
+            entity_associations: vec![],
+            annotations: None,
+            visibility: None,
+            is_v2: false,
+            span_name: None,
+        };
+
+        let registry = Registry {
+            registry_url: "http://test/schema".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![group.clone()],
+        };
+        let catalog = Catalog::default();
+
+        let err = ResolvedRegistry::try_from_resolved_registry(&registry, &catalog)
+            .expect_err("Should fail with missing attribute errors");
+        match err {
+            Error::CompoundError(errs) => {
+                assert_eq!(errs.len(), 2);
+                assert!(matches!(
+                    &errs[0],
+                    Error::AttributeNotFound { attr_ref: 100, .. }
+                ));
+                assert!(matches!(
+                    &errs[1],
+                    Error::AttributeNotFound { attr_ref: 200, .. }
+                ));
+            }
+            _ => panic!("Expected CompoundError, got {err:?}"),
+        }
+
+        // Also test ResolvedGroup::try_from_resolved with missing attribute
+        let group_res = ResolvedGroup::try_from_resolved(&group, &catalog);
+        assert!(matches!(group_res, Err(Error::CompoundError(errs)) if errs.len() == 2));
+    }
 }

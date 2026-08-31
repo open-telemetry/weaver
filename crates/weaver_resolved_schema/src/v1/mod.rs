@@ -838,4 +838,122 @@ mod tests {
         let group = groups.get("metrics.test").unwrap();
         assert_eq!(group.requirement_level, Some(SignalRequirementLevel::OptIn));
     }
+
+    #[test]
+    fn test_resolved_schema_v1_attribute_map() {
+        use crate::v1::attribute::Attribute;
+        use crate::v1::registry::Group;
+        use weaver_semconv::stability::Stability;
+        use weaver_semconv::v1::attribute::{
+            AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
+        };
+
+        let mut builder = catalog::test_utils::CatalogBuilder::default();
+        let ref0 = builder.add(
+            Attribute {
+                name: "attr.a".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: "attribute a".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: None,
+            },
+            None,
+        );
+        let catalog = builder.build();
+
+        let mut schema = ResolvedTelemetrySchema::new("1.0", "", "");
+        schema.catalog = catalog;
+        schema.registry.groups.push(Group {
+            id: "attribute_group.test".to_owned(),
+            r#type: GroupType::AttributeGroup,
+            brief: "attr group".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            attributes: vec![ref0],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            requirement_level: None,
+            name: None,
+            lineage: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: false,
+            span_name: None,
+        });
+
+        let attr_map = schema.attribute_map();
+        assert_eq!(attr_map.len(), 1);
+        assert!(attr_map.contains_key("attr.a"));
+        assert_eq!(attr_map["attr.a"].name, "attr.a");
+    }
+
+    #[test]
+    fn test_diff_signals_identical_deprecation_is_ignored() {
+        use crate::v1::registry::Group;
+        use weaver_semconv::deprecated::Deprecated;
+        use weaver_semconv::v1::group::InstrumentSpec;
+
+        let deprecated = Some(Deprecated::Renamed {
+            renamed_to: "system.cpu.time".to_owned(),
+            note: Some("Renamed in earlier version".to_owned()),
+        });
+
+        let baseline_group = Group {
+            id: "metrics.cpu".to_owned(),
+            r#type: GroupType::Metric,
+            brief: "cpu metric".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: None,
+            deprecated: deprecated.clone(),
+            attributes: vec![],
+            span_kind: None,
+            events: vec![],
+            metric_name: Some("cpu.time".to_owned()),
+            instrument: Some(InstrumentSpec::Counter),
+            unit: Some("s".to_owned()),
+            requirement_level: None,
+            name: None,
+            lineage: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: false,
+            span_name: None,
+        };
+
+        let latest_group = baseline_group.clone();
+
+        let mut baseline_schema = ResolvedTelemetrySchema::new("1.0", "", "");
+        baseline_schema.registry.groups.push(baseline_group);
+
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.1", "", "");
+        latest_schema.registry.groups.push(latest_group);
+
+        let diff = latest_schema.diff(&baseline_schema);
+        // Deprecation is identical, so no rename/deprecation change should be emitted
+        assert_eq!(diff.count_changes(), 0);
+    }
 }

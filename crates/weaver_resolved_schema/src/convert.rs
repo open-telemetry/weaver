@@ -1935,4 +1935,380 @@ mod tests {
             )
         );
     }
+
+    #[test]
+    fn test_convert_refinement_base_missing_fails() {
+        let catalog = crate::v1::catalog::Catalog::default();
+        let mut lineage = crate::v1::lineage::GroupLineage::new(Provenance::new(
+            SchemaUrl::new_unknown(),
+            "test.yaml",
+        ));
+        lineage.extends_group_type = Some(GroupType::Entity);
+        lineage.extends_group = None;
+
+        let group = V1Group {
+            id: "entity.missing_base".to_owned(),
+            r#type: GroupType::Entity,
+            brief: "entity refinement without base".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            attributes: vec![],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            requirement_level: None,
+            name: Some("missing_base".to_owned()),
+            lineage: Some(lineage),
+            display_name: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: true,
+            span_name: None,
+        };
+
+        let registry = V1Registry {
+            registry_url: "http://test/schemas/1.0.0".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![group],
+        };
+
+        let result = convert_v1_to_v2(catalog, registry, BTreeSet::new());
+        assert!(matches!(
+            result,
+            Err(crate::error::Error::RefinementBaseNotFound { group_id }) if group_id == "entity.missing_base"
+        ));
+    }
+
+    #[test]
+    fn test_convert_attr_ref_missing_from_catalog() {
+        let catalog = crate::v1::catalog::Catalog::default();
+        let group = V1Group {
+            id: "entity.dangling_attr".to_owned(),
+            r#type: GroupType::Entity,
+            brief: "entity referencing missing attr".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            attributes: vec![crate::v1::attribute::AttributeRef(9999)],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            requirement_level: None,
+            name: Some("dangling_attr".to_owned()),
+            lineage: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: false,
+            span_name: None,
+        };
+
+        let registry = V1Registry {
+            registry_url: "http://test/schemas/1.0.0".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![group],
+        };
+
+        let result = convert_v1_to_v2(catalog, registry, BTreeSet::new());
+        assert!(matches!(
+            result,
+            Err(crate::error::Error::AttributeNotFound { group_id, attr_ref })
+                if group_id == "entity.dangling_attr" && attr_ref == crate::v1::attribute::AttributeRef(9999)
+        ));
+    }
+
+    #[test]
+    fn test_convert_unresolved_registry_all_group_types() {
+        let catalog = crate::v1::catalog::Catalog::default();
+        let groups = vec![
+            V1Group {
+                id: "metric_group.test".to_owned(),
+                r#type: GroupType::MetricGroup,
+                brief: "metric group".to_owned(),
+                note: "".to_owned(),
+                prefix: "".to_owned(),
+                extends: None,
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                attributes: vec![],
+                span_kind: None,
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                requirement_level: None,
+                name: None,
+                lineage: None,
+                display_name: None,
+                body: None,
+                annotations: None,
+                entity_associations: vec![],
+                visibility: None,
+                is_v2: false,
+                span_name: None,
+            },
+            V1Group {
+                id: "scope.test".to_owned(),
+                r#type: GroupType::Scope,
+                brief: "scope group".to_owned(),
+                note: "".to_owned(),
+                prefix: "".to_owned(),
+                extends: None,
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                attributes: vec![],
+                span_kind: None,
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                requirement_level: None,
+                name: None,
+                lineage: None,
+                display_name: None,
+                body: None,
+                annotations: None,
+                entity_associations: vec![],
+                visibility: None,
+                is_v2: false,
+                span_name: None,
+            },
+        ];
+        let registry = V1Registry {
+            registry_url: "http://test/schemas/1.0.0".to_owned(),
+            entity_association_origins: Default::default(),
+            groups,
+        };
+
+        let (_, v2_registry, _, _) = convert_v1_to_v2(catalog, registry, BTreeSet::new())
+            .expect("MetricGroup and Scope should be cleanly ignored");
+        assert!(v2_registry.metrics.is_empty());
+        assert!(v2_registry.spans.is_empty());
+        assert!(v2_registry.events.is_empty());
+        assert!(v2_registry.entities.is_empty());
+    }
+
+    #[test]
+    fn test_convert_attribute_lineage_source_group_provenance() {
+        let mut builder = crate::v1::catalog::test_utils::CatalogBuilder::default();
+        let ref0 = builder.add(
+            V1Attribute {
+                name: "source.attr".to_owned(),
+                r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                brief: "".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: weaver_semconv::v1::attribute::RequirementLevel::Basic(
+                    weaver_semconv::v1::attribute::BasicRequirementLevelSpec::Required,
+                ),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: None,
+            },
+            None,
+        );
+        let catalog = builder.build();
+
+        let group_provenance = Provenance::new(
+            SchemaUrl::try_from_name_version("main", "1.0.0").unwrap(),
+            "source_group.yaml",
+        );
+        let mut lineage = crate::v1::lineage::GroupLineage::new(group_provenance);
+        let attr_lineage = crate::v1::lineage::AttributeLineage::new("span.my_group");
+        lineage.add_attribute_lineage("source.attr".to_owned(), attr_lineage);
+
+        let group = V1Group {
+            id: "span.my_group".to_owned(),
+            r#type: GroupType::Span,
+            brief: "span with source attribute".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            attributes: vec![ref0],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            requirement_level: None,
+            name: Some("my_group".to_owned()),
+            lineage: Some(lineage),
+            display_name: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: false,
+            span_name: None,
+        };
+
+        let registry = V1Registry {
+            registry_url: "http://test/schemas/1.0.0".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![group],
+        };
+
+        let (attrs, _, _, _) = convert_v1_to_v2(catalog, registry, BTreeSet::new())
+            .expect("Failed to convert v1 to v2");
+        assert_eq!(attrs.len(), 1);
+        assert_eq!(attrs[0].provenance.path, "source_group.yaml");
+    }
+
+    #[test]
+    fn test_convert_v1_to_v2_with_deprecation_and_diff() {
+        use weaver_semconv::deprecated::Deprecated;
+        use weaver_version::schema_changes::SchemaItemChange;
+
+        let mut builder = crate::v1::catalog::test_utils::CatalogBuilder::default();
+        let attr_ref = builder.add(
+            V1Attribute {
+                name: "http.status_code".to_owned(),
+                r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::Int,
+                ),
+                brief: "Status code".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: weaver_semconv::v1::attribute::RequirementLevel::Basic(
+                    weaver_semconv::v1::attribute::BasicRequirementLevelSpec::Required,
+                ),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: None,
+            },
+            None,
+        );
+        let catalog = builder.build();
+
+        let baseline_group = V1Group {
+            id: "metric.http.server.duration".to_owned(),
+            r#type: GroupType::Metric,
+            brief: "Duration".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            name: None,
+            lineage: None,
+            display_name: None,
+            attributes: vec![attr_ref],
+            span_kind: None,
+            events: vec![],
+            metric_name: Some("http.server.duration".to_owned()),
+            instrument: Some(V1InstrumentSpec::Histogram),
+            unit: Some("ms".to_owned()),
+            requirement_level: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: false,
+            span_name: None,
+        };
+
+        let mut latest_group = baseline_group.clone();
+        latest_group.deprecated = Some(Deprecated::Renamed {
+            renamed_to: "http.server.request.duration".to_owned(),
+            note: Some("Renamed in v1.1".to_owned()),
+        });
+
+        let v1_baseline = V1ResolvedSchema {
+            file_format: V1_RESOLVED_FILE_FORMAT.to_owned(),
+            schema_url: "http://test/schemas/1.0.0".to_owned(),
+            registry_id: "test".to_owned(),
+            catalog: catalog.clone(),
+            registry: V1Registry {
+                registry_url: "http://test/registry/1.0.0".to_owned(),
+                entity_association_origins: Default::default(),
+                groups: vec![baseline_group],
+            },
+            instrumentation_library: None,
+            resource: None,
+            dependencies: Default::default(),
+            versions: None,
+            registry_manifest: None,
+        };
+
+        let v1_latest = V1ResolvedSchema {
+            file_format: V1_RESOLVED_FILE_FORMAT.to_owned(),
+            schema_url: "http://test/schemas/1.1.0".to_owned(),
+            registry_id: "test".to_owned(),
+            catalog,
+            registry: V1Registry {
+                registry_url: "http://test/registry/1.1.0".to_owned(),
+                entity_association_origins: Default::default(),
+                groups: vec![latest_group],
+            },
+            instrumentation_library: None,
+            resource: None,
+            dependencies: Default::default(),
+            versions: None,
+            registry_manifest: None,
+        };
+
+        // Convert both V1 schemas to V2
+        let v2_baseline: V2ResolvedSchema = v1_baseline
+            .try_into()
+            .expect("Failed to convert baseline v1 to v2");
+        let v2_latest: V2ResolvedSchema = v1_latest
+            .try_into()
+            .expect("Failed to convert latest v1 to v2");
+
+        // Verify deprecation is preserved through conversion
+        assert_eq!(v2_baseline.registry.metrics.len(), 1);
+        assert!(v2_baseline.registry.metrics[0].common.deprecated.is_none());
+
+        assert_eq!(v2_latest.registry.metrics.len(), 1);
+        assert!(matches!(
+            &v2_latest.registry.metrics[0].common.deprecated,
+            Some(Deprecated::Renamed { renamed_to, .. }) if renamed_to == "http.server.request.duration"
+        ));
+
+        // Diffing converted V2 schemas detects the rename
+        let diff = v2_latest.diff(&v2_baseline);
+        assert_eq!(diff.registry.metric_changes.len(), 1);
+        match &diff.registry.metric_changes[0] {
+            SchemaItemChange::Renamed {
+                old_name, new_name, ..
+            } => {
+                assert_eq!(old_name, "http.server.duration");
+                assert_eq!(new_name, "http.server.request.duration");
+            }
+            other => panic!("Expected Renamed change, got {other:?}"),
+        }
+
+        // When deprecation is identical across baseline and latest, diff detects 0 changes
+        let same_diff = v2_latest.diff(&v2_latest);
+        assert!(same_diff.registry.metric_changes.is_empty());
+    }
 }

@@ -401,34 +401,222 @@ mod tests {
     }
 
     #[test]
+    fn test_group_wildcard_display() {
+        let pattern = Glob::new("metric.http.server.*").expect("valid glob pattern");
+        let wildcard = GroupWildcard(pattern);
+        assert_eq!(format!("{wildcard}"), "metric.http.server.*");
+    }
+
+    #[test]
     fn test_semconv_spec_v2_constructor_and_accessors() {
-        let spec = SemConvSpecV2::new(
-            vec![AttributeDef {
-                key: "test".to_owned(),
+        let spec = SemConvSpecV2 {
+            attributes: vec![AttributeDef {
+                key: "http.request.method".to_owned(),
                 r#type: attribute::AttributeType::PrimitiveOrArray(
                     attribute::PrimitiveOrArrayTypeSpec::String,
                 ),
                 examples: None,
                 common: CommonFields {
-                    brief: "test".to_owned(),
+                    brief: "HTTP request method".to_owned(),
                     note: String::new(),
                     stability: Stability::Stable,
                     deprecated: None,
                     annotations: Default::default(),
                 },
             }],
-            vec![],
-            vec![],
-            vec![],
-            vec![],
+            entities: vec![Entity {
+                r#type: "service.instance".into(),
+                identity: vec![],
+                description: vec![],
+                requirement_level: None,
+                common: CommonFields {
+                    brief: "Service instance entity".to_owned(),
+                    note: String::new(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+            }],
+            events: vec![Event {
+                name: "user.login".into(),
+                attributes: vec![],
+                entity_associations: vec![],
+                requirement_level: None,
+                common: CommonFields {
+                    brief: "User login event".to_owned(),
+                    note: String::new(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+            }],
+            metrics: vec![Metric {
+                name: "http.server.request.duration".into(),
+                instrument: metric::InstrumentSpec::Histogram,
+                unit: "ms".to_owned(),
+                attributes: vec![],
+                entity_associations: vec![],
+                requirement_level: None,
+                common: CommonFields {
+                    brief: "HTTP server request duration".to_owned(),
+                    note: String::new(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+            }],
+            spans: vec![Span {
+                r#type: "http.server".into(),
+                kind: span::SpanKindSpec::Server,
+                name: span::SpanName {
+                    note: "HTTP GET".to_owned(),
+                },
+                attributes: vec![],
+                entity_associations: vec![],
+                requirement_level: None,
+                common: CommonFields {
+                    brief: "HTTP server span".to_owned(),
+                    note: String::new(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+            }],
+            attribute_groups: vec![AttributeGroup::Public(
+                attribute_group::PublicAttributeGroup {
+                    id: "network.connection".into(),
+                    attributes: vec![],
+                    common: CommonFields {
+                        brief: "Network connection attributes".to_owned(),
+                        note: String::new(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: Default::default(),
+                    },
+                },
+            )],
+            entity_refinements: vec![EntityRefinement {
+                id: "custom.service.instance".into(),
+                r#ref: "service.instance".into(),
+                identity: vec![],
+                description: vec![],
+                brief: Some("Custom service instance refinement".to_owned()),
+                note: None,
+                stability: None,
+                deprecated: None,
+                annotations: Default::default(),
+            }],
+            event_refinements: vec![EventRefinement {
+                id: "custom.user.login".into(),
+                r#ref: "user.login".into(),
+                attributes: vec![],
+                entity_associations: vec![],
+                brief: Some("Custom user login refinement".to_owned()),
+                note: None,
+                stability: None,
+                deprecated: None,
+                annotations: Default::default(),
+            }],
+            metric_refinements: vec![MetricRefinement {
+                id: "custom.http.server.request.duration".into(),
+                r#ref: "http.server.request.duration".into(),
+                attributes: vec![],
+                entity_associations: vec![],
+                brief: Some("Custom metric refinement".to_owned()),
+                note: None,
+                stability: None,
+                deprecated: None,
+                annotations: Default::default(),
+            }],
+            span_refinements: vec![SpanRefinement {
+                id: "custom.http.server".into(),
+                r#ref: "http.server".into(),
+                name: None,
+                attributes: vec![],
+                entity_associations: vec![],
+                brief: Some("Custom span refinement".to_owned()),
+                note: None,
+                stability: None,
+                deprecated: None,
+                annotations: Default::default(),
+            }],
+            imports: Some(Imports {
+                metrics: None,
+                events: None,
+                entities: None,
+                spans: Some(vec![GroupWildcard(
+                    Glob::new("rpc.client.*").expect("valid glob pattern"),
+                )]),
+                attribute_groups: None,
+            }),
+        };
+
+        // Assert all 11 accessors return their exact, uniquely-identified and non-empty data
+        assert_eq!(spec.attributes().len(), 1);
+        assert_eq!(spec.attributes()[0].key, "http.request.method");
+
+        assert_eq!(spec.entities().len(), 1);
+        assert_eq!(&*spec.entities()[0].r#type, "service.instance");
+
+        assert_eq!(spec.events().len(), 1);
+        assert_eq!(&*spec.events()[0].name, "user.login");
+
+        assert_eq!(spec.metrics().len(), 1);
+        assert_eq!(&*spec.metrics()[0].name, "http.server.request.duration");
+
+        assert_eq!(spec.spans().len(), 1);
+        assert_eq!(&*spec.spans()[0].r#type, "http.server");
+
+        assert_eq!(spec.attribute_groups().len(), 1);
+        match &spec.attribute_groups()[0] {
+            AttributeGroup::Public(g) => {
+                assert_eq!(&*g.id, "network.connection");
+            }
+            AttributeGroup::Internal(g) => {
+                assert_eq!(&*g.id, "network.connection");
+            }
+        }
+
+        assert_eq!(spec.entity_refinements().len(), 1);
+        assert_eq!(&*spec.entity_refinements()[0].id, "custom.service.instance");
+
+        assert_eq!(spec.event_refinements().len(), 1);
+        assert_eq!(&*spec.event_refinements()[0].id, "custom.user.login");
+
+        assert_eq!(spec.metric_refinements().len(), 1);
+        assert_eq!(
+            &*spec.metric_refinements()[0].id,
+            "custom.http.server.request.duration"
         );
 
-        assert_eq!(spec.attributes().len(), 1);
-        assert!(spec.entities().is_empty());
-        assert!(spec.events().is_empty());
-        assert!(spec.metrics().is_empty());
-        assert!(spec.spans().is_empty());
+        assert_eq!(spec.span_refinements().len(), 1);
+        assert_eq!(&*spec.span_refinements()[0].id, "custom.http.server");
+
+        let imports = spec.imports().expect("imports should be present");
+        let imported_spans = imports
+            .spans
+            .as_ref()
+            .expect("spans wildcard should be present");
+        assert_eq!(imported_spans.len(), 1);
+        assert_eq!(imported_spans[0].0.glob(), "rpc.client.*");
+
         assert!(!spec.is_empty());
+
+        // Also test the SemConvSpecV2::new constructor correctly wires initial 5 signals
+        let new_spec = SemConvSpecV2::new(
+            spec.attributes.clone(),
+            spec.entities.clone(),
+            spec.events.clone(),
+            spec.metrics.clone(),
+            spec.spans.clone(),
+        );
+        assert_eq!(new_spec.attributes()[0].key, "http.request.method");
+        assert_eq!(&*new_spec.entities()[0].r#type, "service.instance");
+        assert_eq!(&*new_spec.events()[0].name, "user.login");
+        assert_eq!(&*new_spec.metrics()[0].name, "http.server.request.duration");
+        assert_eq!(&*new_spec.spans()[0].r#type, "http.server");
+        assert!(new_spec.attribute_groups().is_empty());
+        assert!(new_spec.imports().is_none());
     }
 
     #[test]
