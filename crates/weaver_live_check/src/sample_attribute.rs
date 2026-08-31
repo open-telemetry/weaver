@@ -178,15 +178,6 @@ impl LiveCheckRunner for SampleAttribute {
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
-        // `unmatched_sample` reports the sample; its attributes are only
-        // checked against the base definitions.
-        if !live_checker.is_searching_all_attributes()
-            && parent.as_deref().is_some_and(SampleMatch::is_unmatched)
-        {
-            self.live_check_result = Some(result);
-            self.update_stats(stats);
-            return Ok(());
-        }
         // v1 searches the whole registry; v2 only when asked.
         let search_registry = live_checker.is_searching_all_attributes() || !live_checker.is_v2();
         // A signal's or group's copy of an attribute carries its refinements.

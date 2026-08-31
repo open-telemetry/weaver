@@ -1957,16 +1957,16 @@ attribute_groups = ["myapp.common"]
             assert!(result.all_advice.is_empty());
         }
 
-        /// An unmatched sample's attributes are only checked when the base
-        /// definitions are being searched.
+        /// An unmatched sample has no signal to resolve against, so without
+        /// the base definitions nothing declares its attributes.
         #[test]
-        fn an_unmatched_span_does_not_check_its_attributes() {
+        fn an_unmatched_span_still_checks_its_attributes() {
             let ids = unmatched_attribute_findings(false);
-            assert!(ids.is_empty(), "{ids:?}");
+            assert_eq!(ids, ["missing_attribute", "missing_attribute"]);
         }
 
         #[test]
-        fn search_all_attributes_checks_an_unmatched_span_after_all() {
+        fn search_all_attributes_resolves_an_unmatched_spans_attributes() {
             let ids = unmatched_attribute_findings(true);
             assert_eq!(ids, ["not_stable"]);
         }
