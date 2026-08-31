@@ -3,6 +3,7 @@
 //! Holds the registry, helper structs, and the advisors for the live check
 
 use serde::Serialize;
+use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -50,6 +51,8 @@ pub struct BaseAttribute {
     pub attribute: Rc<VersionedAttribute>,
     /// The schema urls that declare it, this registry first.
     pub schema_urls: Vec<String>,
+    /// Whether this registry declares it, rather than only a dependency.
+    pub declared_here: bool,
 }
 
 impl BaseAttribute {
@@ -105,6 +108,10 @@ pub struct LiveChecker {
     /// attribute key. Empty unless `search_all_attributes` is called.
     #[serde(skip)]
     base_attributes: HashMap<String, BaseAttribute>,
+    /// The keys of the template attributes in `base_attributes`, longest
+    /// first.
+    #[serde(skip)]
+    base_template_keys: Vec<String>,
     /// Whether `search_all_attributes` was called.
     #[serde(skip)]
     searching_all_attributes: bool,
@@ -247,7 +254,7 @@ impl LiveChecker {
         }
 
         // Sort templates by name length in descending order
-        templates_by_length.sort_by_key(|(b, _)| std::cmp::Reverse(b.len()));
+        templates_by_length.sort_by_key(|(b, _)| Reverse(b.len()));
 
         LiveChecker {
             registry,
@@ -262,6 +269,7 @@ impl LiveChecker {
             refined_event_attributes,
             attribute_group_attributes,
             base_attributes: HashMap::new(),
+            base_template_keys: Vec::new(),
             searching_all_attributes: false,
             semconv_entities,
             advisors,
@@ -421,20 +429,42 @@ impl LiveChecker {
                 .into_iter()
                 .map(|(url, dependency)| (url, &dependency.registry)),
         );
-        for (url, source) in sources {
+        let mut template_keys = Vec::new();
+        for (index, (url, source)) in sources.enumerate() {
             let schema_url = url.to_string();
+            let declared_here = index == 0;
             for attribute in &source.attributes {
                 let _ = self
                     .base_attributes
                     .entry(attribute.key.clone())
                     .and_modify(|held| held.schema_urls.push(schema_url.clone()))
-                    .or_insert_with(|| BaseAttribute {
-                        attribute: Rc::new(VersionedAttribute::V2(attribute.clone())),
-                        schema_urls: vec![schema_url.clone()],
+                    .or_insert_with(|| {
+                        if matches!(attribute.r#type, AttributeType::Template(_)) {
+                            template_keys.push(attribute.key.clone());
+                        }
+                        BaseAttribute {
+                            attribute: Rc::new(VersionedAttribute::V2(attribute.clone())),
+                            schema_urls: vec![schema_url.clone()],
+                            declared_here,
+                        }
                     });
             }
         }
+        template_keys.sort_by_key(|key| Reverse(key.len()));
+        self.base_template_keys = template_keys;
         Ok(())
+    }
+
+    /// Find a base template attribute of this registry or a dependency that
+    /// `key` extends, the longest first
+    ///
+    /// Always `None` unless `search_all_attributes` was called.
+    #[must_use]
+    pub fn find_base_template(&self, key: &str) -> Option<&BaseAttribute> {
+        self.base_template_keys
+            .iter()
+            .find(|template| key.starts_with(template.as_str()))
+            .and_then(|template| self.base_attributes.get(template))
     }
 
     /// Find an attribute that a v2 attribute group declares

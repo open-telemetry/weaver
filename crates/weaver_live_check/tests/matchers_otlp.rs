@@ -24,10 +24,10 @@
 //! The timeout matters: the receiver stops after 10 seconds of quiet by
 //! default, which is not long enough to start the emitter by hand.
 //!
-//! Add `--search-all-attributes` to resolve `acme.tenant.id`, which only the
-//! dependency registry defines. Without it that attribute reports
-//! `missing_attribute`, because the catalog holds this registry's attributes
-//! alone.
+//! Add `--search-all-attributes` to resolve `acme.tenant.id`, and
+//! `acme.tenant.tag.region` through the template the dependency declares.
+//! Without it both report `missing_attribute`, because the catalog holds this
+//! registry's attributes alone.
 //!
 //! then send it this telemetry, and stop it to print the report:
 //!
@@ -489,19 +489,51 @@ async fn searching_all_attributes_names_the_registry_that_defines_one() {
 
     // `acme.scope.acme` names no attribute groups, so the scope has no expected
     // set: falling through to the dependency is what makes this unexpected.
-    let on_the_scope = unexpected
+    let mut on_the_scope: Vec<&str> = unexpected
         .iter()
-        .find(|finding| {
+        .filter(|finding| {
             finding["message"]
                 .as_str()
                 .is_some_and(|message| message.contains("is not declared by this registry"))
         })
-        .unwrap_or_else(|| panic!("nothing fell through to a dependency in {unexpected:?}"));
-    assert_eq!(on_the_scope["context"]["attribute_key"], "acme.tenant.id");
-    assert_eq!(
-        on_the_scope["context"]["schema_url"],
-        serde_json::json!(["https://acme.example.com/shared/1.0.0"])
-    );
+        .map(|finding| {
+            assert_eq!(
+                finding["context"]["schema_url"],
+                serde_json::json!(["https://acme.example.com/shared/1.0.0"])
+            );
+            finding["context"]["attribute_key"]
+                .as_str()
+                .expect("an attribute key")
+        })
+        .collect();
+    on_the_scope.sort_unstable();
+    // The second extends a template the dependency declares.
+    assert_eq!(on_the_scope, ["acme.tenant.id", "acme.tenant.tag.region"]);
+
+    // Resolving it through the template is what puts it on that list, rather
+    // than reporting it as missing.
+    let all = findings(&report);
+    let _ = finding_for(&all, "template_attribute", "acme.tenant.tag.region");
+    let missing: Vec<&str> = with_id(&all, "missing_attribute")
+        .iter()
+        .filter_map(|finding| finding["context"]["attribute_key"].as_str())
+        .collect();
+    for key in ["acme.tenant.id", "acme.tenant.tag.region"] {
+        assert!(
+            !missing.contains(&key),
+            "the dependency declares `{key}`: {missing:?}"
+        );
+    }
+}
+
+/// Without `--search-all-attributes` the dependency's template is out of
+/// reach, so the key it declares has nothing to resolve against.
+#[tokio::test(flavor = "multi_thread")]
+#[cfg_attr(tarpaulin, ignore)]
+async fn a_dependencys_template_needs_search_all_attributes() {
+    let report = run(REGISTRY, &["--v2", "--config", CONFIG]).await;
+    let all = findings(&report);
+    let _ = finding_for(&all, "missing_attribute", "acme.tenant.tag.region");
 }
 
 /// Emits the same telemetry into a live-check started by hand, for reading the

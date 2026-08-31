@@ -196,6 +196,11 @@ impl LiveCheckRunner for SampleAttribute {
                             .map(|base| Rc::clone(&base.attribute))
                     })
                     .or_else(|| live_checker.find_template(&self.name))
+                    .or_else(|| {
+                        live_checker
+                            .find_base_template(&self.name)
+                            .map(|base| Rc::clone(&base.attribute))
+                    })
             });
         if semconv_attribute.is_none() {
             let sample_ref = SampleRef::Attribute(self);

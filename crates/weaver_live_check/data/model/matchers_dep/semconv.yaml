@@ -7,3 +7,9 @@ attributes:
     brief: Identifier of the tenant the telemetry belongs to.
     stability: stable
     examples: ["t-42"]
+
+  - key: acme.tenant.tag
+    type: template[string]
+    brief: Tags the tenant applies to its telemetry.
+    stability: stable
+    examples: ["eu-west"]

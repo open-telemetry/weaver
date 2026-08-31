@@ -235,12 +235,16 @@ fn emit_spans(provider: &SdkTracerProvider) {
         .end();
 
     // Matched by `acme.cart.by-attribute`, `acme.cart.conflict`,
-    // `acme.span.by-scope` and `acme.span.by-resource`. The scope carries an
-    // attribute only the dependency defines, and `acme.scope.acme` names no
-    // attribute groups, so the scope has no expected set of its own.
+    // `acme.span.by-scope` and `acme.span.by-resource`. The scope carries two
+    // attributes only the dependency defines, one of them by extending a
+    // template, and `acme.scope.acme` names no attribute groups, so the scope
+    // has no expected set of its own.
     let cart = provider.tracer_with_scope(
         InstrumentationScope::builder(CART_SCOPE)
-            .with_attributes([KeyValue::new("acme.tenant.id", "t-42")])
+            .with_attributes([
+                KeyValue::new("acme.tenant.id", "t-42"),
+                KeyValue::new("acme.tenant.tag.region", "eu-west"),
+            ])
             .build(),
     );
     cart.span_builder("cart")

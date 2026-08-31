@@ -459,12 +459,13 @@ impl SampleMatch {
                 }
                 // The base definition names the schema to reference or import
                 // the attribute from.
-                let found = live_checker.find_base_attribute(&attribute.name);
+                let found = live_checker
+                    .find_base_attribute(&attribute.name)
+                    .or_else(|| live_checker.find_base_template(&attribute.name));
                 // Falling through to a dependency's definition is itself
                 // unexpected, so it is reported even for a match that names no
                 // expected set of its own.
-                let only_a_dependency_declares_it =
-                    found.is_some() && live_checker.find_attribute(&attribute.name).is_none();
+                let only_a_dependency_declares_it = found.is_some_and(|base| !base.declared_here);
                 if !holds_definitions && !only_a_dependency_declares_it {
                     continue;
                 }
@@ -667,6 +668,7 @@ mod tests {
     use weaver_forge::v2::span::SpanAttribute;
     use weaver_semconv::attribute::{
         AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
+        TemplateTypeSpec,
     };
     use weaver_semconv::stability::Stability;
     use weaver_semconv::v2::CommonFields;
@@ -758,6 +760,14 @@ mod tests {
                 annotations: BTreeMap::new(),
             },
             provenance: Provenance::default(),
+        }
+    }
+
+    /// A base template attribute of the fixture registry.
+    fn template_attribute(key: &str, stability: Stability) -> V2Attribute {
+        V2Attribute {
+            r#type: AttributeType::Template(TemplateTypeSpec::String),
+            ..base_attribute(key, stability)
         }
     }
 
@@ -1707,6 +1717,18 @@ signal = "myapp.checkout"
 
         /// The fixture registry, with `dependency` as its one dependency.
         fn v2_live_checker_with_dependency(dependency: ForgeDependency) -> LiveChecker {
+            v2_live_checker_with_base_attributes(
+                vec![base_attribute("myapp.checkout.id", Stability::Stable)],
+                dependency,
+            )
+        }
+
+        /// The fixture registry declaring `base_attributes`, with `dependency`
+        /// as its one dependency.
+        fn v2_live_checker_with_base_attributes(
+            base_attributes: Vec<V2Attribute>,
+            dependency: ForgeDependency,
+        ) -> LiveChecker {
             let mut registry: ForgeResolvedRegistry =
                 serde_json::from_str(include_str!("../fixtures/registry-v2.json"))
                     .expect("the fixture registry parses");
@@ -1716,8 +1738,7 @@ signal = "myapp.checkout"
                     RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
                 )];
             }
-            registry.registry.attributes =
-                vec![base_attribute("myapp.checkout.id", Stability::Stable)];
+            registry.registry.attributes = base_attributes;
             registry.dependencies = BTreeMap::from([(
                 DEPENDENCY_URL.try_into().expect("valid schema url"),
                 dependency,
@@ -1921,6 +1942,74 @@ attribute_groups = ["myapp.common"]
 
             let ids = check_findings(&mut live_checker);
             assert_eq!(ids, ["unexpected_attribute"]);
+        }
+
+        /// A key extending a dependency's template resolves to it.
+        #[test]
+        fn a_dependencys_template_declares_a_key_that_extends_it() {
+            let mut dependency = dependency_registry();
+            dependency.registry.attributes = vec![template_attribute(
+                "myapp.checkout.",
+                Stability::Development,
+            )];
+            let mut live_checker = v2_live_checker_with_dependency(dependency);
+            live_checker.add_advisor(Box::new(StabilityAdvisor));
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+            live_checker
+                .set_matchers(&matcher_configs(MATCHERS))
+                .expect("they check out");
+
+            let found = live_checker
+                .find_base_template("myapp.checkout.stage")
+                .expect("the dependency declares the template it extends");
+            assert_eq!(found.schema_urls(), DEPENDENCY_URL);
+            assert!(!found.declared_here);
+
+            let ids = attribute_findings(&mut live_checker);
+            assert_eq!(ids, ["template_attribute", "not_stable"]);
+        }
+
+        /// The longest template an extending key matches wins.
+        #[test]
+        fn the_longest_base_template_that_the_key_extends_wins() {
+            let mut dependency = dependency_registry();
+            dependency.registry.attributes = vec![
+                template_attribute("myapp.", Stability::Stable),
+                template_attribute("myapp.checkout.", Stability::Stable),
+            ];
+            let mut live_checker = v2_live_checker_with_dependency(dependency);
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+            let found = live_checker
+                .find_base_template("myapp.checkout.stage")
+                .expect("both templates match the key");
+            assert_eq!(found.attribute.name(), "myapp.checkout.");
+        }
+
+        /// A key extending this registry's own template is not a dependency's.
+        #[test]
+        fn a_key_extending_this_registrys_template_is_not_a_dependencys() {
+            let mut dependency = dependency_registry();
+            dependency.registry.attributes = Vec::new();
+            let mut live_checker = v2_live_checker_with_base_attributes(
+                vec![template_attribute("myapp.checkout.", Stability::Stable)],
+                dependency,
+            );
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+
+            let found = live_checker
+                .find_base_template("myapp.checkout.stage")
+                .expect("this registry declares the template it extends");
+            assert!(found.declared_here);
+            // No matcher, so the span holds no attribute definitions of its
+            // own and only a dependency's definition would be reported.
+            let ids = check_findings(&mut live_checker);
+            assert!(ids.is_empty(), "got: {ids:?}");
         }
 
         #[test]
