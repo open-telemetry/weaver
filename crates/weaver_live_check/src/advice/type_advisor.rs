@@ -509,8 +509,8 @@ fn entity_association_not_satisfied<A: AssocExpr>(
 /// | Recommended            | Improvement             |
 /// | Opt-In                 | Information             |
 /// | Conditionally Required | Information             |
-pub(crate) fn check_attributes<T: CheckableAttribute>(
-    semconv_attributes: &[T],
+pub(crate) fn check_attributes<'a, T: CheckableAttribute + 'a>(
+    semconv_attributes: impl IntoIterator<Item = &'a T>,
     sample_attributes: &[SampleAttribute],
     sample: &Sample,
 ) -> Vec<PolicyFinding> {

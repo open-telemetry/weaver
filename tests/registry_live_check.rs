@@ -193,8 +193,7 @@ when = 'unit == "s"'"#,
     );
 }
 
-/// A matcher that compiles and resolves lets the run finish, since nothing
-/// consumes it yet.
+/// A matcher that compiles and resolves lets the run finish.
 #[test]
 fn a_valid_matcher_does_not_change_the_run() {
     let (out, _dir) = run_with_matcher_on(

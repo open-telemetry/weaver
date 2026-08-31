@@ -746,8 +746,6 @@ level = "improvement"
 
     #[test]
     fn test_fail_on_invalid_value_errors() {
-        // Deserialize the typed config directly so we observe the error
-        // instead of `command_config`'s silent `unwrap_or_default()`.
         let toml = "fail_on = \"bogus\"\ninput_source = \"x\"\ninput_format = \"y\"\nformat = \"z\"\ntemplates = \"t\"\n";
         let err = toml::from_str::<LiveCheckConfig>(toml).expect_err("expected parse error");
         let msg = err.to_string();

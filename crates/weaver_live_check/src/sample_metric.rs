@@ -346,8 +346,8 @@ impl LiveCheckRunner for SampleMetric {
         live_checker.record_match(&sample_match);
         let semconv_metric = sample_match.signal.clone();
         // Coverage is credited to the signal the match resolved, which a
-        // matcher can rename. A v1 group's id is not the metric name, so v1
-        // keeps the sample's own.
+        // matcher can rename, except for a v1 group whose id is not the
+        // metric name.
         let coverage_name = match semconv_metric.as_deref() {
             Some(VersionedSignal::Metric(metric)) => metric.name.to_string(),
             _ => self.name.clone(),

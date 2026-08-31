@@ -68,8 +68,8 @@ impl LiveCheckRunner for SampleLog {
         live_checker.record_match(&sample_match);
         let semconv_event = sample_match.signal.clone();
         // Coverage is credited to the signal the match resolved, which a
-        // matcher can rename. A v1 group's id is not the event name, so v1
-        // keeps the sample's own.
+        // matcher can rename, except for a v1 group whose id is not the
+        // event name.
         let coverage_name = match semconv_event.as_deref() {
             Some(VersionedSignal::Event(event)) => event.name.to_string(),
             _ => self.event_name.clone(),

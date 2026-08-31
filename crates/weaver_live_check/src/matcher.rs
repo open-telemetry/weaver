@@ -4,14 +4,18 @@
 
 use std::rc::Rc;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use weaver_cel::{Bindings, Expression, Referenced, Scope};
 use weaver_config::live_check::{MatcherConfig, MatcherSampleType};
 use weaver_forge::v2::attribute_group::AttributeGroup;
 
 use crate::{
-    advice::{emit_findings, type_advisor::check_attributes, FindingBuilder},
+    advice::{
+        emit_findings,
+        type_advisor::{check_attributes, CheckableAttribute},
+        FindingBuilder,
+    },
     cel::variables,
     generated::attributes::FindingId,
     live_checker::LiveChecker,
@@ -213,7 +217,6 @@ impl Matchers {
         sample_match
     }
 
-    /// Counts a match against the matchers that produced it.
     /// What a match compared the sample with, by name.
     #[must_use]
     pub fn match_info(&self, sample_match: &SampleMatch, signal_expected: bool) -> MatchInfo {
@@ -368,12 +371,12 @@ impl SampleMatch {
         self.targeted && self.applied.is_empty() && self.signal.is_none()
     }
 
-    /// The definition this match holds for an attribute, from the signal
-    /// or one of the attribute groups.
+    /// The definition this match holds for an attribute, from the signal or
+    /// one of the attribute groups.
     ///
-    /// The groups are searched in priority order, so the first mention wins.
+    /// An exact key wins over a template, the signal over the groups, and an
+    /// earlier group over a later one.
     #[must_use]
-    /// An exact key wins over a template, and the signal over the groups.
     pub fn find_attribute(
         &self,
         live_checker: &LiveChecker,
@@ -499,15 +502,33 @@ impl SampleMatch {
                 result.add_advice(finding, live_checker.finding_modifier.as_ref(), sample_ref);
             }
         }
-        // The type advisor checks the signal's own attributes.
+        // The type advisor checks the signal's own attributes, so a group's
+        // copy of a key the signal or an earlier group declares is skipped
+        // here: first mention wins, as in `find_attribute`.
+        let mut checked: HashSet<&str> = HashSet::new();
         for attribute_group in &self.attribute_groups {
-            let findings = check_attributes(&attribute_group.attributes, attributes, parent_signal);
+            let declared = attribute_group.attributes.iter().filter(|attribute| {
+                let key = attribute.key();
+                !self.signal_declares(live_checker, key) && checked.insert(key)
+            });
+            let findings = check_attributes(declared, attributes, parent_signal);
             if findings.is_empty() {
                 continue;
             }
             emit_findings(&findings, sample_ref, emitter, parent_signal);
             result.add_advice_list(findings, live_checker.finding_modifier.as_ref(), sample_ref);
         }
+    }
+
+    /// Whether the matched signal declares this exact key.
+    ///
+    /// A template the signal declares does not count: an exact key wins over
+    /// a template, so the group's copy is the one that applies.
+    fn signal_declares(&self, live_checker: &LiveChecker, key: &str) -> bool {
+        self.signal
+            .as_deref()
+            .and_then(|signal| live_checker.find_refined_attribute(signal, key))
+            .is_some()
     }
 
     /// Records what this match compared the sample with.
@@ -674,6 +695,7 @@ mod tests {
     use weaver_semconv::v2::CommonFields;
 
     use crate::advice::{Advisor, TypeAdvisor};
+    use crate::sample_log::SampleLog;
 
     use super::{fixture::matcher_configs, *};
 
@@ -1402,7 +1424,6 @@ attribute_groups = ["myapp.common"]
             assert!(stats.matchers[0].first_error.is_none());
         }
 
-        /// The finding ids a match raises for a sample.
         /// The match a config produces for a span sample.
         fn match_info(toml_str: &str, sample: &SampleSpan) -> MatchInfo {
             let mut live_checker = v2_live_checker_with(sample_span_attributes(), Vec::new());
@@ -1411,28 +1432,6 @@ attribute_groups = ["myapp.common"]
                 .expect("they check out");
             let sample_match = live_checker.match_for(SampleType::Span, sample, None);
             live_checker.matchers().match_info(&sample_match, true)
-        }
-
-        fn findings(toml_str: &str, sample: &SampleSpan) -> Vec<String> {
-            let mut live_checker = v2_live_checker_with(sample_span_attributes(), Vec::new());
-            live_checker
-                .set_matchers(&matcher_configs(toml_str))
-                .expect("they check out");
-            let sample_match = live_checker.match_for(SampleType::Span, sample, None);
-            let mut result = LiveCheckResult::new();
-            let parent = Sample::Span(sample.clone());
-            sample_match.add_findings(
-                &SampleRef::Span(sample),
-                &sample.attributes,
-                &mut result,
-                &live_checker,
-                &parent,
-            );
-            result
-                .all_advice
-                .iter()
-                .map(|finding| finding.id.clone())
-                .collect()
         }
 
         #[test]
@@ -1473,7 +1472,7 @@ when = 'name == "no-such-span"'
         #[test]
         fn a_natural_event_match_still_raises_unexpected_attribute() {
             let live_checker = v2_live_checker();
-            let sample: crate::sample_log::SampleLog = serde_json::from_str(
+            let sample: SampleLog = serde_json::from_str(
                 r#"{ "event_name": "myapp.order.placed",
                      "attributes": [{ "name": "myapp.stray.field", "value": "x" }],
                      "live_check_result": null }"#,
@@ -1676,7 +1675,6 @@ signal = "myapp.checkout"
             assert_eq!(ids, ["missing_attribute"]);
         }
 
-        /// A v1 group holds no refinements.
         /// A v1 span group of the fixture registry.
         fn v1_group() -> ResolvedGroup {
             ResolvedGroup {
@@ -1813,6 +1811,95 @@ signal = "myapp.checkout"
                 .collect()
         }
 
+        /// Reported once, as `find_attribute` resolves it once.
+        #[test]
+        fn the_signal_wins_over_a_group_that_declares_the_same_key() {
+            let mut live_checker = v2_live_checker_full(
+                Vec::new(),
+                vec![span_attribute(
+                    "myapp.checkout.coupon",
+                    RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+                )],
+                vec![attribute_group_attribute("myapp.checkout.coupon")],
+                vec![Box::new(TypeAdvisor)],
+            );
+            live_checker
+                .set_matchers(&matcher_configs(
+                    r#"
+[[live-check.matchers]]
+id = "myapp.checkout"
+sample_type = "span"
+when = 'name == "checkout payment"'
+signal = "myapp.checkout"
+attribute_groups = ["myapp.common"]
+"#,
+                ))
+                .expect("they check out");
+            let ids = check_findings(&mut live_checker);
+            assert_eq!(
+                ids.iter()
+                    .filter(|id| *id == "recommended_attribute_not_present")
+                    .count(),
+                1,
+                "got: {ids:?}"
+            );
+        }
+
+        #[test]
+        fn the_first_group_wins_over_a_later_one_that_declares_the_same_key() {
+            let mut live_checker = two_group_live_checker();
+            live_checker
+                .set_matchers(&matcher_configs(
+                    r#"
+[[live-check.matchers]]
+id = "myapp.session"
+sample_type = "span"
+when = 'name == "checkout payment"'
+attribute_groups = ["myapp.common"]
+
+[[live-check.matchers]]
+id = "myapp.customer"
+sample_type = "span"
+when = 'name == "checkout payment"'
+attribute_groups = ["myapp.extra"]
+"#,
+                ))
+                .expect("they check out");
+            let ids = check_findings(&mut live_checker);
+            assert_eq!(
+                ids.iter()
+                    .filter(|id| *id == "recommended_attribute_not_present")
+                    .count(),
+                1,
+                "got: {ids:?}"
+            );
+        }
+
+        /// The fixture registry, with `myapp.common` and `myapp.extra` both
+        /// declaring `myapp.checkout.coupon`, which the span does not carry.
+        fn two_group_live_checker() -> LiveChecker {
+            let mut registry: ForgeResolvedRegistry =
+                serde_json::from_str(include_str!("../fixtures/registry-v2.json"))
+                    .expect("the fixture registry parses");
+            if let Some(span) = registry.registry.spans.first_mut() {
+                span.attributes = Vec::new();
+            }
+            let mut group = registry
+                .registry
+                .attribute_groups
+                .first()
+                .expect("the fixture declares one")
+                .clone();
+            group.attributes = vec![attribute_group_attribute("myapp.checkout.coupon")];
+            let mut extra = group.clone();
+            extra.id = "myapp.extra".to_owned().into();
+            registry.registry.attribute_groups = vec![group, extra];
+            LiveChecker::new(
+                Arc::new(VersionedRegistry::V2(Box::new(registry))),
+                vec![Box::new(TypeAdvisor)],
+            )
+        }
+
         /// The signal declares `myapp.checkout.id` but not `myapp.checkout.stage`.
         #[test]
         fn an_attribute_on_neither_the_signal_nor_a_group_is_unexpected() {
@@ -1910,7 +1997,6 @@ attribute_groups = ["myapp.common"]
             );
         }
 
-        /// A dependency declares the attribute, so the finding names its schema.
         /// This registry's own definition wins over a dependency's.
         #[test]
         fn a_base_definition_in_this_registry_is_found_too() {

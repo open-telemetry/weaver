@@ -274,7 +274,7 @@ fn emit_logs(provider: &SdkLoggerProvider) {
     record.add_attribute(Key::from("acme.session.id"), AnyValue::from("s-9"));
     logger.emit(record);
 
-    // No event name, so not a typed signal and no matcher looks at it.
+    // No event name, so not a typed signal and no matcher targets it.
     let mut record = logger.create_log_record();
     record.set_severity_number(Severity::Info);
     record.set_severity_text("INFO");
