@@ -2435,4 +2435,119 @@ mod tests {
         assert_eq!(list1[0].key, "server.address");
         assert_eq!(list1[1].key, "server.port");
     }
+
+    #[test]
+    fn test_lookup_defaults_missing_stability() {
+        use weaver_semconv::stability::Stability;
+        use weaver_semconv::v1::attribute::{BasicRequirementLevelSpec, RequirementLevel};
+        use weaver_semconv::v2::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
+
+        let key = "test.key".to_owned();
+        let atype = AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String);
+        let catalog = V2CatalogBuilder::from_attributes(vec![V2Attribute {
+            key: key.clone(),
+            r#type: atype,
+            examples: None,
+            common: CommonFields {
+                brief: "brief".to_owned(),
+                note: "note".to_owned(),
+                // What `convert_v1_to_v2` stores for an attribute with no stability.
+                stability: Stability::default(),
+                deprecated: None,
+                annotations: BTreeMap::new(),
+            },
+            provenance: Default::default(),
+        }]);
+
+        let result = catalog.convert_ref(&V1Attribute {
+            name: key,
+            r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String,
+            ),
+            brief: "brief".to_owned(),
+            examples: None,
+            tag: None,
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            sampling_relevant: Some(true),
+            note: "note".to_owned(),
+            stability: None,
+            deprecated: None,
+            prefix: false,
+            tags: None,
+            annotations: None,
+            value: None,
+            role: None,
+        });
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_lookup_works_and_matches_annotations() {
+        use weaver_semconv::stability::Stability;
+        use weaver_semconv::v1::attribute::{BasicRequirementLevelSpec, RequirementLevel};
+        use weaver_semconv::v2::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
+
+        let key = "test.key".to_owned();
+        let atype = AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String);
+        let brief = "brief".to_owned();
+        let note = "note".to_owned();
+        let stability = Stability::Stable;
+        let annotations = BTreeMap::new();
+        let catalog = V2CatalogBuilder::from_attributes(vec![V2Attribute {
+            key: key.clone(),
+            r#type: atype,
+            examples: None,
+            common: CommonFields {
+                brief: brief.clone(),
+                note: note.clone(),
+                stability: stability.clone(),
+                deprecated: None,
+                annotations: annotations.clone(),
+            },
+            provenance: Default::default(),
+        }]);
+
+        let result = catalog.convert_ref(&V1Attribute {
+            name: key.clone(),
+            r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String,
+            ),
+            brief: brief.clone(),
+            examples: None,
+            tag: None,
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            sampling_relevant: Some(true),
+            note: note.clone(),
+            stability: Some(stability.clone()),
+            deprecated: None,
+            prefix: false,
+            tags: None,
+            annotations: Some(annotations),
+            value: None,
+            role: None,
+        });
+        assert!(result.is_some());
+
+        // Make sure None annotations matches empty annotations.
+        let result2 = catalog.convert_ref(&V1Attribute {
+            name: key,
+            r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String,
+            ),
+            brief,
+            examples: None,
+            tag: None,
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            sampling_relevant: Some(true),
+            note,
+            stability: Some(stability),
+            deprecated: None,
+            prefix: false,
+            tags: None,
+            annotations: None,
+            value: None,
+            role: None,
+        });
+        assert!(result2.is_some());
+    }
 }
