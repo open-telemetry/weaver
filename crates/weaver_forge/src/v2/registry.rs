@@ -147,6 +147,7 @@ impl ForgeResolvedRegistry {
     /// Every registry this one depends on, breadth first over
     /// `dependency_graph`. A registry the graph does not reach comes last, in
     /// keyed order.
+    #[must_use]
     pub fn dependencies_nearest_first(&self) -> Vec<(&SchemaUrl, &ForgeDependency)> {
         let mut ordered = Vec::with_capacity(self.dependencies.len());
         let mut seen = HashSet::with_capacity(self.dependencies.len() + 1);

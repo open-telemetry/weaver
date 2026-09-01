@@ -3,6 +3,9 @@
 //! The OTLP harness the matcher end-to-end tests share: the live-check child
 //! process, the telemetry sent to it, and accessors for the report.
 
+// Each test binary compiles the whole module and uses part of it.
+#![allow(dead_code)]
+
 use std::process::{Child, Command as StdCommand};
 use std::thread::sleep;
 use std::time::Duration;
