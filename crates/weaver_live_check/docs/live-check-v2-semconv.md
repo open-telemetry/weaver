@@ -237,7 +237,7 @@ attribute_groups = ["myapp.common"]
 
 The test is on the metric name, so this only reaches our own metrics. Every one of them keeps the natural match to its declared metric signal, and gets the attributes in `myapp.common` on top. The metrics from the libraries we depend on, `http.client.request.duration` and the like, are left exactly as they were.
 
-The name is all we need here. Where the name is not enough, the same expression can go on to test the attributes, the unit, or anything else the sample carries.
+The name is all we need here. Where the name is not enough, the same expression can go on to test the attributes, the unit, or anything else on the sample.
 
 ## Resource
 
@@ -245,9 +245,9 @@ A resource on its own is a list of attributes. There is no identifier in it, and
 
 It's tempting to compare a resource with an entity, but that would be wrong. Entities are pulled in by the signals. A metric can declare `entity_associations`, and when it does we take the attributes that the entity asks for out of the resource and check them as part of that metric. The finding belongs to the metric, not to the resource.
 
-One incoming message can carry many metrics and they all share the same resource. That resource holds the attributes for every entity that every one of those signals asks for, and it may well hold more besides. It's a superset. If we compared it with any one entity we would report all of the attributes that the other signals needed as unexpected.
+One incoming message can hold many metrics and they all share the same resource. That resource holds the attributes for every entity that every one of those signals asks for, and it may well hold more besides. It's a superset. If we compared it with any one entity we would report all of the attributes that the other signals needed as unexpected.
 
-So a matcher for a resource has no `signal` at all. It only adds `attribute_groups`. The entity checks carry on as they are, driven by the signals that declare them.
+So a matcher for a resource has no `signal` at all. It only adds `attribute_groups`. The entity checks continue as they are, driven by the signals that declare them.
 
 The `when` here keeps the matcher off the resources that belong to anything other than our own services:
 
@@ -290,9 +290,9 @@ instrumentation_scope.name.startsWith("myapp.")
 signal = "myapp.checkout"
 ```
 
-A span that carries the same attributes but comes from somewhere else no longer matches `myapp.checkout`. Its `match_info` says no matcher applied.
+A span with the same attributes but from somewhere else no longer matches `myapp.checkout`. Its `match_info` says no matcher applied.
 
-A scope also carries a `schema_url`, which is the schema the telemetry claims to follow. We ingest it today and hand it to policies, but we do nothing else with it. It is worth comparing it with the `schema_url` of the registry we are checking against, because if the two disagree then the samples were built against a different version of the schema and some of the findings that follow are explained by that. A finding at information level when they differ would tell you so straight away.
+A scope also has a `schema_url`, which is the schema the telemetry claims to follow. We ingest it today and hand it to policies, but we do nothing else with it. It is worth comparing it with the `schema_url` of the registry we are checking against, because if the two disagree then the samples were built against a different version of the schema and some of the findings that follow are explained by that. A finding at information level when they differ would tell you so straight away.
 
 ---
 # Matcher specification
@@ -318,7 +318,8 @@ attribute_groups = ["myapp.common"]
 | `sample_type`      | Yes      | The kind of sample this matcher looks at. One of `span`, `span_event`, `span_link`, `log`, `metric`, `resource`, `instrumentation_scope` or `profile`. |
 | `when`             | No       | The matcher expression, written in CEL. It has to be true for the matcher to apply. Leave it out and the matcher applies to every sample of this type. |
 | `signal`           | No       | The one signal the sample is compared with. Leave it out to keep the natural match.                                                                    |
-| `attribute_groups` | No       | Attribute groups, in priority order, to add to the comparison, on top of whatever `signal` brought in.                                                 |
+| `attribute_groups` | No       | Attribute groups whose attributes are permitted on the sample, in priority order. Their definitions are used, but an attribute missing from the sample is not reported. |
+| `strict_attribute_groups` | No | Attribute groups whose requirement levels are enforced.                                                                        |
 
 ## References
 
@@ -355,7 +356,7 @@ The expression looks at one sample and comes out true or false. These are the va
 | `kind`                                                                                            | Span                                            | One of `client`, `server`, `internal`, `producer` or `consumer`.                                            |
 | `status.code`, `status.message`                                                                   | Span                                            | The outcome of the span. The code is one of `unset`, `ok` or `error`, and a span with no status is `unset`. |
 | `unit`, `instrument`                                                                              | Metric                                          | The unit and the instrument of the metric.                                                                  |
-| `event_name`, `severity_text`, `severity_number`, `body`                                          | Log                                             | The fields on the log record. All but `event_name` are optional, and one the record does not carry is unbound, so reading it errors. |
+| `event_name`, `severity_text`, `severity_number`, `body`                                          | Log                                             | The fields on the log record. All but `event_name` are optional, and one the record omits is unbound, so reading it errors. |
 
 CEL brings the operators you would expect, `==`, `!=`, `&&`, `||`, `!` and brackets, along with the string methods `matches`, `startsWith`, `endsWith` and `contains`, and the macros `has`, `exists`, `exists_one`, `all`, `map` and `filter`. Everything in a matcher is plain CEL, so anything you already know about the language holds here.
 
@@ -369,7 +370,7 @@ CEL brings the operators you would expect, `==`, `!=`, `&&`, `||`, `!` and brack
 
 ## Linting
 
-Reading an attribute the sample does not carry is an error in CEL and not an empty value, so every value you read needs an `in` test on the same key:
+Reading an attribute absent from the sample is an error in CEL and not an empty value, so every value you read needs an `in` test on the same key:
 
 ```cel
 "myapp.checkout.stage" in attributes
@@ -403,7 +404,7 @@ We count matched samples against the `id` of the matcher, so coverage can tell y
 
 ## What a sample was checked against
 
-Every sample carries a `match_info` in its result, holding the signal, the matcher whose `signal` won, the attribute groups, and one entry per matcher that applied. The ansi output puts one line under the sample for each thing a matcher contributed, dimmed:
+Every sample's result holds a `match_info`, giving the signal, the matcher whose `signal` won, the attribute groups, and one entry per matcher that applied. The ansi output puts one line under the sample for each thing a matcher contributed, dimmed:
 
 ```text
 Span checkout `server`
@@ -422,9 +423,9 @@ Metric acme.cart.items `counter`, `{item}`
   none -> signal: acme.cart.items
 ```
 
-`none` means the sample's own name resolved the signal, or that nothing set one. `no match` is yellow on a sample that resolves a signal and has none: a span, a span event, a metric, or a log carrying an `event_name`. It is grey on a resource, a scope, a span link, a profile and a log with no `event_name`, none of which name a signal. `(conflict, ignored)` is red.
+`none` means the sample's own name resolved the signal, or that nothing set one. `no match` is yellow on a sample that resolves a signal and has none: a span, a span event, a metric, or a log with an `event_name`. It is grey on a resource, a scope, a span link, a profile and a log with no `event_name`, none of which name a signal. `(conflict, ignored)` is red.
 
-It is not a finding, so it does not reach `finding_filters`, `fail_on` or the emitted OTLP logs. A v1 registry takes no matchers and carries no `match_info`.
+It is not a finding, so it does not reach `finding_filters`, `fail_on` or the emitted OTLP logs. A v1 registry takes no matchers and has no `match_info`.
 
 ## Related configuration
 

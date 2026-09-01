@@ -50,7 +50,7 @@ fn one_definition_serves_every_sample(report: &Value) {
 
     let metric = report["samples"]
         .as_array()
-        .expect("the report carries the samples")
+        .expect("the report lists the samples")
         .iter()
         .map(|sample| &sample["metric"])
         .find(|metric| metric["name"] == "acme.cart.items")
@@ -62,7 +62,7 @@ fn one_definition_serves_every_sample(report: &Value) {
     );
 }
 
-/// v1 compares each attribute with the registry, whatever sample carries it.
+/// v1 compares each attribute with the registry, whatever sample it is on.
 fn the_attribute_advisors_run_on_every_sample(findings: &[&Value]) {
     for (id, key) in [
         ("not_stable", "acme.customer.tier"),
@@ -153,14 +153,14 @@ fn no_v2_matcher_behaviour_appears(report: &Value, findings: &[&Value]) {
 
     let matchers = report["statistics"]["matchers"]
         .as_array()
-        .expect("the statistics carry the matchers");
+        .expect("the statistics list the matchers");
     assert!(matchers.is_empty(), "got: {matchers:?}");
 
-    // A v1 registry takes no matchers, so no sample carries a match.
+    // A v1 registry takes no matchers, so no sample has a match.
     let mut samples = 0;
     for sample in report["samples"]
         .as_array()
-        .expect("the report carries the samples")
+        .expect("the report lists the samples")
     {
         for kind in ["span", "log", "metric", "resource", "instrumentation_scope"] {
             let result = &sample[kind]["live_check_result"];
@@ -170,5 +170,5 @@ fn no_v2_matcher_behaviour_appears(report: &Value, findings: &[&Value]) {
             }
         }
     }
-    assert!(samples > 0, "the report carries samples to check");
+    assert!(samples > 0, "the report lists samples to check");
 }

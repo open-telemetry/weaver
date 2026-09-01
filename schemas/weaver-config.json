@@ -755,11 +755,11 @@
       }
     },
     "MatcherConfig": {
-      "description": "A rule that assigns a registry signal, additional attribute groups, or\nboth, to samples that cannot be identified by name alone.\n\nThe rule applies to a sample of kind `sample_type` when `when` evaluates to\ntrue. `signal` replaces the signal the sample would otherwise be checked\nagainst; `attribute_groups` are checked in addition to it. Both are looked\nup in the registry at startup.",
+      "description": "A rule that assigns a registry signal, additional attribute groups, or\nboth, to samples that cannot be identified by name alone.\n\nThe rule applies to a sample of kind `sample_type` when `when` evaluates to\ntrue. `signal` replaces the signal the sample would otherwise be checked\nagainst; the attribute groups are checked in addition to it. All are looked\nup in the registry at startup.",
       "type": "object",
       "properties": {
         "attribute_groups": {
-          "description": "Registry attribute groups checked in addition to the signal, in\npriority order.",
+          "description": "Registry attribute groups permitted on the sample, in priority order,\nwithout enforcing their requirement levels.",
           "type": "array",
           "default": [],
           "items": {
@@ -780,6 +780,14 @@
             "string",
             "null"
           ]
+        },
+        "strict_attribute_groups": {
+          "description": "Registry attribute groups whose requirement levels are enforced.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
         },
         "when": {
           "description": "A CEL expression that must evaluate to true for the matcher to apply.\nWhen unset, the matcher applies to every sample of its `sample_type`.",

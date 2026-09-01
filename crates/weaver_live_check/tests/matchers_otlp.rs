@@ -49,7 +49,7 @@ use std::collections::BTreeMap;
 fn matcher<'a>(report: &'a Value, id: &str) -> &'a Value {
     report["statistics"]["matchers"]
         .as_array()
-        .expect("statistics carry the matchers")
+        .expect("the statistics list the matchers")
         .iter()
         .find(|matcher| matcher["id"] == id)
         .unwrap_or_else(|| panic!("no matcher `{id}` in {}", report["statistics"]["matchers"]))
@@ -133,7 +133,7 @@ fn the_advisors_run_on_the_matched_definitions(findings: &[&Value]) {
     }
 }
 
-/// The resource carries none of the entity's attributes, and satisfies neither
+/// The resource sets none of the entity's attributes, and satisfies neither
 /// branch of the event's `one_of`.
 fn the_entity_associations_are_checked_against_the_resource(findings: &[&Value]) {
     for (id, key) in [
@@ -366,7 +366,7 @@ fn the_definition_used_comes_from_the_signal_then_the_first_group(report: &Value
     // span's.
     let metric = report["samples"]
         .as_array()
-        .expect("the report carries the samples")
+        .expect("the report lists the samples")
         .iter()
         .map(|sample| &sample["metric"])
         .find(|metric| metric["name"] == "acme.cart.items")
@@ -379,7 +379,7 @@ fn the_definition_used_comes_from_the_signal_then_the_first_group(report: &Value
 
 /// An instrumentation scope cannot name a signal, but takes attribute groups.
 fn a_scope_takes_attribute_groups(report: &Value) {
-    // Only the tracer's copy of the scope carries attributes.
+    // Only the tracer's copy of the scope has attributes.
     let scopes = scopes(report, CHECKOUT_SCOPE);
     // The catalog definition is annotated `catalog`.
     assert_eq!(
@@ -436,7 +436,7 @@ fn every_sample_records_its_match(report: &Value) {
     // The signal a matcher named, not the one the metric's own name gives.
     let renamed = &report["samples"]
         .as_array()
-        .expect("the report carries the samples")
+        .expect("the report lists the samples")
         .iter()
         .map(|sample| &sample["metric"])
         .find(|metric| metric["name"] == "acme.checkout.attempts")
@@ -469,7 +469,7 @@ fn every_sample_records_its_match(report: &Value) {
 fn log_match_info<'a>(report: &'a Value, event_name: &str) -> &'a Value {
     &report["samples"]
         .as_array()
-        .expect("the report carries the samples")
+        .expect("the report lists the samples")
         .iter()
         .map(|sample| &sample["log"])
         .find(|log| log["event_name"] == event_name)

@@ -131,7 +131,7 @@ attribute_groups:
             source: group-session
   - id: acme.service
     visibility: public
-    brief: Attributes a resource is expected to carry.
+    brief: Attributes expected on a resource.
     stability: stable
     attributes:
       - ref: service.name
@@ -226,7 +226,7 @@ metrics:
     attributes:
       - ref: acme.checkout.stage
         requirement_level: recommended
-      # Only this metric declares it, so a sample carrying it is unexpected
+      # Only this metric declares it, so a sample setting it is unexpected
       # against the signal `acme.metric.mismatched` names instead.
       - ref: acme.checkout.coupon
         requirement_level: recommended

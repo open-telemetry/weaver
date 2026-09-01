@@ -92,7 +92,7 @@ pub struct LiveChecker {
     semconv_spans: HashMap<String, Rc<VersionedSignal>>,
     #[serde(skip)]
     semconv_attribute_groups: HashMap<String, Rc<AttributeGroup>>,
-    /// The attributes each v2 signal declares, which carry its refinements.
+    /// The attributes each v2 signal declares, which hold its refinements.
     /// Empty for a v1 registry.
     #[serde(skip)]
     refined_span_attributes: RefinedAttributes,
@@ -356,7 +356,7 @@ impl LiveChecker {
         self.semconv_events.get(name).map(Rc::clone)
     }
 
-    /// Find a v2 signal's own copy of an attribute, which carries its
+    /// Find a v2 signal's own copy of an attribute, which holds its
     /// refinements
     ///
     /// `None` for a v1 group, and for an attribute the signal does not declare.
@@ -3243,7 +3243,7 @@ mod tests {
         }
     }
 
-    /// Builds a V1 event group carrying the given entity associations.
+    /// Builds a V1 event group with the given entity associations.
     fn assoc_event_group(name: &str, associations: Vec<EntityAssociation>) -> ResolvedGroup {
         ResolvedGroup {
             id: format!("event.{name}"),
@@ -3532,7 +3532,7 @@ mod tests {
         }
     }
 
-    /// The same entity, carrying one annotation.
+    /// The same entity, with one annotation.
     fn annotated(mut entity: V2Entity, key: &str, value: &str) -> V2Entity {
         let _ = entity.common.annotations.insert(
             key.to_owned(),
@@ -3541,7 +3541,7 @@ mod tests {
         entity
     }
 
-    /// Builds a v2 event carrying the given entity associations.
+    /// Builds a v2 event with the given entity associations.
     fn v2_assoc_event(name: &str, associations: Vec<V2EntityAssociation>) -> V2Event {
         V2Event {
             requirement_level: None,
@@ -3863,7 +3863,7 @@ mod tests {
         // End to end: the default jq preprocessor hands the entity view to a
         // policy, which reads an annotation from the definition of an entity that
         // a dependency holds, and checks the resource against it. Nothing in the
-        // input carries that definition. This registry defines a rival `host`, so
+        // input holds that definition. This registry defines a rival `host`, so
         // the leaf's provenance is what decides which annotation applies.
         const DEP_URL: &str = "https://example.com/base/1.0.0";
         let dependency = v2_dependency(
@@ -3905,7 +3905,7 @@ mod tests {
         let mut stats =
             LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
 
-        // The resource carries the identity attribute with the wrong prefix.
+        // The resource sets the identity attribute with the wrong prefix.
         let advice = run_event_check(
             &mut live_checker,
             &mut stats,

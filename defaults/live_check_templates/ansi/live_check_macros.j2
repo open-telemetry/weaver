@@ -53,6 +53,9 @@
 {{ " " * indent }}  {{ ("none -> signal: ") | ansi_bright_black | ansi_italic }}{{ no_match }}
 {% endif %}
 {% for entry in match_info.entries %}
+{% if entry.strict_attribute_groups %}
+{{ " " * indent }}  {{ (entry.matcher ~ " -> strict_attribute_groups: " ~ (entry.strict_attribute_groups | join(", "))) | ansi_bright_black | ansi_italic }}
+{% endif %}
 {% if entry.attribute_groups %}
 {{ " " * indent }}  {{ (entry.matcher ~ " -> attribute_groups: " ~ (entry.attribute_groups | join(", "))) | ansi_bright_black | ansi_italic }}
 {% endif %}

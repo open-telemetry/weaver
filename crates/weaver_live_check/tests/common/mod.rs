@@ -31,7 +31,7 @@ pub const REGISTRY_V1: &str = "data/model/matchers_v1";
 pub const CONFIG: &str = "data/matchers/livecheck.toml";
 pub const ADVICE: &str = "data/matchers/advice";
 
-/// The scope of the spans that carry the checkout flow.
+/// The scope of the spans in the checkout flow.
 pub const CHECKOUT_SCOPE: &str = "acme.checkout";
 /// The scope a matcher selects on.
 const CART_SCOPE: &str = "acme.cart";
@@ -110,7 +110,7 @@ pub async fn run(registry: &str, extra_args: &[&str]) -> Value {
         .unwrap_or_else(|error| panic!("report is not JSON: {error}\n{body}"))
 }
 
-/// The resource every provider carries. `acme.tenant.id` is defined only in the
+/// The resource every provider uses. `acme.tenant.id` is defined only in the
 /// dependency registry, which is what `--search-all-attributes` is shown by.
 fn resource() -> Resource {
     Resource::builder()
@@ -222,7 +222,7 @@ fn emit_spans(provider: &SdkTracerProvider) {
 
     // Matched by `acme.checkout.legacy` and `acme.span.on-error`. The registry
     // span is a server span, requires `acme.checkout.id` and recommends
-    // `acme.checkout.stage`, and this carries neither.
+    // `acme.checkout.stage`, and this sets neither.
     let mut span = checkout
         .span_builder("checkout-legacy")
         .with_kind(SpanKind::Client)
@@ -238,7 +238,7 @@ fn emit_spans(provider: &SdkTracerProvider) {
         .end();
 
     // Matched by `acme.cart.by-attribute`, `acme.cart.conflict`,
-    // `acme.span.by-scope` and `acme.span.by-resource`. The scope carries two
+    // `acme.span.by-scope` and `acme.span.by-resource`. The scope sets two
     // attributes only the dependency defines, one of them by extending a
     // template, and `acme.scope.acme` names no attribute groups, so the scope
     // has no expected set of its own.
@@ -343,7 +343,7 @@ fn emit_metrics(provider: &SdkMeterProvider) {
 pub fn span<'a>(report: &'a Value, name: &str) -> &'a Value {
     report["samples"]
         .as_array()
-        .expect("the report carries the samples")
+        .expect("the report lists the samples")
         .iter()
         .map(|sample| &sample["span"])
         .find(|span| span["name"] == name)
@@ -367,7 +367,7 @@ pub fn annotation_source<'a>(sample: &'a Value, key: &str) -> Option<&'a str> {
 pub fn scopes<'a>(report: &'a Value, name: &str) -> Vec<&'a Value> {
     report["samples"]
         .as_array()
-        .expect("the report carries the samples")
+        .expect("the report lists the samples")
         .iter()
         .map(|sample| &sample["instrumentation_scope"])
         .filter(|scope| scope["name"] == name)

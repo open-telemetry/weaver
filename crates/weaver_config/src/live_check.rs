@@ -310,7 +310,7 @@ impl fmt::Display for MatcherSampleType {
 ///
 /// The rule applies to a sample of kind `sample_type` when `when` evaluates to
 /// true. `signal` replaces the signal the sample would otherwise be checked
-/// against; `attribute_groups` are checked in addition to it. Both are looked
+/// against; the attribute groups are checked in addition to it. All are looked
 /// up in the registry at startup.
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
 pub struct MatcherConfig {
@@ -328,10 +328,14 @@ pub struct MatcherConfig {
     /// sample is checked against the signal its name resolves to.
     pub signal: Option<String>,
 
-    /// Registry attribute groups checked in addition to the signal, in
-    /// priority order.
+    /// Registry attribute groups permitted on the sample, in priority order,
+    /// without enforcing their requirement levels.
     #[serde(default)]
     pub attribute_groups: Vec<String>,
+
+    /// Registry attribute groups whose requirement levels are enforced.
+    #[serde(default)]
+    pub strict_attribute_groups: Vec<String>,
 }
 
 #[cfg(test)]

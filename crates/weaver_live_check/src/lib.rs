@@ -443,7 +443,7 @@ impl SampleRef<'_> {
     /// For attributes this is the attribute key, for instrumentation scopes
     /// it is the scope name, and for spans/metrics/events it is the signal
     /// name. Sub-signal types (data points, exemplars, span links, resources)
-    /// do not carry a name.
+    /// have no name.
     #[must_use]
     pub fn sample_name(&self) -> Option<&str> {
         match self {
@@ -594,7 +594,7 @@ pub struct LiveCheckResult {
     pub all_advice: Vec<PolicyFinding>,
     /// The highest advice level
     pub highest_advice_level: Option<FindingLevel>,
-    /// What the sample was compared with. Only whole samples carry one.
+    /// What the sample was compared with. Only whole samples have one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub match_info: Option<MatchInfo>,
 }

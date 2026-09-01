@@ -148,10 +148,10 @@ pub struct SampleSpanEvent {
     pub attributes: Vec<SampleAttribute>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
-    /// Resource of the span that carries this event (not serialized)
+    /// Resource of the span this event belongs to (not serialized)
     #[serde(skip)]
     pub resource: Option<Rc<SampleResource>>,
-    /// Instrumentation scope of the span that carries this event (not serialized)
+    /// Instrumentation scope of the span this event belongs to (not serialized)
     #[serde(skip)]
     pub instrumentation_scope: Option<Rc<SampleInstrumentationScope>>,
 }
@@ -204,10 +204,10 @@ pub struct SampleSpanLink {
     pub attributes: Vec<SampleAttribute>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
-    /// Resource of the span that carries this link (not serialized)
+    /// Resource of the span this link belongs to (not serialized)
     #[serde(skip)]
     pub resource: Option<Rc<SampleResource>>,
-    /// Instrumentation scope of the span that carries this link (not serialized)
+    /// Instrumentation scope of the span this link belongs to (not serialized)
     #[serde(skip)]
     pub instrumentation_scope: Option<Rc<SampleInstrumentationScope>>,
 }

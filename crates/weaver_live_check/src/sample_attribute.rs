@@ -180,7 +180,7 @@ impl LiveCheckRunner for SampleAttribute {
         let mut result = LiveCheckResult::new();
         // v1 searches the whole registry; v2 only when asked.
         let search_registry = live_checker.is_searching_all_attributes() || !live_checker.is_v2();
-        // A signal's or group's copy of an attribute carries its refinements.
+        // A signal's or group's copy of an attribute holds its refinements.
         let semconv_attribute = parent
             .as_deref()
             .and_then(|sample_match| sample_match.find_attribute(live_checker, &self.name))

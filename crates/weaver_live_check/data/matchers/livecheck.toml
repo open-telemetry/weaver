@@ -21,7 +21,8 @@ signal = "acme.checkout"
 id = "acme.span.on-error"
 sample_type = "span"
 when = 'status.code == "error"'
-attribute_groups = ["acme.customer"]
+# The one strict matcher here; the rest leave their groups permitted.
+strict_attribute_groups = ["acme.customer"]
 
 [["live-check".matchers]]
 id = "acme.cart.by-attribute"

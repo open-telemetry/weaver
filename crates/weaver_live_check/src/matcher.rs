@@ -59,9 +59,11 @@ pub struct Matcher {
     /// The registry signal the sample is checked against.
     pub signal: Option<String>,
 
-    /// Registry attribute groups checked in addition to the signal, in priority
-    /// order.
+    /// Attribute groups permitted on the sample, in priority order.
     pub attribute_groups: Vec<String>,
+
+    /// Attribute groups whose requirement levels are enforced.
+    pub strict_attribute_groups: Vec<String>,
 
     /// The number of samples the matcher applied to.
     matched: u64,
@@ -109,6 +111,7 @@ impl Matchers {
                 when,
                 signal: config.signal.clone(),
                 attribute_groups: config.attribute_groups.clone(),
+                strict_attribute_groups: config.strict_attribute_groups.clone(),
                 matched: 0,
                 errors: 0,
                 first_error: None,
@@ -149,7 +152,7 @@ impl Matchers {
         }
         for matcher in &self.matchers {
             matcher.check_signal(live_checker)?;
-            for attribute_group in &matcher.attribute_groups {
+            for attribute_group in matcher.named_attribute_groups() {
                 if live_checker.find_attribute_group(attribute_group).is_none() {
                     return Err(Error::UnknownMatcherAttributeGroup {
                         id: matcher.id.clone(),
@@ -181,7 +184,6 @@ impl Matchers {
             return sample_match;
         };
         let scope = Scope::new(referenced, bindings);
-        let mut seen_attribute_groups: Vec<&str> = Vec::new();
         for (index, matcher) in self.matchers.iter().enumerate() {
             if matcher.sample_type != sample_type {
                 continue;
@@ -204,13 +206,25 @@ impl Matchers {
                     sample_match.conflicts.push(matcher.id.clone());
                 }
             }
-            for attribute_group in &matcher.attribute_groups {
-                if seen_attribute_groups.contains(&attribute_group.as_str()) {
+            for (attribute_group, strict) in matcher
+                .strict_attribute_groups
+                .iter()
+                .map(|id| (id, true))
+                .chain(matcher.attribute_groups.iter().map(|id| (id, false)))
+            {
+                // Strict wins, whichever matcher named the group first.
+                if let Some(held) = sample_match
+                    .attribute_groups
+                    .iter_mut()
+                    .find(|held| held.group.id.to_string() == **attribute_group)
+                {
+                    held.strict |= strict;
                     continue;
                 }
-                seen_attribute_groups.push(attribute_group);
-                if let Some(found) = live_checker.find_attribute_group(attribute_group) {
-                    sample_match.attribute_groups.push(found);
+                if let Some(group) = live_checker.find_attribute_group(attribute_group) {
+                    sample_match
+                        .attribute_groups
+                        .push(MatchedGroup { group, strict });
                 }
             }
         }
@@ -229,7 +243,14 @@ impl Matchers {
             attribute_groups: sample_match
                 .attribute_groups
                 .iter()
-                .map(|attribute_group| attribute_group.id.to_string())
+                .filter(|matched| !matched.strict)
+                .map(|matched| matched.group.id.to_string())
+                .collect(),
+            strict_attribute_groups: sample_match
+                .attribute_groups
+                .iter()
+                .filter(|matched| matched.strict)
+                .map(|matched| matched.group.id.to_string())
                 .collect(),
             entries: sample_match
                 .applied
@@ -239,6 +260,7 @@ impl Matchers {
                     matcher: matcher.id.clone(),
                     signal: matcher.signal.clone(),
                     attribute_groups: matcher.attribute_groups.clone(),
+                    strict_attribute_groups: matcher.strict_attribute_groups.clone(),
                     ignored: sample_match.conflicts.contains(&matcher.id),
                 })
                 .collect(),
@@ -274,6 +296,13 @@ impl Matchers {
 }
 
 impl Matcher {
+    /// Every attribute group the matcher names, strict ones first.
+    fn named_attribute_groups(&self) -> impl Iterator<Item = &String> {
+        self.strict_attribute_groups
+            .iter()
+            .chain(self.attribute_groups.iter())
+    }
+
     /// Whether the matcher's `when` passes for this sample.
     ///
     /// A `when` that errors does not match, and returns the error for the
@@ -334,6 +363,16 @@ impl Matcher {
     }
 }
 
+/// An attribute group a match holds, and whether its requirement levels are
+/// enforced.
+#[derive(Debug, Clone)]
+pub struct MatchedGroup {
+    /// The attribute group.
+    pub group: Rc<AttributeGroup>,
+    /// Whether an attribute missing from the sample is reported.
+    pub strict: bool,
+}
+
 /// What a sample matched: the signal and attribute groups it is checked
 /// against, and the matchers that chose them.
 #[derive(Debug, Default)]
@@ -342,7 +381,7 @@ pub struct SampleMatch {
     pub signal: Option<Rc<VersionedSignal>>,
 
     /// The attribute groups added to the match, in priority order.
-    pub attribute_groups: Vec<Rc<AttributeGroup>>,
+    pub attribute_groups: Vec<MatchedGroup>,
 
     /// The matcher that set `signal`. `None` when `signal` is the natural
     /// match.
@@ -386,8 +425,8 @@ impl SampleMatch {
             .as_deref()
             .and_then(|signal| live_checker.find_refined_attribute(signal, key))
             .or_else(|| {
-                self.attribute_groups.iter().find_map(|attribute_group| {
-                    live_checker.find_attribute_group_attribute(&attribute_group.id, key)
+                self.attribute_groups.iter().find_map(|matched| {
+                    live_checker.find_attribute_group_attribute(&matched.group.id, key)
                 })
             })
             .or_else(|| {
@@ -396,8 +435,8 @@ impl SampleMatch {
                     .and_then(|signal| live_checker.find_refined_template(signal, key))
             })
             .or_else(|| {
-                self.attribute_groups.iter().find_map(|attribute_group| {
-                    live_checker.find_attribute_group_template(&attribute_group.id, key)
+                self.attribute_groups.iter().find_map(|matched| {
+                    live_checker.find_attribute_group_template(&matched.group.id, key)
                 })
             })
     }
@@ -506,8 +545,12 @@ impl SampleMatch {
         // copy of a key the signal or an earlier group declares is skipped
         // here: first mention wins, as in `find_attribute`.
         let mut checked: HashSet<&str> = HashSet::new();
-        for attribute_group in &self.attribute_groups {
-            let declared = attribute_group.attributes.iter().filter(|attribute| {
+        for matched in self
+            .attribute_groups
+            .iter()
+            .filter(|matched| matched.strict)
+        {
+            let declared = matched.group.attributes.iter().filter(|attribute| {
                 let key = attribute.key();
                 !self.signal_declares(live_checker, key) && checked.insert(key)
             });
@@ -559,9 +602,12 @@ pub struct MatchEntry {
     /// The signal it names, if any.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signal: Option<String>,
-    /// The attribute groups it names.
+    /// The attribute groups it permits.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attribute_groups: Vec<String>,
+    /// The attribute groups whose requirement levels it enforces.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub strict_attribute_groups: Vec<String>,
     /// Whether its signal was ignored because one was already set.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub ignored: bool,
@@ -577,9 +623,12 @@ pub struct MatchInfo {
     /// resolved it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signal_matcher: Option<String>,
-    /// The attribute groups, in priority order.
+    /// The permitted attribute groups, in priority order.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attribute_groups: Vec<String>,
+    /// The attribute groups whose requirement levels are enforced.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub strict_attribute_groups: Vec<String>,
     /// What each matcher that applied contributed, in declaration order.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub entries: Vec<MatchEntry>,
@@ -594,7 +643,9 @@ impl MatchInfo {
     /// Whether the sample was compared with anything.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.signal.is_none() && self.attribute_groups.is_empty()
+        self.signal.is_none()
+            && self.attribute_groups.is_empty()
+            && self.strict_attribute_groups.is_empty()
     }
 }
 
@@ -717,7 +768,7 @@ mod tests {
         v2_live_checker_with(Vec::new(), Vec::new())
     }
 
-    /// The fixture registry, with the span carrying `attributes` and the
+    /// The fixture registry, with the span declaring `attributes` and the
     /// advisors in `advisors`.
     fn v2_live_checker_with(
         attributes: Vec<SpanAttribute>,
@@ -726,7 +777,7 @@ mod tests {
         v2_live_checker_full(Vec::new(), attributes, Vec::new(), advisors)
     }
 
-    /// The attributes the fixture span sample carries, so a test that is not
+    /// The attributes on the fixture span sample, so a test that is not
     /// about `unexpected_attribute` does not raise it.
     fn sample_span_attributes() -> Vec<SpanAttribute> {
         vec![
@@ -742,7 +793,7 @@ mod tests {
     }
 
     /// The fixture registry, with `catalog` as the registry attributes and the
-    /// span carrying `attributes`.
+    /// span declaring `attributes`.
     fn v2_live_checker_full(
         catalog: Vec<V2Attribute>,
         attributes: Vec<SpanAttribute>,
@@ -1831,7 +1882,7 @@ id = "myapp.checkout"
 sample_type = "span"
 when = 'name == "checkout payment"'
 signal = "myapp.checkout"
-attribute_groups = ["myapp.common"]
+strict_attribute_groups = ["myapp.common"]
 "#,
                 ))
                 .expect("they check out");
@@ -1855,13 +1906,13 @@ attribute_groups = ["myapp.common"]
 id = "myapp.session"
 sample_type = "span"
 when = 'name == "checkout payment"'
-attribute_groups = ["myapp.common"]
+strict_attribute_groups = ["myapp.common"]
 
 [[live-check.matchers]]
 id = "myapp.customer"
 sample_type = "span"
 when = 'name == "checkout payment"'
-attribute_groups = ["myapp.extra"]
+strict_attribute_groups = ["myapp.extra"]
 "#,
                 ))
                 .expect("they check out");
@@ -1876,7 +1927,7 @@ attribute_groups = ["myapp.extra"]
         }
 
         /// The fixture registry, with `myapp.common` and `myapp.extra` both
-        /// declaring `myapp.checkout.coupon`, which the span does not carry.
+        /// declaring `myapp.checkout.coupon`, which the span omits.
         fn two_group_live_checker() -> LiveChecker {
             let mut registry: ForgeResolvedRegistry =
                 serde_json::from_str(include_str!("../fixtures/registry-v2.json"))
@@ -2109,7 +2160,7 @@ attribute_groups = ["myapp.common"]
                 .is_none());
         }
 
-        /// A v1 group carries no attribute list to compare with, so v1 keeps
+        /// A v1 group has no attribute list to compare with, so v1 keeps
         /// checking each attribute against the whole registry.
         #[test]
         fn a_v1_signal_raises_no_unexpected_attribute() {

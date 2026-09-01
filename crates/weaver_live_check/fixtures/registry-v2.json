@@ -6,7 +6,7 @@
       {
         "id": "myapp.common",
         "attributes": [],
-        "brief": "Attributes every myapp signal carries",
+        "brief": "Attributes on every myapp signal",
         "stability": "stable"
       }
     ],
