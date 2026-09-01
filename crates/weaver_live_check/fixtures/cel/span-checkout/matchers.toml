@@ -6,6 +6,6 @@ sample_type = "span"
 when = '''
 "myapp.checkout.id" in attributes
   && "myapp.checkout.stage" in attributes
-  && attributes["myapp.checkout.stage"].matches("^(cart|payment|confirm)$")
+  && attributes["myapp.checkout.stage"] in ["cart", "payment", "confirm"]
 '''
 signal = "myapp.checkout"

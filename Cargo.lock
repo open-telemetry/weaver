@@ -6353,6 +6353,7 @@ name = "weaver_cel"
 version = "0.25.1"
 dependencies = [
  "cel",
+ "regex",
  "thiserror 2.0.20",
 ]
 

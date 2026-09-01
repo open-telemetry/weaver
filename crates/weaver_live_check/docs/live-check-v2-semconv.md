@@ -58,7 +58,7 @@ sample_type = "span"
 when = '''
 "myapp.checkout.id" in attributes
   && "myapp.checkout.stage" in attributes
-  && attributes["myapp.checkout.stage"].matches("^(cart|payment|confirm)$")
+  && attributes["myapp.checkout.stage"] in ["cart", "payment", "confirm"]
 '''
 signal = "myapp.checkout"
 ```
@@ -201,7 +201,7 @@ sample_type = "span"
 when = '''
 "myapp.checkout.id" in attributes
   && "myapp.checkout.stage" in attributes
-  && attributes["myapp.checkout.stage"].matches("^(cart|payment|confirm)$")
+  && attributes["myapp.checkout.stage"] in ["cart", "payment", "confirm"]
 '''
 signal = "myapp.checkout"
 attribute_groups = ["myapp.common"]
@@ -285,7 +285,7 @@ when = '''
 instrumentation_scope.name.startsWith("myapp.")
   && "myapp.checkout.id" in attributes
   && "myapp.checkout.stage" in attributes
-  && attributes["myapp.checkout.stage"].matches("^(cart|payment|confirm)$")
+  && attributes["myapp.checkout.stage"] in ["cart", "payment", "confirm"]
 '''
 signal = "myapp.checkout"
 ```
@@ -364,7 +364,7 @@ CEL brings the operators you would expect, `==`, `!=`, `&&`, `||`, `!` and brack
 | `"key" in attributes` | True if the attribute is on the sample. |
 | `attributes["key"] == "value"` | True if the value is the one you give. |
 | `attributes["key"] in ["a", "b"]` | True if the value is one of the ones you list. |
-| `attributes["key"].matches("regex")` | True if the value is a string and the regular expression matches it. |
+| `attributes["key"].matches("regex")` | True if the value is a string and the regular expression matches it. The pattern is compiled on every sample, so prefer `in` or `startsWith` where they say the same thing. |
 | `attributes["key"].startsWith("myapp.")` | Also `endsWith` and `contains`. |
 
 ## Linting
@@ -373,7 +373,7 @@ Reading an attribute the sample does not carry is an error in CEL and not an emp
 
 ```cel
 "myapp.checkout.stage" in attributes
-  && attributes["myapp.checkout.stage"].matches("^(cart|payment|confirm)$")
+  && attributes["myapp.checkout.stage"] in ["cart", "payment", "confirm"]
 ```
 
 An `&&` absorbs that error while the other side is false, whichever side the test is on.

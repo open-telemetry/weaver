@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use cel::{Context, Env, Program, Value};
 
+use crate::matches::literal_patterns;
 use crate::{free_variables::free_variables, Bindings, Error};
 
 thread_local! {
@@ -50,6 +51,13 @@ impl Expression {
             expression: source.to_owned(),
             error: error.to_string(),
         })?;
+        for pattern in literal_patterns(program.expression()) {
+            let _ = regex::Regex::new(pattern).map_err(|error| Error::BadPattern {
+                expression: source.to_owned(),
+                pattern: pattern.to_owned(),
+                error: error.to_string(),
+            })?;
+        }
         let referenced = Referenced {
             variables: free_variables(program.expression()),
         };
@@ -192,6 +200,27 @@ mod tests {
     fn an_expression_that_does_not_parse_is_rejected() {
         let error = Expression::compile("attributes[").expect_err("it does not compile");
         assert!(matches!(error, Error::CompileFailed { .. }), "{error}");
+    }
+
+    #[test]
+    fn a_literal_pattern_that_is_not_a_valid_regex_is_rejected_at_compile_time() {
+        // A lookbehind, which the `regex` crate does not support.
+        let error = Expression::compile(r#"name.matches("^(?<=cart)payment$")"#)
+            .expect_err("it does not compile");
+        assert!(matches!(error, Error::BadPattern { .. }), "{error}");
+    }
+
+    /// A pattern built at run time is not visible when compiling.
+    #[test]
+    fn a_computed_pattern_still_errors_at_evaluation() {
+        let error = evaluate(r#"name.matches("^(?<=" + "cart)payment$")"#).expect_err("it errors");
+        assert!(matches!(error, Error::EvalFailed { .. }), "{error}");
+    }
+
+    #[test]
+    fn a_valid_pattern_matches_and_does_not_match() {
+        assert!(evaluate(r#"name.matches("^checkout ")"#).expect("it evaluates"));
+        assert!(!evaluate(r#"name.matches("^payment ")"#).expect("it evaluates"));
     }
 
     #[test]

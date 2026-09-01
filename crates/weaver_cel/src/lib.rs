@@ -9,6 +9,7 @@
 mod bindings;
 mod expression;
 mod free_variables;
+mod matches;
 
 pub use bindings::Bindings;
 pub use expression::{Expression, Referenced, Scope};
@@ -29,6 +30,17 @@ pub enum Error {
         /// Source text of the expression.
         expression: String,
         /// Error from the CEL parser.
+        error: String,
+    },
+
+    /// A literal `matches` pattern is not a valid regex.
+    #[error("The expression `{expression}` has an invalid `matches` pattern `{pattern}`: {error}")]
+    BadPattern {
+        /// Source text of the expression.
+        expression: String,
+        /// The pattern that did not compile.
+        pattern: String,
+        /// Error from the regex parser.
         error: String,
     },
 

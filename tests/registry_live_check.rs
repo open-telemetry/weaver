@@ -206,6 +206,23 @@ when = '"myapp.checkout.id" in attributes'"#,
     assert_eq!(exit_code(&out), 0, "got: {}", combined(&out));
 }
 
+/// A literal `matches` pattern that is not a valid regex stops the run, rather
+/// than erroring on every sample.
+#[test]
+fn a_matcher_with_an_invalid_regex_fails_startup() {
+    let (out, _dir) = run_with_matcher(
+        r#"id = "myapp.checkout"
+sample_type = "span"
+when = 'name.matches("^(?<=cart)payment$")'"#,
+    );
+    assert_ne!(exit_code(&out), 0);
+    let output = combined(&out);
+    assert!(
+        output.contains("myapp.checkout") && output.contains("pattern"),
+        "got: {output}"
+    );
+}
+
 /// A `signal` that is not in the registry stops the run.
 #[test]
 fn a_matcher_naming_an_unknown_signal_fails_startup() {

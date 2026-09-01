@@ -13,4 +13,5 @@ workspace = true
 
 [dependencies]
 cel = "0.14.3"
+regex.workspace = true
 thiserror.workspace = true
