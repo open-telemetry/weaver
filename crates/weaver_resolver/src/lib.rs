@@ -74,6 +74,15 @@ impl WeaverResolvedSchema {
             Self::V2(_) => None,
         }
     }
+
+    /// Returns an OpenTelemetry V2 schema reference if this bundle holds a V2 schema.
+    #[must_use]
+    pub fn as_v2(&self) -> Option<&V2Schema> {
+        match self {
+            Self::V1(_) => None,
+            Self::V2(s) => Some(s),
+        }
+    }
 }
 
 /// Encapsulates all runtime configuration parameters for the Weaver resolution engine.

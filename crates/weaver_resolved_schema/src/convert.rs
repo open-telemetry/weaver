@@ -3,7 +3,6 @@
 //! Conversions from V1 to V2 Resolved Telemetry Schema.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::hash::{DefaultHasher, Hash, Hasher};
 
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v1::group::GroupType;
@@ -44,12 +43,15 @@ impl From<V2CatalogBuilder> for Vec<V2Attribute> {
 
 impl V2CatalogBuilder {
     fn from_attributes(mut attributes: Vec<V2Attribute>) -> Self {
-        attributes.sort_by_cached_key(|attr| {
-            (attr.key.clone(), {
-                let mut s = DefaultHasher::new();
-                attr.hash(&mut s);
-                s.finish()
-            })
+        attributes.sort_by(|a, b| {
+            a.key
+                .cmp(&b.key)
+                .then_with(|| a.common.brief.cmp(&b.common.brief))
+                .then_with(|| a.common.note.cmp(&b.common.note))
+                .then_with(|| a.common.stability.cmp(&b.common.stability))
+                .then_with(|| a.common.deprecated.cmp(&b.common.deprecated))
+                .then_with(|| a.provenance.path.cmp(&b.provenance.path))
+                .then_with(|| a.provenance.source.cmp(&b.provenance.source))
         });
         let mut lookup: BTreeMap<String, Vec<usize>> = BTreeMap::new();
         for (idx, attr) in attributes.iter().enumerate() {
@@ -284,11 +286,33 @@ pub fn convert_v1_to_v2(
                 return get_provenance(group);
             }
             if let Some(dep_name) = source_group_id.strip_prefix("v2_dependency.") {
-                let mut prov = V2Provenance::default();
                 if let Some(idx) = deps_list.iter().position(|u| u.name() == dep_name) {
-                    prov.source = Some(provenance::DependencyRef(idx as u32));
+                    return V2Provenance {
+                        source: Some(provenance::DependencyRef(idx as u32)),
+                        ..Default::default()
+                    };
                 }
-                return prov;
+                return V2Provenance::default();
+            }
+            if let Some(idx) = deps_list.iter().position(|u| {
+                u.name() == source_group_id
+                    || source_group_id.starts_with(u.as_str())
+                    || source_group_id.starts_with(u.name())
+            }) {
+                return V2Provenance {
+                    source: Some(provenance::DependencyRef(idx as u32)),
+                    ..Default::default()
+                };
+            }
+        }
+
+        for group in r.groups.iter() {
+            if group
+                .attributes
+                .iter()
+                .any(|ar| c.attribute(ar).is_some_and(|attr| attr.name == a.name))
+            {
+                return get_provenance(group);
             }
         }
 
@@ -412,19 +436,16 @@ pub fn convert_v1_to_v2(
             GroupType::Span => {
                 let is_refinement = is_refinement_of(g);
                 let mut span_attributes = Vec::new();
-                for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
-                    if let Some(a) = v2_catalog.convert_ref(attr) {
-                        let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(
-                            attr.requirement_level.clone(),
-                        );
-                        span_attributes.push(span::SpanAttributeRef {
-                            base: a,
-                            requirement_level: req_level,
-                            sampling_relevant: attr.sampling_relevant,
-                        });
-                    } else {
-                        log::info!("Logic failure - unable to convert attribute {attr:?}");
-                    }
+                for attr_ref in g.attributes.iter() {
+                    let (attr, base) = convert_attribute_ref(&g.id, attr_ref, &c, &v2_catalog)?;
+                    let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(
+                        attr.requirement_level.clone(),
+                    );
+                    span_attributes.push(span::SpanAttributeRef {
+                        base,
+                        requirement_level: req_level,
+                        sampling_relevant: attr.sampling_relevant,
+                    });
                 }
                 let span_kind = g
                     .span_kind
@@ -501,18 +522,15 @@ pub fn convert_v1_to_v2(
             GroupType::Event => {
                 let is_refinement = is_refinement_of(g);
                 let mut event_attributes = Vec::new();
-                for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
-                    if let Some(a) = v2_catalog.convert_ref(attr) {
-                        let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(
-                            attr.requirement_level.clone(),
-                        );
-                        event_attributes.push(event::EventAttributeRef {
-                            base: a,
-                            requirement_level: req_level,
-                        });
-                    } else {
-                        log::info!("Logic failure - unable to convert attribute {attr:?}");
-                    }
+                for attr_ref in g.attributes.iter() {
+                    let (attr, base) = convert_attribute_ref(&g.id, attr_ref, &c, &v2_catalog)?;
+                    let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(
+                        attr.requirement_level.clone(),
+                    );
+                    event_attributes.push(event::EventAttributeRef {
+                        base,
+                        requirement_level: req_level,
+                    });
                 }
                 if let Some(name) = g.name.clone() {
                     let event = V2Event {
@@ -554,35 +572,41 @@ pub fn convert_v1_to_v2(
             GroupType::Metric => {
                 let is_refinement = is_refinement_of(g);
                 let mut metric_attributes = Vec::new();
-                for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
-                    if let Some(a) = v2_catalog.convert_ref(attr) {
-                        let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(
-                            attr.requirement_level.clone(),
-                        );
-                        metric_attributes.push(metric::MetricAttributeRef {
-                            base: a,
-                            requirement_level: req_level,
-                        });
-                    } else {
-                        log::info!("Logic failure - unable to convert attribute {attr:?}");
-                    }
+                for attr_ref in g.attributes.iter() {
+                    let (attr, base) = convert_attribute_ref(&g.id, attr_ref, &c, &v2_catalog)?;
+                    let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(
+                        attr.requirement_level.clone(),
+                    );
+                    metric_attributes.push(metric::MetricAttributeRef {
+                        base,
+                        requirement_level: req_level,
+                    });
                 }
                 let instrument = g
                     .instrument
                     .clone()
                     .map(weaver_semconv::convert::v1_instrument_to_v2)
-                    .expect("instrument must exist on metrics prior to translation to v2");
+                    .ok_or_else(|| crate::error::Error::MissingMetricField {
+                        group_id: g.id.clone(),
+                        field: "instrument",
+                    })?;
+                let metric_name = g.metric_name.clone().ok_or_else(|| {
+                    crate::error::Error::MissingMetricField {
+                        group_id: g.id.clone(),
+                        field: "metric_name",
+                    }
+                })?;
+                let unit =
+                    g.unit
+                        .clone()
+                        .ok_or_else(|| crate::error::Error::MissingMetricField {
+                            group_id: g.id.clone(),
+                            field: "unit",
+                        })?;
                 let metric = V2Metric {
-                    name: g
-                        .metric_name
-                        .clone()
-                        .expect("metric_name must exist on metrics prior to translation to v2")
-                        .into(),
+                    name: metric_name.into(),
                     instrument,
-                    unit: g
-                        .unit
-                        .clone()
-                        .expect("unit must exist on metrics prior to translation to v2"),
+                    unit,
                     attributes: metric_attributes,
                     entity_associations: convert_entity_associations(
                         &g.entity_associations,
@@ -620,16 +644,15 @@ pub fn convert_v1_to_v2(
                 });
                 if is_public {
                     let mut attributes = Vec::new();
-                    for attr in g.attributes.iter().filter_map(|a| c.attribute(a)) {
-                        if let Some(a) = v2_catalog.convert_ref(attr) {
-                            let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(
-                                attr.requirement_level.clone(),
-                            );
-                            attributes.push(attribute_group::AttributeGroupAttributeRef {
-                                base: a,
-                                requirement_level: req_level,
-                            });
-                        }
+                    for attr_ref in g.attributes.iter() {
+                        let (attr, base) = convert_attribute_ref(&g.id, attr_ref, &c, &v2_catalog)?;
+                        let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(
+                            attr.requirement_level.clone(),
+                        );
+                        attributes.push(attribute_group::AttributeGroupAttributeRef {
+                            base,
+                            requirement_level: req_level,
+                        });
                     }
                     attribute_groups.push(V2AttributeGroup {
                         id: fix_group_id("attribute_group.", &g.id),
@@ -2310,5 +2333,106 @@ mod tests {
         // When deprecation is identical across baseline and latest, diff detects 0 changes
         let same_diff = v2_latest.diff(&v2_latest);
         assert!(same_diff.registry.metric_changes.is_empty());
+    }
+
+    #[test]
+    fn test_convert_v1_to_v2_missing_metric_fields() {
+        let catalog = V1Catalog::default();
+        let metric_group_missing_name = V1Group {
+            id: "metric.test".to_owned(),
+            r#type: GroupType::Metric,
+            brief: "Test metric".to_owned(),
+            note: String::new(),
+            prefix: String::new(),
+            extends: None,
+            stability: None,
+            deprecated: None,
+            attributes: vec![],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: Some(weaver_semconv::v1::group::InstrumentSpec::Counter),
+            unit: Some("1".to_owned()),
+            name: None,
+            lineage: None,
+            display_name: None,
+            requirement_level: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: false,
+            span_name: None,
+        };
+
+        let v1_schema = V1ResolvedSchema {
+            file_format: V1_RESOLVED_FILE_FORMAT.to_owned(),
+            schema_url: "http://test/schemas/1.0.0".to_owned(),
+            registry_id: "test".to_owned(),
+            catalog,
+            registry: V1Registry {
+                registry_url: "http://test/registry/1.0.0".to_owned(),
+                entity_association_origins: Default::default(),
+                groups: vec![metric_group_missing_name],
+            },
+            instrumentation_library: None,
+            resource: None,
+            dependencies: Default::default(),
+            versions: None,
+            registry_manifest: None,
+        };
+
+        let result: Result<V2ResolvedSchema, _> = v1_schema.try_into();
+        assert!(matches!(
+            result,
+            Err(crate::error::Error::MissingMetricField {
+                field: "metric_name",
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn test_v2_catalog_builder_deterministic_sorting() {
+        use weaver_semconv::stability::Stability;
+        use weaver_semconv::v2::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
+
+        let attr1 = V2Attribute {
+            key: "server.port".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
+            examples: None,
+            common: CommonFields {
+                brief: "Server port".to_owned(),
+                note: String::new(),
+                stability: Stability::Stable,
+                deprecated: None,
+                annotations: Default::default(),
+            },
+            provenance: Default::default(),
+        };
+
+        let attr2 = V2Attribute {
+            key: "server.address".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            examples: None,
+            common: CommonFields {
+                brief: "Server address".to_owned(),
+                note: String::new(),
+                stability: Stability::Stable,
+                deprecated: None,
+                annotations: Default::default(),
+            },
+            provenance: Default::default(),
+        };
+
+        let builder1 = V2CatalogBuilder::from_attributes(vec![attr1.clone(), attr2.clone()]);
+        let builder2 = V2CatalogBuilder::from_attributes(vec![attr2.clone(), attr1.clone()]);
+
+        let list1: Vec<_> = builder1.into();
+        let list2: Vec<_> = builder2.into();
+
+        assert_eq!(list1, list2);
+        assert_eq!(list1[0].key, "server.address");
+        assert_eq!(list1[1].key, "server.port");
     }
 }

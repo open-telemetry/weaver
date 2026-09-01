@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::Error::{
     AttributeNotFound, CompoundError, EntityAssociationNotFound, EventNameNotFound,
-    InvalidSchemaUrl, RefinementBaseNotFound,
+    InvalidSchemaUrl, MissingMetricField, RefinementBaseNotFound,
 };
 use crate::v1::attribute::AttributeRef;
 
@@ -55,6 +55,15 @@ pub enum Error {
         error: String,
     },
 
+    /// A required metric field (instrument, metric_name, or unit) is missing on a metric group in V1 schema.
+    #[error("Metric field '{field}' not found on group: {group_id}. This is not supported in V2 schema!")]
+    MissingMetricField {
+        /// Group id.
+        group_id: String,
+        /// Field name.
+        field: &'static str,
+    },
+
     /// A generic container for multiple errors.
     #[error("Errors:\n{0:#?}")]
     CompoundError(Vec<Error>),
@@ -85,6 +94,7 @@ impl Error {
                     e @ RefinementBaseNotFound { .. } => vec![e],
                     e @ EntityAssociationNotFound { .. } => vec![e],
                     e @ InvalidSchemaUrl { .. } => vec![e],
+                    e @ MissingMetricField { .. } => vec![e],
                 })
                 .collect(),
         )

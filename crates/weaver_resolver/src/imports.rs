@@ -444,35 +444,244 @@ fn upgrade_imported_group<C: crate::SchemaCacheLookup>(
     let Some(chosen_schema) = cache_lookup.lookup_schema(chosen_url) else {
         return Ok(None);
     };
-    // TODO: also look up the group when the chosen registry is a published
-    // resolved V2 schema.
-    let Some(chosen_v1) = chosen_schema.as_v1() else {
-        return Ok(None);
-    };
-    let Some(upgraded) = chosen_v1
-        .registry
-        .groups
-        .iter()
-        .find(|candidate| is_same_imported_group(group, candidate))
-    else {
-        return Ok(None);
-    };
-    let mut upgraded = upgraded.clone();
-    let mut attributes = vec![];
-    for a in upgraded
-        .attributes
-        .iter()
-        .filter_map(|ar| chosen_v1.catalog().attribute(ar))
-    {
-        let source = find_attribute_source(chosen_v1, &a.name, chosen_url);
-        attributes.push(attribute_catalog.attribute_ref_with_provenance(
-            a.clone(),
-            source,
-            cache_lookup,
-        )?);
+    match chosen_schema.as_ref() {
+        crate::WeaverResolvedSchema::V1(chosen_v1) => {
+            let Some(upgraded) = chosen_v1
+                .registry
+                .groups
+                .iter()
+                .find(|candidate| is_same_imported_group(group, candidate))
+            else {
+                return Ok(None);
+            };
+            let mut upgraded = upgraded.clone();
+            let mut attributes = vec![];
+            for a in upgraded
+                .attributes
+                .iter()
+                .filter_map(|ar| chosen_v1.catalog().attribute(ar))
+            {
+                let source = find_attribute_source(chosen_v1, &a.name, chosen_url);
+                attributes.push(attribute_catalog.attribute_ref_with_provenance(
+                    a.clone(),
+                    source,
+                    cache_lookup,
+                )?);
+            }
+            upgraded.attributes = attributes;
+            Ok(Some(upgraded))
+        }
+        crate::WeaverResolvedSchema::V2(chosen_v2) => {
+            upgrade_imported_group_v2(group, chosen_v2, attribute_catalog, cache_lookup)
+        }
     }
-    upgraded.attributes = attributes;
-    Ok(Some(upgraded))
+}
+
+/// Upgrades an imported group when the chosen version is a published V2 schema.
+fn upgrade_imported_group_v2<C: crate::SchemaCacheLookup>(
+    group: &Group,
+    chosen_v2: &V2Schema,
+    attribute_catalog: &mut AttributeCatalog,
+    cache_lookup: &C,
+) -> Result<Option<Group>, Error> {
+    let deps: Vec<SchemaUrl> = chosen_v2.dependencies.iter().cloned().collect();
+    match group.r#type {
+        GroupType::Metric => {
+            let Some(m) = chosen_v2.registry.metrics.iter().find(|m| {
+                group.metric_name.as_deref() == Some(m.name.as_ref())
+                    || strip_group_type_prefix(&group.id) == strip_group_type_prefix(m.id())
+            }) else {
+                return Ok(None);
+            };
+            let attributes = import_v2_attributes(
+                chosen_v2,
+                &deps,
+                m.attributes.iter().map(|ar| {
+                    V2SignalAttribute::new(
+                        &ar.base,
+                        weaver_semconv::convert::v2_requirement_level_to_v1(
+                            ar.requirement_level.clone(),
+                        ),
+                    )
+                }),
+                attribute_catalog,
+                cache_lookup,
+            )?;
+            let mut upgraded = imported_v2_group(
+                m.id().to_owned(),
+                GroupType::Metric,
+                &m.common,
+                attributes,
+                Some(GroupLineage::new(v2_provenance(
+                    chosen_v2,
+                    &deps,
+                    &m.provenance,
+                ))),
+            );
+            upgraded.metric_name = Some(m.name.to_string());
+            upgraded.instrument = Some(weaver_semconv::convert::v2_instrument_to_v1(m.instrument));
+            upgraded.unit = Some(m.unit.clone());
+            upgraded.entity_associations = to_named_associations(&m.entity_associations);
+            upgraded.requirement_level = m.requirement_level.clone();
+            Ok(Some(upgraded))
+        }
+        GroupType::Event => {
+            let Some(e) = chosen_v2.registry.events.iter().find(|e| {
+                group.name.as_deref() == Some(e.name.as_ref())
+                    || strip_group_type_prefix(&group.id) == strip_group_type_prefix(e.id())
+            }) else {
+                return Ok(None);
+            };
+            let attributes = import_v2_attributes(
+                chosen_v2,
+                &deps,
+                e.attributes.iter().map(|ar| {
+                    V2SignalAttribute::new(
+                        &ar.base,
+                        weaver_semconv::convert::v2_requirement_level_to_v1(
+                            ar.requirement_level.clone(),
+                        ),
+                    )
+                }),
+                attribute_catalog,
+                cache_lookup,
+            )?;
+            let mut upgraded = imported_v2_group(
+                e.id().to_owned(),
+                GroupType::Event,
+                &e.common,
+                attributes,
+                Some(GroupLineage::new(v2_provenance(
+                    chosen_v2,
+                    &deps,
+                    &e.provenance,
+                ))),
+            );
+            upgraded.name = Some(e.name.to_string());
+            upgraded.entity_associations = to_named_associations(&e.entity_associations);
+            upgraded.requirement_level = e.requirement_level.clone();
+            Ok(Some(upgraded))
+        }
+        GroupType::Entity => {
+            let Some(e) = chosen_v2.registry.entities.iter().find(|e| {
+                group.name.as_deref() == Some(e.r#type.as_ref())
+                    || strip_group_type_prefix(&group.id) == strip_group_type_prefix(e.id())
+            }) else {
+                return Ok(None);
+            };
+            let attributes = import_v2_attributes(
+                chosen_v2,
+                &deps,
+                e.identity
+                    .iter()
+                    .map(|ar| {
+                        V2SignalAttribute::new(
+                            &ar.base,
+                            weaver_semconv::convert::v2_requirement_level_to_v1(
+                                ar.requirement_level.clone(),
+                            ),
+                        )
+                        .with_role(AttributeRole::Identifying)
+                    })
+                    .chain(e.description.iter().map(|ar| {
+                        V2SignalAttribute::new(
+                            &ar.base,
+                            weaver_semconv::convert::v2_requirement_level_to_v1(
+                                ar.requirement_level.clone(),
+                            ),
+                        )
+                        .with_role(AttributeRole::Descriptive)
+                    })),
+                attribute_catalog,
+                cache_lookup,
+            )?;
+            let mut upgraded = imported_v2_group(
+                e.id().to_owned(),
+                GroupType::Entity,
+                &e.common,
+                attributes,
+                Some(GroupLineage::new(v2_provenance(
+                    chosen_v2,
+                    &deps,
+                    &e.provenance,
+                ))),
+            );
+            upgraded.name = Some(e.r#type.to_string());
+            upgraded.requirement_level = e.requirement_level.clone();
+            Ok(Some(upgraded))
+        }
+        GroupType::Span => {
+            let Some(s) = chosen_v2.registry.spans.iter().find(|s| {
+                group.name.as_deref() == Some(s.r#type.as_ref())
+                    || strip_group_type_prefix(&group.id) == strip_group_type_prefix(s.id())
+            }) else {
+                return Ok(None);
+            };
+            let attributes = import_v2_attributes(
+                chosen_v2,
+                &deps,
+                s.attributes.iter().map(|ar| {
+                    V2SignalAttribute::new(
+                        &ar.base,
+                        weaver_semconv::convert::v2_requirement_level_to_v1(
+                            ar.requirement_level.clone(),
+                        ),
+                    )
+                    .with_sampling_relevant(ar.sampling_relevant)
+                }),
+                attribute_catalog,
+                cache_lookup,
+            )?;
+            let mut upgraded = imported_v2_group(
+                s.id().to_owned(),
+                GroupType::Span,
+                &s.common,
+                attributes,
+                Some(GroupLineage::new(v2_provenance(
+                    chosen_v2,
+                    &deps,
+                    &s.provenance,
+                ))),
+            );
+            upgraded.span_kind = Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
+            upgraded.span_name = Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
+            upgraded.name = Some(s.r#type.to_string());
+            upgraded.entity_associations = to_named_associations(&s.entity_associations);
+            upgraded.requirement_level = s.requirement_level.clone();
+            Ok(Some(upgraded))
+        }
+        GroupType::AttributeGroup => {
+            let Some(ag) =
+                chosen_v2.registry.attribute_groups.iter().find(|ag| {
+                    strip_group_type_prefix(&group.id) == strip_group_type_prefix(ag.id())
+                })
+            else {
+                return Ok(None);
+            };
+            let attributes = import_v2_attributes(
+                chosen_v2,
+                &deps,
+                ag.attributes.iter().map(|ar| {
+                    V2SignalAttribute::new(
+                        &ar.base,
+                        weaver_semconv::convert::v2_requirement_level_to_v1(
+                            ar.requirement_level.clone(),
+                        ),
+                    )
+                }),
+                attribute_catalog,
+                cache_lookup,
+            )?;
+            Ok(Some(imported_v2_group(
+                ag.id().to_owned(),
+                GroupType::AttributeGroup,
+                &ag.common,
+                attributes,
+                None,
+            )))
+        }
+        _ => Ok(None),
+    }
 }
 
 /// Whether `candidate` (a group in a chosen upgraded registry) defines the
@@ -1355,6 +1564,110 @@ mod tests {
             2,
             "Should successfully combine import blocks and import both metric.a and event.b"
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_upgrade_imported_group_v2() -> Result<(), Box<dyn Error>> {
+        use crate::attribute::AttributeCatalog;
+        use crate::imports::upgrade_imported_group;
+        use crate::SchemaCacheLookup;
+        use std::sync::Arc;
+        use weaver_resolved_schema::v1::lineage::GroupLineage;
+        use weaver_resolved_schema::v1::registry::Group;
+        use weaver_semconv::provenance::Provenance;
+        use weaver_semconv::schema_url::SchemaUrl;
+
+        struct MockLookup {
+            schema: Arc<crate::WeaverResolvedSchema>,
+            url: SchemaUrl,
+        }
+        impl SchemaCacheLookup for MockLookup {
+            fn lookup_schema(&self, _url: &SchemaUrl) -> Option<Arc<crate::WeaverResolvedSchema>> {
+                Some(self.schema.clone())
+            }
+            fn chosen_version(&self, _registry_name: &str) -> Option<&SchemaUrl> {
+                Some(&self.url)
+            }
+        }
+
+        let mut chosen_schema = example_v2_schema();
+        let old_url = SchemaUrl::try_from_name_version("test", "1.0.0")?;
+        let chosen_url = SchemaUrl::try_from_name_version("test", "1.1.0")?;
+        chosen_schema.schema_url = chosen_url.clone();
+        let arc_v2 = Arc::new(crate::WeaverResolvedSchema::V2(chosen_schema));
+
+        let group = Group {
+            id: "metric.a".to_owned(),
+            r#type: weaver_semconv::v1::group::GroupType::Metric,
+            brief: "Old brief".to_owned(),
+            note: String::new(),
+            prefix: String::new(),
+            extends: None,
+            stability: None,
+            deprecated: None,
+            attributes: vec![],
+            lineage: Some(GroupLineage::new(Provenance::new(old_url.clone(), "test"))),
+            metric_name: Some("metric.a".to_owned()),
+            instrument: Some(weaver_semconv::v1::group::InstrumentSpec::Counter),
+            unit: Some("1".to_owned()),
+            span_kind: None,
+            span_name: None,
+            events: vec![],
+            annotations: None,
+            display_name: None,
+            body: None,
+            entity_associations: vec![],
+            requirement_level: None,
+            name: None,
+            visibility: None,
+            is_v2: true,
+        };
+
+        let mut catalog = AttributeCatalog::default();
+        let lookup = MockLookup {
+            schema: arc_v2,
+            url: chosen_url.clone(),
+        };
+
+        let upgraded = upgrade_imported_group(&group, &old_url, &mut catalog, &lookup)?
+            .expect("group should be upgraded");
+        assert_eq!(upgraded.id, "metric.a");
+        assert_eq!(upgraded.metric_name.as_deref(), Some("metric.a"));
+        assert_eq!(upgraded.attributes.len(), 0);
+
+        let group_ag = Group {
+            id: "attribute_group.e".to_owned(),
+            r#type: weaver_semconv::v1::group::GroupType::AttributeGroup,
+            brief: "Old brief".to_owned(),
+            note: String::new(),
+            prefix: String::new(),
+            extends: None,
+            stability: None,
+            deprecated: None,
+            attributes: vec![],
+            lineage: Some(GroupLineage::new(Provenance::new(old_url.clone(), "test"))),
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            span_kind: None,
+            span_name: None,
+            events: vec![],
+            annotations: None,
+            display_name: None,
+            body: None,
+            entity_associations: vec![],
+            requirement_level: None,
+            name: None,
+            visibility: None,
+            is_v2: true,
+        };
+
+        let upgraded_ag = upgrade_imported_group(&group_ag, &old_url, &mut catalog, &lookup)?
+            .expect("attribute_group should be upgraded");
+        assert_eq!(upgraded_ag.id, "attribute_group.e");
+        assert_eq!(upgraded_ag.attributes.len(), 1);
 
         Ok(())
     }

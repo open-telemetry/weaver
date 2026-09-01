@@ -593,6 +593,7 @@ impl ForgeResolvedRegistry {
                 provenance: resolve_provenance(&ag.provenance),
             });
         }
+        attribute_groups.sort_by(|l, r| l.id.cmp(&r.id));
 
         // Now we sort the attributes, since we aren't looking them up anymore.
         attributes.sort_by(|l, r| l.key.cmp(&r.key));
@@ -2769,5 +2770,62 @@ mod tests {
             .lookup_entity(leaf)
             .expect("the entity of the dependency");
         assert_eq!(found.r#type, "host".to_owned().into());
+    }
+
+    #[test]
+    fn test_materialize_sorts_attribute_groups() {
+        let schema = ResolvedTelemetrySchema {
+            file_format: "2.0.0".to_owned(),
+            schema_url: "https://example.com/root/1.0.0"
+                .try_into()
+                .expect("a valid schema url"),
+            attribute_catalog: vec![],
+            dependencies: Default::default(),
+            registry: v2::registry::Registry {
+                attributes: vec![],
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+                attribute_groups: vec![
+                    attribute_group::AttributeGroup {
+                        id: "z_group".to_owned().into(),
+                        attributes: vec![],
+                        common: CommonFields::default(),
+                        provenance: Default::default(),
+                    },
+                    attribute_group::AttributeGroup {
+                        id: "a_group".to_owned().into(),
+                        attributes: vec![],
+                        common: CommonFields::default(),
+                        provenance: Default::default(),
+                    },
+                ],
+            },
+            refinements: refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+        };
+
+        let mut mock_resolver = MockSchemaResolver::new();
+        let forge_registry =
+            match ForgeResolvedRegistry::try_from_resolved_schema(schema, &mut mock_resolver) {
+                WResult::Ok(r) => r,
+                WResult::OkWithNFEs(r, _) => r,
+                WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
+            };
+
+        assert_eq!(forge_registry.registry.attribute_groups.len(), 2);
+        assert_eq!(
+            forge_registry.registry.attribute_groups[0].id,
+            "a_group".into()
+        );
+        assert_eq!(
+            forge_registry.registry.attribute_groups[1].id,
+            "z_group".into()
+        );
     }
 }
