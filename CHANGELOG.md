@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+# [0.26.1] - 2026-09-02
+
+- Fix `weaver-installer.sh` failing to detect Unix platforms due to missing bash shell in release workflow. ([#1744](https://github.com/open-telemetry/weaver/issues/1744))
+
 # [0.26.0] - 2026-09-02
 
 - 💥 BREAKING CHANGE 💥 `registry live-check` and `registry infer` now bind their OTLP and HTTP admin listeners to `127.0.0.1` instead of `0.0.0.0`, so they no longer listen on every local address by default. Pass `--otlp-grpc-address` (live-check) or `--grpc-address` (infer) to bind a specific interface, or `0.0.0.0` for all of them. The admin listener now binds to the same address as the OTLP listener rather than always to `0.0.0.0`. ([#1740](https://github.com/open-telemetry/weaver/pull/1740) by @lmolkova)
