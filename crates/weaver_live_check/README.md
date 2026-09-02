@@ -74,7 +74,7 @@ This `Ingester` starts an OTLP listener and streams each received OTLP message t
 
 Options for OTLP ingest:
 
-- `--otlp-grpc-address`: Address used by the gRPC OTLP listener
+- `--otlp-grpc-address`: Address the gRPC OTLP listener binds to. Defaults to `127.0.0.1` (loopback only); set it to a specific interface address, or to `0.0.0.0` to listen on all of them. The admin listener binds to the same address.
 - `--otlp-grpc-port`: Port used by the gRPC OTLP listener
 - `--admin-port`: Port used by the HTTP admin port (endpoints: /stop)
 - `--inactivity-timeout`: Max inactivity time in seconds before stopping the listener
@@ -212,7 +212,7 @@ advice_policies = "policies"
 advice_preprocessor = "preprocessor.jq"
 
 [live_check.otlp]
-grpc_address = "0.0.0.0"
+grpc_address = "127.0.0.1"
 grpc_port = 4317
 admin_port = 4320
 inactivity_timeout = 10
