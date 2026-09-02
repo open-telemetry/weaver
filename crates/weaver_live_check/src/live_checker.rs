@@ -235,7 +235,7 @@ mod tests {
         attribute::Attribute as V2Attribute,
         event::{Event as V2Event, EventAttribute},
         metric::{Metric as V2Metric, MetricAttribute},
-        registry::{ForgeResolvedRegistry, Refinements, Registry},
+        registry::{ForgeDependency, ForgeResolvedRegistry, Refinements, Registry},
         span::{Span as V2Span, SpanAttribute},
     };
     use weaver_resolved_schema::attribute::Attribute;
@@ -680,7 +680,8 @@ mod tests {
                     events: vec![],
                     entities: vec![],
                 },
-                dependencies: vec![],
+                dependencies: Default::default(),
+                dependency_graph: Default::default(),
             }))
         } else {
             VersionedRegistry::V1(Box::new(ResolvedRegistry {
@@ -923,7 +924,8 @@ mod tests {
                     events: vec![],
                     entities: vec![],
                 },
-                dependencies: vec![],
+                dependencies: Default::default(),
+                dependency_graph: Default::default(),
             }))
         } else {
             VersionedRegistry::V1(Box::new(ResolvedRegistry {
@@ -1128,7 +1130,8 @@ mod tests {
                     events: vec![],
                     entities: vec![],
                 },
-                dependencies: vec![],
+                dependencies: Default::default(),
+                dependency_graph: Default::default(),
             }))
         } else {
             VersionedRegistry::V1(Box::new(ResolvedRegistry {
@@ -1696,7 +1699,8 @@ mod tests {
                     events: vec![],
                     entities: vec![],
                 },
-                dependencies: vec![],
+                dependencies: Default::default(),
+                dependency_graph: Default::default(),
             }))
         } else {
             VersionedRegistry::V1(Box::new(ResolvedRegistry {
@@ -2297,7 +2301,8 @@ mod tests {
                     events: vec![],
                     entities: vec![],
                 },
-                dependencies: vec![],
+                dependencies: Default::default(),
+                dependency_graph: Default::default(),
             }))
         } else {
             VersionedRegistry::V1(Box::new(ResolvedRegistry {
@@ -3147,7 +3152,7 @@ mod tests {
         events: Vec<V2Event>,
         entities: Vec<V2Entity>,
         entity_refinements: Vec<EntityRefinement>,
-        dependencies: Vec<ForgeResolvedRegistry>,
+        dependencies: Vec<(&str, ForgeDependency)>,
     ) -> ForgeResolvedRegistry {
         ForgeResolvedRegistry {
             schema_url: schema_url.try_into().expect("valid schema url"),
@@ -3165,7 +3170,34 @@ mod tests {
                 events: vec![],
                 entities: entity_refinements,
             },
-            dependencies,
+            dependencies: dependencies
+                .into_iter()
+                .map(|(url, dep)| (url.try_into().expect("valid schema url"), dep))
+                .collect(),
+            dependency_graph: Default::default(),
+        }
+    }
+
+    /// Builds a dependency registry.
+    fn v2_dependency(
+        entities: Vec<V2Entity>,
+        entity_refinements: Vec<EntityRefinement>,
+    ) -> ForgeDependency {
+        ForgeDependency {
+            registry: Registry {
+                attributes: vec![],
+                attribute_groups: vec![],
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities,
+            },
+            refinements: Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities: entity_refinements,
+            },
         }
     }
 
@@ -3197,13 +3229,7 @@ mod tests {
         // A registry does not copy the entities of its dependencies, so the
         // definition of `host` is only reachable through the reference.
         const DEP_URL: &str = "https://example.com/base/1.0.0";
-        let dependency = v2_assoc_registry(
-            DEP_URL,
-            vec![],
-            vec![v2_entity("host", "host.name")],
-            vec![],
-            vec![],
-        );
+        let dependency = v2_dependency(vec![v2_entity("host", "host.name")], vec![]);
         let event = v2_assoc_event(
             "thing.happened",
             vec![V2EntityAssociation::Ref(dependency_entity_ref(
@@ -3215,7 +3241,7 @@ mod tests {
             vec![event],
             vec![],
             vec![],
-            vec![dependency],
+            vec![(DEP_URL, dependency)],
         ));
 
         // The resource misses the required identity attribute of the entity.
@@ -3250,7 +3276,7 @@ mod tests {
             id: SignalId::from("host.windows".to_owned()),
             entity: v2_entity("host", "host.id"),
         };
-        let dependency = v2_assoc_registry(DEP_URL, vec![], vec![], vec![refinement], vec![]);
+        let dependency = v2_dependency(vec![], vec![refinement]);
         let event = v2_assoc_event(
             "thing.happened",
             vec![V2EntityAssociation::Ref(dependency_entity_ref(
@@ -3263,7 +3289,7 @@ mod tests {
             vec![event],
             vec![],
             vec![],
-            vec![dependency],
+            vec![(DEP_URL, dependency)],
         ));
 
         let advice = run_event_check(&mut live_checker, &mut stats, "thing.happened", vec![]);
@@ -3283,13 +3309,7 @@ mod tests {
         // Two registries define `host`, and each reference says which one it
         // means, so the leaf decides which definition is checked.
         const DEP_URL: &str = "https://example.com/base/1.0.0";
-        let dependency = v2_assoc_registry(
-            DEP_URL,
-            vec![],
-            vec![v2_entity("host", "host.id")],
-            vec![],
-            vec![],
-        );
+        let dependency = v2_dependency(vec![v2_entity("host", "host.id")], vec![]);
         let (mut live_checker, mut stats) = v2_live_checker(v2_assoc_registry(
             "https://example.com/top/1.0.0",
             vec![
@@ -3308,7 +3328,7 @@ mod tests {
             ],
             vec![v2_entity("host", "host.name")],
             vec![],
-            vec![dependency],
+            vec![(DEP_URL, dependency)],
         ));
 
         let advice = run_event_check(&mut live_checker, &mut stats, "local.evt", vec![]);
@@ -3358,13 +3378,7 @@ mod tests {
         // registries define `host`, and each is reachable under its own url.
         const TOP_URL: &str = "https://example.com/top/1.0.0";
         const DEP_URL: &str = "https://example.com/base/1.0.0";
-        let dependency = v2_assoc_registry(
-            DEP_URL,
-            vec![],
-            vec![v2_entity("host", "host.id")],
-            vec![],
-            vec![],
-        );
+        let dependency = v2_dependency(vec![v2_entity("host", "host.id")], vec![]);
         let (live_checker, _stats) = v2_live_checker(v2_assoc_registry(
             TOP_URL,
             vec![],
@@ -3376,7 +3390,7 @@ mod tests {
                 id: SignalId::from("host.windows".to_owned()),
                 entity: v2_entity("host", "host.uuid"),
             }],
-            vec![dependency],
+            vec![(DEP_URL, dependency)],
         ));
 
         let data = rego_data(&live_checker);
@@ -3408,6 +3422,36 @@ mod tests {
     }
 
     #[test]
+    fn test_rego_data_holds_transitive_entities() {
+        // `core` is two hops away: only `base` depends on it.
+        const TOP_URL: &str = "https://example.com/top/1.0.0";
+        const DEP_URL: &str = "https://example.com/base/1.0.0";
+        const CORE_URL: &str = "https://example.com/core/1.0.0";
+        let (live_checker, _stats) = v2_live_checker(v2_assoc_registry(
+            TOP_URL,
+            vec![],
+            vec![],
+            vec![],
+            vec![
+                (
+                    DEP_URL,
+                    v2_dependency(vec![v2_entity("host", "host.id")], vec![]),
+                ),
+                (
+                    CORE_URL,
+                    v2_dependency(vec![v2_entity("service", "core.service.name")], vec![]),
+                ),
+            ],
+        ));
+
+        let data = rego_data(&live_checker);
+        assert_eq!(
+            rego_entities_of(&data, CORE_URL)["service"]["identity"][0]["key"],
+            "core.service.name"
+        );
+    }
+
+    #[test]
     fn test_rego_policy_reads_the_entities() {
         // End to end: the default jq preprocessor hands the entity view to a
         // policy, which reads an annotation from the definition of an entity that
@@ -3415,15 +3459,12 @@ mod tests {
         // input carries that definition. This registry defines a rival `host`, so
         // the leaf's provenance is what decides which annotation applies.
         const DEP_URL: &str = "https://example.com/base/1.0.0";
-        let dependency = v2_assoc_registry(
-            DEP_URL,
-            vec![],
+        let dependency = v2_dependency(
             vec![annotated(
                 v2_entity("host", "host.name"),
                 "id_prefix",
                 "host-",
             )],
-            vec![],
             vec![],
         );
         let event = v2_assoc_event(
@@ -3441,7 +3482,7 @@ mod tests {
                 "local-",
             )],
             vec![],
-            vec![dependency],
+            vec![(DEP_URL, dependency)],
         )));
         // No advisors, so the only finding under test is the policy's. The
         // built-in association check is not an advisor and still runs.
@@ -3591,7 +3632,8 @@ mod tests {
                     events: vec![],
                     entities: vec![],
                 },
-                dependencies: vec![],
+                dependencies: Default::default(),
+                dependency_graph: Default::default(),
             }))
         } else {
             VersionedRegistry::V1(Box::new(ResolvedRegistry {
