@@ -32,7 +32,9 @@ pub mod signal_id;
 pub mod span;
 
 /// Common fields we want on all major components of semantic conventions.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Hash, Eq, Default)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Hash, Eq, PartialOrd, Ord, Default,
+)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct CommonFields {

@@ -43,16 +43,7 @@ impl From<V2CatalogBuilder> for Vec<V2Attribute> {
 
 impl V2CatalogBuilder {
     fn from_attributes(mut attributes: Vec<V2Attribute>) -> Self {
-        attributes.sort_by(|a, b| {
-            a.key
-                .cmp(&b.key)
-                .then_with(|| a.common.brief.cmp(&b.common.brief))
-                .then_with(|| a.common.note.cmp(&b.common.note))
-                .then_with(|| a.common.stability.cmp(&b.common.stability))
-                .then_with(|| a.common.deprecated.cmp(&b.common.deprecated))
-                .then_with(|| a.provenance.path.cmp(&b.provenance.path))
-                .then_with(|| a.provenance.source.cmp(&b.provenance.source))
-        });
+        attributes.sort();
         let mut lookup: BTreeMap<String, Vec<usize>> = BTreeMap::new();
         for (idx, attr) in attributes.iter().enumerate() {
             lookup.entry(attr.key.clone()).or_default().push(idx);
