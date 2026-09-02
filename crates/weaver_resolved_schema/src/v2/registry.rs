@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_semconv::attribute::AttributeType;
+use weaver_semconv::v2::attribute::AttributeType;
 
 use crate::v2::{
     attribute::AttributeRef,
@@ -101,9 +101,7 @@ impl Registry {
                     total_with_note += 1;
                 }
                 let _ = metric_names.insert(metric.name.to_string());
-                *instrument_breakdown
-                    .entry(metric.instrument.clone())
-                    .or_insert(0) += 1;
+                *instrument_breakdown.entry(metric.instrument).or_insert(0) += 1;
                 *unit_breakdown.entry(metric.unit.clone()).or_insert(0) += 1;
                 *stability_breakdown
                     .entry(metric.common.stability.clone())
@@ -135,7 +133,7 @@ impl Registry {
                 if !span.common.note.is_empty() {
                     total_with_note += 1;
                 }
-                *span_kind_breakdown.entry(span.kind.clone()).or_default() += 1;
+                *span_kind_breakdown.entry(span.kind).or_default() += 1;
                 *stability_breakdown
                     .entry(span.common.stability.clone())
                     .or_default() += 1;
@@ -236,9 +234,13 @@ impl Registry {
 #[cfg(test)]
 mod test {
     use weaver_semconv::{
-        group::{InstrumentSpec, SpanKindSpec},
         stability::Stability,
-        v2::{span::SpanName, CommonFields},
+        v2::{
+            attribute::{BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel},
+            metric::InstrumentSpec,
+            span::{SpanKindSpec, SpanName},
+            CommonFields,
+        },
     };
 
     use crate::v2::{attribute::Attribute, entity::EntityAttributeRef};
@@ -247,23 +249,53 @@ mod test {
 
     #[test]
     fn test_stats() {
-        let catalog = vec![Attribute {
-            key: "key".to_owned(),
-            r#type: AttributeType::PrimitiveOrArray(
-                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
-            ),
-            examples: None,
-            common: CommonFields {
-                brief: "test".to_owned(),
-                note: "".to_owned(),
-                stability: Stability::Stable,
-                deprecated: None,
-                annotations: BTreeMap::new(),
+        let catalog = vec![
+            Attribute {
+                key: "key".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                examples: None,
+                common: CommonFields {
+                    brief: "test".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: BTreeMap::new(),
+                },
+                provenance: Default::default(),
             },
-            provenance: Default::default(),
-        }];
+            Attribute {
+                key: "enum.key".to_owned(),
+                r#type: AttributeType::Enum {
+                    members: vec![weaver_semconv::v2::attribute::EnumEntriesSpec {
+                        id: "member1".to_owned(),
+                        value: weaver_semconv::v2::attribute::ValueSpec::String("m1".to_owned()),
+                        brief: None,
+                        note: None,
+                        stability: None,
+                        deprecated: None,
+                        annotations: None,
+                    }],
+                },
+                examples: None,
+                common: CommonFields {
+                    brief: "enum test".to_owned(),
+                    note: "enum note".to_owned(),
+                    stability: Stability::Development,
+                    deprecated: Some(weaver_semconv::deprecated::Deprecated::Obsoleted {
+                        note: "old".to_owned(),
+                    }),
+                    annotations: BTreeMap::new(),
+                },
+                provenance: Default::default(),
+            },
+        ];
         let registry = Registry {
-            attribute_groups: vec![],
+            attribute_groups: vec![AttributeGroup {
+                id: "test.group".to_owned().into(),
+                attributes: vec![],
+                common: CommonFields::default(),
+                provenance: Default::default(),
+            }],
             spans: vec![Span {
                 r#type: "test.span".to_owned().into(),
                 kind: SpanKindSpec::Client,
@@ -275,9 +307,11 @@ mod test {
                 requirement_level: None,
                 common: CommonFields {
                     brief: "test".to_owned(),
-                    note: "".to_owned(),
+                    note: "span note".to_owned(),
                     stability: Stability::Stable,
-                    deprecated: None,
+                    deprecated: Some(weaver_semconv::deprecated::Deprecated::Obsoleted {
+                        note: "old".to_owned(),
+                    }),
                     annotations: BTreeMap::new(),
                 },
                 provenance: Default::default(),
@@ -291,44 +325,71 @@ mod test {
                 requirement_level: None,
                 common: CommonFields {
                     brief: "test".to_owned(),
-                    note: "".to_owned(),
+                    note: "metric note".to_owned(),
                     stability: Stability::Stable,
-                    deprecated: None,
+                    deprecated: Some(weaver_semconv::deprecated::Deprecated::Obsoleted {
+                        note: "old".to_owned(),
+                    }),
                     annotations: BTreeMap::new(),
                 },
                 provenance: Default::default(),
             }],
-            events: vec![],
+            events: vec![Event {
+                name: "test.event".to_owned().into(),
+                attributes: vec![],
+                entity_associations: vec![],
+                requirement_level: None,
+                common: CommonFields {
+                    brief: "event brief".to_owned(),
+                    note: "event note".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: Some(weaver_semconv::deprecated::Deprecated::Obsoleted {
+                        note: "old".to_owned(),
+                    }),
+                    annotations: BTreeMap::new(),
+                },
+                provenance: Default::default(),
+            }],
             entities: vec![Entity {
                 r#type: "test.entity".to_owned().into(),
                 identity: vec![EntityAttributeRef {
                     base: AttributeRef(0),
-                    requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                        weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
-                    ),
+                    requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
                 }],
                 description: vec![],
                 requirement_level: None,
                 common: CommonFields {
                     brief: "test".to_owned(),
-                    note: "".to_owned(),
+                    note: "entity note".to_owned(),
                     stability: Stability::Stable,
-                    deprecated: None,
+                    deprecated: Some(weaver_semconv::deprecated::Deprecated::Obsoleted {
+                        note: "old".to_owned(),
+                    }),
                     annotations: BTreeMap::new(),
                 },
                 provenance: Default::default(),
             }],
-            attributes: vec![AttributeRef(0)],
+            attributes: vec![AttributeRef(0), AttributeRef(1)],
         };
         let stats = registry.stats(&catalog);
-        assert_eq!(stats.attributes.attribute_count, 1);
+        assert_eq!(stats.attributes.attribute_count, 2);
         assert_eq!(
             stats.attributes.attribute_type_breakdown.get("string"),
             Some(&1)
         );
+        assert_eq!(
+            stats
+                .attributes
+                .attribute_type_breakdown
+                .get("enum(card:001)"),
+            Some(&1)
+        );
+        assert_eq!(stats.attributes.deprecated_count, 1);
 
         assert_eq!(stats.entities.common.count, 1);
         assert_eq!(stats.entities.entity_types.len(), 1);
+        assert_eq!(stats.entities.common.total_with_note, 1);
+        assert_eq!(stats.entities.common.deprecated_count, 1);
         assert_eq!(
             stats.entities.entity_identity_length_distribution.get(&1),
             Some(&1)
@@ -347,8 +408,8 @@ mod test {
                 .get(&Stability::Stable),
             Some(&1)
         );
-        assert_eq!(stats.metrics.common.deprecated_count, 0);
-        assert_eq!(stats.metrics.common.total_with_note, 0);
+        assert_eq!(stats.metrics.common.deprecated_count, 1);
+        assert_eq!(stats.metrics.common.total_with_note, 1);
         assert_eq!(stats.metrics.metric_names.len(), 1);
         assert_eq!(
             stats
@@ -368,25 +429,27 @@ mod test {
                 .get(&Stability::Stable),
             Some(&1)
         );
-        assert_eq!(stats.spans.common.deprecated_count, 0);
-        assert_eq!(stats.spans.common.total_with_note, 0);
+        assert_eq!(stats.spans.common.deprecated_count, 1);
+        assert_eq!(stats.spans.common.total_with_note, 1);
         assert_eq!(
             stats.spans.span_kind_breakdown.get(&SpanKindSpec::Client),
             Some(&1)
         );
 
-        assert_eq!(stats.events.common.count, 0);
+        assert_eq!(stats.events.common.count, 1);
         assert_eq!(
             stats
                 .events
                 .common
                 .stability_breakdown
                 .get(&Stability::Stable),
-            None
+            Some(&1)
         );
-        assert_eq!(stats.events.common.deprecated_count, 0);
-        assert_eq!(stats.events.common.total_with_note, 0);
-        assert_eq!(stats.events.event_names.len(), 0);
+        assert_eq!(stats.events.common.deprecated_count, 1);
+        assert_eq!(stats.events.common.total_with_note, 1);
+        assert_eq!(stats.events.event_names.len(), 1);
+
+        assert_eq!(stats.attribute_groups.common.count, 1);
     }
 
     #[test]

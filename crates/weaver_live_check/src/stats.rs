@@ -10,7 +10,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 
 use crate::{FindingLevel, LiveCheckResult, PolicyFinding, VersionedRegistry};
-use weaver_semconv::group::GroupType;
+use weaver_semconv::v1::group::GroupType;
 
 /// Cumulative statistics that track all telemetry data
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -346,7 +346,7 @@ impl LiveCheckStatistics {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use weaver_forge::registry::ResolvedRegistry;
+    use weaver_forge::v1::registry::ResolvedRegistry;
 
     #[test]
     fn test_disabled_statistics() {

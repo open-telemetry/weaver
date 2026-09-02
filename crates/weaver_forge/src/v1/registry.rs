@@ -9,16 +9,17 @@ use itertools::Itertools;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use weaver_resolved_schema::attribute::Attribute;
-use weaver_resolved_schema::catalog::Catalog;
-use weaver_resolved_schema::lineage::GroupLineage;
-use weaver_resolved_schema::registry::{Group, Registry};
-use weaver_semconv::any_value::AnyValueSpec;
+use weaver_resolved_schema::v1::attribute::Attribute;
+use weaver_resolved_schema::v1::catalog::Catalog;
+use weaver_resolved_schema::v1::lineage::GroupLineage;
+use weaver_resolved_schema::v1::registry::{Group, Registry};
+use weaver_resolved_schema::v1::ResolvedTelemetrySchema;
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::entity_association::EntityAssociation;
-use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::stability::Stability;
+use weaver_semconv::v1::any_value::AnyValueSpec;
+use weaver_semconv::v1::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::YamlValue;
 
 /// A resolved semantic convention registry used in the context of the template and policy
@@ -155,7 +156,7 @@ impl ResolvedGroup {
                 if attr.is_none() {
                     errors.push(Error::AttributeNotFound {
                         group_id: id.clone(),
-                        attr_ref: *attr_ref,
+                        attr_ref: attr_ref.0,
                     });
                 }
                 attr
@@ -193,6 +194,11 @@ impl ResolvedGroup {
 }
 
 impl ResolvedRegistry {
+    /// Create a new template registry from a resolved telemetry schema.
+    pub fn try_from_resolved_schema(schema: &ResolvedTelemetrySchema) -> Result<Self, Error> {
+        Self::try_from_resolved_registry(&schema.registry, &schema.catalog)
+    }
+
     /// Create a new template registry from a resolved registry.
     ///
     /// V2 refinements are dropped: v1 has no notion of a refinement, and one resolves
@@ -226,7 +232,7 @@ impl ResolvedRegistry {
                         if attr.is_none() {
                             errors.push(Error::AttributeNotFound {
                                 group_id: id.clone(),
-                                attr_ref: *attr_ref,
+                                attr_ref: attr_ref.0,
                             });
                         }
                         attr
@@ -274,15 +280,15 @@ impl ResolvedRegistry {
 
 #[cfg(test)]
 mod tests {
-    use crate::ResolvedRegistry;
+    use super::*;
     use schemars::schema_for;
     use serde_json::to_string_pretty;
-    use weaver_resolved_schema::catalog::Catalog;
-    use weaver_resolved_schema::lineage::GroupLineage;
-    use weaver_resolved_schema::registry::{Group, Registry};
-    use weaver_semconv::group::GroupType;
+    use weaver_resolved_schema::v1::catalog::Catalog;
+    use weaver_resolved_schema::v1::lineage::GroupLineage;
+    use weaver_resolved_schema::v1::registry::{Group, Registry};
     use weaver_semconv::provenance::Provenance;
     use weaver_semconv::schema_url::SchemaUrl;
+    use weaver_semconv::v1::group::GroupType;
 
     #[test]
     fn test_json_schema_gen() {
@@ -450,5 +456,74 @@ mod tests {
             .expect("Failed to create resolved registry");
         let ids: Vec<_> = resolved.groups.iter().map(|g| g.id.as_str()).collect();
         assert_eq!(ids, vec!["metric.hw.errors", "v1.derived.metric"]);
+    }
+
+    #[test]
+    fn test_try_from_resolved_schema() {
+        let schema = ResolvedTelemetrySchema::new("1.0", "http://test/schema", "");
+        let registry = ResolvedRegistry::try_from_resolved_schema(&schema)
+            .expect("Failed to create resolved registry from schema");
+        assert_eq!(registry.registry_url, "");
+        assert!(registry.groups.is_empty());
+    }
+
+    #[test]
+    fn test_try_from_resolved_registry_missing_attribute_compound_error() {
+        use weaver_resolved_schema::v1::attribute::AttributeRef;
+
+        let group = Group {
+            id: "group.missing_attr".to_owned(),
+            r#type: GroupType::AttributeGroup,
+            brief: "test".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: None,
+            deprecated: None,
+            attributes: vec![AttributeRef(100), AttributeRef(200)],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            requirement_level: None,
+            name: None,
+            lineage: None,
+            display_name: None,
+            body: None,
+            entity_associations: vec![],
+            annotations: None,
+            visibility: None,
+            is_v2: false,
+            span_name: None,
+        };
+
+        let registry = Registry {
+            registry_url: "http://test/schema".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![group.clone()],
+        };
+        let catalog = Catalog::default();
+
+        let err = ResolvedRegistry::try_from_resolved_registry(&registry, &catalog)
+            .expect_err("Should fail with missing attribute errors");
+        match err {
+            Error::CompoundError(errs) => {
+                assert_eq!(errs.len(), 2);
+                assert!(matches!(
+                    &errs[0],
+                    Error::AttributeNotFound { attr_ref: 100, .. }
+                ));
+                assert!(matches!(
+                    &errs[1],
+                    Error::AttributeNotFound { attr_ref: 200, .. }
+                ));
+            }
+            _ => panic!("Expected CompoundError, got {err:?}"),
+        }
+
+        // Also test ResolvedGroup::try_from_resolved with missing attribute
+        let group_res = ResolvedGroup::try_from_resolved(&group, &catalog);
+        assert!(matches!(group_res, Err(Error::CompoundError(errs)) if errs.len() == 2));
     }
 }

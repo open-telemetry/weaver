@@ -3,12 +3,12 @@
 //! Defines the catalog of attributes, metrics, and other telemetry items
 //! that are shared across multiple signals in the Resolved Telemetry Schema.
 
-use crate::attribute::{Attribute, AttributeRef};
+use crate::v1::attribute::{Attribute, AttributeRef};
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
-use weaver_semconv::attribute::{AttributeType, BasicRequirementLevelSpec, RequirementLevel};
 use weaver_semconv::stability::Stability;
+use weaver_semconv::v1::attribute::{AttributeType, BasicRequirementLevelSpec, RequirementLevel};
 
 /// A catalog of indexed attributes shared across semconv groups, or signals.
 /// Attribute references are used to refer to attributes in the catalog.

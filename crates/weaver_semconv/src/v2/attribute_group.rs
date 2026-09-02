@@ -5,17 +5,10 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    group::{GroupSpec, GroupType},
-    v2::{
-        attribute::{split_attributes_and_groups, AttributeOrGroupRef},
-        signal_id::SignalId,
-        CommonFields,
-    },
-};
+use crate::v2::{attribute::AttributeOrGroupRef, signal_id::SignalId, CommonFields};
 
 /// Internal attribute group implementation
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct InternalAttributeGroup {
     /// The name of the attribute group, must be unique.
@@ -28,7 +21,7 @@ pub struct InternalAttributeGroup {
 }
 
 /// Public attribute group implementation
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct PublicAttributeGroup {
     /// The name of the attribute group, must be unique.
@@ -45,7 +38,7 @@ pub struct PublicAttributeGroup {
 }
 
 /// Attribute group definition.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(tag = "visibility")]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
@@ -54,80 +47,6 @@ pub enum AttributeGroup {
     Internal(InternalAttributeGroup),
     /// A public attribute group
     Public(PublicAttributeGroup),
-}
-
-impl AttributeGroup {
-    /// Converts a v2 attribute group into a v1 GroupSpec.
-    #[must_use]
-    pub fn into_v1_group(self) -> GroupSpec {
-        match self {
-            AttributeGroup::Internal(internal) => {
-                let (attribute_refs, include_groups) =
-                    split_attributes_and_groups(internal.attributes);
-
-                GroupSpec {
-                    id: format!("{}", &internal.id),
-                    r#type: GroupType::AttributeGroup,
-                    brief: format!("{}", &internal.id),
-                    note: "".to_owned(),
-                    prefix: Default::default(),
-                    extends: None,
-                    include_groups,
-                    stability: None,
-                    deprecated: None,
-                    attributes: attribute_refs,
-                    span_kind: None,
-                    events: vec![],
-                    metric_name: None,
-                    instrument: None,
-                    unit: None,
-                    requirement_level: None,
-                    name: None,
-                    display_name: None,
-                    body: None,
-                    annotations: None,
-                    entity_associations: vec![],
-                    visibility: Some(AttributeGroupVisibilitySpec::Internal),
-                    is_v2: true,
-                    span_name: None,
-                }
-            }
-            AttributeGroup::Public(public) => {
-                let (attributes, include_groups) = split_attributes_and_groups(public.attributes);
-
-                GroupSpec {
-                    id: format!("{}", public.id),
-                    r#type: GroupType::AttributeGroup,
-                    brief: public.common.brief,
-                    note: public.common.note,
-                    prefix: Default::default(),
-                    extends: None,
-                    include_groups,
-                    stability: Some(public.common.stability),
-                    deprecated: public.common.deprecated,
-                    attributes,
-                    span_kind: None,
-                    events: vec![],
-                    metric_name: None,
-                    instrument: None,
-                    unit: None,
-                    requirement_level: None,
-                    name: None,
-                    display_name: None,
-                    body: None,
-                    annotations: if public.common.annotations.is_empty() {
-                        None
-                    } else {
-                        Some(public.common.annotations)
-                    },
-                    entity_associations: vec![],
-                    visibility: Some(AttributeGroupVisibilitySpec::Public),
-                    is_v2: true,
-                    span_name: None,
-                }
-            }
-        }
-    }
 }
 
 /// The group's visibility.
@@ -154,30 +73,48 @@ impl std::fmt::Display for AttributeGroupVisibilitySpec {
 mod tests {
     use super::*;
 
-    fn parse_and_translate(v2: &str, v1: &str) {
+    #[test]
+    fn test_attribute_group_parsing() {
+        let yaml = r#"id: my_attr_group
+brief: Test group
+stability: development
+visibility: public
+"#;
         let attr_group =
-            serde_yaml::from_str::<AttributeGroup>(v2).expect("Failed to parse YAML string");
-        let mut expected =
-            serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
-        // visibility is not serializable on v1, so let's set it explicitly
-        expected.visibility = Some(AttributeGroupVisibilitySpec::Public);
-        assert_eq!(expected, attr_group.into_v1_group());
+            serde_yaml::from_str::<AttributeGroup>(yaml).expect("Failed to parse YAML string");
+        match attr_group {
+            AttributeGroup::Public(p) => {
+                assert_eq!(p.id.to_string(), "my_attr_group");
+                assert_eq!(p.common.brief, "Test group");
+            }
+            AttributeGroup::Internal(_) => panic!("Expected public attribute group"),
+        }
     }
 
     #[test]
-    fn test_value_spec_display() {
-        parse_and_translate(
-            // V2 - Group
-            r#"id: my_attr_group
-brief: Test group
-stability: development
-visibility: public"#,
-            // V1 - Group
-            r#"id: my_attr_group
-type: attribute_group
-brief: Test group
-stability: development
-is_v2: true"#,
+    fn test_attribute_group_internal_parsing() {
+        let yaml = r#"id: my_internal_group
+visibility: internal
+attributes:
+  - ref: my.attr
+"#;
+        let attr_group =
+            serde_yaml::from_str::<AttributeGroup>(yaml).expect("Failed to parse YAML string");
+        match attr_group {
+            AttributeGroup::Internal(i) => {
+                assert_eq!(i.id.to_string(), "my_internal_group");
+                assert_eq!(i.attributes.len(), 1);
+            }
+            AttributeGroup::Public(_) => panic!("Expected internal attribute group"),
+        }
+    }
+
+    #[test]
+    fn test_attribute_group_visibility_display() {
+        assert_eq!(
+            AttributeGroupVisibilitySpec::Internal.to_string(),
+            "internal"
         );
+        assert_eq!(AttributeGroupVisibilitySpec::Public.to_string(), "public");
     }
 }

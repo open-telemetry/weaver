@@ -1,0 +1,28 @@
+# Coding Style
+
+- **DRY** - Don’t Repeat Yourself. Extract shared logic rather than duplicating code.
+- **Idiomatic Rust** - Use idiomatic Rust patterns, but not at the expense of clarity. Prefer readable code over clever code.
+- **Formatting** - Always run `cargo fmt --all` before committing.
+- **Linting** - Always run `cargo clippy` and fix any warnings before committing.
+- **Error handling** - see [wresult](wresult.md).
+- **Dependencies** - Be conservative about adding new crate dependencies; prefer existing deps or stdlib when reasonable.
+- **Naming** - Follow existing naming conventions in the codebase (e.g., module names, type suffixes like `Spec` and `Ingester`).
+- **Warnings** - Code should compile without new warnings (existing `Stability::Deprecated` warning is pre-existing and acceptable).
+- **Inline format args** - Use `{var}` not `"{}", var` in format strings.
+- **Iterator chains** - Prefer `.filter_map().collect()` over imperative push loops where equally readable.
+- **Trait impls over free functions** - Prefer `From`/`Into` trait implementations over standalone conversion functions when the types allow it (orphan rule permitting).
+- **Performance** - Weaver can process thousands of items per second. Favour single-pass processing over collect-then-filter, references over clones, `&str` over `String` where lifetimes allow, and early exits when no work is needed.
+- **Imports** - Prefer `use` imports over qualified paths (e.g., `use crate::foo::Bar;` then `Bar`, not `crate::foo::Bar` inline).
+- **Comments** - Use sparingly, and only where the code is not obvious. Use doc comments (`///`) for public APIs.
+  - Write in plain software engineering terms: what the item is or what it does. Nothing else.
+  - Add the why only when it is not obvious from the code, and in the same sentence. A separate sentence of reasoning is what turns a one-line comment into a paragraph.
+  - One line where possible. Module docs are one or two sentences, never an essay.
+  - Never anthropomorphise. Code does not see, look at, know, want, or care.
+  - No narrative, rhetoric, or scene-setting.
+  - Do not restate design rationale from the plan docs. The code says what it does; the plan says why it was chosen.
+  - In tests, the test name carries the intent. Comment only what the name cannot say.
+    - Don't vs Do:
+      - What a CEL expression sees when it looks at a sample.     vs     Binds sample fields to CEL variables.
+      - Compile once, run against many samples.                  vs     Compiled once, evaluated per sample.
+      - A telemetry sample is the case this exists for.          vs     Telemetry samples implement this.
+      - A resource is only attributes, so that is all there is to test. vs A resource has only attributes.

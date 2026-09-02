@@ -3,9 +3,8 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
-    attribute::RequirementLevel,
     signal_requirement_level::SignalRequirementLevel,
-    v2::{signal_id::SignalId, CommonFields},
+    v2::{attribute::RequirementLevel, signal_id::SignalId, CommonFields},
 };
 
 use crate::v2::{
@@ -89,5 +88,31 @@ impl Signal for Event {
     }
     fn common(&self) -> &CommonFields {
         &self.common
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_event_signal() {
+        let event = Event {
+            name: SignalId::from("exception"),
+            attributes: vec![],
+            entity_associations: vec![],
+            requirement_level: None,
+            common: CommonFields {
+                brief: "Exception event".to_owned(),
+                note: "".to_owned(),
+                stability: Default::default(),
+                deprecated: None,
+                annotations: Default::default(),
+            },
+            provenance: Default::default(),
+        };
+
+        assert_eq!(event.id(), "exception");
+        assert_eq!(event.common().brief, "Exception event");
     }
 }

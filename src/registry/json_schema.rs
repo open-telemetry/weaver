@@ -15,7 +15,7 @@ use weaver_config::{
     AuthEntry, DiagnosticsConfig, LiveCheckConfig, PolicyConfig, RegistryConfig, ResolveConfig,
     TemplateConfig, WeaverConfig,
 };
-use weaver_forge::registry::ResolvedRegistry;
+use weaver_forge::v1::registry::ResolvedRegistry;
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_semconv::semconv::SemConvSpecV1;
 

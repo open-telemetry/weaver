@@ -2,13 +2,14 @@
 
 //! Semantic Convention Registry.
 
-use crate::attribute::AttributeSpecWithProvenance;
-use crate::group::{GroupSpecWithProvenance, ImportsWithProvenance};
 use crate::manifest::{DefinitionRegistryManifest, RegistryManifest};
 use crate::registry_repo::RegistryRepo;
 use crate::schema_url::SchemaUrl;
-use crate::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
+use crate::semconv::SemConvSpecWithProvenance;
 use crate::stats::Stats;
+use crate::v1::attribute::AttributeSpecWithProvenance;
+use crate::v1::group::{GroupSpecWithProvenance, ImportsWithProvenance};
+use crate::v1::semconv::SemConvSpecV1WithProvenance;
 use crate::Error;
 use regex::Regex;
 use std::collections::HashMap;
@@ -254,13 +255,16 @@ impl SemConvRegistry {
 
 #[cfg(test)]
 mod tests {
-    use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
-    use crate::group::{GroupSpec, GroupType};
     use crate::provenance::Provenance;
-    use crate::registry::SemConvRegistry;
     use crate::registry_repo::RegistryRepo;
     use crate::schema_url::SchemaUrl;
-    use crate::semconv::{SemConvSpecV1, SemConvSpecWithProvenance, Versioned};
+    use crate::semconv::{SemConvSpecWithProvenance, Versioned};
+    use crate::v1::{
+        attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec},
+        group::{GroupSpec, GroupType},
+        registry::SemConvRegistry,
+        semconv::SemConvSpecV1,
+    };
     use crate::Error;
 
     use weaver_common::vdir::VirtualDirectoryPath;

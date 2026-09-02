@@ -4,9 +4,9 @@
 
 //! Attribute specification.
 
-use crate::any_value::AnyValueSpec;
 use crate::deprecated::Deprecated;
 use crate::stability::Stability;
+use crate::v1::any_value::AnyValueSpec;
 use crate::{Error, YamlValue};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

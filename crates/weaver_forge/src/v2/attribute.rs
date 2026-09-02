@@ -3,9 +3,9 @@
 use crate::v2::provenance::Provenance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_semconv::{
+use weaver_semconv::v2::{
     attribute::{AttributeType, Examples},
-    v2::CommonFields,
+    CommonFields,
 };
 
 /// The definition of an Attribute.

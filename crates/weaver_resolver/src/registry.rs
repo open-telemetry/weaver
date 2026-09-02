@@ -15,19 +15,19 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
 use weaver_common::result::WResult;
-use weaver_resolved_schema::attribute::{AttributeRef, UnresolvedAttribute};
-use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
-use weaver_resolved_schema::registry::{Group, Registry};
-use weaver_resolved_schema::v2::v2_namespace_id;
-use weaver_semconv::attribute::AttributeSpec;
-use weaver_semconv::group::{
-    GroupSpecWithProvenance, GroupType, GroupWildcard, ImportsWithProvenance,
-};
+use weaver_resolved_schema::convert::v2_namespace_id;
+use weaver_resolved_schema::v1::attribute::{AttributeRef, UnresolvedAttribute};
+use weaver_resolved_schema::v1::lineage::{AttributeLineage, GroupLineage};
+use weaver_resolved_schema::v1::registry::{EntityAssociationOrigins, Group, Registry};
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
-use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
+use weaver_semconv::v1::attribute::AttributeSpec;
+use weaver_semconv::v1::group::AttributeGroupVisibilitySpec;
+use weaver_semconv::v1::group::{
+    GroupSpecWithProvenance, GroupType, GroupWildcard, ImportsWithProvenance,
+};
 
 use crate::dependency::{GroupSource, GroupSummary};
 
@@ -136,7 +136,7 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
             }
         };
         let wildcard = GroupWildcard(glob);
-        let glob_imports = weaver_semconv::semconv::Imports {
+        let glob_imports = weaver_semconv::v1::semconv::Imports {
             metrics: Some(vec![wildcard.clone()]),
             events: Some(vec![wildcard.clone()]),
             entities: Some(vec![wildcard.clone()]),
@@ -538,7 +538,7 @@ fn resolve_entity_associations(ureg: &mut UnresolvedRegistry) -> Result<(), Erro
         })
         .collect();
 
-    let mut origins: weaver_resolved_schema::registry::EntityAssociationOrigins = BTreeMap::new();
+    let mut origins: EntityAssociationOrigins = BTreeMap::new();
     let mut errors = vec![];
     // One lookup per name, however many groups name it.
     let mut found: HashMap<String, SchemaUrl> = HashMap::new();
@@ -1055,7 +1055,7 @@ fn entity_identity_refinement_errors(
     extends: &str,
     parent_attrs: &[UnresolvedAttribute],
 ) -> Vec<Error> {
-    use weaver_semconv::attribute::AttributeRole;
+    use weaver_semconv::v1::attribute::AttributeRole;
 
     let role_of = |spec: &AttributeSpec| match spec {
         AttributeSpec::Ref { role, .. } | AttributeSpec::Id { role, .. } => role.clone(),
@@ -1412,12 +1412,14 @@ mod tests {
     use weaver_common::result::WResult;
     use weaver_common::vdir::VirtualDirectoryPath;
     use weaver_diff::canonicalize_json_string;
-    use weaver_resolved_schema::attribute::Attribute;
-    use weaver_resolved_schema::registry::Group;
-    use weaver_resolved_schema::registry::Registry;
-    use weaver_semconv::group::GroupType;
+    use weaver_resolved_schema::v1::attribute::Attribute;
+    use weaver_resolved_schema::v1::attribute::UnresolvedAttribute;
+    use weaver_resolved_schema::v1::registry::Group;
+    use weaver_resolved_schema::v1::registry::Registry;
     use weaver_semconv::provenance::Provenance;
     use weaver_semconv::registry_repo::RegistryRepo;
+    use weaver_semconv::v1::attribute::{AttributeSpec, Examples, RequirementLevel};
+    use weaver_semconv::v1::group::GroupType;
 
     use crate::attribute::AttributeCatalog;
     use crate::registry::cleanup_and_stabilize_catalog_and_registry;
@@ -1426,8 +1428,6 @@ mod tests {
     use crate::registry::UnresolvedRegistry;
     use crate::{WeaverResolver, WeaverResolverConfig};
     use std::sync::Arc;
-    use weaver_resolved_schema::attribute::UnresolvedAttribute;
-    use weaver_semconv::attribute::{AttributeSpec, Examples, RequirementLevel};
 
     /// Settings for resolution tests.
     #[derive(Serialize, Deserialize, Default)]
@@ -1457,7 +1457,7 @@ mod tests {
             unit: Default::default(),
             requirement_level: Default::default(),
             name: Default::default(),
-            lineage: Some(weaver_resolved_schema::lineage::GroupLineage::new(
+            lineage: Some(weaver_resolved_schema::v1::lineage::GroupLineage::new(
                 Provenance {
                     schema_url: SchemaUrl::new_unknown(),
                     path: path.to_owned(),
@@ -1866,7 +1866,7 @@ groups:
         let loaded = resolver
             .load_repository(repo)
             .into_result_failing_non_fatal()?;
-        let resolved_schema: weaver_resolved_schema::ResolvedTelemetrySchema = resolver
+        let resolved_schema: weaver_resolved_schema::v1::ResolvedTelemetrySchema = resolver
             .resolve_loaded(loaded)
             .map(|arc| Arc::unwrap_or_clone(arc).into_v1().unwrap())
             .into_result_failing_non_fatal()?;
@@ -1911,8 +1911,8 @@ groups:
                     .attribute_ref_with_provenance(
                         Attribute {
                             name: format!("{c}"),
-                            r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                            r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                                weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String,
                             ),
                             brief: Default::default(),
                             examples: Default::default(),
@@ -2008,8 +2008,8 @@ groups:
                     .attribute_ref_with_provenance(
                         Attribute {
                             name: format!("{c}"),
-                            r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+                            r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                                weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String,
                             ),
                             brief: Default::default(),
                             examples: Default::default(),
@@ -2270,8 +2270,8 @@ groups:
                 ..
             } => {
                 assert_eq!(
-                    requirement_level,
-                    &Some(cond),
+                    requirement_level.as_ref(),
+                    Some(&cond),
                     "ref_group must not reset the inherited requirement_level"
                 );
                 assert!(
