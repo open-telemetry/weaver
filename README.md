@@ -53,6 +53,27 @@ cd weaver
 cargo build --release
 ```
 
+The CLI uses Rustls with the `ring` crypto provider by default. Custom builds
+can select exactly one provider after disabling default features:
+
+| Feature | Provider | Notes |
+| --- | --- | --- |
+| `crypto-ring` | ring | Default; works on all supported platforms |
+| `crypto-aws-lc` | AWS-LC | AWS-LC-backed Rustls provider |
+| `crypto-openssl` | OpenSSL | Uses the platform OpenSSL installation |
+| `crypto-openssl-vendored` | OpenSSL | Builds and statically links OpenSSL |
+| `crypto-symcrypt` | SymCrypt | Requires the system SymCrypt shared library; Linux and Windows only |
+
+For example:
+
+```bash
+cargo build --release --no-default-features --features crypto-aws-lc
+```
+
+Weaver's reusable crates do not select a process-wide crypto provider. An
+application embedding those crates is responsible for installing one before
+making TLS connections.
+
 ### GitHub Actions
 
 | Action | Purpose |

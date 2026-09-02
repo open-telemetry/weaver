@@ -29,7 +29,7 @@ runs:
       id: resolve-version
       shell: bash
       run: |
-        VERSION="${{ inputs.version }}"
+        VERSION="${INPUTS_VERSION}"
 
         if [ -z "$VERSION" ]; then
           echo "Fetching latest Weaver version..."
@@ -49,6 +49,8 @@ runs:
         fi
 
         echo "version=$VERSION" >> $GITHUB_OUTPUT
+      env:
+        INPUTS_VERSION: ${{ inputs.version }}
 
     - name: Restore Weaver from cache
       if: inputs.cache == 'true'
@@ -64,25 +66,29 @@ runs:
       if: runner.os != 'Windows' && steps.cache-weaver.outputs.cache-hit != 'true'
       shell: bash
       run: |
-        VERSION="${{ steps.resolve-version.outputs.version }}"
+        VERSION="${STEPS_RESOLVE_VERSION_OUTPUTS_VERSION}"
         INSTALLER_URL="https://github.com/open-telemetry/weaver/releases/download/${VERSION}/weaver-installer.sh"
 
         echo "Installing Weaver ${VERSION} from ${INSTALLER_URL}..."
         curl --proto '=https' --tlsv1.2 -LsSf "$INSTALLER_URL" | sh
+      env:
+        STEPS_RESOLVE_VERSION_OUTPUTS_VERSION: ${{ steps.resolve-version.outputs.version }}
 
     - name: Install Weaver (Windows)
       if: runner.os == 'Windows' && steps.cache-weaver.outputs.cache-hit != 'true'
       shell: powershell
       run: |
-        $VERSION = "${{ steps.resolve-version.outputs.version }}"
+        $VERSION = "$env:STEPS_RESOLVE_VERSION_OUTPUTS_VERSION"
         $INSTALLER_URL = "https://github.com/open-telemetry/weaver/releases/download/${VERSION}/weaver-installer.ps1"
 
         Write-Host "Installing Weaver ${VERSION} from ${INSTALLER_URL}..."
         irm $INSTALLER_URL | iex
+      env:
+        STEPS_RESOLVE_VERSION_OUTPUTS_VERSION: ${{ steps.resolve-version.outputs.version }}
 
     - name: Add Weaver to PATH
       shell: bash
-      run: |
+      run: | # zizmor: ignore[github-env] HOME and USERPROFILE are runner-controlled paths.
         if [ "$RUNNER_OS" = "Windows" ]; then
           echo "$USERPROFILE/.cargo/bin" >> $GITHUB_PATH
         else
