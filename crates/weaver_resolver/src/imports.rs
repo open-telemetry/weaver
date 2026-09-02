@@ -29,6 +29,8 @@ use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
 use weaver_semconv::attribute::{AttributeRole, RequirementLevel};
 use weaver_semconv::group::{GroupType, GroupWildcard, ImportsWithProvenance};
 use weaver_semconv::schema_url::SchemaUrl;
+use weaver_semconv::v2::attribute::AttributeRef as DefAttributeRef;
+use weaver_semconv::v2::span::{SpanAttributeRef as DefSpanAttributeRef, SpanLink as DefSpanLink};
 
 use crate::{
     attribute::{AttributeCatalog, AttributeSource},
@@ -896,23 +898,19 @@ impl ImportableDependency for V2Schema {
                             attribute_ref: la.base.0,
                         },
                     )?;
-                    link_attributes.push(
-                        weaver_semconv::v2::span::SpanAttributeOrGroupRef::Attribute(
-                            weaver_semconv::v2::span::SpanAttributeRef {
-                                base: weaver_semconv::v2::attribute::AttributeRef {
-                                    r#ref: attr.key.clone(),
-                                    brief: None,
-                                    examples: None,
-                                    requirement_level: Some(la.requirement_level.clone()),
-                                    note: None,
-                                    annotations: Default::default(),
-                                },
-                                sampling_relevant: la.sampling_relevant,
-                            },
-                        ),
-                    );
+                    link_attributes.push(DefSpanAttributeRef {
+                        base: DefAttributeRef {
+                            r#ref: attr.key.clone(),
+                            brief: None,
+                            examples: None,
+                            requirement_level: Some(la.requirement_level.clone()),
+                            note: None,
+                            annotations: Default::default(),
+                        },
+                        sampling_relevant: la.sampling_relevant,
+                    });
                 }
-                links.push(weaver_semconv::v2::span::SpanLink {
+                links.push(DefSpanLink {
                     r#ref: link.r#ref.clone(),
                     requirement_level: Some(link.requirement_level.clone()),
                     brief: link.brief.clone(),

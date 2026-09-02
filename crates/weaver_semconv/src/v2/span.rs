@@ -83,9 +83,11 @@ pub struct SpanLink {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     /// List of attributes expected on the link itself.
+    /// Attribute-group references are not supported on links; each entry
+    /// is a single attribute reference.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<SpanAttributeOrGroupRef>,
+    pub attributes: Vec<SpanAttributeRef>,
 }
 
 /// Defines a new Span signal.
@@ -124,6 +126,9 @@ pub struct Span {
 }
 
 /// A refinement of an existing span.
+///
+/// A refinement inherits the base span's links during resolution.
+/// A refinement cannot declare, replace, or extend links yet.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SpanRefinement {
@@ -473,6 +478,44 @@ brief: Test span
         )
         .expect("Failed to parse span without links");
         assert!(without.links.is_empty());
+    }
+
+    #[test]
+    fn test_span_link_rejects_attribute_group_ref() {
+        // Attribute-group references are not supported on links; the
+        // parser must reject them instead of resolution failing later.
+        // Two shapes exist: a bare group entry fails on the missing
+        // `ref`, and a group key next to a valid `ref` fails as an
+        // unknown field.
+        let span_yaml = |attribute_entry: &str| {
+            format!(
+                r#"type: my_span
+name:
+  note: "{{some}} {{name}}"
+stability: stable
+kind: client
+brief: Test span
+links:
+  - ref: other_span
+    attributes:
+      - {attribute_entry}
+"#
+            )
+        };
+        let err = serde_yaml::from_str::<Span>(&span_yaml("ref_group: some.group"))
+            .expect_err("a bare ref_group entry must not parse");
+        assert!(
+            err.to_string().contains("missing field `ref`"),
+            "unexpected parse error: {err}"
+        );
+        let err = serde_yaml::from_str::<Span>(&span_yaml(
+            "ref: real.attr\n        ref_group: some.group",
+        ))
+        .expect_err("a ref_group key next to a ref must not parse");
+        assert!(
+            err.to_string().contains("unknown field `ref_group`"),
+            "unexpected parse error: {err}"
+        );
     }
 
     #[test]

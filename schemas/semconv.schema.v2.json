@@ -1548,10 +1548,10 @@
       "type": "object",
       "properties": {
         "attributes": {
-          "description": "List of attributes expected on the link itself.",
+          "description": "List of attributes expected on the link itself.\nAttribute-group references are not supported on links; each entry\nis a single attribute reference.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/SpanAttributeOrGroupRef"
+            "$ref": "#/$defs/SpanAttributeRef"
           }
         },
         "brief": {
@@ -1604,7 +1604,7 @@
       ]
     },
     "SpanRefinement": {
-      "description": "A refinement of an existing span.",
+      "description": "A refinement of an existing span.\n\nA refinement inherits the base span's links during resolution.\nA refinement cannot declare, replace, or extend links yet.",
       "type": "object",
       "properties": {
         "annotations": {

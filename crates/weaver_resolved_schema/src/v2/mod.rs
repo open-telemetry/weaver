@@ -326,12 +326,58 @@ fn convert_attribute_ref<'a>(
     Ok((attr, v2_ref))
 }
 
+/// Converts one link attribute into its resolved form.
+///
+/// The attribute resolves by name: the lookup finds the root attribute,
+/// and the root attribute maps to a v2 catalog reference. An unsupported
+/// construct fails loudly instead of being dropped.
+fn convert_span_link_attribute(
+    ar: &weaver_semconv::v2::span::SpanAttributeRef,
+    g: &crate::registry::Group,
+    link: &weaver_semconv::v2::span::SpanLink,
+    c: &crate::catalog::Catalog,
+    v2_catalog: &Catalog,
+) -> Result<span::SpanAttributeRef, crate::error::Error> {
+    let unsupported = |reason: String| crate::error::Error::UnsupportedSpanLinkAttribute {
+        group_id: g.id.clone(),
+        link_ref: link.r#ref.to_string(),
+        reason,
+    };
+    if ar.base.brief.is_some()
+        || ar.base.note.is_some()
+        || ar.base.examples.is_some()
+        || !ar.base.annotations.is_empty()
+    {
+        return Err(unsupported(format!(
+            "attribute '{}' carries overrides; only requirement_level and sampling_relevant are supported on link attributes",
+            ar.base.r#ref
+        )));
+    }
+    let Some((root, _)) = c.root_attribute(&ar.base.r#ref) else {
+        return Err(unsupported(format!(
+            "attribute '{}' not found in the catalog",
+            ar.base.r#ref
+        )));
+    };
+    let Some(base) = v2_catalog.convert_ref(root) else {
+        return Err(unsupported(format!(
+            "attribute '{}' could not be mapped to the v2 catalog",
+            ar.base.r#ref
+        )));
+    };
+    Ok(span::SpanAttributeRef {
+        base,
+        requirement_level: ar.base.requirement_level.clone().unwrap_or_default(),
+        sampling_relevant: ar.sampling_relevant,
+    })
+}
+
 /// Converts the v2 span links carried on a v1 group into resolved links.
 ///
 /// Link attributes skip v1 attribute resolution (they ride the hidden
-/// GroupSpec carrier), so they resolve here: name -> root attribute ->
-/// v2 catalog reference. Unsupported constructs fail loudly instead of
-/// being dropped.
+/// GroupSpec carrier), so they resolve here: the name finds the root
+/// attribute, and the root attribute maps to a v2 catalog reference.
+/// Unsupported constructs fail loudly instead of being dropped.
 fn convert_span_links(
     g: &crate::registry::Group,
     span_types: &HashSet<SignalId>,
@@ -352,60 +398,8 @@ fn convert_span_links(
             });
         }
         let mut attributes = Vec::new();
-        for attr in link.attributes.iter() {
-            match attr {
-                weaver_semconv::v2::span::SpanAttributeOrGroupRef::Attribute(ar) => {
-                    if ar.base.brief.is_some()
-                        || ar.base.note.is_some()
-                        || ar.base.examples.is_some()
-                        || !ar.base.annotations.is_empty()
-                    {
-                        return Err(crate::error::Error::UnsupportedSpanLinkAttribute {
-                            group_id: g.id.clone(),
-                            link_ref: link.r#ref.to_string(),
-                            reason: format!(
-                                "attribute '{}' carries overrides; only requirement_level and sampling_relevant are supported on link attributes",
-                                ar.base.r#ref
-                            ),
-                        });
-                    }
-                    let Some((root, _)) = c.root_attribute(&ar.base.r#ref) else {
-                        return Err(crate::error::Error::UnsupportedSpanLinkAttribute {
-                            group_id: g.id.clone(),
-                            link_ref: link.r#ref.to_string(),
-                            reason: format!(
-                                "attribute '{}' not found in the catalog",
-                                ar.base.r#ref
-                            ),
-                        });
-                    };
-                    let Some(base) = v2_catalog.convert_ref(root) else {
-                        return Err(crate::error::Error::UnsupportedSpanLinkAttribute {
-                            group_id: g.id.clone(),
-                            link_ref: link.r#ref.to_string(),
-                            reason: format!(
-                                "attribute '{}' could not be mapped to the v2 catalog",
-                                ar.base.r#ref
-                            ),
-                        });
-                    };
-                    attributes.push(span::SpanAttributeRef {
-                        base,
-                        requirement_level: ar.base.requirement_level.clone().unwrap_or_default(),
-                        sampling_relevant: ar.sampling_relevant,
-                    });
-                }
-                weaver_semconv::v2::span::SpanAttributeOrGroupRef::Group(group_ref) => {
-                    return Err(crate::error::Error::UnsupportedSpanLinkAttribute {
-                        group_id: g.id.clone(),
-                        link_ref: link.r#ref.to_string(),
-                        reason: format!(
-                            "attribute group '{}' references are not supported on link attributes",
-                            group_ref.ref_group
-                        ),
-                    });
-                }
-            }
+        for ar in link.attributes.iter() {
+            attributes.push(convert_span_link_attribute(ar, g, link, c, v2_catalog)?);
         }
         links.push(span::SpanLink {
             r#ref: link.r#ref.clone(),
@@ -1069,21 +1063,17 @@ mod tests {
     #[test]
     fn test_span_link_attribute_override_unsupported() {
         let mut link = link_to("b");
-        link.attributes = vec![
-            weaver_semconv::v2::span::SpanAttributeOrGroupRef::Attribute(
-                weaver_semconv::v2::span::SpanAttributeRef {
-                    base: weaver_semconv::v2::attribute::AttributeRef {
-                        r#ref: "test.key".to_owned(),
-                        brief: Some("an override".to_owned()),
-                        examples: None,
-                        requirement_level: None,
-                        note: None,
-                        annotations: Default::default(),
-                    },
-                    sampling_relevant: None,
-                },
-            ),
-        ];
+        link.attributes = vec![weaver_semconv::v2::span::SpanAttributeRef {
+            base: weaver_semconv::v2::attribute::AttributeRef {
+                r#ref: "test.key".to_owned(),
+                brief: Some("an override".to_owned()),
+                examples: None,
+                requirement_level: None,
+                note: None,
+                annotations: Default::default(),
+            },
+            sampling_relevant: None,
+        }];
         let err = convert_links_err(vec![
             span_group_with_links("span.a", vec![link]),
             span_group_with_links("span.b", vec![]),
@@ -1097,39 +1087,17 @@ mod tests {
     #[test]
     fn test_span_link_attribute_unknown_name_unsupported() {
         let mut link = link_to("b");
-        link.attributes = vec![
-            weaver_semconv::v2::span::SpanAttributeOrGroupRef::Attribute(
-                weaver_semconv::v2::span::SpanAttributeRef {
-                    base: weaver_semconv::v2::attribute::AttributeRef {
-                        r#ref: "nope.key".to_owned(),
-                        brief: None,
-                        examples: None,
-                        requirement_level: None,
-                        note: None,
-                        annotations: Default::default(),
-                    },
-                    sampling_relevant: None,
-                },
-            ),
-        ];
-        let err = convert_links_err(vec![
-            span_group_with_links("span.a", vec![link]),
-            span_group_with_links("span.b", vec![]),
-        ]);
-        assert!(matches!(
-            err,
-            crate::error::Error::UnsupportedSpanLinkAttribute { .. }
-        ));
-    }
-
-    #[test]
-    fn test_span_link_attribute_group_ref_unsupported() {
-        let mut link = link_to("b");
-        link.attributes = vec![weaver_semconv::v2::span::SpanAttributeOrGroupRef::Group(
-            weaver_semconv::v2::span::SpanGroupRef {
-                ref_group: "some.group".to_owned(),
+        link.attributes = vec![weaver_semconv::v2::span::SpanAttributeRef {
+            base: weaver_semconv::v2::attribute::AttributeRef {
+                r#ref: "nope.key".to_owned(),
+                brief: None,
+                examples: None,
+                requirement_level: None,
+                note: None,
+                annotations: Default::default(),
             },
-        )];
+            sampling_relevant: None,
+        }];
         let err = convert_links_err(vec![
             span_group_with_links("span.a", vec![link]),
             span_group_with_links("span.b", vec![]),
