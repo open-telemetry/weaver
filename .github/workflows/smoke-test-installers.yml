@@ -1,0 +1,91 @@
+name: Smoke test installers
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        required: true
+        type: string
+
+jobs:
+  smoke-test-installers:
+    permissions:
+      "contents": "read"
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ["ubuntu-24.04", "ubuntu-24.04-arm", "macos-15", "macos-15-intel", "windows-2025"]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Fetch artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          pattern: artifacts-*
+          path: bundles/
+      - name: Assemble the release directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A per-target build job must never produce the global artifacts: two jobs
+          # writing the same filename means whichever lands last wins the release.
+          rogue=$(ls bundles/artifacts-build-local-*/weaver-installer.* \
+                     bundles/artifacts-build-local-*/sha256.sum 2>/dev/null || true)
+          if [ -n "$rogue" ]; then
+            echo "::error::a per-target build job produced global artifacts:"
+            echo "$rogue"
+            exit 1
+          fi
+          # Global wins any remaining collision, rather than download order deciding.
+          mkdir -p dist
+          cp bundles/artifacts-build-local-*/* dist/
+          cp bundles/artifacts-build-global/* dist/
+      - name: Install from the shell installer
+        if: ${{ runner.os != 'Windows' }}
+        shell: bash
+        env:
+          WEAVER_DOWNLOAD_URL: http://localhost:8000
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8000 --directory dist &
+          server=$!
+          trap 'kill $server' EXIT
+          for i in $(seq 30); do
+            if curl -sf http://localhost:8000/ > /dev/null; then break; fi
+            if ! kill -0 "$server" 2>/dev/null; then
+              echo "artifact server exited unexpectedly"
+              exit 1
+            fi
+            if [ "$i" = 30 ]; then echo "artifact server did not start"; exit 1; fi
+            sleep 1
+          done
+
+          sh dist/weaver-installer.sh
+          expected=$(jq -r '.announcement_tag' dist/global-dist-manifest.json)
+          actual=v$("$HOME/.cargo/bin/weaver" --version | awk '{print $2}')
+          echo "installed $actual, expected $expected"
+          [ "$actual" = "$expected" ]
+      - name: Install from the powershell installer
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
+        env:
+          WEAVER_DOWNLOAD_URL: http://localhost:8000
+        run: |
+          $server = Start-Process python -ArgumentList "-m","http.server","8000","--directory","dist" -PassThru
+          try {
+            $up = $false
+            foreach ($i in 1..30) {
+              if (Test-NetConnection localhost -Port 8000 -InformationLevel Quiet) { $up = $true; break }
+              if ($server.HasExited) { throw "artifact server exited unexpectedly" }
+              Start-Sleep 1
+            }
+            if (-not $up) { throw "artifact server did not start" }
+
+            ./dist/weaver-installer.ps1
+            $expected = (Get-Content dist/global-dist-manifest.json | ConvertFrom-Json).announcement_tag
+            $actual = "v" + (& "$env:USERPROFILE\.cargo\bin\weaver.exe" --version).Split(" ")[1]
+            Write-Host "installed $actual, expected $expected"
+            if ($actual -ne $expected) { exit 1 }
+          } finally {
+            if ($server -and -not $server.HasExited) { Stop-Process -Id $server.Id }
+          }
