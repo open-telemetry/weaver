@@ -121,8 +121,8 @@ impl EntityAssociation {
 #[must_use]
 pub fn to_named_associations(
     associations: &[EntityAssociation],
-) -> Vec<weaver_semconv::entity_association::EntityAssociation> {
-    use weaver_semconv::entity_association::EntityAssociation as SpecAssociation;
+) -> Vec<weaver_semconv::v1::entity_association::EntityAssociation> {
+    use weaver_semconv::v1::entity_association::EntityAssociation as SpecAssociation;
     associations
         .iter()
         .map(|assoc| match assoc {
@@ -240,7 +240,7 @@ mod tests {
     /// The authored form keeps the shape and drops the provenance.
     #[test]
     fn test_to_named_associations_keeps_the_shape() {
-        use weaver_semconv::entity_association::EntityAssociation as SpecAssociation;
+        use weaver_semconv::v1::entity_association::EntityAssociation as SpecAssociation;
         assert_eq!(
             to_named_associations(&association_tree()),
             vec![SpecAssociation::AllOf {

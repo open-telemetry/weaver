@@ -17,8 +17,8 @@ use crate::v1::registry::GroupStats::{
 };
 use serde::{Deserialize, Serialize};
 use weaver_semconv::deprecated::Deprecated;
-use weaver_semconv::entity_association::EntityAssociation;
 use weaver_semconv::provenance::Provenance;
+use weaver_semconv::v1::entity_association::EntityAssociation;
 use weaver_semconv::v1::group::{
     AttributeGroupVisibilitySpec, GroupType, InstrumentSpec, SpanKindSpec, SpanName,
 };

@@ -11,6 +11,7 @@ use crate::v1::{
         RequirementLevel as V1RequirementLevel, TemplateTypeSpec as V1TemplateTypeSpec,
         ValueSpec as V1ValueSpec,
     },
+    entity_association::EntityAssociation as V1EntityAssociation,
     group::{
         AttributeGroupVisibilitySpec as V1VisibilitySpec, GroupSpec as V1GroupSpec,
         GroupType as V1GroupType, GroupWildcard as V1GroupWildcard,
@@ -31,6 +32,7 @@ use crate::v2::{
     },
     attribute_group::AttributeGroup,
     entity::{Entity, EntityRefinement},
+    entity_association::EntityAssociation as V2EntityAssociation,
     event::{Event, EventRefinement},
     metric::{InstrumentSpec as V2InstrumentSpec, Metric, MetricRefinement},
     signal_requirement_level::SignalRequirementLevel as V2SignalRequirementLevel,
@@ -368,6 +370,32 @@ impl From<V2SignalRequirementLevel> for V1SignalRequirementLevel {
     }
 }
 
+/// Converts a V2 entity association to V1.
+#[must_use]
+pub fn v2_entity_association_to_v1(e: V2EntityAssociation) -> V1EntityAssociation {
+    match e {
+        V2EntityAssociation::Ref(name) => V1EntityAssociation::Ref(name),
+        V2EntityAssociation::OneOf { one_of } => V1EntityAssociation::OneOf {
+            one_of: one_of
+                .into_iter()
+                .map(v2_entity_association_to_v1)
+                .collect(),
+        },
+        V2EntityAssociation::AllOf { all_of } => V1EntityAssociation::AllOf {
+            all_of: all_of
+                .into_iter()
+                .map(v2_entity_association_to_v1)
+                .collect(),
+        },
+    }
+}
+
+impl From<V2EntityAssociation> for V1EntityAssociation {
+    fn from(e: V2EntityAssociation) -> Self {
+        v2_entity_association_to_v1(e)
+    }
+}
+
 /// Converts a V2 metric into a V1 GroupSpec.
 #[must_use]
 pub(crate) fn v2_metric_to_v1(metric: Metric) -> V1GroupSpec {
@@ -396,7 +424,11 @@ pub(crate) fn v2_metric_to_v1(metric: Metric) -> V1GroupSpec {
         } else {
             Some(metric.common.annotations)
         },
-        entity_associations: metric.entity_associations,
+        entity_associations: metric
+            .entity_associations
+            .into_iter()
+            .map(v2_entity_association_to_v1)
+            .collect(),
         visibility: None,
         is_v2: true,
         span_name: None,
@@ -434,7 +466,11 @@ pub(crate) fn v2_metric_refinement_to_v1(r: MetricRefinement) -> V1GroupSpec {
         } else {
             Some(r.annotations)
         },
-        entity_associations: r.entity_associations,
+        entity_associations: r
+            .entity_associations
+            .into_iter()
+            .map(v2_entity_association_to_v1)
+            .collect(),
         visibility: None,
         is_v2: true,
         span_name: None,
@@ -470,7 +506,11 @@ pub(crate) fn v2_span_to_v1(span: Span) -> V1GroupSpec {
         } else {
             Some(span.common.annotations)
         },
-        entity_associations: span.entity_associations,
+        entity_associations: span
+            .entity_associations
+            .into_iter()
+            .map(v2_entity_association_to_v1)
+            .collect(),
         visibility: None,
         is_v2: true,
         span_name: Some(V1SpanName {
@@ -510,7 +550,11 @@ pub(crate) fn v2_span_refinement_to_v1(r: SpanRefinement) -> V1GroupSpec {
         } else {
             Some(r.annotations)
         },
-        entity_associations: r.entity_associations,
+        entity_associations: r
+            .entity_associations
+            .into_iter()
+            .map(v2_entity_association_to_v1)
+            .collect(),
         visibility: None,
         is_v2: true,
         span_name: r.name.map(|n| V1SpanName { note: n.note }),
@@ -546,7 +590,11 @@ pub(crate) fn v2_event_to_v1(event: Event) -> V1GroupSpec {
         } else {
             Some(event.common.annotations)
         },
-        entity_associations: event.entity_associations,
+        entity_associations: event
+            .entity_associations
+            .into_iter()
+            .map(v2_entity_association_to_v1)
+            .collect(),
         visibility: None,
         is_v2: true,
         span_name: None,
@@ -584,7 +632,11 @@ pub(crate) fn v2_event_refinement_to_v1(r: EventRefinement) -> V1GroupSpec {
         } else {
             Some(r.annotations)
         },
-        entity_associations: r.entity_associations,
+        entity_associations: r
+            .entity_associations
+            .into_iter()
+            .map(v2_entity_association_to_v1)
+            .collect(),
         visibility: None,
         is_v2: true,
         span_name: None,
@@ -1027,6 +1079,32 @@ pub fn v1_signal_requirement_level_to_v2(s: V1SignalRequirementLevel) -> V2Signa
 impl From<V1SignalRequirementLevel> for V2SignalRequirementLevel {
     fn from(s: V1SignalRequirementLevel) -> Self {
         v1_signal_requirement_level_to_v2(s)
+    }
+}
+
+/// Converts a V1 entity association to V2.
+#[must_use]
+pub fn v1_entity_association_to_v2(e: V1EntityAssociation) -> V2EntityAssociation {
+    match e {
+        V1EntityAssociation::Ref(name) => V2EntityAssociation::Ref(name),
+        V1EntityAssociation::OneOf { one_of } => V2EntityAssociation::OneOf {
+            one_of: one_of
+                .into_iter()
+                .map(v1_entity_association_to_v2)
+                .collect(),
+        },
+        V1EntityAssociation::AllOf { all_of } => V2EntityAssociation::AllOf {
+            all_of: all_of
+                .into_iter()
+                .map(v1_entity_association_to_v2)
+                .collect(),
+        },
+    }
+}
+
+impl From<V1EntityAssociation> for V2EntityAssociation {
+    fn from(e: V1EntityAssociation) -> Self {
+        v1_entity_association_to_v2(e)
     }
 }
 
@@ -1927,5 +2005,40 @@ stability: stable
 
         assert_eq!(V1SigReq::from(V2SigReq::Recommended), V1SigReq::Recommended);
         assert_eq!(V2SigReq::from(V1SigReq::Recommended), V2SigReq::Recommended);
+    }
+
+    #[test]
+    fn test_entity_association_conversions() {
+        use crate::v1::entity_association::EntityAssociation as V1Assoc;
+        use crate::v2::entity_association::EntityAssociation as V2Assoc;
+
+        let v1_tree = V1Assoc::AllOf {
+            all_of: vec![
+                V1Assoc::Ref("service".to_owned()),
+                V1Assoc::OneOf {
+                    one_of: vec![
+                        V1Assoc::Ref("host".to_owned()),
+                        V1Assoc::Ref("container".to_owned()),
+                    ],
+                },
+            ],
+        };
+
+        let v2_tree = V2Assoc::AllOf {
+            all_of: vec![
+                V2Assoc::Ref("service".to_owned()),
+                V2Assoc::OneOf {
+                    one_of: vec![
+                        V2Assoc::Ref("host".to_owned()),
+                        V2Assoc::Ref("container".to_owned()),
+                    ],
+                },
+            ],
+        };
+
+        assert_eq!(v1_entity_association_to_v2(v1_tree.clone()), v2_tree);
+        assert_eq!(v2_entity_association_to_v1(v2_tree.clone()), v1_tree);
+        assert_eq!(V2Assoc::from(v1_tree.clone()), v2_tree);
+        assert_eq!(V1Assoc::from(v2_tree.clone()), v1_tree);
     }
 }

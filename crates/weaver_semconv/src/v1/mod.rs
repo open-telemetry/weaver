@@ -4,6 +4,7 @@
 
 pub mod any_value;
 pub mod attribute;
+pub mod entity_association;
 pub mod group;
 pub mod registry;
 pub mod semconv;

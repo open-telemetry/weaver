@@ -239,7 +239,7 @@ mod tests {
         span::{Span as V2Span, SpanAttribute},
     };
     use weaver_resolved_schema::v1::attribute::Attribute;
-    use weaver_semconv::entity_association::EntityAssociation;
+    use weaver_semconv::v1::entity_association::EntityAssociation;
     use weaver_semconv::v1::{
         attribute::{
             AttributeType, BasicRequirementLevelSpec, EnumEntriesSpec, Examples,

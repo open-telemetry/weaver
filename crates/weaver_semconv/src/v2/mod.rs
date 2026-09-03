@@ -25,6 +25,7 @@ use crate::{
 pub mod attribute;
 pub mod attribute_group;
 pub mod entity;
+pub mod entity_association;
 pub mod event;
 pub mod metric;
 pub mod signal_id;

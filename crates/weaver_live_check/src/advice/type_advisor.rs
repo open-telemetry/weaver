@@ -17,7 +17,7 @@ use weaver_semconv::v1::attribute::{
     TemplateTypeSpec,
 };
 
-use weaver_semconv::entity_association::EntityAssociation;
+use weaver_semconv::v1::entity_association::EntityAssociation;
 
 use super::{emit_findings, Advisor, FindingBuilder};
 use crate::{

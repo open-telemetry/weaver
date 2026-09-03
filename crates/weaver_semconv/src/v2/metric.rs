@@ -10,9 +10,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     deprecated::Deprecated,
-    entity_association::EntityAssociation,
     v2::{
-        attribute::AttributeOrGroupRef, signal_id::SignalId,
+        attribute::AttributeOrGroupRef, entity_association::EntityAssociation, signal_id::SignalId,
         signal_requirement_level::SignalRequirementLevel, stability::Stability, CommonFields,
     },
     YamlValue,

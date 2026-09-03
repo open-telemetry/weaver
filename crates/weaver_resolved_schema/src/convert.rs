@@ -149,11 +149,11 @@ impl EntityRefResolver<'_> {
 }
 
 fn convert_entity_associations(
-    associations: &[weaver_semconv::entity_association::EntityAssociation],
+    associations: &[weaver_semconv::v1::entity_association::EntityAssociation],
     entity_refs: &EntityRefResolver<'_>,
     group_id: &str,
 ) -> Result<Vec<entity::EntityAssociation>, crate::error::Error> {
-    use weaver_semconv::entity_association::EntityAssociation as SpecAssociation;
+    use weaver_semconv::v1::entity_association::EntityAssociation as SpecAssociation;
     associations
         .iter()
         .map(|assoc| match assoc {
@@ -1511,7 +1511,7 @@ mod tests {
                 body: None,
                 annotations: None,
                 entity_associations: vec![
-                    weaver_semconv::entity_association::EntityAssociation::Ref(
+                    weaver_semconv::v1::entity_association::EntityAssociation::Ref(
                         "nonexistent.entity".to_owned(),
                     ),
                 ],
@@ -1553,7 +1553,7 @@ mod tests {
 
     #[test]
     fn test_convert_entity_associations_complex_and_provenance() {
-        use weaver_semconv::entity_association::EntityAssociation as SpecAssociation;
+        use weaver_semconv::v1::entity_association::EntityAssociation as SpecAssociation;
         let dep_url: SchemaUrl = "http://external.dep/1.0.0".try_into().unwrap();
         let mut deps = BTreeSet::new();
         let _ = deps.insert(dep_url.clone());

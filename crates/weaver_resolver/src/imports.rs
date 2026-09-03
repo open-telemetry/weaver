@@ -1420,9 +1420,11 @@ mod tests {
         assert_eq!(metric.unit.as_deref(), Some("1"));
         assert_eq!(
             metric.entity_associations,
-            vec![weaver_semconv::entity_association::EntityAssociation::Ref(
-                "entity.c".to_owned()
-            )]
+            vec![
+                weaver_semconv::v1::entity_association::EntityAssociation::Ref(
+                    "entity.c".to_owned()
+                )
+            ]
         );
         assert!(metric.name.is_none(), "A metric has no signal name");
         assert!(metric.lineage.is_some(), "A metric carries its lineage");
