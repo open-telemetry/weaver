@@ -27,7 +27,7 @@ members = ["crates/*"]
 exclude = ["fuzz", "target"]
 
 [workspace.package]
-version = "0.26.0"
+version = "0.26.1"
 authors = ["OpenTelemetry"]
 edition = "2021"
 repository = "https://github.com/open-telemetry/weaver"
