@@ -10,7 +10,7 @@ on:
 jobs:
   smoke-test-installers:
     permissions:
-      "contents": "read"
+      contents: read
     timeout-minutes: 10
     strategy:
       fail-fast: false
