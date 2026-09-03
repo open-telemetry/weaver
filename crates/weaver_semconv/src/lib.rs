@@ -21,9 +21,6 @@ pub mod provenance;
 pub mod registry_repo;
 pub mod schema_url;
 pub mod semconv;
-pub mod signal_requirement_level;
-pub mod stability;
-pub mod stats;
 pub mod v1;
 pub mod v2;
 

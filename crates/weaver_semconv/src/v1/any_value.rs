@@ -9,10 +9,10 @@ use std::fmt::{Display, Formatter};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::stability::Stability;
 use crate::v1::attribute::{
     BasicRequirementLevelSpec, EnumEntriesSpec, Examples, RequirementLevel,
 };
+use crate::v1::stability::Stability;
 
 /// The AnyValueTypeSpec is a specification of a value that can be of any type.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]

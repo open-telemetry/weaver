@@ -13,12 +13,12 @@ use std::fmt::{Display, Formatter};
 use crate::deprecated::Deprecated;
 use crate::entity_association::EntityAssociation;
 use crate::provenance::Provenance;
-use crate::signal_requirement_level::SignalRequirementLevel;
-use crate::stability::Stability;
 use crate::v1::any_value::AnyValueSpec;
 use crate::v1::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
 use crate::v1::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::v1::semconv::Imports;
+use crate::v1::signal_requirement_level::SignalRequirementLevel;
+use crate::v1::stability::Stability;
 use crate::{Error, YamlValue};
 use weaver_common::result::WResult;
 

@@ -16,10 +16,10 @@ use weaver_resolved_schema::v1::registry::{Group, Registry};
 use weaver_resolved_schema::v1::ResolvedTelemetrySchema;
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::entity_association::EntityAssociation;
-use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
-use weaver_semconv::stability::Stability;
 use weaver_semconv::v1::any_value::AnyValueSpec;
 use weaver_semconv::v1::group::{GroupType, InstrumentSpec, SpanKindSpec};
+use weaver_semconv::v1::signal_requirement_level::SignalRequirementLevel;
+use weaver_semconv::v1::stability::Stability;
 use weaver_semconv::YamlValue;
 
 /// A resolved semantic convention registry used in the context of the template and policy

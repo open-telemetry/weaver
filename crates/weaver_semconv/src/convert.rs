@@ -17,6 +17,8 @@ use crate::v1::{
         InstrumentSpec as V1InstrumentSpec, SpanKindSpec as V1SpanKindSpec, SpanName as V1SpanName,
     },
     semconv::{Imports as V1Imports, SemConvSpecV1},
+    signal_requirement_level::SignalRequirementLevel as V1SignalRequirementLevel,
+    stability::Stability as V1Stability,
 };
 use crate::v2::{
     attribute::{
@@ -31,12 +33,15 @@ use crate::v2::{
     entity::{Entity, EntityRefinement},
     event::{Event, EventRefinement},
     metric::{InstrumentSpec as V2InstrumentSpec, Metric, MetricRefinement},
+    signal_requirement_level::SignalRequirementLevel as V2SignalRequirementLevel,
     span::{
         Span, SpanAttributeOrGroupRef, SpanAttributeRef, SpanKindSpec as V2SpanKindSpec,
         SpanRefinement,
     },
+    stability::Stability as V2Stability,
     Imports as V2Imports, SemConvSpecV2,
 };
+use crate::Error;
 
 /// Converts a V2 primitive or array type to V1.
 #[must_use]
@@ -91,7 +96,7 @@ pub(crate) fn v2_enum_entry_to_v1(e: V2EnumEntriesSpec) -> V1EnumEntriesSpec {
         value: v2_value_to_v1(e.value),
         brief: e.brief,
         note: e.note,
-        stability: e.stability,
+        stability: e.stability.map(v2_stability_to_v1),
         deprecated: e.deprecated,
         annotations: e.annotations,
     }
@@ -171,7 +176,7 @@ pub(crate) fn v2_attribute_to_v1(attr: AttributeDef) -> V1AttributeSpec {
         requirement_level: Default::default(),
         sampling_relevant: None,
         note: attr.common.note,
-        stability: Some(attr.common.stability),
+        stability: Some(v2_stability_to_v1(attr.common.stability)),
         deprecated: attr.common.deprecated,
         annotations: if attr.common.annotations.is_empty() {
             None
@@ -330,6 +335,39 @@ pub fn v2_span_name_to_v1(s: crate::v2::span::SpanName) -> V1SpanName {
     V1SpanName { note: s.note }
 }
 
+/// Converts a V2 stability level to V1.
+#[must_use]
+pub fn v2_stability_to_v1(s: V2Stability) -> V1Stability {
+    match s {
+        V2Stability::Stable => V1Stability::Stable,
+        V2Stability::Development => V1Stability::Development,
+        V2Stability::Alpha => V1Stability::Alpha,
+        V2Stability::Beta => V1Stability::Beta,
+        V2Stability::ReleaseCandidate => V1Stability::ReleaseCandidate,
+    }
+}
+
+impl From<V2Stability> for V1Stability {
+    fn from(s: V2Stability) -> Self {
+        v2_stability_to_v1(s)
+    }
+}
+
+/// Converts a V2 signal requirement level to V1.
+#[must_use]
+pub fn v2_signal_requirement_level_to_v1(s: V2SignalRequirementLevel) -> V1SignalRequirementLevel {
+    match s {
+        V2SignalRequirementLevel::Recommended => V1SignalRequirementLevel::Recommended,
+        V2SignalRequirementLevel::OptIn => V1SignalRequirementLevel::OptIn,
+    }
+}
+
+impl From<V2SignalRequirementLevel> for V1SignalRequirementLevel {
+    fn from(s: V2SignalRequirementLevel) -> Self {
+        v2_signal_requirement_level_to_v1(s)
+    }
+}
+
 /// Converts a V2 metric into a V1 GroupSpec.
 #[must_use]
 pub(crate) fn v2_metric_to_v1(metric: Metric) -> V1GroupSpec {
@@ -342,7 +380,7 @@ pub(crate) fn v2_metric_to_v1(metric: Metric) -> V1GroupSpec {
         prefix: Default::default(),
         extends: None,
         include_groups,
-        stability: Some(metric.common.stability),
+        stability: Some(v2_stability_to_v1(metric.common.stability)),
         deprecated: metric.common.deprecated,
         attributes: attribute_refs,
         span_kind: None,
@@ -362,7 +400,9 @@ pub(crate) fn v2_metric_to_v1(metric: Metric) -> V1GroupSpec {
         visibility: None,
         is_v2: true,
         span_name: None,
-        requirement_level: metric.requirement_level,
+        requirement_level: metric
+            .requirement_level
+            .map(v2_signal_requirement_level_to_v1),
     }
 }
 
@@ -378,7 +418,7 @@ pub(crate) fn v2_metric_refinement_to_v1(r: MetricRefinement) -> V1GroupSpec {
         prefix: Default::default(),
         extends: Some(format!("metric.{}", &r.r#ref)),
         include_groups,
-        stability: r.stability,
+        stability: r.stability.map(v2_stability_to_v1),
         deprecated: r.deprecated,
         attributes: attribute_refs,
         span_kind: None,
@@ -414,7 +454,7 @@ pub(crate) fn v2_span_to_v1(span: Span) -> V1GroupSpec {
         prefix: Default::default(),
         extends: None,
         include_groups,
-        stability: Some(span.common.stability),
+        stability: Some(v2_stability_to_v1(span.common.stability)),
         deprecated: span.common.deprecated,
         attributes: attribute_refs,
         span_kind: Some(v2_span_kind_to_v1(span.kind)),
@@ -436,7 +476,9 @@ pub(crate) fn v2_span_to_v1(span: Span) -> V1GroupSpec {
         span_name: Some(V1SpanName {
             note: span.name.note,
         }),
-        requirement_level: span.requirement_level,
+        requirement_level: span
+            .requirement_level
+            .map(v2_signal_requirement_level_to_v1),
     }
 }
 
@@ -452,7 +494,7 @@ pub(crate) fn v2_span_refinement_to_v1(r: SpanRefinement) -> V1GroupSpec {
         prefix: Default::default(),
         extends: Some(format!("span.{}", &r.r#ref)),
         include_groups,
-        stability: r.stability,
+        stability: r.stability.map(v2_stability_to_v1),
         deprecated: r.deprecated,
         attributes: attribute_refs,
         span_kind: None,
@@ -488,7 +530,7 @@ pub(crate) fn v2_event_to_v1(event: Event) -> V1GroupSpec {
         prefix: Default::default(),
         extends: None,
         include_groups,
-        stability: Some(event.common.stability),
+        stability: Some(v2_stability_to_v1(event.common.stability)),
         deprecated: event.common.deprecated,
         attributes: attribute_refs,
         span_kind: None,
@@ -508,7 +550,9 @@ pub(crate) fn v2_event_to_v1(event: Event) -> V1GroupSpec {
         visibility: None,
         is_v2: true,
         span_name: None,
-        requirement_level: event.requirement_level,
+        requirement_level: event
+            .requirement_level
+            .map(v2_signal_requirement_level_to_v1),
     }
 }
 
@@ -524,7 +568,7 @@ pub(crate) fn v2_event_refinement_to_v1(r: EventRefinement) -> V1GroupSpec {
         prefix: Default::default(),
         extends: Some(format!("event.{}", &r.r#ref)),
         include_groups,
-        stability: r.stability,
+        stability: r.stability.map(v2_stability_to_v1),
         deprecated: r.deprecated,
         attributes: attribute_refs,
         span_kind: None,
@@ -571,7 +615,7 @@ pub(crate) fn v2_entity_to_v1(entity: Entity) -> V1GroupSpec {
         prefix: Default::default(),
         extends: None,
         include_groups: vec![],
-        stability: Some(entity.common.stability),
+        stability: Some(v2_stability_to_v1(entity.common.stability)),
         deprecated: entity.common.deprecated,
         attributes,
         span_kind: None,
@@ -591,7 +635,9 @@ pub(crate) fn v2_entity_to_v1(entity: Entity) -> V1GroupSpec {
         visibility: None,
         is_v2: true,
         span_name: None,
-        requirement_level: entity.requirement_level,
+        requirement_level: entity
+            .requirement_level
+            .map(v2_signal_requirement_level_to_v1),
     }
 }
 
@@ -617,7 +663,7 @@ pub(crate) fn v2_entity_refinement_to_v1(r: EntityRefinement) -> V1GroupSpec {
         prefix: Default::default(),
         extends: Some(format!("entity.{}", &r.r#ref)),
         include_groups: vec![],
-        stability: r.stability,
+        stability: r.stability.map(v2_stability_to_v1),
         deprecated: r.deprecated,
         attributes,
         span_kind: None,
@@ -687,7 +733,7 @@ pub(crate) fn v2_attribute_group_to_v1(ag: AttributeGroup) -> V1GroupSpec {
                 prefix: Default::default(),
                 extends: None,
                 include_groups,
-                stability: Some(public.common.stability),
+                stability: Some(v2_stability_to_v1(public.common.stability)),
                 deprecated: public.common.deprecated,
                 attributes,
                 span_kind: None,
@@ -847,7 +893,7 @@ pub(crate) fn v1_enum_entry_to_v2(e: V1EnumEntriesSpec) -> V2EnumEntriesSpec {
         value: v1_value_to_v2(e.value),
         brief: e.brief,
         note: e.note,
-        stability: e.stability,
+        stability: e.stability.and_then(|s| v1_stability_to_v2(s).ok()),
         deprecated: e.deprecated,
         annotations: e.annotations,
     }
@@ -944,15 +990,56 @@ pub fn v1_span_name_to_v2(s: V1SpanName) -> crate::v2::span::SpanName {
     crate::v2::span::SpanName { note: s.note }
 }
 
+/// Converts a V1 stability level to V2.
+pub fn v1_stability_to_v2(s: V1Stability) -> Result<V2Stability, Error> {
+    match s {
+        V1Stability::Stable => Ok(V2Stability::Stable),
+        V1Stability::Development => Ok(V2Stability::Development),
+        V1Stability::Alpha => Ok(V2Stability::Alpha),
+        V1Stability::Beta => Ok(V2Stability::Beta),
+        V1Stability::ReleaseCandidate => Ok(V2Stability::ReleaseCandidate),
+        // TODO: Should we consider this *STABLE* for v1->v2, since
+        // that was how things were treated in semconv prior to v2?
+        #[allow(deprecated)]
+        V1Stability::Deprecated => Err(Error::SemConvSpecError {
+            error: "Deprecated stability level cannot be converted to v2; use the deprecated field instead".to_owned(),
+        }),
+    }
+}
+
+impl TryFrom<V1Stability> for V2Stability {
+    type Error = Error;
+
+    fn try_from(s: V1Stability) -> Result<Self, Self::Error> {
+        v1_stability_to_v2(s)
+    }
+}
+
+/// Converts a V1 signal requirement level to V2.
+#[must_use]
+pub fn v1_signal_requirement_level_to_v2(s: V1SignalRequirementLevel) -> V2SignalRequirementLevel {
+    match s {
+        V1SignalRequirementLevel::Recommended => V2SignalRequirementLevel::Recommended,
+        V1SignalRequirementLevel::OptIn => V2SignalRequirementLevel::OptIn,
+    }
+}
+
+impl From<V1SignalRequirementLevel> for V2SignalRequirementLevel {
+    fn from(s: V1SignalRequirementLevel) -> Self {
+        v1_signal_requirement_level_to_v2(s)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::deprecated::Deprecated;
-    use crate::stability::Stability;
     use crate::v1::group::SpanName as V1SpanName;
+    use crate::v1::stability::Stability as V1Stability;
     use crate::v2::attribute::GroupRef;
     use crate::v2::signal_id::SignalId;
     use crate::v2::span::{SpanGroupRef, SpanName};
+    use crate::v2::stability::Stability as V2Stability;
     use crate::v2::{CommonFields, GroupWildcard as V2GroupWildcard};
     use crate::YamlValue;
     use std::collections::BTreeMap;
@@ -1055,7 +1142,7 @@ mod tests {
             value: V2ValueSpec::String("SUCCESS".to_owned()),
             brief: Some("Success status".to_owned()),
             note: Some("Detailed status note".to_owned()),
-            stability: Some(Stability::Stable),
+            stability: Some(V2Stability::Stable),
             deprecated: Some(Deprecated::Renamed {
                 renamed_to: "new_ok".to_owned(),
                 note: Some("Use new_ok instead".to_owned()),
@@ -1071,7 +1158,7 @@ mod tests {
         );
         assert_eq!(v1_enum_entry.brief, Some("Success status".to_owned()));
         assert_eq!(v1_enum_entry.note, Some("Detailed status note".to_owned()));
-        assert_eq!(v1_enum_entry.stability, Some(Stability::Stable));
+        assert_eq!(v1_enum_entry.stability, Some(V1Stability::Stable));
         assert_eq!(v1_enum_entry.annotations, Some(annotations));
 
         let converted_back_v2 = v1_enum_entry_to_v2(v1_enum_entry);
@@ -1291,7 +1378,7 @@ mod tests {
             common: CommonFields {
                 brief: "HTTP response status code".to_owned(),
                 note: "Note text".to_owned(),
-                stability: Stability::Stable,
+                stability: V2Stability::Stable,
                 deprecated: Some(Deprecated::Renamed {
                     renamed_to: "response.status_code".to_owned(),
                     note: Some("Use response.status_code".to_owned()),
@@ -1319,7 +1406,7 @@ mod tests {
                 );
                 assert_eq!(brief, Some("HTTP response status code".to_owned()));
                 assert_eq!(examples, Some(V1Examples::Int(200)));
-                assert_eq!(stability, Some(Stability::Stable));
+                assert_eq!(stability, Some(V1Stability::Stable));
                 assert!(deprecated.is_some());
                 assert_eq!(ans, Some(annotations.clone()));
             }
@@ -1465,7 +1552,7 @@ attributes:
             r#ref: SignalId::from("original_metric"),
             brief: Some("Refined brief".to_owned()),
             note: Some("Refined note".to_owned()),
-            stability: Some(Stability::Stable),
+            stability: Some(V2Stability::Stable),
             deprecated: None,
             attributes: vec![AttributeOrGroupRef::Attribute(AttributeRef {
                 r#ref: "extra_attr".to_owned(),
@@ -1499,7 +1586,7 @@ attributes:
             common: CommonFields {
                 brief: "Client HTTP span".to_owned(),
                 note: "Span details".to_owned(),
-                stability: Stability::Stable,
+                stability: V2Stability::Stable,
                 deprecated: None,
                 annotations: Default::default(),
             },
@@ -1542,7 +1629,7 @@ attributes:
             }),
             brief: Some("Refined span brief".to_owned()),
             note: Some("Refined span note".to_owned()),
-            stability: Some(Stability::Stable),
+            stability: Some(V2Stability::Stable),
             deprecated: None,
             attributes: vec![],
             annotations: Default::default(),
@@ -1569,7 +1656,7 @@ attributes:
             common: CommonFields {
                 brief: "An exception occurred".to_owned(),
                 note: "Event details".to_owned(),
-                stability: Stability::Stable,
+                stability: V2Stability::Stable,
                 deprecated: None,
                 annotations: Default::default(),
             },
@@ -1600,7 +1687,7 @@ attributes:
             r#ref: SignalId::from("exception"),
             brief: Some("Refined exception".to_owned()),
             note: None,
-            stability: Some(Stability::Stable),
+            stability: Some(V2Stability::Stable),
             deprecated: None,
             attributes: vec![],
             annotations: Default::default(),
@@ -1655,7 +1742,7 @@ stability: stable
             }],
             brief: Some("Refined host".to_owned()),
             note: None,
-            stability: Some(Stability::Stable),
+            stability: Some(V2Stability::Stable),
             deprecated: None,
             annotations: Default::default(),
         };
@@ -1694,7 +1781,7 @@ stability: stable
             common: CommonFields {
                 brief: "Public attribute group".to_owned(),
                 note: "Group notes".to_owned(),
-                stability: Stability::Stable,
+                stability: V2Stability::Stable,
                 deprecated: None,
                 annotations: Default::default(),
             },
@@ -1747,7 +1834,7 @@ stability: stable
                 common: CommonFields {
                     brief: "HTTP method".to_owned(),
                     note: "".to_owned(),
-                    stability: Stability::Stable,
+                    stability: V2Stability::Stable,
                     deprecated: None,
                     annotations: Default::default(),
                 },
@@ -1759,7 +1846,7 @@ stability: stable
                 common: CommonFields {
                     brief: "Server duration".to_owned(),
                     note: "".to_owned(),
-                    stability: Stability::Stable,
+                    stability: V2Stability::Stable,
                     deprecated: None,
                     annotations: Default::default(),
                 },
@@ -1784,5 +1871,61 @@ stability: stable
         assert_eq!(spec_v1.groups[0].id, "registry.http");
         assert_eq!(spec_v1.groups[0].brief, "<synthetic v2>");
         assert_eq!(spec_v1.groups[1].id, "metric.http.server.duration");
+    }
+
+    #[test]
+    fn test_stability_conversions() {
+        let v2_levels = [
+            V2Stability::Stable,
+            V2Stability::Development,
+            V2Stability::Alpha,
+            V2Stability::Beta,
+            V2Stability::ReleaseCandidate,
+        ];
+        let v1_levels = [
+            V1Stability::Stable,
+            V1Stability::Development,
+            V1Stability::Alpha,
+            V1Stability::Beta,
+            V1Stability::ReleaseCandidate,
+        ];
+
+        for (v2, v1) in v2_levels.iter().zip(v1_levels.iter()) {
+            assert_eq!(v2_stability_to_v1(v2.clone()), v1.clone());
+            assert_eq!(V1Stability::from(v2.clone()), v1.clone());
+            assert_eq!(v1_stability_to_v2(v1.clone()).unwrap(), v2.clone());
+            assert_eq!(V2Stability::try_from(v1.clone()).unwrap(), v2.clone());
+        }
+
+        #[allow(deprecated)]
+        let deprecated_v1 = V1Stability::Deprecated;
+        assert!(v1_stability_to_v2(deprecated_v1).is_err());
+    }
+
+    #[test]
+    fn test_signal_requirement_level_conversions() {
+        use crate::v1::signal_requirement_level::SignalRequirementLevel as V1SigReq;
+        use crate::v2::signal_requirement_level::SignalRequirementLevel as V2SigReq;
+
+        assert_eq!(
+            v2_signal_requirement_level_to_v1(V2SigReq::Recommended),
+            V1SigReq::Recommended
+        );
+        assert_eq!(
+            v2_signal_requirement_level_to_v1(V2SigReq::OptIn),
+            V1SigReq::OptIn
+        );
+
+        assert_eq!(
+            v1_signal_requirement_level_to_v2(V1SigReq::Recommended),
+            V2SigReq::Recommended
+        );
+        assert_eq!(
+            v1_signal_requirement_level_to_v2(V1SigReq::OptIn),
+            V2SigReq::OptIn
+        );
+
+        assert_eq!(V1SigReq::from(V2SigReq::Recommended), V1SigReq::Recommended);
+        assert_eq!(V2SigReq::from(V1SigReq::Recommended), V2SigReq::Recommended);
     }
 }

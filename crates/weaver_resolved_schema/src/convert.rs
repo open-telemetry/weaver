@@ -68,11 +68,12 @@ impl V2CatalogBuilder {
                         && a.common.brief == attribute.brief
                         && a.common.note == attribute.note
                         && a.common.deprecated == attribute.deprecated
-                        && a.common.stability
-                            == *attribute
-                                .stability
-                                .as_ref()
-                                .unwrap_or(&weaver_semconv::stability::Stability::default())
+                        && weaver_semconv::v1::stability::Stability::from(
+                            a.common.stability.clone(),
+                        ) == *attribute
+                            .stability
+                            .as_ref()
+                            .unwrap_or(&weaver_semconv::v1::stability::Stability::default())
                         && attribute
                             .annotations
                             .as_ref()
@@ -183,6 +184,15 @@ fn fix_group_id(prefix: &'static str, group_id: &str) -> SignalId {
 
 fn fix_span_group_id(group_id: &str) -> SignalId {
     fix_group_id("span.", group_id)
+}
+
+fn convert_v1_stability(
+    stability: &Option<weaver_semconv::v1::stability::Stability>,
+) -> weaver_semconv::v2::stability::Stability {
+    stability
+        .as_ref()
+        .and_then(|s| weaver_semconv::convert::v1_stability_to_v2(s.clone()).ok())
+        .unwrap_or_default()
 }
 
 fn is_refinement_of(group: &V1Group) -> bool {
@@ -324,7 +334,7 @@ pub fn convert_v1_to_v2(
                 common: CommonFields {
                     brief: a.brief,
                     note: a.note,
-                    stability: a.stability.unwrap_or_default(),
+                    stability: convert_v1_stability(&a.stability),
                     deprecated: a.deprecated,
                     annotations: a.annotations.unwrap_or_default(),
                 },
@@ -383,11 +393,11 @@ pub fn convert_v1_to_v2(
             r#type: entity_type,
             identity: id_attrs,
             description: desc_attrs,
-            requirement_level: g.requirement_level.clone(),
+            requirement_level: g.requirement_level.clone().map(Into::into),
             common: CommonFields {
                 brief: g.brief.clone(),
                 note: g.note.clone(),
-                stability: g.stability.clone().unwrap_or_default(),
+                stability: convert_v1_stability(&g.stability),
                 deprecated: g.deprecated.clone(),
                 annotations: g.annotations.clone().unwrap_or_default(),
             },
@@ -460,11 +470,11 @@ pub fn convert_v1_to_v2(
                             &entity_refs,
                             &g.id,
                         )?,
-                        requirement_level: g.requirement_level.clone(),
+                        requirement_level: g.requirement_level.clone().map(Into::into),
                         common: CommonFields {
                             brief: g.brief.clone(),
                             note: g.note.clone(),
-                            stability: g.stability.clone().unwrap_or_default(),
+                            stability: convert_v1_stability(&g.stability),
                             deprecated: g.deprecated.clone(),
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
@@ -496,11 +506,11 @@ pub fn convert_v1_to_v2(
                                 &entity_refs,
                                 &g.id,
                             )?,
-                            requirement_level: g.requirement_level.clone(),
+                            requirement_level: g.requirement_level.clone().map(Into::into),
                             common: CommonFields {
                                 brief: g.brief.clone(),
                                 note: g.note.clone(),
-                                stability: g.stability.clone().unwrap_or_default(),
+                                stability: convert_v1_stability(&g.stability),
                                 deprecated: g.deprecated.clone(),
                                 annotations: g.annotations.clone().unwrap_or_default(),
                             },
@@ -532,11 +542,11 @@ pub fn convert_v1_to_v2(
                             &entity_refs,
                             &g.id,
                         )?,
-                        requirement_level: g.requirement_level.clone(),
+                        requirement_level: g.requirement_level.clone().map(Into::into),
                         common: CommonFields {
                             brief: g.brief.clone(),
                             note: g.note.clone(),
-                            stability: g.stability.clone().unwrap_or_default(),
+                            stability: convert_v1_stability(&g.stability),
                             deprecated: g.deprecated.clone(),
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
@@ -604,11 +614,11 @@ pub fn convert_v1_to_v2(
                         &entity_refs,
                         &g.id,
                     )?,
-                    requirement_level: g.requirement_level.clone(),
+                    requirement_level: g.requirement_level.clone().map(Into::into),
                     common: CommonFields {
                         brief: g.brief.clone(),
                         note: g.note.clone(),
-                        stability: g.stability.clone().unwrap_or_default(),
+                        stability: convert_v1_stability(&g.stability),
                         deprecated: g.deprecated.clone(),
                         annotations: g.annotations.clone().unwrap_or_default(),
                     },
@@ -651,7 +661,7 @@ pub fn convert_v1_to_v2(
                         common: CommonFields {
                             brief: g.brief.clone(),
                             note: g.note.clone(),
-                            stability: g.stability.clone().unwrap_or_default(),
+                            stability: convert_v1_stability(&g.stability),
                             deprecated: g.deprecated.clone(),
                             annotations: g.annotations.clone().unwrap_or_default(),
                         },
@@ -708,8 +718,8 @@ mod tests {
     use crate::v1::V1_RESOLVED_FILE_FORMAT;
     use crate::v2::attribute::AttributeRef;
     use weaver_semconv::provenance::Provenance;
-    use weaver_semconv::stability::Stability;
     use weaver_semconv::v1::group::InstrumentSpec as V1InstrumentSpec;
+    use weaver_semconv::v1::stability::Stability;
 
     #[test]
     fn test_convert_span_v1_to_v2() {
@@ -2385,8 +2395,8 @@ mod tests {
 
     #[test]
     fn test_v2_catalog_builder_deterministic_sorting() {
-        use weaver_semconv::stability::Stability;
         use weaver_semconv::v2::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
+        use weaver_semconv::v2::stability::Stability;
 
         let attr1 = V2Attribute {
             key: "server.port".to_owned(),
@@ -2429,9 +2439,9 @@ mod tests {
 
     #[test]
     fn test_lookup_defaults_missing_stability() {
-        use weaver_semconv::stability::Stability;
         use weaver_semconv::v1::attribute::{BasicRequirementLevelSpec, RequirementLevel};
         use weaver_semconv::v2::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
+        use weaver_semconv::v2::stability::Stability;
 
         let key = "test.key".to_owned();
         let atype = AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String);
@@ -2474,9 +2484,9 @@ mod tests {
 
     #[test]
     fn test_lookup_works_and_matches_annotations() {
-        use weaver_semconv::stability::Stability;
         use weaver_semconv::v1::attribute::{BasicRequirementLevelSpec, RequirementLevel};
         use weaver_semconv::v2::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
+        use weaver_semconv::v2::stability::Stability;
 
         let key = "test.key".to_owned();
         let atype = AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String);
@@ -2509,7 +2519,9 @@ mod tests {
             requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
             sampling_relevant: Some(true),
             note: note.clone(),
-            stability: Some(stability.clone()),
+            stability: Some(weaver_semconv::v1::stability::Stability::from(
+                stability.clone(),
+            )),
             deprecated: None,
             prefix: false,
             tags: None,
@@ -2531,7 +2543,7 @@ mod tests {
             requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
             sampling_relevant: Some(true),
             note,
-            stability: Some(stability),
+            stability: Some(stability.into()),
             deprecated: None,
             prefix: false,
             tags: None,

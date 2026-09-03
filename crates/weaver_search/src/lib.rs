@@ -19,8 +19,8 @@ use weaver_forge::v2::{
     attribute::Attribute, entity::Entity, event::Event, metric::Metric,
     registry::ForgeResolvedRegistry, span::Span,
 };
-use weaver_semconv::stability::Stability;
 use weaver_semconv::v2::attribute::AttributeType;
+use weaver_semconv::v2::stability::Stability;
 
 //TODO: Consider using a fuzzy matching crate for improved search capabilities.
 // e.g. Tantivy - https://github.com/open-telemetry/weaver/pull/1076#discussion_r2640681775
@@ -579,13 +579,13 @@ mod tests {
     use std::collections::BTreeMap;
     use weaver_forge::v2::registry::{ForgeResolvedRegistry, Refinements, Registry};
     use weaver_semconv::deprecated::Deprecated;
-    use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
-    use weaver_semconv::stability::Stability;
     use weaver_semconv::v2::attribute::{
         AttributeType, PrimitiveOrArrayTypeSpec, TemplateTypeSpec,
     };
     use weaver_semconv::v2::metric::InstrumentSpec;
+    use weaver_semconv::v2::signal_requirement_level::SignalRequirementLevel;
     use weaver_semconv::v2::span::{SpanKindSpec, SpanName};
+    use weaver_semconv::v2::stability::Stability;
     use weaver_semconv::v2::CommonFields;
 
     fn make_test_attribute(key: &str, brief: &str, note: &str, deprecated: bool) -> SearchableItem {

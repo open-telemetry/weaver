@@ -103,7 +103,7 @@ impl ResolvedTelemetrySchema {
         attrs: [Attribute; N],
         deprecated: Option<Deprecated>,
     ) {
-        use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
+        use weaver_semconv::v1::signal_requirement_level::SignalRequirementLevel;
         let mut builder = catalog::test_utils::CatalogBuilder::from_catalog(&self.catalog);
         let attr_refs: Vec<attribute::AttributeRef> = attrs
             .into_iter()
@@ -494,8 +494,8 @@ mod tests {
     use super::*;
     use crate::v1::attribute::Attribute;
     use weaver_semconv::deprecated::Deprecated;
-    use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
     use weaver_semconv::v1::group::GroupType;
+    use weaver_semconv::v1::signal_requirement_level::SignalRequirementLevel;
     use weaver_version::schema_changes::{SchemaItemChange, SchemaItemType};
 
     #[test]
@@ -843,10 +843,10 @@ mod tests {
     fn test_resolved_schema_v1_attribute_map() {
         use crate::v1::attribute::Attribute;
         use crate::v1::registry::Group;
-        use weaver_semconv::stability::Stability;
         use weaver_semconv::v1::attribute::{
             AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
         };
+        use weaver_semconv::v1::stability::Stability;
 
         let mut builder = catalog::test_utils::CatalogBuilder::default();
         let ref0 = builder.add(

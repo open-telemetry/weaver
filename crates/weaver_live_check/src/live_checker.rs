@@ -240,8 +240,6 @@ mod tests {
     };
     use weaver_resolved_schema::v1::attribute::Attribute;
     use weaver_semconv::entity_association::EntityAssociation;
-    use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
-    use weaver_semconv::stability::Stability;
     use weaver_semconv::v1::{
         attribute::{
             AttributeType, BasicRequirementLevelSpec, EnumEntriesSpec, Examples,
@@ -258,7 +256,9 @@ mod tests {
     };
     use weaver_semconv::v2::metric::InstrumentSpec as V2InstrumentSpec;
     use weaver_semconv::v2::signal_id::SignalId;
+    use weaver_semconv::v2::signal_requirement_level::SignalRequirementLevel;
     use weaver_semconv::v2::span::SpanKindSpec as V2SpanKindSpec;
+    use weaver_semconv::v2::stability::Stability;
     use weaver_semconv::v2::{span::SpanName, CommonFields};
     use weaver_semconv::YamlValue;
     fn get_all_advice(sample: &mut Sample) -> &mut [PolicyFinding] {
@@ -693,6 +693,7 @@ mod tests {
                 dependency_graph: Default::default(),
             }))
         } else {
+            use weaver_semconv::v1::stability::Stability;
             VersionedRegistry::V1(Box::new(ResolvedRegistry {
                 registry_url: "TEST".to_owned(),
                 groups: vec![ResolvedGroup {
@@ -937,6 +938,8 @@ mod tests {
                 dependency_graph: Default::default(),
             }))
         } else {
+            use weaver_semconv::v1::signal_requirement_level::SignalRequirementLevel;
+            use weaver_semconv::v1::stability::Stability;
             VersionedRegistry::V1(Box::new(ResolvedRegistry {
                 registry_url: "TEST_METRICS".to_owned(),
                 groups: vec![
@@ -1143,6 +1146,7 @@ mod tests {
                 dependency_graph: Default::default(),
             }))
         } else {
+            use weaver_semconv::v1::stability::Stability;
             VersionedRegistry::V1(Box::new(ResolvedRegistry {
                 registry_url: "TEST".to_owned(),
                 groups: vec![ResolvedGroup {
@@ -1712,6 +1716,7 @@ mod tests {
                 dependency_graph: Default::default(),
             }))
         } else {
+            use weaver_semconv::v1::stability::Stability;
             VersionedRegistry::V1(Box::new(ResolvedRegistry {
                 registry_url: "TEST_EVENTS".to_owned(),
                 groups: vec![
@@ -2314,6 +2319,7 @@ mod tests {
                 dependency_graph: Default::default(),
             }))
         } else {
+            use weaver_semconv::v1::stability::Stability;
             VersionedRegistry::V1(Box::new(ResolvedRegistry {
                 registry_url: "TEST_ENTITY".to_owned(),
                 groups: vec![
@@ -2808,7 +2814,7 @@ mod tests {
             requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
             sampling_relevant: None,
             note: String::new(),
-            stability: Some(Stability::Stable),
+            stability: Some(Stability::Stable.into()),
             deprecated: None,
             prefix: false,
             tags: None,
@@ -2828,7 +2834,7 @@ mod tests {
             prefix: String::new(),
             entity_associations: vec![],
             extends: None,
-            stability: Some(Stability::Stable),
+            stability: Some(Stability::Stable.into()),
             deprecated: None,
             attributes: vec![attr],
             span_kind: None,
@@ -2855,7 +2861,7 @@ mod tests {
             prefix: String::new(),
             entity_associations: associations,
             extends: None,
-            stability: Some(Stability::Stable),
+            stability: Some(Stability::Stable.into()),
             deprecated: None,
             attributes: vec![],
             span_kind: None,
@@ -3645,6 +3651,7 @@ mod tests {
                 dependency_graph: Default::default(),
             }))
         } else {
+            use weaver_semconv::v1::stability::Stability;
             VersionedRegistry::V1(Box::new(ResolvedRegistry {
                 registry_url: "TEST_METRIC_ENTITY".to_owned(),
                 groups: vec![

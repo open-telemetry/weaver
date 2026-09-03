@@ -638,8 +638,6 @@ mod tests {
     use weaver_resolver::NullSchemaResolver;
     use weaver_semconv::{
         schema_url::SchemaUrl,
-        signal_requirement_level::SignalRequirementLevel,
-        stability::Stability,
         v2::{
             attribute::{
                 AttributeType, BasicRequirementLevelSpec, Examples, PrimitiveOrArrayTypeSpec,
@@ -647,7 +645,9 @@ mod tests {
             },
             metric::InstrumentSpec,
             signal_id::SignalId,
+            signal_requirement_level::SignalRequirementLevel,
             span::{SpanKindSpec, SpanName},
+            stability::Stability,
             CommonFields,
         },
     };
