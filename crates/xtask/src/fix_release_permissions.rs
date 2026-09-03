@@ -73,6 +73,12 @@ fn apply_patches(content: &str) -> anyhow::Result<String> {
             "uses: actions/attest@v4",
             "uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26",
         ),
+        // cargo-dist custom global-artifacts jobs only depend on build-local-artifacts;
+        // smoke-test-installers also needs the global installers built by build-global-artifacts.
+        (
+            "  custom-smoke-test-installers:\n    needs:\n      - plan\n      - build-local-artifacts\n    uses:",
+            "  custom-smoke-test-installers:\n    needs:\n      - plan\n      - build-local-artifacts\n      - build-global-artifacts\n    uses:",
+        ),
     ];
 
     let mut result = content.to_owned();
@@ -80,7 +86,7 @@ fn apply_patches(content: &str) -> anyhow::Result<String> {
         if result.contains(from) {
             result = result.replace(from, to);
         } else if !result.contains(to) {
-            bail!("{PATH} does not contain expected string — has the file drifted?\n  Expected: {from:?}");
+            bail!("{PATH} does not contain expected string - has the file drifted?\n  Expected: {from:?}");
         }
     }
     Ok(result)
