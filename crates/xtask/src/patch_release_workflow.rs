@@ -82,6 +82,11 @@ fn apply_patches(content: &str) -> anyhow::Result<String> {
             "  custom-smoke-test-installers:\n    needs:\n      - plan\n      - build-local-artifacts\n    uses:",
             "  custom-smoke-test-installers:\n    needs:\n      - plan\n      - build-local-artifacts\n      - build-global-artifacts\n    uses:",
         ),
+        // smoke-test-installers uses no secrets; remove cargo-dist's default secrets: inherit
+        (
+            "    secrets: inherit\n    permissions:\n      contents: read",
+            "    permissions:\n      contents: read",
+        ),
     ];
 
     let mut result = content.to_owned();
