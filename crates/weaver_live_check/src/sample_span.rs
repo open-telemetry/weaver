@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use weaver_semconv::v1::group::SpanKindSpec;
 
 use crate::{
-    live_checker::LiveChecker, sample_attribute::SampleAttribute,
+    live_checker::LiveChecker, sample_attribute::SampleAttribute, sample_context::SampleContext,
     sample_instrumentation_scope::SampleInstrumentationScope, sample_resource::SampleResource,
     Advisable, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
     VersionedSignal,
@@ -62,6 +62,10 @@ pub struct SampleSpan {
     /// Reference to the parent resource (not serialized)
     #[serde(skip)]
     pub resource: Option<Rc<SampleResource>>,
+    /// Raw OTLP context (trace/span identity, timing, resource, scope),
+    /// present only when captured via `--capture-telemetry`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<SampleContext>,
 }
 
 impl Advisable for SampleSpan {
@@ -108,6 +112,10 @@ pub struct SampleSpanEvent {
     pub attributes: Vec<SampleAttribute>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
+    /// Raw OTLP context — only `start_time` is populated for a span event,
+    /// present only when captured via `--capture-telemetry`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<SampleContext>,
 }
 
 impl Advisable for SampleSpanEvent {
@@ -144,6 +152,10 @@ pub struct SampleSpanLink {
     pub attributes: Vec<SampleAttribute>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
+    /// Raw OTLP context — only `trace_id`/`span_id` (of the *linked* span)
+    /// are populated, present only when captured via `--capture-telemetry`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<SampleContext>,
 }
 
 impl Advisable for SampleSpanLink {

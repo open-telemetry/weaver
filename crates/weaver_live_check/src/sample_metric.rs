@@ -14,6 +14,7 @@ use crate::{
     advice::{check_entity_associations, emit_findings, FindingBuilder},
     live_checker::LiveChecker,
     sample_attribute::SampleAttribute,
+    sample_context::SampleContext,
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_resource::SampleResource,
     Advisable, Error, FindingId, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample,
@@ -58,6 +59,10 @@ pub struct SampleNumberDataPoint {
     pub exemplars: Vec<SampleExemplar>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
+    /// Raw OTLP context (start_time/end_time, resource, scope), present
+    /// only when captured via `--capture-telemetry`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<SampleContext>,
 }
 
 impl Advisable for SampleNumberDataPoint {
@@ -118,6 +123,10 @@ pub struct SampleHistogramDataPoint {
     pub exemplars: Vec<SampleExemplar>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
+    /// Raw OTLP context (start_time/end_time, resource, scope), present
+    /// only when captured via `--capture-telemetry`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<SampleContext>,
 }
 
 impl Advisable for SampleHistogramDataPoint {
@@ -193,6 +202,10 @@ pub struct SampleExponentialHistogramDataPoint {
     pub exemplars: Vec<SampleExemplar>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
+    /// Raw OTLP context (start_time/end_time, resource, scope), present
+    /// only when captured via `--capture-telemetry`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<SampleContext>,
 }
 
 impl Advisable for SampleExponentialHistogramDataPoint {

@@ -87,7 +87,7 @@ fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSampl
 
                 for scope_log in resource_log.scope_logs {
                     for log_record in scope_log.log_records {
-                        let sample_log = otlp_log_record_to_sample_log(&log_record);
+                        let sample_log = otlp_log_record_to_sample_log(&log_record, false);
                         accumulator.add_sample(Sample::Log(sample_log));
                     }
                 }
@@ -100,7 +100,7 @@ fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSampl
 
                 for scope_metric in resource_metric.scope_metrics {
                     for metric in scope_metric.metrics {
-                        let sample_metric = otlp_metric_to_sample(metric);
+                        let sample_metric = otlp_metric_to_sample(metric, false);
                         accumulator.add_sample(Sample::Metric(sample_metric));
                     }
                 }
@@ -124,6 +124,7 @@ fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSampl
                             instrumentation_scope: None,
                             live_check_result: None,
                             resource: None,
+                            context: None,
                         };
                         for attribute in span.attributes {
                             sample_span
@@ -135,6 +136,7 @@ fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSampl
                                 name: event.name,
                                 attributes: Vec::new(),
                                 live_check_result: None,
+                                context: None,
                             };
                             for attribute in event.attributes {
                                 sample_event

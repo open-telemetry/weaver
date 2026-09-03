@@ -110,6 +110,10 @@ pub struct LiveCheckConfig {
     /// Disable statistics accumulation. Useful for long-running live-check sessions.
     pub no_stats: bool,
 
+    /// Capture raw OTLP context (trace/span identity, timestamps, and the
+    /// resource/scope each sample belongs to) into the report.
+    pub capture_telemetry: bool,
+
     /// Severity threshold that causes a non-zero exit code. Findings at this
     /// level or higher fail the run. Use `none` to never fail.
     pub fail_on: FailOnLevel,
@@ -148,6 +152,7 @@ impl Default for LiveCheckConfig {
             templates: PathBuf::from("live_check_templates"),
             no_stream: false,
             no_stats: false,
+            capture_telemetry: false,
             fail_on: FailOnLevel::default(),
             output: None,
             advice_policies: None,

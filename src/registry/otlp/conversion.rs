@@ -6,6 +6,7 @@ use chrono::{TimeZone, Utc};
 use serde_json::{json, Value};
 use weaver_live_check::{
     sample_attribute::SampleAttribute,
+    sample_context::SampleContext,
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_log::SampleLog,
     sample_metric::{DataPoints, SampleInstrument, SampleMetric},
@@ -126,13 +127,15 @@ pub fn status_from_otlp_status(
     None
 }
 
-/// Converts an OTLP metric to a SampleMetric
-pub fn otlp_metric_to_sample(otlp_metric: Metric) -> SampleMetric {
+/// Converts an OTLP metric to a SampleMetric. `capture_telemetry` controls
+/// whether each data point's raw context is captured — see
+/// `--capture-telemetry` on `registry live-check`.
+pub fn otlp_metric_to_sample(otlp_metric: Metric, capture_telemetry: bool) -> SampleMetric {
     SampleMetric {
         name: otlp_metric.name,
         instrument: otlp_data_to_instrument(&otlp_metric.data),
         unit: otlp_metric.unit,
-        data_points: otlp_data_to_data_points(&otlp_metric.data),
+        data_points: otlp_data_to_data_points(&otlp_metric.data, capture_telemetry),
         instrumentation_scope: None,
         live_check_result: None,
         resource: None,
@@ -167,18 +170,100 @@ fn otlp_data_to_instrument(data: &Option<Data>) -> SampleInstrument {
 }
 
 /// Converts OTLP data to SampleMetric data points
-fn otlp_data_to_data_points(data: &Option<Data>) -> Option<DataPoints> {
+fn otlp_data_to_data_points(data: &Option<Data>, capture_telemetry: bool) -> Option<DataPoints> {
     match data {
-        Some(Data::Sum(sum)) => Some(otlp_number_data_points(&sum.data_points)),
-        Some(Data::Gauge(gauge)) => Some(otlp_number_data_points(&gauge.data_points)),
-        Some(Data::Histogram(histogram)) => {
-            Some(otlp_histogram_data_points(&histogram.data_points))
+        Some(Data::Sum(sum)) => Some(otlp_number_data_points(&sum.data_points, capture_telemetry)),
+        Some(Data::Gauge(gauge)) => Some(otlp_number_data_points(
+            &gauge.data_points,
+            capture_telemetry,
+        )),
+        Some(Data::Histogram(histogram)) => Some(otlp_histogram_data_points(
+            &histogram.data_points,
+            capture_telemetry,
+        )),
+        Some(Data::ExponentialHistogram(exponential_histogram)) => {
+            Some(otlp_exponential_histogram_data_points(
+                &exponential_histogram.data_points,
+                capture_telemetry,
+            ))
         }
-        Some(Data::ExponentialHistogram(exponential_histogram)) => Some(
-            otlp_exponential_histogram_data_points(&exponential_histogram.data_points),
-        ),
         _ => None,
     }
+}
+
+/// Builds the raw-context (start/end time only; resource and scope are
+/// filled in by the caller, which holds them as `Rc`s shared across every
+/// data point in the same metric) for one metric data point, or `None` when
+/// `--capture-telemetry` wasn't requested.
+fn otlp_data_point_context(
+    capture_telemetry: bool,
+    start_time_unix_nano: u64,
+    time_unix_nano: u64,
+) -> Option<SampleContext> {
+    if !capture_telemetry {
+        return None;
+    }
+    Some(SampleContext {
+        start_time: optional_unix_nanos_to_utc(start_time_unix_nano),
+        end_time: optional_unix_nanos_to_utc(time_unix_nano),
+        ..SampleContext::default()
+    })
+}
+
+/// Builds a span's raw context (trace/span/parent identity, tracestate,
+/// start/end time). Resource and instrumentation scope are filled in by the
+/// caller, which holds them as `Rc`s shared with every other span in the
+/// same resource/scope. Returns `None` when `--capture-telemetry` wasn't
+/// requested.
+pub fn otlp_span_context(
+    span: &super::grpc_stubs::proto::trace::v1::Span,
+    capture_telemetry: bool,
+) -> Option<SampleContext> {
+    if !capture_telemetry {
+        return None;
+    }
+    Some(SampleContext {
+        trace_id: non_empty(trace_id_hex(&span.trace_id)),
+        span_id: non_empty(span_id_hex(&span.span_id)),
+        parent_span_id: non_empty(span_id_hex(&span.parent_span_id)),
+        trace_state: non_empty(span.trace_state.clone()),
+        start_time: optional_unix_nanos_to_utc(span.start_time_unix_nano),
+        end_time: optional_unix_nanos_to_utc(span.end_time_unix_nano),
+        ..SampleContext::default()
+    })
+}
+
+/// Builds a span event's raw context — only `start_time` applies, since a
+/// span event carries one timestamp rather than a range. Returns `None`
+/// when `--capture-telemetry` wasn't requested.
+pub fn otlp_span_event_context(
+    event: &super::grpc_stubs::proto::trace::v1::span::Event,
+    capture_telemetry: bool,
+) -> Option<SampleContext> {
+    if !capture_telemetry {
+        return None;
+    }
+    Some(SampleContext {
+        start_time: optional_unix_nanos_to_utc(event.time_unix_nano),
+        ..SampleContext::default()
+    })
+}
+
+/// Builds a span link's raw context — only the *linked* span's
+/// `trace_id`/`span_id` apply; a link carries no timestamp of its own.
+/// Returns `None` when `--capture-telemetry` wasn't requested.
+pub fn otlp_span_link_context(
+    link: &super::grpc_stubs::proto::trace::v1::span::Link,
+    capture_telemetry: bool,
+) -> Option<SampleContext> {
+    if !capture_telemetry {
+        return None;
+    }
+    Some(SampleContext {
+        trace_id: non_empty(trace_id_hex(&link.trace_id)),
+        span_id: non_empty(span_id_hex(&link.span_id)),
+        ..SampleContext::default()
+    })
 }
 
 /// Converts an OTLP Exemplar to a SampleExemplar
@@ -209,6 +294,17 @@ fn otlp_exemplar_to_sample_exemplar(
     }
 }
 
+/// `""` is how every id/timestamp conversion below signals "absent" (a zero
+/// or malformed input) — this turns that convention into `Option::None` so
+/// `SampleContext` fields don't carry empty strings.
+fn non_empty(s: String) -> Option<String> {
+    if s.is_empty() {
+        None
+    } else {
+        Some(s)
+    }
+}
+
 /// Converts a Unix timestamp in nanoseconds to a UTC string
 fn unix_nanos_to_utc(time_unix_nano: u64) -> String {
     if let Ok(nanos) = time_unix_nano.try_into() {
@@ -218,9 +314,22 @@ fn unix_nanos_to_utc(time_unix_nano: u64) -> String {
     }
 }
 
+/// Same conversion as `unix_nanos_to_utc`, but for a field that is legitimately
+/// unset at zero (a metric data point's `start_time_unix_nano`, for
+/// instance) rather than always populated the way a span's timestamps are.
+/// `unix_nanos_to_utc(0)` would otherwise render as the 1970 epoch instead
+/// of being absent.
+fn optional_unix_nanos_to_utc(time_unix_nano: u64) -> Option<String> {
+    if time_unix_nano == 0 {
+        None
+    } else {
+        non_empty(unix_nanos_to_utc(time_unix_nano))
+    }
+}
+
 /// Converts a span ID (8 bytes) to a hex string
 fn span_id_hex(span_id: &[u8]) -> String {
-    if span_id.len() == 8 {
+    if span_id.len() == 8 && span_id.iter().any(|byte| *byte != 0) {
         format!(
             "{:016x}",
             u64::from_be_bytes(span_id[0..8].try_into().unwrap_or([0; 8]))
@@ -232,7 +341,7 @@ fn span_id_hex(span_id: &[u8]) -> String {
 
 /// Converts a trace ID (16 bytes) to a hex string
 fn trace_id_hex(trace_id: &[u8]) -> String {
-    if trace_id.len() == 16 {
+    if trace_id.len() == 16 && trace_id.iter().any(|byte| *byte != 0) {
         format!(
             "{:032x}",
             u128::from_be_bytes(trace_id[0..16].try_into().unwrap_or([0; 16]))
@@ -245,6 +354,7 @@ fn trace_id_hex(trace_id: &[u8]) -> String {
 /// Converts OTLP ExponentialHistogram data points to DataPoints::ExponentialHistogram
 fn otlp_exponential_histogram_data_points(
     otlp: &Vec<super::grpc_stubs::proto::metrics::v1::ExponentialHistogramDataPoint>,
+    capture_telemetry: bool,
 ) -> DataPoints {
     let mut data_points = Vec::new();
     for point in otlp {
@@ -287,6 +397,11 @@ fn otlp_exponential_histogram_data_points(
                 zero_threshold: point.zero_threshold,
                 exemplars,
                 live_check_result: None,
+                context: otlp_data_point_context(
+                    capture_telemetry,
+                    point.start_time_unix_nano,
+                    point.time_unix_nano,
+                ),
             };
         data_points.push(live_check_point);
     }
@@ -294,7 +409,10 @@ fn otlp_exponential_histogram_data_points(
 }
 
 /// Converts OTLP Histogram data points to DataPoints::Histogram
-fn otlp_histogram_data_points(otlp: &Vec<HistogramDataPoint>) -> DataPoints {
+fn otlp_histogram_data_points(
+    otlp: &Vec<HistogramDataPoint>,
+    capture_telemetry: bool,
+) -> DataPoints {
     let mut data_points = Vec::new();
     for point in otlp {
         let exemplars = point
@@ -318,6 +436,11 @@ fn otlp_histogram_data_points(otlp: &Vec<HistogramDataPoint>) -> DataPoints {
             flags: point.flags,
             exemplars,
             live_check_result: None,
+            context: otlp_data_point_context(
+                capture_telemetry,
+                point.start_time_unix_nano,
+                point.time_unix_nano,
+            ),
         };
         data_points.push(live_check_point);
     }
@@ -325,7 +448,7 @@ fn otlp_histogram_data_points(otlp: &Vec<HistogramDataPoint>) -> DataPoints {
 }
 
 /// Converts OTLP Number data points to DataPoints::Number
-fn otlp_number_data_points(otlp: &Vec<NumberDataPoint>) -> DataPoints {
+fn otlp_number_data_points(otlp: &Vec<NumberDataPoint>, capture_telemetry: bool) -> DataPoints {
     let mut data_points = Vec::new();
     for point in otlp {
         let exemplars = point
@@ -354,6 +477,11 @@ fn otlp_number_data_points(otlp: &Vec<NumberDataPoint>) -> DataPoints {
             flags: point.flags,
             exemplars,
             live_check_result: None,
+            context: otlp_data_point_context(
+                capture_telemetry,
+                point.start_time_unix_nano,
+                point.time_unix_nano,
+            ),
         };
         data_points.push(live_check_point);
     }
@@ -405,8 +533,11 @@ pub fn otlp_profile_to_sample(
     }
 }
 
-/// Converts an OTLP LogRecord to a SampleLog
-pub fn otlp_log_record_to_sample_log(log_record: &LogRecord) -> SampleLog {
+/// Converts an OTLP LogRecord to a SampleLog. `capture_telemetry` controls
+/// whether raw context (trace correlation, start_time, resource, scope — the
+/// latter two filled in by the caller) is captured — see
+/// `--capture-telemetry` on `registry live-check`.
+pub fn otlp_log_record_to_sample_log(log_record: &LogRecord, capture_telemetry: bool) -> SampleLog {
     SampleLog {
         event_name: log_record.event_name.clone(),
         severity_number: Some(log_record.severity_number),
@@ -439,5 +570,15 @@ pub fn otlp_log_record_to_sample_log(log_record: &LogRecord) -> SampleLog {
         instrumentation_scope: None,
         live_check_result: None,
         resource: None,
+        context: capture_telemetry.then(|| SampleContext {
+            trace_id: non_empty(trace_id_hex(&log_record.trace_id)),
+            span_id: non_empty(span_id_hex(&log_record.span_id)),
+            // OTLP's own recommendation: prefer time_unix_nano, falling
+            // back to observed_time_unix_nano when the producer didn't set
+            // an event time.
+            start_time: optional_unix_nanos_to_utc(log_record.time_unix_nano)
+                .or_else(|| optional_unix_nanos_to_utc(log_record.observed_time_unix_nano)),
+            ..SampleContext::default()
+        }),
     }
 }
