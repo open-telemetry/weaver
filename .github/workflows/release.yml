@@ -243,6 +243,8 @@ jobs:
           name: artifacts-build-global
           path: |
             ${{ steps.cargo-dist.outputs.paths }}
+            ${{ env.BUILD_MANIFEST_NAME }}
+
   custom-smoke-test-installers:
     needs:
       - plan
