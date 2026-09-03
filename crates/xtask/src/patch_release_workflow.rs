@@ -2,12 +2,13 @@ use anyhow::{bail, Context};
 
 const PATH: &str = ".github/workflows/release.yml";
 
-/// Patch release.yml after `dist generate` to fix Scorecard findings.
+/// Patch release.yml after `dist generate` to fix Scorecard and smoke test findings.
 ///
 /// 1. Permissions: dist generates `permissions: contents: write` at the top level; this patches
 ///    it to `contents: read` and grants `contents: write` only to plan and host jobs.
 /// 2. Pinned-Dependencies: replaces `curl | sh` patterns with download-verify-execute so
 ///    Scorecard recognises the scripts as hash-pinned.
+/// 3. Smoke tests: ensures custom-smoke-test-installers waits for build-global-artifacts.
 pub fn run() -> anyhow::Result<()> {
     let content =
         std::fs::read_to_string(PATH).with_context(|| format!("failed to read {PATH}"))?;
@@ -16,7 +17,9 @@ pub fn run() -> anyhow::Result<()> {
 
     std::fs::write(PATH, patched).with_context(|| format!("failed to write {PATH}"))?;
 
-    println!("Patched {PATH}: scoped permissions and pinned curl downloads");
+    println!(
+        "Patched {PATH}: scoped permissions, pinned curl downloads, and smoke test dependencies"
+    );
     Ok(())
 }
 
