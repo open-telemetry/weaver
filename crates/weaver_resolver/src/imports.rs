@@ -21,9 +21,7 @@ use weaver_resolved_schema::v1::registry::Group;
 use weaver_resolved_schema::v1::ResolvedTelemetrySchema as V1Schema;
 use weaver_resolved_schema::v2::attribute::AttributeRef as V2AttributeRef;
 use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
-use weaver_resolved_schema::v2::entity::{
-    to_named_associations, EntityAssociation as V2EntityAssociation,
-};
+use weaver_resolved_schema::v2::entity::EntityAssociation as V2EntityAssociation;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::v2::Signal;
 use weaver_semconv::schema_url::SchemaUrl;
@@ -930,6 +928,28 @@ fn v2_association_origins(
         .collect()
 }
 
+/// Turns resolved association expressions back into the authored form, where a
+/// leaf is a name alone.
+fn to_named_associations(
+    associations: &[V2EntityAssociation],
+) -> Vec<weaver_semconv::v1::entity_association::EntityAssociation> {
+    use weaver_semconv::v1::entity_association::EntityAssociation as SpecAssociation;
+    associations
+        .iter()
+        .map(|assoc| match assoc {
+            V2EntityAssociation::Ref(entity_ref) => {
+                SpecAssociation::Ref(entity_ref.r#type.to_string())
+            }
+            V2EntityAssociation::OneOf { one_of } => SpecAssociation::OneOf {
+                one_of: to_named_associations(one_of),
+            },
+            V2EntityAssociation::AllOf { all_of } => SpecAssociation::AllOf {
+                all_of: to_named_associations(all_of),
+            },
+        })
+        .collect()
+}
+
 impl ImportableDependency for V2Schema {
     fn import_groups<C: crate::SchemaCacheLookup>(
         &self,
@@ -1672,5 +1692,42 @@ mod tests {
         assert_eq!(upgraded_ag.attributes.len(), 1);
 
         Ok(())
+    }
+
+    #[test]
+    fn test_to_named_associations_keeps_the_shape() {
+        use super::{to_named_associations, V2EntityAssociation};
+        use weaver_resolved_schema::v2::entity::EntityRef;
+        use weaver_semconv::v1::entity_association::EntityAssociation as SpecAssociation;
+
+        let association_tree = vec![V2EntityAssociation::AllOf {
+            all_of: vec![
+                V2EntityAssociation::Ref(EntityRef {
+                    r#type: "service".into(),
+                    provenance: Default::default(),
+                }),
+                V2EntityAssociation::OneOf {
+                    one_of: vec![V2EntityAssociation::Ref(EntityRef {
+                        r#type: "host".into(),
+                        provenance: weaver_resolved_schema::v2::provenance::Provenance {
+                            source: Some(weaver_resolved_schema::v2::provenance::DependencyRef(2)),
+                            path: Default::default(),
+                        },
+                    })],
+                },
+            ],
+        }];
+
+        assert_eq!(
+            to_named_associations(&association_tree),
+            vec![SpecAssociation::AllOf {
+                all_of: vec![
+                    SpecAssociation::Ref("service".to_owned()),
+                    SpecAssociation::OneOf {
+                        one_of: vec![SpecAssociation::Ref("host".to_owned())],
+                    },
+                ],
+            }]
+        );
     }
 }
