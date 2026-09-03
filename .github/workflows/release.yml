@@ -164,6 +164,7 @@ jobs:
         run: | # zizmor: ignore[template-injection] cargo-dist emits this script in the run-scoped build plan.
           ${{ matrix.packages_install }}
       - name: Build artifacts
+        shell: bash
         env:
           DIST_ARGS: ${{ matrix.dist_args }}
           TAG_FLAG: ${{ needs.plan.outputs.tag-flag }}
