@@ -7,7 +7,7 @@ use itertools::Itertools;
 use log::info;
 use miette::Diagnostic;
 use weaver_common::diagnostic::DiagnosticMessages;
-use weaver_resolved_schema::{attribute::Attribute, ResolvedTelemetrySchema};
+use weaver_resolved_schema::v1::{attribute::Attribute, ResolvedTelemetrySchema};
 
 use crate::{registry::RegistryArgs, weaver::WeaverEngine, DiagnosticArgs, ExitDirectives};
 use ratatui::{

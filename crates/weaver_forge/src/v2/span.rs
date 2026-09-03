@@ -6,10 +6,13 @@ use crate::v2::provenance::Provenance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
-    attribute::RequirementLevel,
-    group::SpanKindSpec,
     signal_requirement_level::SignalRequirementLevel,
-    v2::{signal_id::SignalId, span::SpanName, CommonFields},
+    v2::{
+        attribute::RequirementLevel,
+        signal_id::SignalId,
+        span::{SpanKindSpec, SpanName},
+        CommonFields,
+    },
 };
 
 /// The definition of a span signal.

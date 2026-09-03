@@ -178,9 +178,9 @@
           "minimum": 0
         },
         "grpc_address": {
-          "description": "Address used by the gRPC OTLP listener.\n[default: 0.0.0.0]",
+          "description": "Address used by the gRPC OTLP listener.\n[default: 127.0.0.1]",
           "type": "string",
-          "default": "0.0.0.0"
+          "default": "127.0.0.1"
         },
         "grpc_port": {
           "description": "Port used by the gRPC OTLP listener.\n[default: 4317]",
@@ -735,7 +735,7 @@
         "grpc_address": {
           "description": "Address used by the gRPC OTLP listener.",
           "type": "string",
-          "default": "0.0.0.0"
+          "default": "127.0.0.1"
         },
         "grpc_port": {
           "description": "Port used by the gRPC OTLP listener.",

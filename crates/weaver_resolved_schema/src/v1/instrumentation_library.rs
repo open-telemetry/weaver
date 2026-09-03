@@ -2,8 +2,8 @@
 
 //! Define an instrumentation library.
 
-use crate::signal::{Event, MultivariateMetric, Span, UnivariateMetric};
-use crate::tags::Tags;
+use crate::v1::signal::{Event, MultivariateMetric, Span, UnivariateMetric};
+use crate::v1::tags::Tags;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

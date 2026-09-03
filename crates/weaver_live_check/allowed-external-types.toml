@@ -8,7 +8,7 @@ allowed_external_types = [
     "miette::protocol::Diagnostic",
     "weaver_forge::*",
     "serde_json::value::Value",
-    "weaver_resolved_schema::attribute::Attribute",
+    "weaver_resolved_schema::*",
     "schemars::JsonSchema",
     "strum::ParseError",
     "opentelemetry::common::KeyValue",

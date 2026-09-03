@@ -6,23 +6,24 @@
 
 use schemars::JsonSchema;
 use std::collections::{BTreeMap, HashMap, HashSet};
-use weaver_semconv::any_value::AnyValueSpec;
+use weaver_semconv::v1::any_value::AnyValueSpec;
 
-use crate::attribute::{Attribute, AttributeRef};
-use crate::catalog::Catalog;
 use crate::error::{handle_errors, Error};
-use crate::lineage::GroupLineage;
-use crate::registry::GroupStats::{
+use crate::v1::attribute::{Attribute, AttributeRef};
+use crate::v1::catalog::Catalog;
+use crate::v1::lineage::GroupLineage;
+use crate::v1::registry::GroupStats::{
     AttributeGroup, Entity, Event, Metric, MetricGroup, Scope, Span, Undefined,
 };
 use serde::{Deserialize, Serialize};
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::entity_association::EntityAssociation;
-use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::stability::Stability;
-use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
+use weaver_semconv::v1::group::{
+    AttributeGroupVisibilitySpec, GroupType, InstrumentSpec, SpanKindSpec, SpanName,
+};
 use weaver_semconv::YamlValue;
 
 /// Where the `entity_associations` entries of each group resolved: group id, to
@@ -189,7 +190,7 @@ pub struct Group {
     #[serde(default)]
     #[serde(skip_serializing)]
     #[schemars(skip)]
-    pub span_name: Option<weaver_semconv::v2::span::SpanName>,
+    pub span_name: Option<SpanName>,
 
     /// Requirement level of the signal (metric, span, event, entity).
     /// This is a v2-only concept carried through the v1 intermediate

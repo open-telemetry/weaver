@@ -7,11 +7,11 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
-use weaver_semconv::attribute::{AttributeRole, AttributeSpec, Examples, RequirementLevel};
 use weaver_semconv::deprecated::Deprecated;
-use weaver_semconv::group::GroupType;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::stability::Stability;
+use weaver_semconv::v1::attribute::{AttributeRole, AttributeSpec, Examples, RequirementLevel};
+use weaver_semconv::v1::group::GroupType;
 use weaver_semconv::YamlValue;
 
 /// Attribute lineage (at the field level).

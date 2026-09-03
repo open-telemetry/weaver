@@ -140,13 +140,13 @@ mod tests {
     use crate::sample_attribute::SampleAttribute;
 
     use super::*;
-    use weaver_resolved_schema::attribute::Attribute;
-    use weaver_semconv::attribute::{
+    use weaver_resolved_schema::v1::attribute::Attribute;
+    use weaver_semconv::deprecated::Deprecated;
+    use weaver_semconv::stability::Stability;
+    use weaver_semconv::v1::attribute::{
         AttributeType::PrimitiveOrArray, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec,
         RequirementLevel,
     };
-    use weaver_semconv::deprecated::Deprecated;
-    use weaver_semconv::stability::Stability;
 
     fn create_sample_attribute(name: &str) -> SampleAttribute {
         SampleAttribute {

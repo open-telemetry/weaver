@@ -8,7 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use weaver_checker::FindingLevel;
-use weaver_semconv::group::InstrumentSpec;
+use weaver_semconv::v1::group::InstrumentSpec;
 
 use crate::{
     advice::{add_entity_association_findings, FindingBuilder},

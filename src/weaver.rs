@@ -12,8 +12,8 @@ use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::log_success;
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::{diagnostic::DiagnosticMessages, result::WResult};
-use weaver_forge::registry::ResolvedRegistry;
-use weaver_resolved_schema::ResolvedTelemetrySchema;
+use weaver_forge::v1::registry::ResolvedRegistry;
+use weaver_resolved_schema::v1::ResolvedTelemetrySchema;
 use weaver_resolver::{
     DefaultSchemaVisitor, LoadedSemconvRegistry, SchemaLoadingVisitor, WeaverResolvedSchema,
     WeaverResolver, WeaverResolverConfig,

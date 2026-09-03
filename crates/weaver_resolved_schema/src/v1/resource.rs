@@ -2,7 +2,7 @@
 
 //! Define an OpenTelemetry resource.
 
-use crate::attribute::AttributeRef;
+use crate::v1::attribute::AttributeRef;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

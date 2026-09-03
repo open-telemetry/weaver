@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_semconv::group::SpanKindSpec;
+use weaver_semconv::v1::group::SpanKindSpec;
 
 use crate::{
     advice::add_entity_association_findings, live_checker::LiveChecker, matcher::SampleMatch,

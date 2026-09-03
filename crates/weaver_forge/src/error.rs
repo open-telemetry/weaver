@@ -9,7 +9,6 @@ use serde::Serialize;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 
 use weaver_common::error::WeaverError;
-use weaver_resolved_schema::attribute::AttributeRef;
 
 use crate::error::Error::CompoundError;
 
@@ -205,7 +204,7 @@ pub enum Error {
         /// Group id.
         group_id: String,
         /// Attribute reference.
-        attr_ref: AttributeRef,
+        attr_ref: u32,
     },
 
     /// An entity reference that no registry answers.

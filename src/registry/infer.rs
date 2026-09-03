@@ -44,7 +44,7 @@ pub struct RegistryInferArgs {
 
     /// Address used by the gRPC OTLP listener.
     #[arg(long)]
-    #[config(default = "0.0.0.0")]
+    #[config(default = "127.0.0.1")]
     grpc_address: Option<String>,
 
     /// Port used by the gRPC OTLP listener.

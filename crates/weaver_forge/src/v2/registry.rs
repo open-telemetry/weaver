@@ -5,10 +5,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet, VecDeque};
 use weaver_common::result::WResult;
-use weaver_resolved_schema::{
-    attribute::AttributeRef,
-    v2::{catalog::AttributeCatalog, entity::EntityAttributeRef},
-};
+use weaver_resolved_schema::v2::{catalog::AttributeCatalog, entity::EntityAttributeRef};
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::schema_url::SchemaUrl;
 
@@ -316,7 +313,7 @@ impl ForgeResolvedRegistry {
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
                             group_id: format!("metric.{}", &metric.name),
-                            attr_ref: AttributeRef(ar.base.0),
+                            attr_ref: ar.base.0,
                         });
                     }
                     attr
@@ -355,7 +352,7 @@ impl ForgeResolvedRegistry {
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
                             group_id: format!("metric.{}", &metric.metric.name),
-                            attr_ref: AttributeRef(ar.base.0),
+                            attr_ref: ar.base.0,
                         });
                     }
                     attr
@@ -397,7 +394,7 @@ impl ForgeResolvedRegistry {
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
                             group_id: format!("span.{}", &span.r#type),
-                            attr_ref: AttributeRef(ar.base.0),
+                            attr_ref: ar.base.0,
                         });
                     }
                     attr
@@ -436,7 +433,7 @@ impl ForgeResolvedRegistry {
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
                             group_id: format!("span.{}", &span.id),
-                            attr_ref: AttributeRef(ar.base.0),
+                            attr_ref: ar.base.0,
                         });
                     }
                     attr
@@ -477,7 +474,7 @@ impl ForgeResolvedRegistry {
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
                             group_id: format!("event.{}", &event.name),
-                            attr_ref: AttributeRef(ar.base.0),
+                            attr_ref: ar.base.0,
                         });
                     }
                     attr
@@ -515,7 +512,7 @@ impl ForgeResolvedRegistry {
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
                             group_id: format!("event.{}", &event.id),
-                            attr_ref: AttributeRef(ar.base.0),
+                            attr_ref: ar.base.0,
                         });
                     }
                     attr
@@ -555,7 +552,7 @@ impl ForgeResolvedRegistry {
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
                             group_id: group_id.to_owned(),
-                            attr_ref: AttributeRef(ar.base.0),
+                            attr_ref: ar.base.0,
                         });
                     }
                     attr
@@ -617,7 +614,7 @@ impl ForgeResolvedRegistry {
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
                             group_id: format!("attribute_group.{}", &ag.id),
-                            attr_ref: AttributeRef(ar.base.0),
+                            attr_ref: ar.base.0,
                         });
                     }
                     attr
@@ -630,6 +627,7 @@ impl ForgeResolvedRegistry {
                 provenance: resolve_provenance(&ag.provenance),
             });
         }
+        attribute_groups.sort_by(|l, r| l.id.cmp(&r.id));
 
         // Now we sort the attributes, since we aren't looking them up anymore.
         attributes.sort_by(|l, r| l.key.cmp(&r.key));
@@ -665,22 +663,27 @@ mod tests {
     use crate::v2::entity::EntityAssociation;
     use schemars::schema_for;
     use serde_json::to_string_pretty;
-    use weaver_resolved_schema::attribute::AttributeRef;
     use weaver_resolved_schema::v2::{
-        attribute, attribute_group, entity, event, metric, provenance, refinements, span,
-        ResolvedTelemetrySchema, {self},
+        self,
+        attribute::{self, AttributeRef},
+        attribute_group, entity, event, metric, provenance, refinements, span,
+        ResolvedTelemetrySchema,
     };
     use weaver_resolver::NullSchemaResolver;
     use weaver_semconv::{
-        attribute::{
-            AttributeType, BasicRequirementLevelSpec, Examples, PrimitiveOrArrayTypeSpec,
-            RequirementLevel,
-        },
-        group::{InstrumentSpec, SpanKindSpec},
         schema_url::SchemaUrl,
         signal_requirement_level::SignalRequirementLevel,
         stability::Stability,
-        v2::{signal_id::SignalId, span::SpanName, CommonFields},
+        v2::{
+            attribute::{
+                AttributeType, BasicRequirementLevelSpec, Examples, PrimitiveOrArrayTypeSpec,
+                RequirementLevel,
+            },
+            metric::InstrumentSpec,
+            signal_id::SignalId,
+            span::{SpanKindSpec, SpanName},
+            CommonFields,
+        },
     };
 
     use super::*;
@@ -717,7 +720,7 @@ mod tests {
         fn add_v1_schema(
             &mut self,
             url: SchemaUrl,
-            schema: weaver_resolved_schema::ResolvedTelemetrySchema,
+            schema: weaver_resolved_schema::v1::ResolvedTelemetrySchema,
         ) {
             let _ = self.schemas.insert(
                 url,
@@ -810,7 +813,7 @@ mod tests {
                 deps
             },
             registry: v2::registry::Registry {
-                attributes: vec![attribute::AttributeRef(0), attribute::AttributeRef(1)],
+                attributes: vec![AttributeRef(0), AttributeRef(1)],
                 spans: vec![span::Span {
                     r#type: SignalId::from("my-span".to_owned()),
                     kind: SpanKindSpec::Internal,
@@ -818,7 +821,7 @@ mod tests {
                         note: "My Span".to_owned(),
                     },
                     attributes: vec![span::SpanAttributeRef {
-                        base: attribute::AttributeRef(0),
+                        base: AttributeRef(0),
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Required,
                         ),
@@ -839,7 +842,7 @@ mod tests {
                     instrument: InstrumentSpec::Counter,
                     unit: "1".to_owned(),
                     attributes: vec![metric::MetricAttributeRef {
-                        base: attribute::AttributeRef(0),
+                        base: AttributeRef(0),
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Required,
                         ),
@@ -854,7 +857,7 @@ mod tests {
                 events: vec![event::Event {
                     name: SignalId::from("my-event".to_owned()),
                     attributes: vec![event::EventAttributeRef {
-                        base: attribute::AttributeRef(0),
+                        base: AttributeRef(0),
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Required,
                         ),
@@ -869,13 +872,13 @@ mod tests {
                 entities: vec![entity::Entity {
                     r#type: SignalId::from("my-entity".to_owned()),
                     identity: vec![EntityAttributeRef {
-                        base: attribute::AttributeRef(0),
+                        base: AttributeRef(0),
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Required,
                         ),
                     }],
                     description: vec![EntityAttributeRef {
-                        base: attribute::AttributeRef(1),
+                        base: AttributeRef(1),
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Recommended,
                         ),
@@ -887,7 +890,7 @@ mod tests {
                 attribute_groups: vec![attribute_group::AttributeGroup {
                     id: SignalId::from("my-group".to_owned()),
                     attributes: vec![attribute_group::AttributeGroupAttributeRef {
-                        base: attribute::AttributeRef(0),
+                        base: AttributeRef(0),
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Required,
                         ),
@@ -906,7 +909,7 @@ mod tests {
                             note: "My Refined Span".to_owned(),
                         },
                         attributes: vec![span::SpanAttributeRef {
-                            base: attribute::AttributeRef(0),
+                            base: AttributeRef(0),
                             requirement_level: RequirementLevel::Basic(
                                 BasicRequirementLevelSpec::Required,
                             ),
@@ -925,7 +928,7 @@ mod tests {
                         instrument: InstrumentSpec::Histogram,
                         unit: "ms".to_owned(),
                         attributes: vec![metric::MetricAttributeRef {
-                            base: attribute::AttributeRef(0),
+                            base: AttributeRef(0),
                             requirement_level: RequirementLevel::Basic(
                                 BasicRequirementLevelSpec::Recommended,
                             ),
@@ -941,7 +944,7 @@ mod tests {
                     event: event::Event {
                         name: SignalId::from("my-event".to_owned()),
                         attributes: vec![event::EventAttributeRef {
-                            base: attribute::AttributeRef(0),
+                            base: AttributeRef(0),
                             requirement_level: RequirementLevel::Basic(
                                 BasicRequirementLevelSpec::OptIn,
                             ),
@@ -957,13 +960,13 @@ mod tests {
                     entity: entity::Entity {
                         r#type: SignalId::from("my-entity".to_owned()),
                         identity: vec![EntityAttributeRef {
-                            base: attribute::AttributeRef(0),
+                            base: AttributeRef(0),
                             requirement_level: RequirementLevel::Basic(
                                 BasicRequirementLevelSpec::Required,
                             ),
                         }],
                         description: vec![EntityAttributeRef {
-                            base: attribute::AttributeRef(1),
+                            base: AttributeRef(1),
                             requirement_level: RequirementLevel::Basic(
                                 BasicRequirementLevelSpec::Recommended,
                             ),
@@ -1171,11 +1174,7 @@ mod tests {
             dependencies: BTreeSet::new(),
             registry: v2::registry::Registry {
                 // Intentionally out of alphabetical order
-                attributes: vec![
-                    attribute::AttributeRef(0),
-                    attribute::AttributeRef(1),
-                    attribute::AttributeRef(2),
-                ],
+                attributes: vec![AttributeRef(0), AttributeRef(1), AttributeRef(2)],
                 spans: vec![
                     span::Span {
                         r#type: SignalId::from("z-span".to_owned()),
@@ -1500,7 +1499,7 @@ mod tests {
                 deps
             },
             registry: v2::registry::Registry {
-                attributes: vec![attribute::AttributeRef(0), attribute::AttributeRef(1)],
+                attributes: vec![AttributeRef(0), AttributeRef(1)],
                 spans: vec![],
                 metrics: vec![],
                 events: vec![],
@@ -1580,7 +1579,7 @@ mod tests {
                         note: "".to_owned(),
                     },
                     attributes: vec![span::SpanAttributeRef {
-                        base: attribute::AttributeRef(10),
+                        base: AttributeRef(10),
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Required,
                         ),
@@ -1596,7 +1595,7 @@ mod tests {
                     instrument: InstrumentSpec::Counter,
                     unit: "1".to_owned(),
                     attributes: vec![metric::MetricAttributeRef {
-                        base: attribute::AttributeRef(11),
+                        base: AttributeRef(11),
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Required,
                         ),
@@ -1609,7 +1608,7 @@ mod tests {
                 events: vec![event::Event {
                     name: SignalId::from("my-event".to_owned()),
                     attributes: vec![event::EventAttributeRef {
-                        base: attribute::AttributeRef(12),
+                        base: AttributeRef(12),
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Required,
                         ),
@@ -1622,13 +1621,13 @@ mod tests {
                 entities: vec![entity::Entity {
                     r#type: SignalId::from("my-entity".to_owned()),
                     identity: vec![EntityAttributeRef {
-                        base: attribute::AttributeRef(13),
+                        base: AttributeRef(13),
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Required,
                         ),
                     }],
                     description: vec![EntityAttributeRef {
-                        base: attribute::AttributeRef(14),
+                        base: AttributeRef(14),
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Recommended,
                         ),
@@ -1640,7 +1639,7 @@ mod tests {
                 attribute_groups: vec![attribute_group::AttributeGroup {
                     id: SignalId::from("my-group".to_owned()),
                     attributes: vec![attribute_group::AttributeGroupAttributeRef {
-                        base: attribute::AttributeRef(15),
+                        base: AttributeRef(15),
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Required,
                         ),
@@ -1659,7 +1658,7 @@ mod tests {
                             note: "".to_owned(),
                         },
                         attributes: vec![span::SpanAttributeRef {
-                            base: attribute::AttributeRef(16),
+                            base: AttributeRef(16),
                             requirement_level: RequirementLevel::Basic(
                                 BasicRequirementLevelSpec::Required,
                             ),
@@ -1678,7 +1677,7 @@ mod tests {
                         instrument: InstrumentSpec::Counter,
                         unit: "1".to_owned(),
                         attributes: vec![metric::MetricAttributeRef {
-                            base: attribute::AttributeRef(17),
+                            base: AttributeRef(17),
                             requirement_level: RequirementLevel::Basic(
                                 BasicRequirementLevelSpec::Required,
                             ),
@@ -1694,7 +1693,7 @@ mod tests {
                     event: event::Event {
                         name: SignalId::from("my-event".to_owned()),
                         attributes: vec![event::EventAttributeRef {
-                            base: attribute::AttributeRef(18),
+                            base: AttributeRef(18),
                             requirement_level: RequirementLevel::Basic(
                                 BasicRequirementLevelSpec::Required,
                             ),
@@ -1710,13 +1709,13 @@ mod tests {
                     entity: entity::Entity {
                         r#type: SignalId::from("my-entity".to_owned()),
                         identity: vec![EntityAttributeRef {
-                            base: attribute::AttributeRef(19),
+                            base: AttributeRef(19),
                             requirement_level: RequirementLevel::Basic(
                                 BasicRequirementLevelSpec::Required,
                             ),
                         }],
                         description: vec![EntityAttributeRef {
-                            base: attribute::AttributeRef(20),
+                            base: AttributeRef(20),
                             requirement_level: RequirementLevel::Basic(
                                 BasicRequirementLevelSpec::Recommended,
                             ),
@@ -1738,17 +1737,17 @@ mod tests {
             assert_eq!(errors.len(), 11);
 
             let mut expected_errors = vec![
-                ("span.my-span", AttributeRef(10)),
-                ("metric.my-metric", AttributeRef(11)),
-                ("event.my-event", AttributeRef(12)),
-                ("entity.my-entity", AttributeRef(13)),
-                ("entity.my-entity", AttributeRef(14)),
-                ("attribute_group.my-group", AttributeRef(15)),
-                ("span.refined-span", AttributeRef(16)),
-                ("metric.my-metric", AttributeRef(17)),
-                ("event.refined-event", AttributeRef(18)),
-                ("entity.refined-entity", AttributeRef(19)),
-                ("entity.refined-entity", AttributeRef(20)),
+                ("span.my-span", 10),
+                ("metric.my-metric", 11),
+                ("event.my-event", 12),
+                ("entity.my-entity", 13),
+                ("entity.my-entity", 14),
+                ("attribute_group.my-group", 15),
+                ("span.refined-span", 16),
+                ("metric.my-metric", 17),
+                ("event.refined-event", 18),
+                ("entity.refined-entity", 19),
+                ("entity.refined-entity", 20),
             ];
 
             for err in &errors {
@@ -2135,16 +2134,16 @@ mod tests {
     #[test]
     fn test_dependency_resolution_v1_schema_success() {
         let dep_url: SchemaUrl = "https://example.com/dep-v1".try_into().unwrap();
-        let v1_schema = weaver_resolved_schema::ResolvedTelemetrySchema {
+        let v1_schema = weaver_resolved_schema::v1::ResolvedTelemetrySchema {
             file_format: "resolved/1.0".to_owned(),
             schema_url: "https://example.com/dep-v1".to_owned(),
             registry_id: "test".to_owned(),
-            registry: weaver_resolved_schema::registry::Registry {
+            registry: weaver_resolved_schema::v1::registry::Registry {
                 registry_url: "https://example.com/dep-v1".to_owned(),
                 entity_association_origins: Default::default(),
                 groups: vec![],
             },
-            catalog: weaver_resolved_schema::catalog::Catalog::default(),
+            catalog: weaver_resolved_schema::v1::catalog::Catalog::default(),
             resource: None,
             instrumentation_library: None,
             dependencies: BTreeSet::new(),
@@ -2197,16 +2196,16 @@ mod tests {
     #[test]
     fn test_dependency_resolution_v1_schema_conversion_error() {
         let dep_url: SchemaUrl = "https://example.com/dep-v1".try_into().unwrap();
-        let invalid_v1_schema = weaver_resolved_schema::ResolvedTelemetrySchema {
+        let invalid_v1_schema = weaver_resolved_schema::v1::ResolvedTelemetrySchema {
             file_format: "resolved/1.0".to_owned(),
             schema_url: "invalid schema url with spaces".to_owned(),
             registry_id: "test".to_owned(),
-            registry: weaver_resolved_schema::registry::Registry {
+            registry: weaver_resolved_schema::v1::registry::Registry {
                 registry_url: "invalid schema url with spaces".to_owned(),
                 entity_association_origins: Default::default(),
                 groups: vec![],
             },
-            catalog: weaver_resolved_schema::catalog::Catalog::default(),
+            catalog: weaver_resolved_schema::v1::catalog::Catalog::default(),
             resource: None,
             instrumentation_library: None,
             dependencies: BTreeSet::new(),
@@ -2270,7 +2269,7 @@ mod tests {
                         note: "".to_owned(),
                     },
                     attributes: vec![span::SpanAttributeRef {
-                        base: attribute::AttributeRef(0),
+                        base: AttributeRef(0),
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Required,
                         ),
@@ -2842,5 +2841,62 @@ mod tests {
             .lookup_entity(leaf)
             .expect("the entity of the dependency");
         assert_eq!(found.r#type, "host".to_owned().into());
+    }
+
+    #[test]
+    fn test_materialize_sorts_attribute_groups() {
+        let schema = ResolvedTelemetrySchema {
+            file_format: "2.0.0".to_owned(),
+            schema_url: "https://example.com/root/1.0.0"
+                .try_into()
+                .expect("a valid schema url"),
+            attribute_catalog: vec![],
+            dependencies: Default::default(),
+            registry: v2::registry::Registry {
+                attributes: vec![],
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+                attribute_groups: vec![
+                    attribute_group::AttributeGroup {
+                        id: "z_group".to_owned().into(),
+                        attributes: vec![],
+                        common: CommonFields::default(),
+                        provenance: Default::default(),
+                    },
+                    attribute_group::AttributeGroup {
+                        id: "a_group".to_owned().into(),
+                        attributes: vec![],
+                        common: CommonFields::default(),
+                        provenance: Default::default(),
+                    },
+                ],
+            },
+            refinements: refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+        };
+
+        let mut mock_resolver = MockSchemaResolver::new();
+        let forge_registry =
+            match ForgeResolvedRegistry::try_from_resolved_schema(schema, &mut mock_resolver) {
+                WResult::Ok(r) => r,
+                WResult::OkWithNFEs(r, _) => r,
+                WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
+            };
+
+        assert_eq!(forge_registry.registry.attribute_groups.len(), 2);
+        assert_eq!(
+            forge_registry.registry.attribute_groups[0].id,
+            "a_group".into()
+        );
+        assert_eq!(
+            forge_registry.registry.attribute_groups[1].id,
+            "z_group".into()
+        );
     }
 }

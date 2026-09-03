@@ -604,7 +604,7 @@ Generates a schema file by inferring the schema from a OTLP message.
   Possible values: `true`, `false`
 
 * `-o`, `--output <OUTPUT>` — Output folder for generated YAML files. [default: ./inferred-registry/]
-* `--grpc-address <GRPC_ADDRESS>` — Address used by the gRPC OTLP listener. [default: 0.0.0.0]
+* `--grpc-address <GRPC_ADDRESS>` — Address used by the gRPC OTLP listener. [default: 127.0.0.1]
 * `--grpc-port <GRPC_PORT>` — Port used by the gRPC OTLP listener. [default: 4317]
 * `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin server (endpoints: /stop). [default: 8080]
 * `--inactivity-timeout <INACTIVITY_TIMEOUT>` — Seconds of inactivity before auto-stop (0 = never). [default: 60]

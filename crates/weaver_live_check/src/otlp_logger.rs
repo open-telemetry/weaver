@@ -269,7 +269,7 @@ mod tests {
     use crate::sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink, Status, StatusCode};
     use serde_json::json;
     use weaver_checker::{FindingLevel, PolicyFinding};
-    use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
+    use weaver_semconv::v1::group::{InstrumentSpec, SpanKindSpec};
 
     // Helper function to create a test attribute
     fn create_test_attribute(name: &str) -> SampleAttribute {

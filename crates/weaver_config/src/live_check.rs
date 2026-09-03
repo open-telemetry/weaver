@@ -191,7 +191,7 @@ pub struct LiveCheckOtlpConfig {
 impl Default for LiveCheckOtlpConfig {
     fn default() -> Self {
         Self {
-            grpc_address: "0.0.0.0".to_owned(),
+            grpc_address: "127.0.0.1".to_owned(),
             grpc_port: 4317,
             admin_port: 4320,
             inactivity_timeout: 10,
@@ -597,7 +597,7 @@ grpc_port = 9999
         let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
         let lc = live_check(&config);
         assert_eq!(lc.otlp.grpc_port, 9999);
-        assert_eq!(lc.otlp.grpc_address, "0.0.0.0");
+        assert_eq!(lc.otlp.grpc_address, "127.0.0.1");
         assert_eq!(lc.otlp.admin_port, 4320);
         assert_eq!(lc.format, "ansi");
         assert!(!lc.emit.otlp_logs);

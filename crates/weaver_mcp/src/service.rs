@@ -566,11 +566,11 @@ mod tests {
     use weaver_forge::v2::registry::{ForgeResolvedRegistry, Refinements, Registry};
     use weaver_forge::v2::span::Span;
     use weaver_search::SearchType;
-    use weaver_semconv::attribute::AttributeType;
-    use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
     use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
     use weaver_semconv::stability::Stability;
-    use weaver_semconv::v2::span::SpanName;
+    use weaver_semconv::v2::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
+    use weaver_semconv::v2::metric::InstrumentSpec;
+    use weaver_semconv::v2::span::{SpanKindSpec, SpanName};
     use weaver_semconv::v2::CommonFields;
 
     fn make_test_registry() -> ForgeResolvedRegistry {
@@ -579,9 +579,7 @@ mod tests {
             registry: Registry {
                 attributes: vec![Attribute {
                     key: "http.request.method".to_owned(),
-                    r#type: AttributeType::PrimitiveOrArray(
-                        weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
-                    ),
+                    r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                     examples: None,
                     common: CommonFields {
                         brief: "HTTP request method".to_owned(),

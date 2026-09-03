@@ -38,7 +38,7 @@ use weaver_live_check::sample_metric::{SampleInstrument, SampleMetric};
 use weaver_live_check::sample_resource::SampleResource;
 use weaver_live_check::sample_span::SampleSpan;
 use weaver_live_check::{Sample, SampleRef};
-use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
+use weaver_semconv::v1::group::{InstrumentSpec, SpanKindSpec};
 
 /// Poll GET /health until it returns 200, with retries.
 fn wait_for_health(port: u16) {

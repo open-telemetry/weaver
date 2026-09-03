@@ -74,7 +74,7 @@ This `Ingester` starts an OTLP listener and streams each received OTLP message t
 
 Options for OTLP ingest:
 
-- `--otlp-grpc-address`: Address used by the gRPC OTLP listener
+- `--otlp-grpc-address`: Address the gRPC OTLP listener binds to. Defaults to `127.0.0.1` (loopback only); set it to a specific interface address, or to `0.0.0.0` to listen on all of them. The admin listener binds to the same address.
 - `--otlp-grpc-port`: Port used by the gRPC OTLP listener
 - `--admin-port`: Port used by the HTTP admin port (endpoints: /stop)
 - `--inactivity-timeout`: Max inactivity time in seconds before stopping the listener
@@ -96,7 +96,7 @@ attribute_groups = ["myapp.common"]
 
 `when` is a [CEL](https://cel.dev) expression, compiled and linted at startup. A matcher never changes the checks themselves, only what a sample is compared with. v2 registries only.
 
-`attribute_groups` says which attributes are *permitted* on the sample: they are checked against their definitions, but nothing is reported for one missing from the sample. Use `strict_attribute_groups` for a group whose requirement levels should be enforced.
+`attribute_groups` says which attributes are _permitted_ on the sample: they are checked against their definitions, but nothing is reported for one missing from the sample. Use `strict_attribute_groups` for a group whose requirement levels should be enforced.
 
 See [Matchers](docs/matchers.md) for the guide: worked examples for each sample type, the expression variables, resolution order and diagnostics.
 
@@ -233,7 +233,7 @@ advice_policies = "policies"
 advice_preprocessor = "preprocessor.jq"
 
 [live-check.otlp]
-grpc_address = "0.0.0.0"
+grpc_address = "127.0.0.1"
 grpc_port = 4317
 admin_port = 4320
 inactivity_timeout = 10
