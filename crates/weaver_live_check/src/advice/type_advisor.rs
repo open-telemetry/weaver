@@ -5,14 +5,14 @@
 use serde_json::json;
 use std::{collections::HashSet, rc::Rc};
 use weaver_checker::{FindingLevel, PolicyFinding};
-use weaver_forge::registry::ResolvedGroup;
+use weaver_forge::v1::registry::ResolvedGroup;
 use weaver_forge::v2::{
     entity::{Entity as V2Entity, EntityAssociation as V2EntityAssociation, EntityRef},
     event::EventAttribute,
     metric::MetricAttribute,
 };
-use weaver_resolved_schema::attribute::Attribute;
-use weaver_semconv::attribute::{
+use weaver_resolved_schema::v1::attribute::Attribute;
+use weaver_semconv::v1::attribute::{
     AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
     TemplateTypeSpec,
 };
@@ -34,8 +34,8 @@ pub struct TypeAdvisor;
 /// Trait to abstract over different attribute types for checking
 trait CheckableAttribute {
     fn key(&self) -> &str;
-    fn requirement_level(&self) -> &RequirementLevel;
-    fn attribute_type(&self) -> &AttributeType;
+    fn is_template(&self) -> bool;
+    fn requirement_finding(&self, key: &str) -> (FindingId, FindingLevel, String);
 }
 
 impl CheckableAttribute for Attribute {
@@ -43,12 +43,35 @@ impl CheckableAttribute for Attribute {
         &self.name
     }
 
-    fn requirement_level(&self) -> &RequirementLevel {
-        &self.requirement_level
+    fn is_template(&self) -> bool {
+        matches!(self.r#type, AttributeType::Template(_))
     }
 
-    fn attribute_type(&self) -> &AttributeType {
-        &self.r#type
+    fn requirement_finding(&self, key: &str) -> (FindingId, FindingLevel, String) {
+        match &self.requirement_level {
+            RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => (
+                FindingId::RequiredAttributeNotPresent,
+                FindingLevel::Violation,
+                format!("Required attribute '{key}' is not present."),
+            ),
+            RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended)
+            | RequirementLevel::Recommended { .. } => (
+                FindingId::RecommendedAttributeNotPresent,
+                FindingLevel::Improvement,
+                format!("Recommended attribute '{key}' is not present."),
+            ),
+            RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn)
+            | RequirementLevel::OptIn { .. } => (
+                FindingId::OptInAttributeNotPresent,
+                FindingLevel::Information,
+                format!("Opt-in attribute '{key}' is not present."),
+            ),
+            RequirementLevel::ConditionallyRequired { .. } => (
+                FindingId::ConditionallyRequiredAttributeNotPresent,
+                FindingLevel::Information,
+                format!("Conditionally required attribute '{key}' is not present."),
+            ),
+        }
     }
 }
 
@@ -57,12 +80,44 @@ impl CheckableAttribute for MetricAttribute {
         &self.base.key
     }
 
-    fn requirement_level(&self) -> &RequirementLevel {
-        &self.requirement_level
+    fn is_template(&self) -> bool {
+        matches!(
+            self.base.r#type,
+            weaver_semconv::v2::attribute::AttributeType::Template(_)
+        )
     }
 
-    fn attribute_type(&self) -> &AttributeType {
-        &self.base.r#type
+    fn requirement_finding(&self, key: &str) -> (FindingId, FindingLevel, String) {
+        match &self.requirement_level {
+            weaver_semconv::v2::attribute::RequirementLevel::Basic(
+                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
+            ) => (
+                FindingId::RequiredAttributeNotPresent,
+                FindingLevel::Violation,
+                format!("Required attribute '{key}' is not present."),
+            ),
+            weaver_semconv::v2::attribute::RequirementLevel::Basic(
+                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Recommended,
+            )
+            | weaver_semconv::v2::attribute::RequirementLevel::Recommended { .. } => (
+                FindingId::RecommendedAttributeNotPresent,
+                FindingLevel::Improvement,
+                format!("Recommended attribute '{key}' is not present."),
+            ),
+            weaver_semconv::v2::attribute::RequirementLevel::Basic(
+                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::OptIn,
+            )
+            | weaver_semconv::v2::attribute::RequirementLevel::OptIn { .. } => (
+                FindingId::OptInAttributeNotPresent,
+                FindingLevel::Information,
+                format!("Opt-in attribute '{key}' is not present."),
+            ),
+            weaver_semconv::v2::attribute::RequirementLevel::ConditionallyRequired { .. } => (
+                FindingId::ConditionallyRequiredAttributeNotPresent,
+                FindingLevel::Information,
+                format!("Conditionally required attribute '{key}' is not present."),
+            ),
+        }
     }
 }
 
@@ -71,12 +126,44 @@ impl CheckableAttribute for EventAttribute {
         &self.base.key
     }
 
-    fn requirement_level(&self) -> &RequirementLevel {
-        &self.requirement_level
+    fn is_template(&self) -> bool {
+        matches!(
+            self.base.r#type,
+            weaver_semconv::v2::attribute::AttributeType::Template(_)
+        )
     }
 
-    fn attribute_type(&self) -> &AttributeType {
-        &self.base.r#type
+    fn requirement_finding(&self, key: &str) -> (FindingId, FindingLevel, String) {
+        match &self.requirement_level {
+            weaver_semconv::v2::attribute::RequirementLevel::Basic(
+                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
+            ) => (
+                FindingId::RequiredAttributeNotPresent,
+                FindingLevel::Violation,
+                format!("Required attribute '{key}' is not present."),
+            ),
+            weaver_semconv::v2::attribute::RequirementLevel::Basic(
+                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Recommended,
+            )
+            | weaver_semconv::v2::attribute::RequirementLevel::Recommended { .. } => (
+                FindingId::RecommendedAttributeNotPresent,
+                FindingLevel::Improvement,
+                format!("Recommended attribute '{key}' is not present."),
+            ),
+            weaver_semconv::v2::attribute::RequirementLevel::Basic(
+                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::OptIn,
+            )
+            | weaver_semconv::v2::attribute::RequirementLevel::OptIn { .. } => (
+                FindingId::OptInAttributeNotPresent,
+                FindingLevel::Information,
+                format!("Opt-in attribute '{key}' is not present."),
+            ),
+            weaver_semconv::v2::attribute::RequirementLevel::ConditionallyRequired { .. } => (
+                FindingId::ConditionallyRequiredAttributeNotPresent,
+                FindingLevel::Information,
+                format!("Conditionally required attribute '{key}' is not present."),
+            ),
+        }
     }
 }
 
@@ -115,10 +202,10 @@ pub(crate) fn check_entity_resource_attributes(
 
     let mut advice_list = Vec::new();
 
-    let check_attr = |key: &str,
-                      requirement_level: &RequirementLevel,
-                      entity_type: &str,
-                      advice_list: &mut Vec<PolicyFinding>| {
+    let check_attr_v1 = |key: &str,
+                         requirement_level: &RequirementLevel,
+                         entity_type: &str,
+                         advice_list: &mut Vec<PolicyFinding>| {
         if attribute_set.contains(key) {
             return;
         }
@@ -159,11 +246,61 @@ pub(crate) fn check_entity_resource_attributes(
         });
     };
 
+    let check_attr_v2 = |key: &str,
+                         requirement_level: &weaver_semconv::v2::attribute::RequirementLevel,
+                         entity_type: &str,
+                         advice_list: &mut Vec<PolicyFinding>| {
+        if attribute_set.contains(key) {
+            return;
+        }
+        let (finding_id, advice_level, message) = match requirement_level {
+            weaver_semconv::v2::attribute::RequirementLevel::Basic(
+                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
+            ) => (
+                FindingId::EntityRequiredAttributeNotPresent,
+                FindingLevel::Violation,
+                format!("Required attribute '{key}' for entity '{entity_type}' is not present in the resource."),
+            ),
+            weaver_semconv::v2::attribute::RequirementLevel::Basic(
+                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Recommended,
+            )
+            | weaver_semconv::v2::attribute::RequirementLevel::Recommended { .. } => (
+                FindingId::EntityRecommendedAttributeNotPresent,
+                FindingLevel::Improvement,
+                format!("Recommended attribute '{key}' for entity '{entity_type}' is not present in the resource."),
+            ),
+            weaver_semconv::v2::attribute::RequirementLevel::Basic(
+                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::OptIn,
+            )
+            | weaver_semconv::v2::attribute::RequirementLevel::OptIn { .. } => (
+                FindingId::EntityOptInAttributeNotPresent,
+                FindingLevel::Information,
+                format!("Opt-in attribute '{key}' for entity '{entity_type}' is not present in the resource."),
+            ),
+            weaver_semconv::v2::attribute::RequirementLevel::ConditionallyRequired { .. } => (
+                FindingId::EntityConditionallyRequiredAttributeNotPresent,
+                FindingLevel::Information,
+                format!("Conditionally required attribute '{key}' for entity '{entity_type}' is not present in the resource."),
+            ),
+        };
+        advice_list.push(PolicyFinding {
+            id: finding_id.into(),
+            context: Some(json!({
+                ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: key,
+                ENTITY_TYPE_ADVICE_CONTEXT_KEY: entity_type,
+            })),
+            message,
+            level: advice_level,
+            signal_type: parent_signal.signal_type(),
+            signal_name: parent_signal.signal_name(),
+        });
+    };
+
     match entity {
         EntityDef::V1(group) => {
             let entity_type = group.name.as_deref().unwrap_or("");
             for attr in &group.attributes {
-                check_attr(
+                check_attr_v1(
                     &attr.name,
                     &attr.requirement_level,
                     entity_type,
@@ -174,7 +311,7 @@ pub(crate) fn check_entity_resource_attributes(
         EntityDef::V2(entity) => {
             let entity_type = entity.r#type.to_string();
             for attr in entity.identity.iter().chain(entity.description.iter()) {
-                check_attr(
+                check_attr_v2(
                     &attr.base.key,
                     &attr.requirement_level,
                     &entity_type,
@@ -440,11 +577,7 @@ fn check_attributes<T: CheckableAttribute>(
     let mut advice_list = Vec::new();
     for semconv_attribute in semconv_attributes {
         let key = semconv_attribute.key();
-        // Check if this is a template attribute
-        let is_template = matches!(
-            semconv_attribute.attribute_type(),
-            AttributeType::Template(_)
-        );
+        let is_template = semconv_attribute.is_template();
 
         // For template attributes, check if any sample attribute starts with the template prefix
         // For non-template attributes, check for exact match
@@ -457,30 +590,7 @@ fn check_attributes<T: CheckableAttribute>(
         };
 
         if !is_present {
-            let (finding_id, advice_level, message) = match semconv_attribute.requirement_level() {
-                RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => (
-                    FindingId::RequiredAttributeNotPresent,
-                    FindingLevel::Violation,
-                    format!("Required attribute '{key}' is not present."),
-                ),
-                RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended)
-                | RequirementLevel::Recommended { .. } => (
-                    FindingId::RecommendedAttributeNotPresent,
-                    FindingLevel::Improvement,
-                    format!("Recommended attribute '{key}' is not present."),
-                ),
-                RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn)
-                | RequirementLevel::OptIn { .. } => (
-                    FindingId::OptInAttributeNotPresent,
-                    FindingLevel::Information,
-                    format!("Opt-in attribute '{key}' is not present."),
-                ),
-                RequirementLevel::ConditionallyRequired { .. } => (
-                    FindingId::ConditionallyRequiredAttributeNotPresent,
-                    FindingLevel::Information,
-                    format!("Conditionally required attribute '{key}' is not present."),
-                ),
-            };
+            let (finding_id, advice_level, message) = semconv_attribute.requirement_finding(key);
             advice_list.push(PolicyFinding {
                 id: finding_id.into(),
                 context: Some(json!({
@@ -510,25 +620,23 @@ impl Advisor for TypeAdvisor {
                 // Only provide advice if the attribute is a match and the type is present
                 match (registry_attribute, sample_attribute.r#type.as_ref()) {
                     (Some(semconv_attribute), Some(attribute_type)) => {
-                        let semconv_attribute_type = match &semconv_attribute.r#type() {
+                        let semconv_type = semconv_attribute.r#type();
+                        let semconv_attribute_type = match semconv_type.as_ref() {
                             AttributeType::PrimitiveOrArray(primitive_or_array_type_spec) => {
                                 primitive_or_array_type_spec
                             }
-                            AttributeType::Template(template_type_spec) => {
-                                &match template_type_spec {
-                                    TemplateTypeSpec::Boolean => PrimitiveOrArrayTypeSpec::Boolean,
-                                    TemplateTypeSpec::Int => PrimitiveOrArrayTypeSpec::Int,
-                                    TemplateTypeSpec::Double => PrimitiveOrArrayTypeSpec::Double,
-                                    TemplateTypeSpec::String => PrimitiveOrArrayTypeSpec::String,
-                                    TemplateTypeSpec::Any => PrimitiveOrArrayTypeSpec::Any,
-                                    TemplateTypeSpec::Strings => PrimitiveOrArrayTypeSpec::Strings,
-                                    TemplateTypeSpec::Ints => PrimitiveOrArrayTypeSpec::Ints,
-                                    TemplateTypeSpec::Doubles => PrimitiveOrArrayTypeSpec::Doubles,
-                                    TemplateTypeSpec::Booleans => {
-                                        PrimitiveOrArrayTypeSpec::Booleans
-                                    }
-                                }
-                            }
+                            AttributeType::Template(template_type_spec) => match template_type_spec
+                            {
+                                TemplateTypeSpec::Boolean => &PrimitiveOrArrayTypeSpec::Boolean,
+                                TemplateTypeSpec::Int => &PrimitiveOrArrayTypeSpec::Int,
+                                TemplateTypeSpec::Double => &PrimitiveOrArrayTypeSpec::Double,
+                                TemplateTypeSpec::String => &PrimitiveOrArrayTypeSpec::String,
+                                TemplateTypeSpec::Any => &PrimitiveOrArrayTypeSpec::Any,
+                                TemplateTypeSpec::Strings => &PrimitiveOrArrayTypeSpec::Strings,
+                                TemplateTypeSpec::Ints => &PrimitiveOrArrayTypeSpec::Ints,
+                                TemplateTypeSpec::Doubles => &PrimitiveOrArrayTypeSpec::Doubles,
+                                TemplateTypeSpec::Booleans => &PrimitiveOrArrayTypeSpec::Booleans,
+                            },
                             AttributeType::Enum { .. } => {
                                 // Special case: Enum variants can be either string or int
                                 if attribute_type != &PrimitiveOrArrayTypeSpec::String
@@ -599,7 +707,7 @@ impl Advisor for TypeAdvisor {
                         }
                         SampleInstrument::Supported(sample_instrument) => {
                             if let Some(semconv_instrument) = semconv_metric.instrument() {
-                                if semconv_instrument != sample_instrument {
+                                if semconv_instrument != *sample_instrument {
                                     let finding = FindingBuilder::new(FindingId::UnexpectedInstrument)
                                         .context(json!({
                                             INSTRUMENT_ADVICE_CONTEXT_KEY: sample_instrument,
@@ -742,8 +850,8 @@ mod tests {
     use crate::sample_attribute::SampleAttribute;
     use crate::sample_metric::{SampleInstrument, SampleMetric};
     use weaver_checker::FindingLevel;
-    use weaver_resolved_schema::attribute::Attribute;
-    use weaver_semconv::attribute::{
+    use weaver_resolved_schema::v1::attribute::Attribute;
+    use weaver_semconv::v1::attribute::{
         AttributeType::PrimitiveOrArray, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec,
         RequirementLevel,
     };
@@ -820,7 +928,9 @@ mod tests {
             name: "test_metric".to_owned(),
             unit: "".to_owned(),
             data_points: None,
-            instrument: SampleInstrument::Supported(weaver_semconv::group::InstrumentSpec::Counter),
+            instrument: SampleInstrument::Supported(
+                weaver_semconv::v1::group::InstrumentSpec::Counter,
+            ),
             instrumentation_scope: None,
             live_check_result: None,
             resource: None,
@@ -890,7 +1000,9 @@ mod tests {
             name: "test_metric".to_owned(),
             unit: "".to_owned(),
             data_points: None,
-            instrument: SampleInstrument::Supported(weaver_semconv::group::InstrumentSpec::Counter),
+            instrument: SampleInstrument::Supported(
+                weaver_semconv::v1::group::InstrumentSpec::Counter,
+            ),
             instrumentation_scope: None,
             live_check_result: None,
             resource: None,
@@ -901,7 +1013,7 @@ mod tests {
 
     #[test]
     fn test_check_attributes_template_type() {
-        use weaver_semconv::attribute::{AttributeType, TemplateTypeSpec};
+        use weaver_semconv::v1::attribute::{AttributeType, TemplateTypeSpec};
 
         // Create a template attribute like "weaver.finding.context"
         let template_attribute = Attribute {
@@ -934,7 +1046,9 @@ mod tests {
             name: "test_metric".to_owned(),
             unit: "".to_owned(),
             data_points: None,
-            instrument: SampleInstrument::Supported(weaver_semconv::group::InstrumentSpec::Counter),
+            instrument: SampleInstrument::Supported(
+                weaver_semconv::v1::group::InstrumentSpec::Counter,
+            ),
             instrumentation_scope: None,
             live_check_result: None,
             resource: None,

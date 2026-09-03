@@ -8,7 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use weaver_checker::FindingLevel;
-use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
+use weaver_semconv::v1::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{
     advice::FindingBuilder, live_checker::LiveChecker, Error, FindingId, LiveCheckResult,
@@ -206,7 +206,7 @@ impl LiveCheckRunner for SampleAttribute {
         } else {
             // Provide an info advice if the attribute is a template
             if let Some(attribute) = &semconv_attribute {
-                if let AttributeType::Template(_) = attribute.r#type() {
+                if let AttributeType::Template(_) = attribute.r#type().as_ref() {
                     let sample_ref = SampleRef::Attribute(self);
                     let finding = FindingBuilder::new(FindingId::TemplateAttribute)
                         .context(json!({ ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: self.name.clone(), "template_name": attribute.name() }))

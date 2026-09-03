@@ -3,10 +3,13 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
-    attribute::RequirementLevel,
-    group::SpanKindSpec,
     signal_requirement_level::SignalRequirementLevel,
-    v2::{signal_id::SignalId, span::SpanName, CommonFields},
+    v2::{
+        attribute::RequirementLevel,
+        signal_id::SignalId,
+        span::{SpanKindSpec, SpanName},
+        CommonFields,
+    },
 };
 
 use crate::v2::{
@@ -135,5 +138,37 @@ impl Signal for Span {
     }
     fn common(&self) -> &CommonFields {
         &self.common
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use weaver_semconv::v2::span::{SpanKindSpec, SpanName};
+
+    #[test]
+    fn test_span_signal() {
+        let span = Span {
+            links: vec![],
+            r#type: SignalId::from("http.client"),
+            kind: SpanKindSpec::Client,
+            name: SpanName {
+                note: "HTTP {http.request.method}".to_owned(),
+            },
+            attributes: vec![],
+            entity_associations: vec![],
+            requirement_level: None,
+            common: CommonFields {
+                brief: "Client span".to_owned(),
+                note: "".to_owned(),
+                stability: Default::default(),
+                deprecated: None,
+                annotations: Default::default(),
+            },
+            provenance: Default::default(),
+        };
+
+        assert_eq!(span.id(), "http.client");
+        assert_eq!(span.common().brief, "Client span");
     }
 }

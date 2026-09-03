@@ -3,7 +3,9 @@
 //! The new way we want to define data going forward.
 
 use std::collections::BTreeMap;
+use std::fmt::{Display, Formatter};
 
+use globset::Glob;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -11,8 +13,6 @@ use weaver_common::result::WResult;
 
 use crate::{
     deprecated::Deprecated,
-    group::GroupSpec,
-    semconv::{Imports, SemConvSpecV1},
     stability::Stability,
     v2::{
         attribute::AttributeDef, attribute::AttributeRef, attribute_group::AttributeGroup,
@@ -32,7 +32,9 @@ pub mod signal_id;
 pub mod span;
 
 /// Common fields we want on all major components of semantic conventions.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Hash, Eq, Default)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Hash, Eq, PartialOrd, Ord, Default,
+)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct CommonFields {
@@ -54,9 +56,66 @@ pub struct CommonFields {
     pub annotations: BTreeMap<String, YamlValue>,
 }
 
+/// Represents a wildcard expression to import one or several groups defined in an imported
+/// registry.
+#[derive(Debug, Clone, JsonSchema, PartialEq, Eq)]
+pub struct GroupWildcard(#[schemars(with = "String")] pub Glob);
+
+impl Serialize for GroupWildcard {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.0.glob().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for GroupWildcard {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Glob::new(&s)
+            .map(GroupWildcard)
+            .map_err(serde::de::Error::custom)
+    }
+}
+
+impl Display for GroupWildcard {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.glob())
+    }
+}
+
+/// Imports are used to reference groups defined in a dependent registry.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Imports {
+    /// A list of metric group metric_name wildcards.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metrics: Option<Vec<GroupWildcard>>,
+
+    /// A list of event group name wildcards.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub events: Option<Vec<GroupWildcard>>,
+
+    /// A list of entity group name wildcards.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entities: Option<Vec<GroupWildcard>>,
+
+    /// A list of span group name wildcards.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spans: Option<Vec<GroupWildcard>>,
+
+    /// A list of attribute_group group id wildcards.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attribute_groups: Option<Vec<GroupWildcard>>,
+}
+
 /// A semconv file is a collection of attributes, signals, groups,
 /// and imports.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct SemConvSpecV2 {
     /// A collection of semantic conventions for attributes.
@@ -121,40 +180,73 @@ impl SemConvSpecV2 {
         }
     }
 
-    /// Returns the attribute definitions in this spec.
+    /// Accessor for attributes.
     #[must_use]
     pub fn attributes(&self) -> &[AttributeDef] {
         &self.attributes
     }
 
-    /// Returns the entity definitions in this spec.
+    /// Accessor for entities.
     #[must_use]
     pub fn entities(&self) -> &[Entity] {
         &self.entities
     }
 
-    /// Returns the event definitions in this spec.
+    /// Accessor for events.
     #[must_use]
     pub fn events(&self) -> &[Event] {
         &self.events
     }
 
-    /// Returns the metric definitions in this spec.
+    /// Accessor for metrics.
     #[must_use]
     pub fn metrics(&self) -> &[Metric] {
         &self.metrics
     }
 
-    /// Returns the span definitions in this spec.
+    /// Accessor for spans.
     #[must_use]
     pub fn spans(&self) -> &[Span] {
         &self.spans
     }
 
-    /// Returns the JSON Schema for this type, with `file_format` injected as a
-    /// documented-only property. The field is intentionally absent from the Rust
-    /// struct (it is stripped before serde deserialization) but must appear in
-    /// the schema for IDE auto-complete and documentation purposes.
+    /// Accessor for attribute groups.
+    #[must_use]
+    pub fn attribute_groups(&self) -> &[AttributeGroup] {
+        &self.attribute_groups
+    }
+
+    /// Accessor for entity refinements.
+    #[must_use]
+    pub fn entity_refinements(&self) -> &[EntityRefinement] {
+        &self.entity_refinements
+    }
+
+    /// Accessor for event refinements.
+    #[must_use]
+    pub fn event_refinements(&self) -> &[EventRefinement] {
+        &self.event_refinements
+    }
+
+    /// Accessor for metric refinements.
+    #[must_use]
+    pub fn metric_refinements(&self) -> &[MetricRefinement] {
+        &self.metric_refinements
+    }
+
+    /// Accessor for span refinements.
+    #[must_use]
+    pub fn span_refinements(&self) -> &[SpanRefinement] {
+        &self.span_refinements
+    }
+
+    /// Accessor for imports.
+    #[must_use]
+    pub fn imports(&self) -> Option<&Imports> {
+        self.imports.as_ref()
+    }
+
+    /// Returns the JSON schema for `SemConvSpecV2` including the injected `file_format` field.
     #[must_use]
     pub fn output_schema() -> schemars::Schema {
         let mut schema =
@@ -169,23 +261,16 @@ impl SemConvSpecV2 {
                 }),
             );
         }
-        serde_json::from_value(schema).expect("Failed to deserialize schema")
+        serde_json::from_value(schema).expect("Failed to deserialize modified schema")
     }
 
-    /// Validates invariants on the v2 model.
-    ///
-    /// This checks that every signal (metric, span, event, entity) declares a
-    /// `requirement_level`. A missing requirement level is a non-fatal warning
-    /// that is elevated to an error under `--future`.
-    ///
-    /// It also rejects entities and entity refinements that list the same
-    /// attribute under both `identity` and `description`.
-    pub(crate) fn validate(self, provenance: &str) -> WResult<Self, Error> {
+    /// Validates invariants on the model.
+    pub fn validate(self, provenance: &str) -> WResult<Self, Error> {
         let mut errors: Vec<Error> = vec![];
         let mut fatal_errors: Vec<Error> = vec![];
 
-        let mut check = |missing: bool, group_id: String| {
-            if missing {
+        let mut check = |cond: bool, group_id: String| {
+            if cond {
                 errors.push(Error::MissingRequirementLevelWarning {
                     path_or_url: provenance.to_owned(),
                     group_id,
@@ -246,64 +331,6 @@ impl SemConvSpecV2 {
         WResult::with_non_fatal_errors(self, errors)
     }
 
-    /// Converts the version 2 schema into the version 1 group spec.
-    pub(crate) fn into_v1_specification(self, file_name: &str) -> SemConvSpecV1 {
-        log::debug!("Translating v2 spec into v1 spec for {file_name}");
-
-        let mut groups = Vec::new();
-
-        // Only create synthetic attribute group if there are attribute definitions
-        if !self.attributes.is_empty() {
-            groups.push(GroupSpec {
-                id: format!("registry.{file_name}"),
-                r#type: crate::group::GroupType::AttributeGroup,
-                attributes: self
-                    .attributes
-                    .into_iter()
-                    .map(|a| a.into_v1_attribute())
-                    .collect(),
-                brief: "<synthetic v2>".to_owned(),
-                is_v2: true,
-                span_name: None,
-                span_links: Vec::new(),
-                ..Default::default()
-            });
-        }
-
-        // Add all other groups
-        groups.extend(self.entities.into_iter().map(|e| e.into_v1_group()));
-        groups.extend(self.events.into_iter().map(|e| e.into_v1_group()));
-        groups.extend(self.metrics.into_iter().map(|m| m.into_v1_group()));
-        groups.extend(self.spans.into_iter().map(|s| s.into_v1_group()));
-        groups.extend(
-            self.attribute_groups
-                .into_iter()
-                .map(|ag| ag.into_v1_group()),
-        );
-
-        // Add all refinements
-        groups.extend(
-            self.entity_refinements
-                .into_iter()
-                .map(|e| e.into_v1_group()),
-        );
-        groups.extend(
-            self.event_refinements
-                .into_iter()
-                .map(|e| e.into_v1_group()),
-        );
-        groups.extend(
-            self.metric_refinements
-                .into_iter()
-                .map(|m| m.into_v1_group()),
-        );
-        groups.extend(self.span_refinements.into_iter().map(|s| s.into_v1_group()));
-
-        SemConvSpecV1 {
-            groups,
-            imports: self.imports,
-        }
-    }
     /// True if this specification holds no definitions.
     #[must_use]
     pub fn is_empty(&self) -> bool {
@@ -323,356 +350,6 @@ impl SemConvSpecV2 {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn validate_yaml(v2: &str) -> Vec<Error> {
-        let spec = serde_yaml::from_str::<SemConvSpecV2>(v2).expect("Failed to parse YAML string");
-        match spec.validate("<test>") {
-            WResult::Ok(_) => vec![],
-            WResult::OkWithNFEs(_, nfes) => nfes,
-            WResult::FatalErr(e) => vec![e],
-        }
-    }
-
-    #[test]
-    fn test_v2_missing_requirement_level_warns() {
-        // Each signal type missing requirement_level produces a warning.
-        for (signal, yaml) in [
-            (
-                "metric.my_metric",
-                "metrics:\n  - name: my_metric\n    brief: b\n    stability: stable\n    instrument: counter\n    unit: \"1\"\n",
-            ),
-            (
-                "span.my_span",
-                "spans:\n  - type: my_span\n    brief: b\n    stability: stable\n    kind: client\n    name:\n      note: n\n",
-            ),
-            (
-                "event.my_event",
-                "events:\n  - name: my_event\n    brief: b\n    stability: stable\n",
-            ),
-            (
-                "entity.my_entity",
-                "entities:\n  - type: my_entity\n    brief: b\n    stability: stable\n    identity:\n      - ref: some.attr\n",
-            ),
-        ] {
-            let errors = validate_yaml(yaml);
-            assert!(
-                errors.iter().any(|e| matches!(
-                    e,
-                    Error::MissingRequirementLevelWarning { group_id, .. } if group_id == signal
-                )),
-                "expected MissingRequirementLevelWarning for `{signal}`, got: {errors:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn test_v2_deprecated_note_is_optional_for_renamed_only() {
-        let spec = |deprecated: &str| {
-            format!(
-                "attributes:\n  - key: my.attr\n    type: string\n    brief: b\n    stability: development\n    deprecated:\n{deprecated}"
-            )
-        };
-
-        let parsed = serde_yaml::from_str::<SemConvSpecV2>(&spec(
-            "      reason: renamed\n      renamed_to: my.new_attr\n",
-        ))
-        .expect("`renamed` must parse without a note");
-        assert_eq!(
-            parsed.attributes[0]
-                .common
-                .deprecated
-                .as_ref()
-                .expect("attribute is deprecated")
-                .note(),
-            "Replaced by `my.new_attr`."
-        );
-
-        // Nothing to infer from for the other reasons, so the note stays required.
-        for reason in ["obsoleted", "uncategorized", "unspecified"] {
-            let err =
-                serde_yaml::from_str::<SemConvSpecV2>(&spec(&format!("      reason: {reason}\n")))
-                    .unwrap_err();
-            assert!(
-                err.to_string().contains("note"),
-                "expected a missing `note` error for `{reason}`, got: {err}"
-            );
-        }
-    }
-
-    #[test]
-    fn test_v2_requirement_level_set_no_warning() {
-        for level in ["recommended", "opt_in"] {
-            let yaml = format!(
-                "metrics:\n  - name: my_metric\n    brief: b\n    stability: stable\n    instrument: counter\n    unit: \"1\"\n    requirement_level: {level}\n"
-            );
-            let errors = validate_yaml(&yaml);
-            assert!(
-                !errors
-                    .iter()
-                    .any(|e| matches!(e, Error::MissingRequirementLevelWarning { .. })),
-                "did not expect a warning when requirement_level={level}, got: {errors:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn test_v2_missing_requirement_level_future_mode() {
-        use miette::{Diagnostic, Severity};
-        use weaver_common::diagnostic::{
-            disable_future_mode, enable_future_mode, DiagnosticMessage,
-        };
-
-        let errors =
-            validate_yaml("spans:\n  - type: my_span\n    brief: b\n    stability: stable\n    kind: client\n    name:\n      note: n\n");
-        let warn = errors.into_iter().next().expect("expected a warning");
-        assert_eq!(warn.severity(), Some(Severity::Warning));
-
-        // Under --future the warning is elevated to an error.
-        enable_future_mode();
-        let diag = DiagnosticMessage::new(warn);
-        assert!(!diag.is_warning(), "expected error severity under --future");
-        disable_future_mode();
-    }
-
-    #[test]
-    fn test_v2_attribute_in_identity_and_description_fails() {
-        for (group_id, yaml) in [
-            (
-                "my_entity",
-                "entities:\n  - type: my_entity\n    brief: b\n    stability: stable\n    requirement_level: recommended\n    identity:\n      - ref: some.attr\n    description:\n      - ref: some.attr\n",
-            ),
-            (
-                "my_refinement",
-                "entity_refinements:\n  - id: my_refinement\n    ref: my_entity\n    identity:\n      - ref: some.attr\n    description:\n      - ref: some.attr\n",
-            ),
-        ] {
-            let errors = validate_yaml(yaml);
-            assert!(
-                errors.iter().any(|e| matches!(
-                    e,
-                    Error::CompoundError(inner) if inner.iter().any(|e| matches!(
-                        e,
-                        Error::AttributeInIdentityAndDescription { group_id: g, attribute_id, .. }
-                            if g == group_id && attribute_id == "some.attr"
-                    ))
-                )),
-                "expected AttributeInIdentityAndDescription for `{group_id}`, got: {errors:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn test_v2_attribute_in_identity_or_description_only_ok() {
-        let errors = validate_yaml(
-            "entities:\n  - type: my_entity\n    brief: b\n    stability: stable\n    requirement_level: recommended\n    identity:\n      - ref: some.attr\n    description:\n      - ref: other.attr\n",
-        );
-        assert!(
-            !errors
-                .iter()
-                .any(|e| matches!(e, Error::AttributeInIdentityAndDescription { .. })),
-            "did not expect AttributeInIdentityAndDescription, got: {errors:?}"
-        );
-    }
-
-    #[test]
-    fn test_v2_entity_missing_identity_fails() {
-        let errors = validate_yaml(
-            "entities:\n  - type: my_entity\n    brief: b\n    stability: stable\n    requirement_level: recommended\n    identity: []\n    description:\n      - ref: some.attr\n",
-        );
-        assert!(
-            errors.iter().any(|e| matches!(
-                e,
-                Error::CompoundError(inner) if inner.iter().any(|e| matches!(
-                    e,
-                    Error::EntityMissingIdentity { group_id, .. } if group_id == "my_entity"
-                ))
-            )),
-            "expected EntityMissingIdentity for `my_entity`, got: {errors:?}"
-        );
-    }
-
-    #[test]
-    fn test_v2_entity_with_identity_ok() {
-        let errors = validate_yaml(
-            "entities:\n  - type: my_entity\n    brief: b\n    stability: stable\n    requirement_level: recommended\n    identity:\n      - ref: some.attr\n",
-        );
-        assert!(
-            !errors
-                .iter()
-                .any(|e| matches!(e, Error::EntityMissingIdentity { .. })),
-            "did not expect EntityMissingIdentity, got: {errors:?}"
-        );
-    }
-
-    fn parse_and_translate(v2: &str, v1: &str) {
-        let spec = serde_yaml::from_str::<SemConvSpecV2>(v2).expect("Failed to parse YAML string");
-        let expected =
-            serde_yaml::from_str::<SemConvSpecV1>(v1).expect("Failed to parse expected YAML");
-        let result = spec.into_v1_specification("test_attribute_group");
-        let result_yaml = serde_yaml::to_string(&result).expect("Unable to write YAML from v1");
-        assert_eq!(
-            expected, result,
-            "Expected yaml\n:{v1}\nFound yaml:\n{result_yaml}"
-        );
-    }
-
-    #[test]
-    fn test_value_spec_display() {
-        parse_and_translate(
-            // V2 - Span
-            r#"
-attributes:
-  - key: test.attribute
-    type: int
-    brief: A test attribute
-    stability: stable
-attribute_groups:
-  - id: test
-    visibility: internal
-    attributes:
-      - ref: test.attribute
-metrics:
-  - name: my_metric
-    brief: Test metric
-    stability: stable
-    instrument: histogram
-    unit: s
-    attributes:
-      - ref_group: test
-entities:
-  - type: my_entity
-    identity:
-      - ref: some_attr
-    description:
-      - ref: some_other_attr
-    brief: Test entity
-    stability: stable
-events:
-  - name: my_event
-    brief: Test event
-    stability: stable
-spans:
-  - type: my_span
-    name:
-      note: "{some} {name}"
-    stability: stable
-    kind: client
-    brief: Test span
-imports:
-  metrics:
-    - foo/*
-"#,
-            // V1 - Groups
-            r#"
-groups:
-- id: registry.test_attribute_group
-  type: attribute_group
-  brief: <synthetic v2>
-  is_v2: true
-  attributes:
-  - id: test.attribute
-    type: int
-    brief: A test attribute
-    requirement_level: recommended
-    stability: stable
-- id: entity.my_entity
-  type: entity
-  name: my_entity
-  brief: Test entity
-  stability: stable
-  is_v2: true
-  attributes:
-  - ref: some_attr
-    role: identifying
-  - ref: some_other_attr
-    role: descriptive
-- id: event.my_event
-  type: event
-  name: my_event
-  brief: Test event
-  stability: stable
-  is_v2: true
-- id: metric.my_metric
-  type: metric
-  metric_name: my_metric
-  brief: Test metric
-  stability: stable
-  is_v2: true
-  instrument: histogram
-  unit: s
-  include_groups:
-  - test
-- id: span.my_span
-  type: span
-  brief: Test span
-  name: my_span
-  span_kind: client
-  stability: stable
-  is_v2: true
-  span_name:
-    note: "{some} {name}"
-- id: test
-  type: attribute_group
-  brief: test
-  is_v2: true
-  attributes:
-  - ref: test.attribute
-  visibility: internal
-imports:
-  metrics:
-  - foo/*
-"#,
-        );
-    }
-
-    #[test]
-    fn test_refinements() {
-        parse_and_translate(
-            r#"
-metric_refinements:
-  - id: metric.my.refined.metric
-    ref: base.metric
-    brief: Refined metric brief
-span_refinements:
-  - id: span.my.refined.span
-    ref: base.span
-event_refinements:
-  - id: event.my.refined.event
-    ref: base.event
-    brief: Refined event brief
-entity_refinements:
-  - id: entity.my.refined.entity
-    ref: base.entity
-    brief: Refined entity brief
-"#,
-            r#"
-groups:
-- id: entity.my.refined.entity
-  type: entity
-  name: entity.my.refined.entity
-  brief: Refined entity brief
-  extends: entity.base.entity
-  is_v2: true
-- id: event.my.refined.event
-  type: event
-  name: event.my.refined.event
-  brief: Refined event brief
-  extends: event.base.event
-  is_v2: true
-- id: metric.my.refined.metric
-  type: metric
-  brief: Refined metric brief
-  extends: metric.base.metric
-  is_v2: true
-- id: span.my.refined.span
-  type: span
-  brief: ""
-  name: span.my.refined.span
-  extends: span.base.span
-  is_v2: true
-"#,
-        );
-    }
 
     #[test]
     fn test_semconv_spec_v2_is_empty() {
@@ -694,8 +371,8 @@ groups:
         let non_empty_spec = SemConvSpecV2 {
             attributes: vec![AttributeDef {
                 key: "test".to_owned(),
-                r#type: crate::attribute::AttributeType::PrimitiveOrArray(
-                    crate::attribute::PrimitiveOrArrayTypeSpec::String,
+                r#type: attribute::AttributeType::PrimitiveOrArray(
+                    attribute::PrimitiveOrArrayTypeSpec::String,
                 ),
                 examples: None,
                 common: CommonFields {
@@ -726,33 +403,348 @@ groups:
     }
 
     #[test]
+    fn test_group_wildcard_display() {
+        let pattern = Glob::new("metric.http.server.*").expect("valid glob pattern");
+        let wildcard = GroupWildcard(pattern);
+        assert_eq!(format!("{wildcard}"), "metric.http.server.*");
+    }
+
+    #[test]
     fn test_semconv_spec_v2_constructor_and_accessors() {
-        let spec = SemConvSpecV2::new(
-            vec![AttributeDef {
-                key: "test".to_owned(),
-                r#type: crate::attribute::AttributeType::PrimitiveOrArray(
-                    crate::attribute::PrimitiveOrArrayTypeSpec::String,
+        let spec = SemConvSpecV2 {
+            attributes: vec![AttributeDef {
+                key: "http.request.method".to_owned(),
+                r#type: attribute::AttributeType::PrimitiveOrArray(
+                    attribute::PrimitiveOrArrayTypeSpec::String,
                 ),
                 examples: None,
                 common: CommonFields {
-                    brief: "test".to_owned(),
+                    brief: "HTTP request method".to_owned(),
                     note: String::new(),
                     stability: Stability::Stable,
                     deprecated: None,
                     annotations: Default::default(),
                 },
             }],
-            vec![],
-            vec![],
-            vec![],
-            vec![],
+            entities: vec![Entity {
+                r#type: "service.instance".into(),
+                identity: vec![],
+                description: vec![],
+                requirement_level: None,
+                common: CommonFields {
+                    brief: "Service instance entity".to_owned(),
+                    note: String::new(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+            }],
+            events: vec![Event {
+                name: "user.login".into(),
+                attributes: vec![],
+                entity_associations: vec![],
+                requirement_level: None,
+                common: CommonFields {
+                    brief: "User login event".to_owned(),
+                    note: String::new(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+            }],
+            metrics: vec![Metric {
+                name: "http.server.request.duration".into(),
+                instrument: metric::InstrumentSpec::Histogram,
+                unit: "ms".to_owned(),
+                attributes: vec![],
+                entity_associations: vec![],
+                requirement_level: None,
+                common: CommonFields {
+                    brief: "HTTP server request duration".to_owned(),
+                    note: String::new(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+            }],
+            spans: vec![Span {
+                r#type: "http.server".into(),
+                kind: span::SpanKindSpec::Server,
+                name: span::SpanName {
+                    note: "HTTP GET".to_owned(),
+                },
+                attributes: vec![],
+                entity_associations: vec![],
+                links: vec![],
+                requirement_level: None,
+                common: CommonFields {
+                    brief: "HTTP server span".to_owned(),
+                    note: String::new(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+            }],
+            attribute_groups: vec![AttributeGroup::Public(
+                attribute_group::PublicAttributeGroup {
+                    id: "network.connection".into(),
+                    attributes: vec![],
+                    common: CommonFields {
+                        brief: "Network connection attributes".to_owned(),
+                        note: String::new(),
+                        stability: Stability::Stable,
+                        deprecated: None,
+                        annotations: Default::default(),
+                    },
+                },
+            )],
+            entity_refinements: vec![EntityRefinement {
+                id: "custom.service.instance".into(),
+                r#ref: "service.instance".into(),
+                identity: vec![],
+                description: vec![],
+                brief: Some("Custom service instance refinement".to_owned()),
+                note: None,
+                stability: None,
+                deprecated: None,
+                annotations: Default::default(),
+            }],
+            event_refinements: vec![EventRefinement {
+                id: "custom.user.login".into(),
+                r#ref: "user.login".into(),
+                attributes: vec![],
+                entity_associations: vec![],
+                brief: Some("Custom user login refinement".to_owned()),
+                note: None,
+                stability: None,
+                deprecated: None,
+                annotations: Default::default(),
+            }],
+            metric_refinements: vec![MetricRefinement {
+                id: "custom.http.server.request.duration".into(),
+                r#ref: "http.server.request.duration".into(),
+                attributes: vec![],
+                entity_associations: vec![],
+                brief: Some("Custom metric refinement".to_owned()),
+                note: None,
+                stability: None,
+                deprecated: None,
+                annotations: Default::default(),
+            }],
+            span_refinements: vec![SpanRefinement {
+                id: "custom.http.server".into(),
+                r#ref: "http.server".into(),
+                name: None,
+                attributes: vec![],
+                entity_associations: vec![],
+                brief: Some("Custom span refinement".to_owned()),
+                note: None,
+                stability: None,
+                deprecated: None,
+                annotations: Default::default(),
+            }],
+            imports: Some(Imports {
+                metrics: None,
+                events: None,
+                entities: None,
+                spans: Some(vec![GroupWildcard(
+                    Glob::new("rpc.client.*").expect("valid glob pattern"),
+                )]),
+                attribute_groups: None,
+            }),
+        };
+
+        // Assert all 11 accessors return their exact, uniquely-identified and non-empty data
+        assert_eq!(spec.attributes().len(), 1);
+        assert_eq!(spec.attributes()[0].key, "http.request.method");
+
+        assert_eq!(spec.entities().len(), 1);
+        assert_eq!(&*spec.entities()[0].r#type, "service.instance");
+
+        assert_eq!(spec.events().len(), 1);
+        assert_eq!(&*spec.events()[0].name, "user.login");
+
+        assert_eq!(spec.metrics().len(), 1);
+        assert_eq!(&*spec.metrics()[0].name, "http.server.request.duration");
+
+        assert_eq!(spec.spans().len(), 1);
+        assert_eq!(&*spec.spans()[0].r#type, "http.server");
+
+        assert_eq!(spec.attribute_groups().len(), 1);
+        match &spec.attribute_groups()[0] {
+            AttributeGroup::Public(g) => {
+                assert_eq!(&*g.id, "network.connection");
+            }
+            AttributeGroup::Internal(g) => {
+                assert_eq!(&*g.id, "network.connection");
+            }
+        }
+
+        assert_eq!(spec.entity_refinements().len(), 1);
+        assert_eq!(&*spec.entity_refinements()[0].id, "custom.service.instance");
+
+        assert_eq!(spec.event_refinements().len(), 1);
+        assert_eq!(&*spec.event_refinements()[0].id, "custom.user.login");
+
+        assert_eq!(spec.metric_refinements().len(), 1);
+        assert_eq!(
+            &*spec.metric_refinements()[0].id,
+            "custom.http.server.request.duration"
         );
 
-        assert_eq!(spec.attributes().len(), 1);
-        assert!(spec.entities().is_empty());
-        assert!(spec.events().is_empty());
-        assert!(spec.metrics().is_empty());
-        assert!(spec.spans().is_empty());
+        assert_eq!(spec.span_refinements().len(), 1);
+        assert_eq!(&*spec.span_refinements()[0].id, "custom.http.server");
+
+        let imports = spec.imports().expect("imports should be present");
+        let imported_spans = imports
+            .spans
+            .as_ref()
+            .expect("spans wildcard should be present");
+        assert_eq!(imported_spans.len(), 1);
+        assert_eq!(imported_spans[0].0.glob(), "rpc.client.*");
+
         assert!(!spec.is_empty());
+
+        // Also test the SemConvSpecV2::new constructor correctly wires initial 5 signals
+        let new_spec = SemConvSpecV2::new(
+            spec.attributes.clone(),
+            spec.entities.clone(),
+            spec.events.clone(),
+            spec.metrics.clone(),
+            spec.spans.clone(),
+        );
+        assert_eq!(new_spec.attributes()[0].key, "http.request.method");
+        assert_eq!(&*new_spec.entities()[0].r#type, "service.instance");
+        assert_eq!(&*new_spec.events()[0].name, "user.login");
+        assert_eq!(&*new_spec.metrics()[0].name, "http.server.request.duration");
+        assert_eq!(&*new_spec.spans()[0].r#type, "http.server");
+        assert!(new_spec.attribute_groups().is_empty());
+        assert!(new_spec.imports().is_none());
+    }
+
+    #[test]
+    fn test_validate_missing_requirement_level_warning() {
+        let spec = SemConvSpecV2 {
+            attributes: vec![],
+            entities: vec![Entity {
+                r#type: SignalId::from("k8s.pod"),
+                identity: vec![AttributeRef {
+                    r#ref: "k8s.pod.uid".to_owned(),
+                    brief: None,
+                    examples: None,
+                    requirement_level: None,
+                    note: None,
+                    annotations: Default::default(),
+                }],
+                description: vec![],
+                common: CommonFields {
+                    brief: "Kubernetes pod".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+                requirement_level: None, // Triggers warning
+            }],
+            events: vec![],
+            metrics: vec![],
+            spans: vec![],
+            attribute_groups: vec![],
+            entity_refinements: vec![],
+            event_refinements: vec![],
+            metric_refinements: vec![],
+            span_refinements: vec![],
+            imports: None,
+        };
+
+        let result = spec.validate("test_prov");
+        match result {
+            WResult::OkWithNFEs(_, warnings) => {
+                assert_eq!(warnings.len(), 1);
+                assert!(matches!(
+                    warnings[0],
+                    Error::MissingRequirementLevelWarning { .. }
+                ));
+            }
+            _ => panic!("Expected OkWithNFEs"),
+        }
+    }
+
+    #[test]
+    fn test_validate_entity_missing_identity() {
+        let spec = SemConvSpecV2 {
+            attributes: vec![],
+            entities: vec![Entity {
+                r#type: SignalId::from("invalid.entity"),
+                identity: vec![], // Missing identity -> fatal error
+                description: vec![],
+                common: CommonFields {
+                    brief: "Invalid entity".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+                requirement_level: None,
+            }],
+            events: vec![],
+            metrics: vec![],
+            spans: vec![],
+            attribute_groups: vec![],
+            entity_refinements: vec![],
+            event_refinements: vec![],
+            metric_refinements: vec![],
+            span_refinements: vec![],
+            imports: None,
+        };
+
+        let result = spec.validate("test_prov");
+        assert!(matches!(result, WResult::FatalErr(_)));
+    }
+
+    #[test]
+    fn test_validate_identity_and_description_overlap() {
+        let spec = SemConvSpecV2 {
+            attributes: vec![],
+            entities: vec![Entity {
+                r#type: SignalId::from("overlap.entity"),
+                identity: vec![AttributeRef {
+                    r#ref: "shared.attr".to_owned(),
+                    brief: None,
+                    examples: None,
+                    requirement_level: None,
+                    note: None,
+                    annotations: Default::default(),
+                }],
+                description: vec![AttributeRef {
+                    r#ref: "shared.attr".to_owned(), // Duplicate in description
+                    brief: None,
+                    examples: None,
+                    requirement_level: None,
+                    note: None,
+                    annotations: Default::default(),
+                }],
+                common: CommonFields {
+                    brief: "Overlap entity".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+                requirement_level: None,
+            }],
+            events: vec![],
+            metrics: vec![],
+            spans: vec![],
+            attribute_groups: vec![],
+            entity_refinements: vec![],
+            event_refinements: vec![],
+            metric_refinements: vec![],
+            span_refinements: vec![],
+            imports: None,
+        };
+
+        let result = spec.validate("test_prov");
+        assert!(matches!(result, WResult::FatalErr(_)));
     }
 }

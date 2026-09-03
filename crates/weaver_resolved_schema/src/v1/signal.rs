@@ -4,11 +4,11 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_semconv::any_value::AnyValueSpec;
+use weaver_semconv::v1::any_value::AnyValueSpec;
 
-use crate::attribute::AttributeRef;
-use crate::metric::MetricRef;
-use crate::tags::Tags;
+use crate::v1::attribute::AttributeRef;
+use crate::v1::metric::MetricRef;
+use crate::v1::tags::Tags;
 
 /// A univariate metric signal.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]

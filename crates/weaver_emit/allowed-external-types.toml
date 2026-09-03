@@ -5,9 +5,9 @@
 allowed_external_types = [
     "serde_core::ser::Serialize",
     "miette::protocol::Diagnostic",
-    "weaver_forge::registry::ResolvedRegistry",
+    "weaver_forge::v1::registry::ResolvedRegistry",
     "opentelemetry::common::KeyValue",
-    "weaver_resolved_schema::attribute::Attribute",
+    "weaver_resolved_schema::v1::attribute::Attribute",
     "weaver_forge::v2::attribute::Attribute",
     "weaver_forge::v2::registry::ForgeResolvedRegistry",
 ]

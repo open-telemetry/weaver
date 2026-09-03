@@ -130,7 +130,7 @@ fn resolved_metric<AC: AttributeCatalog>(
     ResolvedId::Metric(ResolvedMetric {
         metric: weaver_forge::v2::metric::Metric {
             name: m.name.clone(),
-            instrument: m.instrument.clone(),
+            instrument: m.instrument,
             unit: m.unit.clone(),
             requirement_level: m.requirement_level.clone(),
             attributes,
@@ -168,7 +168,7 @@ fn resolved_span<AC: AttributeCatalog>(s: &Span, catalog: &AC, deps: &[SchemaUrl
             r#type: s.r#type.clone(),
             name: s.name.clone(),
             attributes,
-            kind: s.kind.clone(),
+            kind: s.kind,
             entity_associations: from_resolved_associations(&s.entity_associations, deps),
             requirement_level: s.requirement_level.clone(),
             common: s.common.clone(),
@@ -445,10 +445,13 @@ mod tests {
         ResolvedTelemetrySchema,
     };
     use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
-    use weaver_semconv::{
-        attribute::{AttributeType, PrimitiveOrArrayTypeSpec},
-        group::InstrumentSpec,
-        v2::{span::SpanName, CommonFields},
+    use weaver_semconv::v2::{
+        attribute::{
+            AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
+        },
+        metric::InstrumentSpec,
+        span::{SpanKindSpec, SpanName},
+        CommonFields,
     };
 
     use crate::{Error, MarkdownSnippetGenerator, SnipperGeneratorV2};
@@ -510,8 +513,8 @@ mod tests {
                     id: "test.common".to_owned().into(),
                     attributes: vec![AttributeGroupAttributeRef {
                         base: AttributeRef(0),
-                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                            weaver_semconv::attribute::BasicRequirementLevelSpec::Recommended,
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Recommended,
                         ),
                     }],
                     common: CommonFields::default(),
@@ -520,14 +523,14 @@ mod tests {
                 spans: vec![Span {
                     requirement_level: Some(SignalRequirementLevel::Recommended),
                     r#type: "trace.test".to_owned().into(),
-                    kind: weaver_semconv::group::SpanKindSpec::Client,
+                    kind: SpanKindSpec::Client,
                     name: SpanName {
                         note: "note".to_owned(),
                     },
                     attributes: vec![SpanAttributeRef {
                         base: AttributeRef(0),
-                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Required,
                         ),
                         sampling_relevant: None,
                     }],
@@ -543,8 +546,8 @@ mod tests {
                     requirement_level: Some(SignalRequirementLevel::Recommended),
                     attributes: vec![MetricAttributeRef {
                         base: AttributeRef(0),
-                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Required,
                         ),
                     }],
                     entity_associations: vec![],
@@ -556,8 +559,8 @@ mod tests {
                     name: "test.event".to_owned().into(),
                     attributes: vec![EventAttributeRef {
                         base: AttributeRef(0),
-                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Required,
                         ),
                     }],
                     entity_associations: vec![],
@@ -569,8 +572,8 @@ mod tests {
                     r#type: "test.entity".to_owned().into(),
                     identity: vec![EntityAttributeRef {
                         base: AttributeRef(0),
-                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Required,
                         ),
                     }],
                     description: vec![],
@@ -584,14 +587,14 @@ mod tests {
                     span: Span {
                         requirement_level: None,
                         r#type: "trace.test".to_owned().into(),
-                        kind: weaver_semconv::group::SpanKindSpec::Client,
+                        kind: SpanKindSpec::Client,
                         name: SpanName {
                             note: "note".to_owned(),
                         },
                         attributes: vec![SpanAttributeRef {
                             base: AttributeRef(0),
-                            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                            requirement_level: RequirementLevel::Basic(
+                                BasicRequirementLevelSpec::Required,
                             ),
                             sampling_relevant: None,
                         }],
@@ -610,8 +613,8 @@ mod tests {
                         requirement_level: Some(SignalRequirementLevel::OptIn),
                         attributes: vec![MetricAttributeRef {
                             base: AttributeRef(0),
-                            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                            requirement_level: RequirementLevel::Basic(
+                                BasicRequirementLevelSpec::Required,
                             ),
                         }],
                         entity_associations: vec![],
@@ -626,8 +629,8 @@ mod tests {
                         name: "test.event".to_owned().into(),
                         attributes: vec![EventAttributeRef {
                             base: AttributeRef(0),
-                            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                            requirement_level: RequirementLevel::Basic(
+                                BasicRequirementLevelSpec::Required,
                             ),
                         }],
                         entity_associations: vec![],
@@ -642,8 +645,8 @@ mod tests {
                         r#type: "test.entity".to_owned().into(),
                         identity: vec![EntityAttributeRef {
                             base: AttributeRef(0),
-                            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                            requirement_level: RequirementLevel::Basic(
+                                BasicRequirementLevelSpec::Required,
                             ),
                         }],
                         description: vec![],

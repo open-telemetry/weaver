@@ -4,8 +4,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use serde::Serialize;
 use weaver_semconv::{
-    group::{InstrumentSpec, SpanKindSpec},
     stability::Stability,
+    v2::{metric::InstrumentSpec, span::SpanKindSpec},
 };
 
 /// Statistics on a resolved telemetry schema.

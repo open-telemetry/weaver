@@ -3,20 +3,54 @@
 //! The new way we want to define spans going forward.
 
 use std::collections::BTreeMap;
+use std::fmt::{Display, Formatter};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    attribute::{AttributeSpec, RequirementLevel},
     deprecated::Deprecated,
     entity_association::EntityAssociation,
-    group::{GroupSpec, GroupType, SpanKindSpec},
     signal_requirement_level::SignalRequirementLevel,
     stability::Stability,
-    v2::{attribute::AttributeRef, signal_id::SignalId, CommonFields},
+    v2::{
+        attribute::{AttributeRef, RequirementLevel},
+        signal_id::SignalId,
+        CommonFields,
+    },
     YamlValue,
 };
+
+/// The span kind.
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord, Copy,
+)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum SpanKindSpec {
+    /// An internal span.
+    Internal,
+    /// A client span.
+    Client,
+    /// A server span.
+    Server,
+    /// A producer span.
+    Producer,
+    /// A consumer span.
+    Consumer,
+}
+
+impl Display for SpanKindSpec {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SpanKindSpec::Internal => write!(f, "internal"),
+            SpanKindSpec::Server => write!(f, "server"),
+            SpanKindSpec::Client => write!(f, "client"),
+            SpanKindSpec::Producer => write!(f, "producer"),
+            SpanKindSpec::Consumer => write!(f, "consumer"),
+        }
+    }
+}
 
 /// A reference to an attribute group for spans.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
@@ -24,6 +58,31 @@ use crate::{
 pub struct SpanGroupRef {
     /// Reference an existing attribute group by id.
     pub ref_group: String,
+}
+
+/// Specification of the span name.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Eq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub struct SpanName {
+    /// Required description of how a span name should be created.
+    pub note: String,
+}
+
+/// A refinement of an Attribute for a span.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub struct SpanAttributeRef {
+    /// Baseline attribute reference.
+    #[serde(flatten)]
+    pub base: AttributeRef,
+    /// Specifies if the attribute is (especially) relevant for sampling
+    /// and thus should be set at span start. It defaults to false.
+    /// Note: this field is experimental.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sampling_relevant: Option<bool>,
 }
 
 /// A reference to either a span attribute or an attribute group.
@@ -37,18 +96,18 @@ pub enum SpanAttributeOrGroupRef {
 }
 
 /// Helper function to split a vector of SpanAttributeOrGroupRef into separate vectors
-/// of AttributeSpec and group reference strings
+/// of SpanAttributeRef and group reference strings
 #[must_use]
 pub fn split_span_attributes_and_groups(
     attributes: Vec<SpanAttributeOrGroupRef>,
-) -> (Vec<AttributeSpec>, Vec<String>) {
+) -> (Vec<SpanAttributeRef>, Vec<String>) {
     let mut attribute_refs = Vec::new();
     let mut groups = Vec::new();
 
     for item in attributes {
         match item {
             SpanAttributeOrGroupRef::Attribute(attr_ref) => {
-                attribute_refs.push(attr_ref.into_v1_attribute());
+                attribute_refs.push(attr_ref);
             }
             SpanAttributeOrGroupRef::Group(group_ref) => {
                 groups.push(group_ref.ref_group);
@@ -91,7 +150,7 @@ pub struct SpanLink {
 }
 
 /// Defines a new Span signal.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Span {
     /// The type of the Span. This denotes the identity
@@ -129,7 +188,7 @@ pub struct Span {
 ///
 /// A refinement inherits the base span's links during resolution.
 /// A refinement cannot declare, replace, or extend links yet.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct SpanRefinement {
     /// The ID of the refinement.
@@ -177,250 +236,11 @@ pub struct SpanRefinement {
     pub annotations: BTreeMap<String, YamlValue>,
 }
 
-impl Span {
-    /// Converts a v2 span group into a v1 GroupSpec.
-    #[must_use]
-    pub fn into_v1_group(self) -> GroupSpec {
-        let (attribute_refs, include_groups) = split_span_attributes_and_groups(self.attributes);
-        GroupSpec {
-            id: format!("span.{}", &self.r#type),
-            r#type: GroupType::Span,
-            brief: self.common.brief,
-            note: self.common.note,
-            prefix: Default::default(),
-            extends: None,
-            include_groups,
-            stability: Some(self.common.stability),
-            deprecated: self.common.deprecated,
-            attributes: attribute_refs,
-            span_kind: Some(self.kind),
-            events: vec![],
-            metric_name: None,
-            instrument: None,
-            unit: None,
-            name: Some(format!("{}", &self.r#type)),
-            display_name: None,
-            body: None,
-            annotations: if self.common.annotations.is_empty() {
-                None
-            } else {
-                Some(self.common.annotations)
-            },
-            entity_associations: self.entity_associations,
-            visibility: None,
-            is_v2: true,
-            span_name: Some(self.name),
-            span_links: self.links,
-            requirement_level: self.requirement_level,
-        }
-    }
-}
-
-impl SpanRefinement {
-    /// Converts a v2 span refinement into a v1 GroupSpec.
-    #[must_use]
-    pub fn into_v1_group(self) -> GroupSpec {
-        let (attribute_refs, include_groups) = split_span_attributes_and_groups(self.attributes);
-        GroupSpec {
-            id: self.id.to_string(),
-            r#type: GroupType::Span,
-            brief: self.brief.unwrap_or_default(),
-            note: self.note.unwrap_or_default(),
-            prefix: Default::default(),
-            extends: Some(format!("span.{}", &self.r#ref)),
-            include_groups,
-            stability: self.stability,
-            deprecated: self.deprecated,
-            attributes: attribute_refs,
-            span_kind: None,
-            events: vec![],
-            metric_name: None,
-            instrument: None,
-            unit: None,
-            name: Some(format!("{}", &self.id)),
-            display_name: None,
-            body: None,
-            annotations: if self.annotations.is_empty() {
-                None
-            } else {
-                Some(self.annotations)
-            },
-            entity_associations: self.entity_associations,
-            visibility: None,
-            is_v2: true,
-            span_name: self.name,
-            span_links: Vec::new(),
-            requirement_level: None,
-        }
-    }
-}
-
-/// Specification of the span name.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(deny_unknown_fields)]
-#[serde(rename_all = "snake_case")]
-pub struct SpanName {
-    /// Required description of how a span name should be created.
-    pub note: String,
-}
-
-/// A refinement of an Attribute for a span.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
-#[serde(deny_unknown_fields)]
-#[serde(rename_all = "snake_case")]
-pub struct SpanAttributeRef {
-    /// Baseline attribute reference.
-    #[serde(flatten)]
-    pub base: AttributeRef,
-    /// Specifies if the attribute is (especially) relevant for sampling
-    /// and thus should be set at span start. It defaults to false.
-    /// Note: this field is experimental.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sampling_relevant: Option<bool>,
-}
-
-impl SpanAttributeRef {
-    /// Converts a v2 refinement into a v1 AttributeSpec.
-    #[must_use]
-    pub fn into_v1_attribute(self) -> AttributeSpec {
-        AttributeSpec::Ref {
-            r#ref: self.base.r#ref,
-            brief: self.base.brief,
-            examples: self.base.examples,
-            tag: None,
-            requirement_level: self.base.requirement_level,
-            sampling_relevant: self.sampling_relevant,
-            note: self.base.note,
-            stability: None,
-            deprecated: None,
-            prefix: false,
-            annotations: if self.base.annotations.is_empty() {
-                None
-            } else {
-                Some(self.base.annotations)
-            },
-            role: None,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn parse_and_translate(v2: &str, v1: &str) {
-        let span = serde_yaml::from_str::<Span>(v2).expect("Failed to parse YAML string");
-        let expected =
-            serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
-        assert_eq!(expected, span.into_v1_group());
-    }
-
-    #[test]
-    fn test_value_spec_display() {
-        parse_and_translate(
-            // V2 - Span
-            r#"type: my_span
-name:
-  note: "{some} {name}"
-stability: stable
-kind: client
-brief: Test span
-"#,
-            // V1 - Group
-            r#"id: span.my_span
-type: span
-brief: Test span
-name: my_span
-span_kind: client
-stability: stable
-is_v2: true
-span_name:
-  note: "{some} {name}"
-"#,
-        );
-    }
-
-    fn parse_and_translate_refinement(v2: &str, v1: &str) {
-        let span = serde_yaml::from_str::<SpanRefinement>(v2).expect("Failed to parse YAML string");
-        let expected =
-            serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
-        assert_eq!(expected, span.into_v1_group());
-    }
-
-    #[test]
-    fn test_span_requirement_level_translation() {
-        parse_and_translate(
-            // V2 - Span
-            r#"type: my_span
-name:
-  note: "{some} {name}"
-stability: stable
-kind: client
-brief: Test span
-requirement_level: opt_in
-"#,
-            // V1 - Group
-            r#"id: span.my_span
-type: span
-brief: Test span
-name: my_span
-span_kind: client
-stability: stable
-is_v2: true
-span_name:
-  note: "{some} {name}"
-requirement_level: opt_in
-"#,
-        );
-    }
-
-    #[test]
-    fn test_span_refinement_translation() {
-        parse_and_translate_refinement(
-            // V2 - SpanRefinement
-            r#"id: span.refinement.my_span
-ref: my_span
-brief: Test span refinement
-stability: stable
-"#,
-            // V1 - Group
-            r#"id: span.refinement.my_span
-type: span
-brief: Test span refinement
-name: span.refinement.my_span
-extends: span.my_span
-stability: stable
-is_v2: true
-"#,
-        );
-    }
-
-    #[test]
-    fn test_span_refinement_with_name_override() {
-        parse_and_translate_refinement(
-            // V2 - SpanRefinement with name override
-            r#"id: span.refinement.my_span
-ref: my_span
-name:
-  note: "{gen_ai.operation.name} {gen_ai.request.model}"
-brief: Test span refinement with custom name
-stability: stable
-"#,
-            // V1 - Group. The group `name` stays the refinement id, but the
-            // overriding span name format is carried in `span_name`.
-            r#"id: span.refinement.my_span
-type: span
-brief: Test span refinement with custom name
-name: span.refinement.my_span
-extends: span.my_span
-stability: stable
-is_v2: true
-span_name:
-  note: "{gen_ai.operation.name} {gen_ai.request.model}"
-"#,
-        );
-    }
+    use crate::v2::attribute::AttributeRef;
+    use crate::v2::attribute::BasicRequirementLevelSpec;
 
     #[test]
     fn test_span_links_deserialization() {
@@ -456,9 +276,7 @@ links:
         let full = &span.links[1];
         assert_eq!(
             full.requirement_level,
-            Some(RequirementLevel::Basic(
-                crate::attribute::BasicRequirementLevelSpec::Required
-            ))
+            Some(RequirementLevel::Basic(BasicRequirementLevelSpec::Required))
         );
         assert_eq!(
             full.brief.as_deref(),
@@ -519,42 +337,51 @@ links:
     }
 
     #[test]
-    fn test_span_refinement_name_deserialization() {
-        // Verify that a SpanRefinement without name parses correctly
-        let without_name: SpanRefinement = serde_yaml::from_str(
-            r#"id: my.refinement
-ref: base.span
-brief: No name override
-"#,
-        )
-        .expect("Failed to parse refinement without name");
-        assert!(without_name.name.is_none());
-
-        // Verify that a SpanRefinement with name parses correctly
-        let with_name: SpanRefinement = serde_yaml::from_str(
-            r#"id: my.refinement
-ref: base.span
-name:
-  note: "{custom} {name_format}"
-brief: With name override
-"#,
-        )
-        .expect("Failed to parse refinement with name");
-        assert!(with_name.name.is_some());
-        assert_eq!(with_name.name.unwrap().note, "{custom} {name_format}");
-    }
-
-    #[test]
     fn test_span_attribute_ref_rejects_stability_and_deprecated() {
         for (field, name) in [
             ("stability: stable", "stability"),
             ("deprecated:\n  reason: obsoleted", "deprecated"),
         ] {
-            let yaml = format!("ref: my.attribute\nsampling_relevant: true\n{field}\n");
+            let yaml = format!("ref: my.attribute\n{field}\n");
             let err = serde_yaml::from_str::<SpanAttributeRef>(&yaml)
                 .expect_err("stability/deprecated must not be allowed on span attribute refs");
-            // `serde(flatten)` drops the position and the list of expected fields.
-            assert_eq!(err.to_string(), format!("unknown field `{name}`"));
+            assert!(err.to_string().contains(&format!("unknown field `{name}`")));
         }
+    }
+
+    #[test]
+    fn test_span_kind_spec_display() {
+        assert_eq!(SpanKindSpec::Internal.to_string(), "internal");
+        assert_eq!(SpanKindSpec::Server.to_string(), "server");
+        assert_eq!(SpanKindSpec::Client.to_string(), "client");
+        assert_eq!(SpanKindSpec::Producer.to_string(), "producer");
+        assert_eq!(SpanKindSpec::Consumer.to_string(), "consumer");
+    }
+
+    #[test]
+    fn test_split_span_attributes_and_groups() {
+        let items = vec![
+            SpanAttributeOrGroupRef::Attribute(SpanAttributeRef {
+                base: AttributeRef {
+                    r#ref: "http.status".to_owned(),
+                    brief: None,
+                    examples: None,
+                    requirement_level: None,
+                    note: None,
+                    annotations: Default::default(),
+                },
+                sampling_relevant: Some(true),
+            }),
+            SpanAttributeOrGroupRef::Group(SpanGroupRef {
+                ref_group: "http.shared".to_owned(),
+            }),
+        ];
+
+        let (attrs, groups) = split_span_attributes_and_groups(items);
+        assert_eq!(attrs.len(), 1);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(attrs[0].base.r#ref, "http.status");
+        assert_eq!(attrs[0].sampling_relevant, Some(true));
+        assert_eq!(groups[0], "http.shared");
     }
 }

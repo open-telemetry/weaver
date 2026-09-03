@@ -46,3 +46,74 @@ impl Refinements {
         RefinementStats {}
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use weaver_semconv::v2::CommonFields;
+
+    #[test]
+    fn test_refinements_serde() {
+        let refinements = Refinements {
+            spans: vec![SpanRefinement {
+                id: "http.client.request".to_owned().into(),
+                span: crate::v2::span::Span {
+                    links: vec![],
+                    r#type: "http.client".to_owned().into(),
+                    kind: weaver_semconv::v2::span::SpanKindSpec::Client,
+                    name: weaver_semconv::v2::span::SpanName {
+                        note: "HTTP GET".to_owned(),
+                    },
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    requirement_level: None,
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                },
+            }],
+            metrics: vec![MetricRefinement {
+                id: "http.server.duration".to_owned().into(),
+                metric: crate::v2::metric::Metric {
+                    name: "http.server.duration".to_owned().into(),
+                    instrument: weaver_semconv::v2::metric::InstrumentSpec::Histogram,
+                    unit: "ms".to_owned(),
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    requirement_level: None,
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                },
+            }],
+            events: vec![EventRefinement {
+                id: "exception".to_owned().into(),
+                event: crate::v2::event::Event {
+                    name: "exception".to_owned().into(),
+                    attributes: vec![],
+                    entity_associations: vec![],
+                    requirement_level: None,
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                },
+            }],
+            entities: vec![EntityRefinement {
+                id: "k8s.pod".to_owned().into(),
+                entity: crate::v2::entity::Entity {
+                    r#type: "k8s.pod".to_owned().into(),
+                    identity: vec![],
+                    description: vec![],
+                    requirement_level: None,
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                },
+            }],
+        };
+        let json = serde_json::to_string(&refinements).expect("Serialization should succeed");
+        let deserialized: Refinements =
+            serde_json::from_str(&json).expect("Deserialization should succeed");
+        assert_eq!(refinements, deserialized);
+        assert_eq!(refinements.spans.len(), 1);
+        assert_eq!(refinements.metrics.len(), 1);
+        assert_eq!(refinements.events.len(), 1);
+        assert_eq!(refinements.entities.len(), 1);
+    }
+}

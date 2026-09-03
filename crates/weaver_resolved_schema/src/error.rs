@@ -4,11 +4,12 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::attribute::AttributeRef;
 use crate::error::Error::{
     AttributeNotFound, CompoundError, EntityAssociationNotFound, EventNameNotFound,
-    InvalidSchemaUrl, RefinementBaseNotFound, SpanLinkTargetNotFound, UnsupportedSpanLinkAttribute,
+    InvalidSchemaUrl, MissingMetricField, RefinementBaseNotFound, SpanLinkTargetNotFound,
+    UnsupportedSpanLinkAttribute,
 };
+use crate::v1::attribute::AttributeRef;
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug, Clone, Deserialize, Serialize)]
@@ -53,6 +54,15 @@ pub enum Error {
 
         /// The error message from the URL validation.
         error: String,
+    },
+
+    /// A required metric field (instrument, metric_name, or unit) is missing on a metric group in V1 schema.
+    #[error("Metric field '{field}' not found on group: {group_id}. This is not supported in V2 schema!")]
+    MissingMetricField {
+        /// Group id.
+        group_id: String,
+        /// Field name.
+        field: &'static str,
     },
 
     /// A span link references a span type that does not exist in the registry.
@@ -105,10 +115,75 @@ impl Error {
                     e @ RefinementBaseNotFound { .. } => vec![e],
                     e @ EntityAssociationNotFound { .. } => vec![e],
                     e @ InvalidSchemaUrl { .. } => vec![e],
+                    e @ MissingMetricField { .. } => vec![e],
                     e @ SpanLinkTargetNotFound { .. } => vec![e],
                     e @ UnsupportedSpanLinkAttribute { .. } => vec![e],
                 })
                 .collect(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_handle_errors_empty() {
+        assert!(handle_errors(vec![]).is_ok());
+    }
+
+    #[test]
+    fn test_handle_errors_and_compound_error_flattening() {
+        let err1 = AttributeNotFound {
+            group_id: "http.client".to_owned(),
+            attr_ref: AttributeRef(42),
+        };
+        let err2 = EventNameNotFound {
+            group_id: "event.unnamed".to_owned(),
+        };
+        let err3 = RefinementBaseNotFound {
+            group_id: "refinement.orphan".to_owned(),
+        };
+        let err4 = EntityAssociationNotFound {
+            group_id: "span.db".to_owned(),
+            entity_type: "db.instance".to_owned(),
+        };
+        let err5 = InvalidSchemaUrl {
+            url: "invalid::url".to_owned(),
+            error: "bad scheme".to_owned(),
+        };
+
+        // Format checks
+        assert!(err1
+            .to_string()
+            .contains("Attribute reference AttributeRef(42) (group: http.client) not found"));
+        assert!(err2
+            .to_string()
+            .contains("Event name not found on group: event.unnamed"));
+        assert!(err3
+            .to_string()
+            .contains("Refinement group refinement.orphan does not reference a base group"));
+        assert!(err4
+            .to_string()
+            .contains("Group span.db is associated with entity db.instance"));
+        assert!(err5
+            .to_string()
+            .contains("invalid schema URL: invalid::url"));
+
+        // Nested compound error flattening
+        let nested = CompoundError(vec![err1, err2]);
+        let compound = Error::compound_error(vec![nested, err3, err4, err5]);
+        match compound {
+            CompoundError(flat_errors) => {
+                assert_eq!(flat_errors.len(), 5);
+            }
+            _ => panic!("Expected Error::CompoundError"),
+        }
+
+        let res = handle_errors(vec![EventNameNotFound {
+            group_id: "group1".to_owned(),
+        }]);
+        assert!(res.is_err());
     }
 }

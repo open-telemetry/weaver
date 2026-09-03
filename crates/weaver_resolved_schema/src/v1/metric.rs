@@ -2,7 +2,7 @@
 
 //! Specification of a resolved metric.
 
-use crate::tags::Tags;
+use crate::v1::tags::Tags;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

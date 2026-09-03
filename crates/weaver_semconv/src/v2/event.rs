@@ -10,19 +10,14 @@ use serde::{Deserialize, Serialize};
 use crate::{
     deprecated::Deprecated,
     entity_association::EntityAssociation,
-    group::{GroupSpec, GroupType},
     signal_requirement_level::SignalRequirementLevel,
     stability::Stability,
-    v2::{
-        attribute::{split_attributes_and_groups, AttributeOrGroupRef},
-        signal_id::SignalId,
-        CommonFields,
-    },
+    v2::{attribute::AttributeOrGroupRef, signal_id::SignalId, CommonFields},
     YamlValue,
 };
 
 /// Defines a new event.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Event {
     /// The name of the event.
@@ -47,7 +42,7 @@ pub struct Event {
 }
 
 /// A refinement of an existing event.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct EventRefinement {
     /// The ID of the refinement.
@@ -84,140 +79,17 @@ pub struct EventRefinement {
     pub annotations: BTreeMap<String, YamlValue>,
 }
 
-impl Event {
-    /// Converts a v2 event into a v1 GroupSpec.
-    #[must_use]
-    pub fn into_v1_group(self) -> GroupSpec {
-        let (attribute_refs, include_groups) = split_attributes_and_groups(self.attributes);
-        GroupSpec {
-            id: format!("event.{}", &self.name),
-            r#type: GroupType::Event,
-            brief: self.common.brief,
-            note: self.common.note,
-            prefix: Default::default(),
-            extends: None,
-            include_groups,
-            stability: Some(self.common.stability),
-            deprecated: self.common.deprecated,
-            attributes: attribute_refs,
-            span_kind: None,
-            events: Default::default(),
-            metric_name: None,
-            instrument: None,
-            unit: None,
-            name: Some(self.name.into_v1()),
-            display_name: None,
-            body: None,
-            annotations: if self.common.annotations.is_empty() {
-                None
-            } else {
-                Some(self.common.annotations)
-            },
-            entity_associations: self.entity_associations,
-            visibility: None,
-            is_v2: true,
-            span_name: None,
-            span_links: Vec::new(),
-            requirement_level: self.requirement_level,
-        }
-    }
-}
-
-impl EventRefinement {
-    /// Converts a v2 event refinement into a v1 GroupSpec.
-    #[must_use]
-    pub fn into_v1_group(self) -> GroupSpec {
-        let (attribute_refs, include_groups) = split_attributes_and_groups(self.attributes);
-        GroupSpec {
-            id: self.id.to_string(),
-            r#type: GroupType::Event,
-            brief: self.brief.unwrap_or_default(),
-            note: self.note.unwrap_or_default(),
-            prefix: Default::default(),
-            extends: Some(format!("event.{}", &self.r#ref)),
-            include_groups,
-            stability: self.stability,
-            deprecated: self.deprecated,
-            attributes: attribute_refs,
-            span_kind: None,
-            events: vec![],
-            metric_name: None,
-            instrument: None,
-            unit: None,
-            name: Some(self.id.into_v1()),
-            display_name: None,
-            body: None,
-            annotations: if self.annotations.is_empty() {
-                None
-            } else {
-                Some(self.annotations)
-            },
-            entity_associations: self.entity_associations,
-            visibility: None,
-            is_v2: true,
-            span_name: None,
-            span_links: Vec::new(),
-            requirement_level: None,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn parse_and_translate(v2: &str, v1: &str) {
-        let event = serde_yaml::from_str::<Event>(v2).expect("Failed to parse YAML string");
-        let expected =
-            serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
-        assert_eq!(expected, event.into_v1_group());
-    }
-
     #[test]
-    fn test_value_spec_display() {
-        parse_and_translate(
-            // V2 - Event
-            r#"name: my_event
+    fn test_event_parsing() {
+        let yaml = r#"name: my_event
 brief: Test event
 stability: stable
-"#,
-            // V1 - Group
-            r#"id: event.my_event
-type: event
-name: my_event
-brief: Test event
-stability: stable
-is_v2: true
-"#,
-        );
-    }
-
-    fn parse_and_translate_refinement(v2: &str, v1: &str) {
-        let event =
-            serde_yaml::from_str::<EventRefinement>(v2).expect("Failed to parse YAML string");
-        let expected =
-            serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
-        assert_eq!(expected, event.into_v1_group());
-    }
-
-    #[test]
-    fn test_event_refinement_translation() {
-        parse_and_translate_refinement(
-            // V2 - EventRefinement
-            r#"id: event.refinement.my_event
-ref: my_event
-brief: Test event refinement
-stability: stable
-"#,
-            // V1 - Group
-            r#"id: event.refinement.my_event
-type: event
-name: event.refinement.my_event
-brief: Test event refinement
-extends: event.my_event
-stability: stable
-is_v2: true
-"#,
-        );
+"#;
+        let event = serde_yaml::from_str::<Event>(yaml).expect("Failed to parse YAML string");
+        assert_eq!(event.name.to_string(), "my_event");
     }
 }
