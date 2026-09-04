@@ -14,9 +14,14 @@ use weaver_forge::v2::{
     span::SpanAttribute,
 };
 use weaver_resolved_schema::v1::attribute::Attribute;
+use weaver_semconv::convert::v2_span_kind_to_v1;
 use weaver_semconv::v1::attribute::{
     AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
     TemplateTypeSpec,
+};
+use weaver_semconv::v2::attribute::{
+    AttributeType as V2AttributeType, BasicRequirementLevelSpec as V2BasicRequirementLevelSpec,
+    RequirementLevel as V2RequirementLevel,
 };
 
 use weaver_semconv::entity_association::EntityAssociation;
@@ -78,49 +83,53 @@ impl CheckableAttribute for Attribute {
     }
 }
 
+/// Whether a v2 attribute type is a template.
+fn v2_is_template(attribute_type: &V2AttributeType) -> bool {
+    matches!(attribute_type, V2AttributeType::Template(_))
+}
+
+/// The finding for a v2 attribute that a sample does not set.
+fn v2_requirement_finding(
+    requirement_level: &V2RequirementLevel,
+    key: &str,
+) -> (FindingId, FindingLevel, String) {
+    match requirement_level {
+        V2RequirementLevel::Basic(V2BasicRequirementLevelSpec::Required) => (
+            FindingId::RequiredAttributeNotPresent,
+            FindingLevel::Violation,
+            format!("Required attribute '{key}' is not present."),
+        ),
+        V2RequirementLevel::Basic(V2BasicRequirementLevelSpec::Recommended)
+        | V2RequirementLevel::Recommended { .. } => (
+            FindingId::RecommendedAttributeNotPresent,
+            FindingLevel::Improvement,
+            format!("Recommended attribute '{key}' is not present."),
+        ),
+        V2RequirementLevel::Basic(V2BasicRequirementLevelSpec::OptIn)
+        | V2RequirementLevel::OptIn { .. } => (
+            FindingId::OptInAttributeNotPresent,
+            FindingLevel::Information,
+            format!("Opt-in attribute '{key}' is not present."),
+        ),
+        V2RequirementLevel::ConditionallyRequired { .. } => (
+            FindingId::ConditionallyRequiredAttributeNotPresent,
+            FindingLevel::Information,
+            format!("Conditionally required attribute '{key}' is not present."),
+        ),
+    }
+}
+
 impl CheckableAttribute for MetricAttribute {
     fn key(&self) -> &str {
         &self.base.key
     }
 
     fn is_template(&self) -> bool {
-        matches!(
-            self.base.r#type,
-            weaver_semconv::v2::attribute::AttributeType::Template(_)
-        )
+        v2_is_template(&self.base.r#type)
     }
 
     fn requirement_finding(&self, key: &str) -> (FindingId, FindingLevel, String) {
-        match &self.requirement_level {
-            weaver_semconv::v2::attribute::RequirementLevel::Basic(
-                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
-            ) => (
-                FindingId::RequiredAttributeNotPresent,
-                FindingLevel::Violation,
-                format!("Required attribute '{key}' is not present."),
-            ),
-            weaver_semconv::v2::attribute::RequirementLevel::Basic(
-                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Recommended,
-            )
-            | weaver_semconv::v2::attribute::RequirementLevel::Recommended { .. } => (
-                FindingId::RecommendedAttributeNotPresent,
-                FindingLevel::Improvement,
-                format!("Recommended attribute '{key}' is not present."),
-            ),
-            weaver_semconv::v2::attribute::RequirementLevel::Basic(
-                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::OptIn,
-            )
-            | weaver_semconv::v2::attribute::RequirementLevel::OptIn { .. } => (
-                FindingId::OptInAttributeNotPresent,
-                FindingLevel::Information,
-                format!("Opt-in attribute '{key}' is not present."),
-            ),
-            weaver_semconv::v2::attribute::RequirementLevel::ConditionallyRequired { .. } => (
-                FindingId::ConditionallyRequiredAttributeNotPresent,
-                FindingLevel::Information,
-                format!("Conditionally required attribute '{key}' is not present."),
-            ),
-        }
+        v2_requirement_finding(&self.requirement_level, key)
     }
 }
 
@@ -129,12 +138,12 @@ impl CheckableAttribute for SpanAttribute {
         &self.base.key
     }
 
-    fn requirement_level(&self) -> &RequirementLevel {
-        &self.requirement_level
+    fn is_template(&self) -> bool {
+        v2_is_template(&self.base.r#type)
     }
 
-    fn attribute_type(&self) -> &AttributeType {
-        &self.base.r#type
+    fn requirement_finding(&self, key: &str) -> (FindingId, FindingLevel, String) {
+        v2_requirement_finding(&self.requirement_level, key)
     }
 }
 
@@ -144,43 +153,11 @@ impl CheckableAttribute for EventAttribute {
     }
 
     fn is_template(&self) -> bool {
-        matches!(
-            self.base.r#type,
-            weaver_semconv::v2::attribute::AttributeType::Template(_)
-        )
+        v2_is_template(&self.base.r#type)
     }
 
     fn requirement_finding(&self, key: &str) -> (FindingId, FindingLevel, String) {
-        match &self.requirement_level {
-            weaver_semconv::v2::attribute::RequirementLevel::Basic(
-                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
-            ) => (
-                FindingId::RequiredAttributeNotPresent,
-                FindingLevel::Violation,
-                format!("Required attribute '{key}' is not present."),
-            ),
-            weaver_semconv::v2::attribute::RequirementLevel::Basic(
-                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Recommended,
-            )
-            | weaver_semconv::v2::attribute::RequirementLevel::Recommended { .. } => (
-                FindingId::RecommendedAttributeNotPresent,
-                FindingLevel::Improvement,
-                format!("Recommended attribute '{key}' is not present."),
-            ),
-            weaver_semconv::v2::attribute::RequirementLevel::Basic(
-                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::OptIn,
-            )
-            | weaver_semconv::v2::attribute::RequirementLevel::OptIn { .. } => (
-                FindingId::OptInAttributeNotPresent,
-                FindingLevel::Information,
-                format!("Opt-in attribute '{key}' is not present."),
-            ),
-            weaver_semconv::v2::attribute::RequirementLevel::ConditionallyRequired { .. } => (
-                FindingId::ConditionallyRequiredAttributeNotPresent,
-                FindingLevel::Information,
-                format!("Conditionally required attribute '{key}' is not present."),
-            ),
-        }
+        v2_requirement_finding(&self.requirement_level, key)
     }
 }
 
@@ -189,12 +166,12 @@ impl CheckableAttribute for AttributeGroupAttribute {
         &self.base.key
     }
 
-    fn requirement_level(&self) -> &RequirementLevel {
-        &self.requirement_level
+    fn is_template(&self) -> bool {
+        v2_is_template(&self.base.r#type)
     }
 
-    fn attribute_type(&self) -> &AttributeType {
-        &self.base.r#type
+    fn requirement_finding(&self, key: &str) -> (FindingId, FindingLevel, String) {
+        v2_requirement_finding(&self.requirement_level, key)
     }
 }
 
@@ -899,7 +876,7 @@ impl Advisor for TypeAdvisor {
                 };
                 let mut advice_list =
                     check_attributes(&span.attributes, &sample_span.attributes, parent_signal);
-                if sample_span.kind != span.kind {
+                if sample_span.kind != v2_span_kind_to_v1(span.kind) {
                     advice_list.push(PolicyFinding {
                         id: FindingId::KindMismatch.into(),
                         context: Some(json!({

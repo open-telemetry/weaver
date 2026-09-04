@@ -732,17 +732,17 @@ mod tests {
 
     use std::collections::BTreeMap;
 
-    use weaver_forge::registry::ResolvedRegistry;
+    use weaver_forge::v1::registry::ResolvedRegistry;
     use weaver_forge::v2::attribute::Attribute as V2Attribute;
     use weaver_forge::v2::attribute_group::AttributeGroupAttribute;
     use weaver_forge::v2::provenance::Provenance;
     use weaver_forge::v2::registry::{ForgeDependency, ForgeResolvedRegistry};
     use weaver_forge::v2::span::SpanAttribute;
-    use weaver_semconv::attribute::{
+    use weaver_semconv::stability::Stability;
+    use weaver_semconv::v2::attribute::{
         AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
         TemplateTypeSpec,
     };
-    use weaver_semconv::stability::Stability;
     use weaver_semconv::v2::CommonFields;
 
     use crate::advice::{Advisor, TypeAdvisor};
@@ -1594,8 +1594,8 @@ signal = "myapp.checkout"
             sample_span::SampleSpan, CumulativeStatistics, LiveCheckRunner, LiveCheckStatistics,
             Sample,
         };
-        use weaver_forge::registry::ResolvedGroup;
-        use weaver_semconv::group::{GroupType, SpanKindSpec};
+        use weaver_forge::v1::registry::ResolvedGroup;
+        use weaver_semconv::v1::group::{GroupType, SpanKindSpec};
 
         const MATCHERS: &str = include_str!("../fixtures/cel/span-checkout/matchers.toml");
 

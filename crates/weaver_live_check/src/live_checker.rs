@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 use weaver_semconv::v1::{attribute::AttributeType, group::GroupType};
+use weaver_semconv::v2::attribute::AttributeType as V2AttributeType;
 
 use crate::{
     advice::Advisor,
@@ -36,7 +37,7 @@ fn find_template_in(index: &AttributeIndex, key: &str) -> Option<Rc<VersionedAtt
     index
         .iter()
         .filter(|(name, attribute)| {
-            matches!(attribute.r#type(), AttributeType::Template(_))
+            matches!(*attribute.r#type(), AttributeType::Template(_))
                 && key.starts_with(name.as_str())
         })
         .max_by_key(|(name, _)| name.len())
@@ -439,7 +440,7 @@ impl LiveChecker {
                     .entry(attribute.key.clone())
                     .and_modify(|held| held.schema_urls.push(schema_url.clone()))
                     .or_insert_with(|| {
-                        if matches!(attribute.r#type, AttributeType::Template(_)) {
+                        if matches!(attribute.r#type, V2AttributeType::Template(_)) {
                             template_keys.push(attribute.key.clone());
                         }
                         BaseAttribute {
