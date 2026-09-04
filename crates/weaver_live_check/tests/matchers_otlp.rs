@@ -562,7 +562,7 @@ async fn searching_all_attributes_names_the_registry_that_defines_one() {
 /// reach, so the key it declares has nothing to resolve against.
 #[tokio::test(flavor = "multi_thread")]
 #[cfg_attr(tarpaulin, ignore)]
-async fn a_dependencys_template_needs_search_all_attributes() {
+async fn a_template_in_a_dependency_needs_search_all_attributes() {
     let report = run(REGISTRY, &["--v2", "--config", CONFIG]).await;
     let all = findings(&report);
     let _ = finding_for(&all, "missing_attribute", "acme.tenant.tag.region");

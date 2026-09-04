@@ -2083,7 +2083,7 @@ attribute_groups = ["myapp.common"]
 
         /// A key extending a dependency's template resolves to it.
         #[test]
-        fn a_dependencys_template_declares_a_key_that_extends_it() {
+        fn a_template_in_a_dependency_declares_a_key_that_extends_it() {
             let mut dependency = dependency_registry();
             dependency.registry.attributes = vec![template_attribute(
                 "myapp.checkout.",
@@ -2126,9 +2126,9 @@ attribute_groups = ["myapp.common"]
             assert_eq!(found.attribute.name(), "myapp.checkout.");
         }
 
-        /// A key extending this registry's own template is not a dependency's.
+        /// A key extending a template this registry declares is not a dependency's.
         #[test]
-        fn a_key_extending_this_registrys_template_is_not_a_dependencys() {
+        fn a_key_extending_a_template_declared_here_is_not_from_a_dependency() {
             let mut dependency = dependency_registry();
             dependency.registry.attributes = Vec::new();
             let mut live_checker = v2_live_checker_with_base_attributes(
