@@ -4,6 +4,10 @@
 
 pub mod any_value;
 pub mod attribute;
+pub mod entity_association;
 pub mod group;
 pub mod registry;
 pub mod semconv;
+pub mod signal_requirement_level;
+pub mod stability;
+pub mod stats;

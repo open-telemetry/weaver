@@ -17,13 +17,13 @@ use crate::v1::registry::GroupStats::{
 };
 use serde::{Deserialize, Serialize};
 use weaver_semconv::deprecated::Deprecated;
-use weaver_semconv::entity_association::EntityAssociation;
 use weaver_semconv::provenance::Provenance;
-use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
-use weaver_semconv::stability::Stability;
+use weaver_semconv::v1::entity_association::EntityAssociation;
 use weaver_semconv::v1::group::{
     AttributeGroupVisibilitySpec, GroupType, InstrumentSpec, SpanKindSpec, SpanName,
 };
+use weaver_semconv::v1::signal_requirement_level::SignalRequirementLevel;
+use weaver_semconv::v1::stability::Stability;
 use weaver_semconv::YamlValue;
 
 /// Where the `entity_associations` entries of each group resolved: group id, to

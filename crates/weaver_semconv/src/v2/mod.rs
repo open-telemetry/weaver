@@ -13,12 +13,11 @@ use weaver_common::result::WResult;
 
 use crate::{
     deprecated::Deprecated,
-    stability::Stability,
     v2::{
         attribute::AttributeDef, attribute::AttributeRef, attribute_group::AttributeGroup,
         entity::Entity, entity::EntityRefinement, event::Event, event::EventRefinement,
         metric::Metric, metric::MetricRefinement, signal_id::SignalId, span::Span,
-        span::SpanRefinement,
+        span::SpanRefinement, stability::Stability,
     },
     Error, YamlValue,
 };
@@ -26,10 +25,13 @@ use crate::{
 pub mod attribute;
 pub mod attribute_group;
 pub mod entity;
+pub mod entity_association;
 pub mod event;
 pub mod metric;
 pub mod signal_id;
+pub mod signal_requirement_level;
 pub mod span;
+pub mod stability;
 
 /// Common fields we want on all major components of semantic conventions.
 #[derive(

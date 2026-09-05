@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Stability specification.
+//! Stability specification for version 2 semantic conventions.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -13,9 +13,6 @@ use std::fmt::{Display, Formatter};
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Stability {
-    /// A deprecated definition.
-    #[deprecated(note = "This stability level is deprecated.")]
-    Deprecated,
     /// A stable definition.
     Stable,
     /// A definition in development. Formally known as experimental.
@@ -29,7 +26,7 @@ pub enum Stability {
     ReleaseCandidate,
 }
 
-/// We provide a default for legacy repositories that did not specify a stability.
+/// We provide a default for definitions that do not specify a stability.
 impl Default for Stability {
     fn default() -> Self {
         Stability::Development
@@ -45,7 +42,6 @@ impl Display for Stability {
             Stability::Alpha => write!(f, "alpha"),
             Stability::Beta => write!(f, "beta"),
             Stability::ReleaseCandidate => write!(f, "release_candidate"),
-            Stability::Deprecated => write!(f, "deprecated"),
         }
     }
 }
@@ -53,13 +49,9 @@ impl Display for Stability {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json;
 
     #[test]
     fn test_deserialize_stability() {
-        let deprecated: Stability = serde_json::from_str("\"deprecated\"").unwrap();
-        assert_eq!(deprecated, Stability::Deprecated);
-
         let stable: Stability = serde_json::from_str("\"stable\"").unwrap();
         assert_eq!(stable, Stability::Stable);
 
@@ -77,6 +69,8 @@ mod tests {
 
         let release_candidate: Stability = serde_json::from_str("\"release_candidate\"").unwrap();
         assert_eq!(release_candidate, Stability::ReleaseCandidate);
+
+        assert!(serde_json::from_str::<Stability>("\"deprecated\"").is_err());
     }
 
     #[test]

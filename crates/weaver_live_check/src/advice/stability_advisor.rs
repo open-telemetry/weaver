@@ -5,7 +5,7 @@
 use serde_json::json;
 use std::rc::Rc;
 use weaver_checker::{FindingLevel, PolicyFinding};
-use weaver_semconv::stability::Stability;
+use weaver_semconv::v1::stability::Stability;
 
 use super::{Advisor, FindingBuilder};
 use crate::{
@@ -32,7 +32,7 @@ impl Advisor for StabilityAdvisor {
                 let mut findings = Vec::new();
                 if let Some(attribute) = registry_attribute {
                     match attribute.stability() {
-                        Some(ref stability) if *stability != &Stability::Stable => {
+                        Some(ref stability) if stability != &Stability::Stable => {
                             let name = &sample_attribute.name;
                             let finding = FindingBuilder::new(FindingId::NotStable)
                                 .context(json!({
@@ -58,7 +58,7 @@ impl Advisor for StabilityAdvisor {
                 let mut findings = Vec::new();
                 if let Some(group) = registry_group {
                     match group.stability() {
-                        Some(ref stability) if *stability != &Stability::Stable => {
+                        Some(ref stability) if stability != &Stability::Stable => {
                             let name = &sample_metric.name;
                             let finding = FindingBuilder::new(FindingId::NotStable)
                                 .context(json!({
@@ -84,7 +84,7 @@ impl Advisor for StabilityAdvisor {
                 let mut findings = Vec::new();
                 if let Some(group) = registry_group {
                     match group.stability() {
-                        Some(ref stability) if *stability != &Stability::Stable => {
+                        Some(ref stability) if stability != &Stability::Stable => {
                             let name = &sample_log.event_name;
                             let finding = FindingBuilder::new(FindingId::NotStable)
                                 .context(json!({

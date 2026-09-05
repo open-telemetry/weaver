@@ -12,7 +12,7 @@ use std::vec;
 
 use crate::registry_repo::LEGACY_REGISTRY_MANIFEST;
 use crate::schema_url::SchemaUrl;
-use crate::stability::Stability;
+use crate::v2::stability::Stability;
 use crate::Error;
 use crate::Error::{
     DeprecatedSyntaxInRegistryManifest, InvalidRegistryManifest, LegacyRegistryManifest,
@@ -788,7 +788,7 @@ resolved_registry_uri: "https://example.com/resolved/1.0.0/resolved.yaml"
 #[cfg(test)]
 mod publication_tests {
     use super::*;
-    use crate::stability::Stability;
+    use crate::v2::stability::Stability;
 
     fn manifest_from_yaml(yaml: &str, nfes: &mut Vec<Error>) -> Result<RegistryManifest, Error> {
         use std::io::Write;
