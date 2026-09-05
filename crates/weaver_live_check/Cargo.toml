@@ -31,6 +31,7 @@ strum = { version = "0.27.2", features = ["derive"] }
 globset.workspace = true
 
 [dev-dependencies]
+criterion = "0.8"
 weaver_test_support = { path = "../weaver_test_support" }
 assert_cmd.workspace = true
 tempfile.workspace = true
@@ -39,6 +40,10 @@ serial_test = "3.4.0"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 ureq.workspace = true
 reqwest.workspace = true
+
+[[bench]]
+name = "rego_advisor"
+harness = false
 
 [lints]
 workspace = true
