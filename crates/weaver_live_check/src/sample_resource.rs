@@ -8,8 +8,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    live_checker::LiveChecker, sample_attribute::SampleAttribute, Advisable, Error,
-    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef, VersionedSignal,
+    live_checker::LiveChecker, matcher::SampleMatch, sample_attribute::SampleAttribute, Advisable,
+    Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef, SampleType,
 };
 
 /// Represents a resource
@@ -37,13 +37,27 @@ impl LiveCheckRunner for SampleResource {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        _parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
+        let sample_match = Rc::new(live_checker.match_for(SampleType::Resource, self, None));
+        live_checker.record_match(&sample_match);
+        let mut result = self.run_advisors(
+            live_checker,
+            stats,
+            Some(Rc::clone(&sample_match)),
+            parent_signal,
+        )?;
+        sample_match.add_findings(
+            &SampleRef::Resource(self),
+            &self.attributes,
+            &mut result,
+            live_checker,
+            parent_signal,
+        );
+        self.live_check_result = Some(result);
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
-        Ok(())
+            .run_live_check(live_checker, stats, Some(sample_match), parent_signal)
     }
 }

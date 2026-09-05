@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+# Unreleased
+
+- Live-check matchers ([#1721](https://github.com/open-telemetry/weaver/pull/1721) by @jerbly)
+  - Added `[[live-check.matchers]]`, which picks the v2 signal and attribute groups a sample is checked against with a CEL expression. v2 registries only.
+  - A matcher's `attribute_groups` says which attributes are permitted on a sample: their definitions are used for the attribute checks, but one missing from the sample is not reported. Name a group in the new `strict_attribute_groups` to enforce its requirement levels; a signal's own attributes are always enforced.
+  - New findings: `kind_mismatch` and `unexpected_attribute`. A v2 metric or log raises `unexpected_attribute` against its natural signal or against the matcher's where one sets `signal`.
+  - By default a v2 registry compares an attribute with the signal and attribute groups its match holds. However, when `search_all_attributes` is used, it searches the whole registry and its dependencies. v1 is unchanged.
+  - Every sample's result holds a `match_info` giving the signal, the attribute groups and what each matcher that applied contributed.
+  - Statistics count what each matcher matched and errored on, and a matcher that matched nothing is reported as a warning.
+  - Added `-D`/`--param` and `--params` to pass parameters to the output template. The ansi format reads `show_finding_id`, which labels a finding with its id rather than its level.
+  - Added [Matchers](crates/weaver_live_check/docs/matchers.md), a guide with a worked example for each sample type, and corrected the config sections in the live-check and config READMEs from `[live_check]` to `[live-check]` — the underscore form was silently ignored.
+
 # [0.26.1] - 2026-09-02
 
 - Fix `weaver-installer.sh` failing to detect Unix platforms due to missing bash shell in release workflow. ([#1744](https://github.com/open-telemetry/weaver/issues/1744))
@@ -16,7 +28,7 @@ All notable changes to this project will be documented in this file.
 - Live-check now follows a v2 `entity_associations` reference into a dependency, or to an entity refinement, neither of which the checker could see before: those entities went unchecked, so a resource missing their required attributes passed clean. A Rego advice policy can read the same v2 definitions, as `data.entities`. ([#1716](https://github.com/open-telemetry/weaver/pull/1716) by @jerbly)
 - 💥 BREAKING CHANGE 💥 An `entity_associations` leaf in the materialized schema now says which registry defines the entity, as the published schema already did. A leaf that was the bare name `host` is now `{ type: host, provenance: { source: <schema url> } }`, and a leaf with no provenance means this registry defines it. A template, jq filter or Rego policy that read the leaf as a string reads `.type` instead, and the `serve` UI and its API are updated too. ([#1710](https://github.com/open-telemetry/weaver/pull/1710) by @jerbly)
 - `dependencies` in the materialized (forge) schema is now a map keyed by schema url holding each registry once, and the `dependency_graph` gives the direct dependencies of each. ([#1730](https://github.com/open-telemetry/weaver/pull/1730) by @jerbly)
-- Fix a legacy `type: resource` group converting to a v2 entity whose type carried the group-id prefix. The entity type now comes from the group's `name`, as it always did for imports, and falls back to the id when the group has none. Every `resource` group of semconv v1.33.0 has this shape, so `resource.host` became the entity `resource.host` rather than `host`, and an `entity_associations` entry naming `host` matched nothing. ([#1704](https://github.com/open-telemetry/weaver/pull/1704) by @jerbly)
+- Fix a legacy `type: resource` group converting to a v2 entity whose type kept the group-id prefix. The entity type now comes from the group's `name`, as it always did for imports, and falls back to the id when the group has none. Every `resource` group of semconv v1.33.0 has this shape, so `resource.host` became the entity `resource.host` rather than `host`, and an `entity_associations` entry naming `host` matched nothing. ([#1704](https://github.com/open-telemetry/weaver/pull/1704) by @jerbly)
 - 💥 BREAKING CHANGE 💥 (v2 only) The resolution no longer strips a leading `entity.` or `span.` prefix from the type. I.e. an entity authored as `type: entity.test` now keeps the type `entity.test` instead of `test`. ([#1704](https://github.com/open-telemetry/weaver/pull/1704) by @jerbly)
 - Report two groups whose ids differ but that take one id in the v2 output, as a warning. A v2 signal id drops the group-type prefix, so the groups `entity.host` and `host` both become the entity `host` and the second silently replaced the first. ([#1704](https://github.com/open-telemetry/weaver/pull/1704) by @jerbly)
 - 💥 BREAKING CHANGE 💥 Resolve every `entity_associations` entry, and record which registry defines the entity it names. A name that nothing in scope defines now fails resolution, as does one that two dependencies each declare an unrelated entity under. A private entity (`dependency_resolution.exclude`) satisfies an association only for a signal that is private too. In the v2 resolved schema an association leaf is now an object (`{ type, provenance }`) instead of a bare entity type; `provenance.source` indexes `dependencies` and is absent for an entity of this registry. ([#1704](https://github.com/open-telemetry/weaver/pull/1704) by @jerbly)

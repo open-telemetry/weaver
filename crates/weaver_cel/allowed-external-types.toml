@@ -1,0 +1,10 @@
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
+# This is used with cargo-check-external-types to reduce the surface area of downstream crates from
+# the public API. Ideally this can have a few exceptions as possible.
+# `Context` and `Value` are re-exported so implementors of `Bindings` need no
+# direct `cel` dependency.
+allowed_external_types = [
+    "cel::context::Context",
+    "cel::objects::Value",
+]

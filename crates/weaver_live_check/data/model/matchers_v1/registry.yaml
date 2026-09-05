@@ -1,0 +1,217 @@
+# The v1 mirror of `data/model/matchers`, holding the same attribute and signal
+# names so the same telemetry can be checked against both.
+groups:
+  - id: registry.acme
+    type: attribute_group
+    stability: stable
+    brief: "Acme attributes"
+    attributes:
+      - id: acme.checkout.id
+        type: string
+        stability: stable
+        brief: "Identifier of the checkout"
+        examples: ["c-1"]
+      - id: acme.checkout.stage
+        type:
+          members:
+            - id: cart
+              value: cart
+              stability: stable
+              brief: "The customer is filling the cart"
+            - id: payment
+              value: payment
+              stability: stable
+              brief: "The customer is paying"
+        stability: stable
+        brief: "Stage the checkout has reached"
+        annotations:
+          acme:
+            source: catalog
+      - id: acme.cart.item.count
+        type: int
+        stability: stable
+        brief: "Number of items in the cart"
+        examples: [3]
+      - id: acme.session.id
+        type: string
+        stability: stable
+        brief: "Identifier of the session"
+        examples: ["s-9"]
+        annotations:
+          acme:
+            source: catalog
+      - id: acme.checkout.coupon
+        type: string
+        stability: stable
+        brief: "Coupon applied to the checkout"
+        examples: ["SAVE10"]
+      - id: acme.checkout.error.code
+        type: string
+        stability: stable
+        brief: "Error that ended the checkout"
+        examples: ["declined"]
+      - id: acme.checkout.legacy.id
+        type: string
+        stability: stable
+        brief: "Old identifier of the checkout"
+        examples: ["l-1"]
+        deprecated:
+          reason: renamed
+          renamed_to: acme.checkout.id
+      - id: acme.request.header
+        type: template[string]
+        stability: stable
+        brief: "Headers of the request that started the checkout"
+        examples: ["application/json"]
+      - id: acme.deployment.id
+        type: string
+        stability: stable
+        brief: "Identifier of the deployment"
+        examples: ["d-1"]
+      - id: acme.deployment.name
+        type: string
+        stability: stable
+        brief: "Name of the deployment"
+        examples: ["checkout"]
+      - id: acme.deployment.owner
+        type: string
+        stability: stable
+        brief: "Team that owns the deployment"
+        examples: ["payments"]
+      - id: acme.deployment.region
+        type: string
+        stability: stable
+        brief: "Region the deployment runs in"
+        examples: ["eu-west-1"]
+      - id: acme.cluster.id
+        type: string
+        stability: stable
+        brief: "Identifier of the cluster"
+        examples: ["k-1"]
+      - id: service.name
+        type: string
+        stability: stable
+        brief: "Logical name of the service"
+        examples: ["acme-checkout"]
+      - id: acme.customer.tier
+        type: string
+        stability: development
+        brief: "Commercial tier of the customer"
+        examples: ["gold"]
+
+  - id: entity.acme.deployment
+    type: entity
+    name: acme.deployment
+    stability: stable
+    brief: "The deployment the telemetry came from"
+    attributes:
+      - ref: acme.deployment.id
+        requirement_level: required
+      - ref: acme.deployment.name
+        requirement_level: recommended
+      - ref: acme.deployment.owner
+        requirement_level: opt_in
+      - ref: acme.deployment.region
+        requirement_level:
+          conditionally_required: When the deployment is regional.
+
+  - id: entity.acme.cluster
+    type: entity
+    name: acme.cluster
+    stability: stable
+    brief: "The cluster the telemetry came from"
+    attributes:
+      - ref: acme.cluster.id
+        requirement_level: required
+
+  - id: span.acme.checkout
+    type: span
+    span_kind: server
+    stability: stable
+    brief: "One checkout request"
+    entity_associations:
+      - acme.cluster
+    attributes:
+      - ref: acme.checkout.id
+        requirement_level: required
+      - ref: acme.checkout.stage
+        requirement_level: recommended
+        annotations:
+          acme:
+            source: span
+      - ref: acme.checkout.coupon
+        requirement_level: opt_in
+      - ref: acme.checkout.error.code
+        requirement_level:
+          conditionally_required: When the checkout failed.
+      - ref: acme.checkout.legacy.id
+        requirement_level: opt_in
+      - ref: acme.request.header
+        requirement_level: opt_in
+
+  - id: span.acme.cart
+    type: span
+    span_kind: internal
+    stability: stable
+    brief: "One cart operation"
+    attributes:
+      - ref: acme.cart.item.count
+        requirement_level: recommended
+
+  - id: metric.acme.cart.items
+    type: metric
+    metric_name: acme.cart.items
+    instrument: counter
+    unit: "{item}"
+    stability: stable
+    brief: "Items added to carts"
+    entity_associations:
+      - acme.deployment
+    attributes:
+      - ref: acme.checkout.stage
+        requirement_level: recommended
+
+  - id: metric.acme.checkout.duration
+    type: metric
+    metric_name: acme.checkout.duration
+    instrument: histogram
+    unit: s
+    stability: stable
+    brief: "Duration of a checkout"
+    attributes:
+      - ref: acme.checkout.stage
+        requirement_level: recommended
+
+  - id: metric.acme.checkout.attempts
+    type: metric
+    metric_name: acme.checkout.attempts
+    instrument: counter
+    unit: "{attempt}"
+    stability: stable
+    brief: "Checkouts started"
+    attributes:
+      - ref: acme.checkout.stage
+        requirement_level: recommended
+      - ref: acme.checkout.coupon
+        requirement_level: recommended
+
+  - id: event.acme.checkout.completed
+    type: event
+    name: acme.checkout.completed
+    stability: stable
+    brief: "A checkout completed"
+    entity_associations:
+      - acme.deployment
+      - acme.cluster
+    attributes:
+      - ref: acme.checkout.id
+        requirement_level: required
+
+  - id: event.acme.checkout.abandoned
+    type: event
+    name: acme.checkout.abandoned
+    stability: stable
+    brief: "A checkout was abandoned"
+    attributes:
+      - ref: acme.session.id
+        requirement_level: required

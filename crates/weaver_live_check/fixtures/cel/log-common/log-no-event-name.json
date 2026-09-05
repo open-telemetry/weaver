@@ -1,0 +1,13 @@
+{
+  "event_name": "",
+  "severity_number": 9,
+  "severity_text": "INFO",
+  "body": "order placed",
+  "attributes": [
+    { "name": "myapp.tenant.code", "value": "acme-eu" },
+    { "name": "myapp.request.id", "value": "7c1f" }
+  ],
+  "trace_id": null,
+  "span_id": null,
+  "live_check_result": null
+}

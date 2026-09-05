@@ -80,11 +80,11 @@ dry_run = false
 bind = "127.0.0.1:8080"
 
 # Live-check has a richer nested config.
-[live_check]
+[live-check]
 format = "json"
 input_source = "stdin"
 
-[[live_check.finding_filters]]
+[[live-check.finding_filters]]
 exclude = ["missing_namespace"]
 ```
 
@@ -112,7 +112,7 @@ Aliases `[resolve.overrides]` and `[resolve.dependency_overrides]` are also supp
 
 ### `WeaverConfig`
 
-The top-level config type. Typed fields cover the cross-cutting sections (`registry`, `policy`, `diagnostics`, `resolve`, `live_check`, `auth`). Per-command sections are stored as a raw `toml::Table` via `#[serde(flatten)]` and deserialized on demand by `command_config<C>(section)`.
+The top-level config type. Typed fields cover the cross-cutting sections (`registry`, `policy`, `diagnostics`, `resolve`, `template`, `auth`). Per-command sections are stored as a raw `toml::Table` via `#[serde(flatten)]` and deserialized on demand by `command_config<C>(section)`.
 
 ### `CliOverrides` trait
 

@@ -43,6 +43,9 @@ fn run_emit_with_live_check_test(use_v2: bool) {
         "--input-source".to_owned(),
         "otlp".to_owned(),
         "--skip-policies".to_owned(),
+        // The exit status checked below is about the process, not the findings.
+        "--fail-on".to_owned(),
+        "none".to_owned(),
         "--format".to_owned(),
         "json".to_owned(),
         "--output".to_owned(),
@@ -130,9 +133,11 @@ fn run_emit_with_live_check_test(use_v2: bool) {
         .expect("Failed to get registry_coverage as f64");
 
     // The emitted traces, metrics, and logs each add one instrumentation-scope
-    // carrier, and all three complete without advice.
-    assert_eq!(no_advice_count, 62);
-    assert_eq!(total_advisories, 14);
+    // carrier. v2 compares an attribute with its signal alone, v1 with the
+    // whole registry, so v2 finds far more missing.
+    let (no_advice, advisories) = if use_v2 { (37, 39) } else { (62, 14) };
+    assert_eq!(no_advice_count, no_advice);
+    assert_eq!(total_advisories, advisories);
     assert_eq!(total_entities, 76);
     assert!(registry_coverage > 0.7);
 

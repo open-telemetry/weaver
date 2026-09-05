@@ -1,0 +1,11 @@
+# Matched on a signature: the id is present and the stage is one of three
+# known values.
+[[live-check.matchers]]
+id = "myapp.checkout"
+sample_type = "span"
+when = '''
+"myapp.checkout.id" in attributes
+  && "myapp.checkout.stage" in attributes
+  && attributes["myapp.checkout.stage"] in ["cart", "payment", "confirm"]
+'''
+signal = "myapp.checkout"

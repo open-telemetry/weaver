@@ -19,6 +19,9 @@ use sample_resource::SampleResource;
 use sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
+
+use crate::matcher::{MatchInfo, SampleMatch, SignalKind};
 use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::{
@@ -31,8 +34,18 @@ use weaver_semconv::{
     v1::{attribute::AttributeType, group::InstrumentSpec},
 };
 
+/// Serializes an enum value to its serde name, e.g. `internal`.
+pub(crate) fn enum_name<T: Serialize>(value: &T) -> String {
+    match serde_json::to_value(value) {
+        Ok(JsonValue::String(name)) => name,
+        _ => String::new(),
+    }
+}
+
 /// Advisors for live checks
 pub mod advice;
+/// Binds sample fields to CEL variables.
+pub mod cel;
 /// Finding modifier engine (overrides and filters).
 pub mod finding_modifier;
 /// Generated types, constants, and log record builders for live check findings
@@ -44,6 +57,8 @@ pub mod json_file_ingester;
 pub mod json_stdin_ingester;
 /// Live checker
 pub mod live_checker;
+/// Matchers from the live-check config.
+pub mod matcher;
 /// OTLP logger for emitting policy findings as log records
 pub mod otlp_logger;
 /// The intermediary format for attributes
@@ -68,7 +83,7 @@ pub mod text_file_ingester;
 pub mod text_stdin_ingester;
 
 // Re-export statistics types from stats module
-pub use stats::{CumulativeStatistics, DisabledStatistics, LiveCheckStatistics};
+pub use stats::{CumulativeStatistics, DisabledStatistics, LiveCheckStatistics, MatcherStatistics};
 
 /// Attribute key in advice context
 pub const ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: &str = "attribute_key";
@@ -94,6 +109,8 @@ pub const EVENT_NAME_ADVICE_CONTEXT_KEY: &str = "event_name";
 pub const METRIC_NAME_ADVICE_CONTEXT_KEY: &str = "metric_name";
 /// Entity type key in advice context
 pub const ENTITY_TYPE_ADVICE_CONTEXT_KEY: &str = "entity_type";
+/// Schema url key in advice context
+pub const SCHEMA_URL_ADVICE_CONTEXT_KEY: &str = "schema_url";
 
 /// Embedded default live check rego policies
 pub const DEFAULT_LIVE_CHECK_REGO: &str =
@@ -181,6 +198,18 @@ pub enum VersionedSignal {
 }
 
 impl VersionedSignal {
+    /// The name the signal is known by: a span type, a metric or event name,
+    /// or a v1 group id
+    #[must_use]
+    pub fn name(&self) -> &str {
+        match self {
+            VersionedSignal::Group(group) => &group.as_ref().id,
+            VersionedSignal::Metric(metric) => &metric.name,
+            VersionedSignal::Span(span) => &span.r#type,
+            VersionedSignal::Event(event) => &event.name,
+        }
+    }
+
     /// Get the deprecated field of the signal
     #[must_use]
     pub fn deprecated(&self) -> &Option<Deprecated> {
@@ -272,6 +301,77 @@ pub enum Error {
         /// The error that occurred.
         error: String,
     },
+
+    /// Two matchers declare the same id.
+    #[error("Matcher `{id}` is declared more than once.")]
+    DuplicateMatcher {
+        /// The repeated matcher id.
+        id: String,
+    },
+
+    /// A matcher's `when` expression does not compile.
+    #[error("Matcher `{id}`: {error}")]
+    InvalidMatcherExpression {
+        /// The matcher id.
+        id: String,
+        /// The error that occurred.
+        error: String,
+    },
+
+    /// Matchers are configured against a v1 registry.
+    #[error("Matchers require a v2 registry. Matcher `{id}` cannot be used with the registry under check.")]
+    MatchersRequireV2Registry {
+        /// The first matcher id declared.
+        id: String,
+    },
+
+    /// `search_all_attributes` is set against a v1 registry.
+    #[error("`search_all_attributes` requires a v2 registry. A v1 registry has no dependencies to search.")]
+    SearchAllAttributesRequiresV2Registry,
+
+    /// A matcher sets `signal` for a sample type that has no signal.
+    #[error("Matcher `{id}` sets `signal`, which a `{sample_type}` matcher does not allow. Use `attribute_groups` instead.")]
+    MatcherSignalNotAllowed {
+        /// The matcher id.
+        id: String,
+        /// The sample type the matcher applies to.
+        sample_type: String,
+    },
+
+    /// A matcher's `signal` is not in the registry.
+    #[error(
+        "Matcher `{id}` names the signal `{signal}`, which is not {expected} in the registry."
+    )]
+    UnknownMatcherSignal {
+        /// The matcher id.
+        id: String,
+        /// The signal the matcher names.
+        signal: String,
+        /// What the signal has to be, e.g. `a span type`.
+        expected: String,
+    },
+
+    /// A matcher's `attribute_groups` names a group that is not in the registry.
+    #[error("Matcher `{id}` names the attribute group `{attribute_group}`, which is not in the registry.")]
+    UnknownMatcherAttributeGroup {
+        /// The matcher id.
+        id: String,
+        /// The attribute group the matcher names.
+        attribute_group: String,
+    },
+
+    /// A matcher's `when` reads a variable its sample type does not have.
+    #[error("Matcher `{id}` reads `{variable}`, which a `{sample_type}` sample does not have. Available: {available}")]
+    UnknownMatcherVariable {
+        /// The matcher id.
+        id: String,
+        /// The variable the expression reads.
+        variable: String,
+        /// The sample type the matcher applies to.
+        sample_type: String,
+        /// The variables the sample type does have.
+        available: String,
+    },
 }
 
 impl From<Error> for DiagnosticMessages {
@@ -349,7 +449,7 @@ impl SampleRef<'_> {
     /// For attributes this is the attribute key, for instrumentation scopes
     /// it is the scope name, and for spans/metrics/events it is the signal
     /// name. Sub-signal types (data points, exemplars, span links, resources)
-    /// do not carry a name.
+    /// have no name.
     #[must_use]
     pub fn sample_name(&self) -> Option<&str> {
         match self {
@@ -360,6 +460,16 @@ impl SampleRef<'_> {
             SampleRef::Metric(metric) => Some(&metric.name),
             SampleRef::Log(log) => Some(&log.event_name),
             _ => None,
+        }
+    }
+
+    /// Whether this sample resolves a registry signal, so that having none is a
+    /// gap. A log with no `event_name` is not a typed signal.
+    #[must_use]
+    pub fn expects_signal(&self) -> bool {
+        match self {
+            SampleRef::Log(log) => !log.event_name.is_empty(),
+            other => SignalKind::for_sample_type(other.sample_type()).is_some(),
         }
     }
 
@@ -452,36 +562,32 @@ impl LiveCheckRunner for Sample {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         match self {
             Sample::Attribute(attribute) => {
-                attribute.run_live_check(live_checker, stats, parent_group, parent_signal)
+                attribute.run_live_check(live_checker, stats, parent, parent_signal)
             }
-            Sample::Span(span) => {
-                span.run_live_check(live_checker, stats, parent_group, parent_signal)
-            }
+            Sample::Span(span) => span.run_live_check(live_checker, stats, parent, parent_signal),
             Sample::SpanEvent(span_event) => {
-                span_event.run_live_check(live_checker, stats, parent_group, parent_signal)
+                span_event.run_live_check(live_checker, stats, parent, parent_signal)
             }
             Sample::SpanLink(span_link) => {
-                span_link.run_live_check(live_checker, stats, parent_group, parent_signal)
+                span_link.run_live_check(live_checker, stats, parent, parent_signal)
             }
             Sample::Resource(resource) => {
-                resource.run_live_check(live_checker, stats, parent_group, parent_signal)
+                resource.run_live_check(live_checker, stats, parent, parent_signal)
             }
             Sample::InstrumentationScope(scope) => {
-                scope.run_live_check(live_checker, stats, parent_group, parent_signal)
+                scope.run_live_check(live_checker, stats, parent, parent_signal)
             }
             Sample::Metric(metric) => {
-                metric.run_live_check(live_checker, stats, parent_group, parent_signal)
+                metric.run_live_check(live_checker, stats, parent, parent_signal)
             }
-            Sample::Log(log) => {
-                log.run_live_check(live_checker, stats, parent_group, parent_signal)
-            }
+            Sample::Log(log) => log.run_live_check(live_checker, stats, parent, parent_signal),
             Sample::Profile(profile) => {
-                profile.run_live_check(live_checker, stats, parent_group, parent_signal)
+                profile.run_live_check(live_checker, stats, parent, parent_signal)
             }
         }
     }
@@ -494,6 +600,9 @@ pub struct LiveCheckResult {
     pub all_advice: Vec<PolicyFinding>,
     /// The highest advice level
     pub highest_advice_level: Option<FindingLevel>,
+    /// What the sample was compared with. Only whole samples have one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub match_info: Option<MatchInfo>,
 }
 
 impl LiveCheckResult {
@@ -503,6 +612,7 @@ impl LiveCheckResult {
         LiveCheckResult {
             all_advice: Vec::new(),
             highest_advice_level: None,
+            match_info: None,
         }
     }
 
@@ -573,7 +683,7 @@ pub trait LiveCheckRunner {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error>;
 }
@@ -584,11 +694,11 @@ impl<T: LiveCheckRunner> LiveCheckRunner for Vec<T> {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         for item in self.iter_mut() {
-            item.run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
+            item.run_live_check(live_checker, stats, parent.clone(), parent_signal)?;
         }
         Ok(())
     }
@@ -603,11 +713,14 @@ pub trait Advisable {
     fn entity_type(&self) -> &str;
 
     /// Run advisors on this entity
+    ///
+    /// The result is not recorded in the statistics: a caller may add its own
+    /// findings to it, so it records the finished result itself.
     fn run_advisors(
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<LiveCheckResult, Error> {
         let mut result = LiveCheckResult::new();
@@ -617,7 +730,7 @@ pub trait Advisable {
                 self.as_sample_ref(),
                 parent_signal,
                 None,
-                parent_group.clone(),
+                parent.as_ref().and_then(|c| c.signal.clone()),
                 live_checker.otlp_emitter.clone(),
             )?;
             result.add_advice_list(
@@ -628,7 +741,6 @@ pub trait Advisable {
         }
 
         stats.inc_entity_count(self.entity_type());
-        stats.maybe_add_live_check_result(Some(&result));
 
         Ok(result)
     }

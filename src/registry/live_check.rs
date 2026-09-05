@@ -9,9 +9,10 @@ use std::sync::Arc;
 
 use clap::Args;
 use include_dir::{include_dir, Dir};
+use serde_yaml::Value;
 
 use log::info;
-use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::{log_success, log_warn};
 use weaver_config::{FailOnLevel, WeaverConfig};
@@ -31,6 +32,7 @@ use weaver_live_check::{
 };
 use weaver_macros::weaver_command;
 
+use crate::registry::generate::{generate_params_shared, parse_key_val};
 use crate::registry::{load_config, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
@@ -81,7 +83,7 @@ impl From<String> for InputFormat {
 #[weaver_command(
     section = "live-check",
     config_type = "::weaver_config::LiveCheckConfig",
-    extra_config_only = "finding_filters,finding_level_overrides"
+    extra_config_only = "finding_filters,finding_level_overrides,matchers"
 )]
 #[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryLiveCheckArgs {
@@ -94,6 +96,15 @@ pub struct RegistryLiveCheckArgs {
     #[command(flatten)]
     #[shared(policy)]
     policy: PolicyArgs,
+
+    /// Parameters key=value, defined in the command line, to pass to the templates.
+    /// The value must be a valid YAML value.
+    #[arg(short = 'D', long, value_parser = parse_key_val)]
+    pub param: Option<Vec<(String, Value)>>,
+
+    /// Parameters, defined in a YAML file, to pass to the templates.
+    #[arg(long)]
+    pub params: Option<PathBuf>,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
@@ -130,6 +141,13 @@ pub struct RegistryLiveCheckArgs {
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     #[config(default = "false")]
     no_stats: Option<bool>,
+
+    /// Search the base attribute definitions of the registry and its
+    /// dependencies for an attribute that is on neither the matched signal nor
+    /// its attribute groups.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    #[config(default = "false")]
+    search_all_attributes: Option<bool>,
 
     /// Findings at this level or higher cause a non-zero exit code.
     /// Levels (highest→lowest): violation, improvement, information.
@@ -236,7 +254,7 @@ pub(crate) fn command(
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut exit_code = 0;
 
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     let config = cmd_config.config;
     let registry_args = cmd_config.registry;
     let policy_args = cmd_config.policy;
@@ -273,12 +291,13 @@ pub(crate) fn command(
     } else {
         OutputTarget::from_optional_dir(config.output.as_ref())
     };
-    let mut output = OutputProcessor::new(
+    let mut output = OutputProcessor::with_params(
         &config.format,
         "live_check",
         Some(&DEFAULT_LIVE_CHECK_TEMPLATES),
         Some(config.templates.clone()),
         target,
+        generate_params_shared(&args.param, &args.params)?,
     )?;
 
     info!("Weaver Registry Live Check");
@@ -304,6 +323,12 @@ pub(crate) fn command(
 
     live_checker.finding_modifier =
         FindingModifier::from_rules(&config.finding_filters, &config.finding_level_overrides)?;
+
+    live_checker.set_matchers(&config.matchers)?;
+
+    if config.search_all_attributes {
+        live_checker.search_all_attributes()?;
+    }
 
     let rego_advisor = RegoAdvisor::new(
         &live_checker,
@@ -410,7 +435,7 @@ pub(crate) fn command(
         }
     }
 
-    stats.finalize();
+    stats.finalize(live_checker.matchers());
     // Set exit_code based on the configured --fail-on threshold. `None`
     // threshold means "never fail". `should_fail` returns false for disabled
     // stats; the startup check above warns about --no-stats + non-`none` gates.
@@ -473,6 +498,25 @@ pub(crate) fn command(
     } else {
         // Stats only (streaming mode finished)
         output.generate(&stats).map_err(DiagnosticMessages::from)?;
+    }
+
+    for matcher in live_checker.matchers().iter() {
+        if let Some((count, error)) = matcher.errors() {
+            diag_msgs.extend_from_vec(vec![DiagnosticMessage::new(
+                crate::registry::Error::MatcherFailedAtRuntime {
+                    id: matcher.id.clone(),
+                    count,
+                    error: error.to_owned(),
+                },
+            )]);
+        }
+        if matcher.matched() == 0 {
+            diag_msgs.extend_from_vec(vec![DiagnosticMessage::new(
+                crate::registry::Error::MatcherNeverFired {
+                    id: matcher.id.clone(),
+                },
+            )]);
+        }
     }
 
     // Shutdown OTLP emitter to flush any pending log records

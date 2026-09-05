@@ -8,9 +8,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    live_checker::LiveChecker, sample_attribute::SampleAttribute, Advisable, Error,
-    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleInstrumentationScope,
-    SampleRef, SampleResource, VersionedSignal,
+    live_checker::LiveChecker, matcher::SampleMatch, sample_attribute::SampleAttribute, Advisable,
+    Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample,
+    SampleInstrumentationScope, SampleRef, SampleResource, SampleType,
 };
 
 /// Represents a profile collected via OTLP (v1development)
@@ -46,14 +46,28 @@ impl LiveCheckRunner for SampleProfile {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        _parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
+        let sample_match = Rc::new(live_checker.match_for(SampleType::Profile, self, None));
+        live_checker.record_match(&sample_match);
+        let mut result = self.run_advisors(
+            live_checker,
+            stats,
+            Some(Rc::clone(&sample_match)),
+            parent_signal,
+        )?;
+        sample_match.add_findings(
+            &SampleRef::Profile(self),
+            &self.attributes,
+            &mut result,
+            live_checker,
+            parent_signal,
+        );
+        self.live_check_result = Some(result);
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         self.attributes
-            .run_live_check(live_checker, stats, parent_group, parent_signal)?;
-        Ok(())
+            .run_live_check(live_checker, stats, Some(sample_match), parent_signal)
     }
 }
 
@@ -65,8 +79,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        live_checker::LiveChecker, DisabledStatistics, LiveCheckStatistics, Sample, SampleRef,
-        VersionedRegistry,
+        live_checker::LiveChecker, matcher::fixture::matcher_configs, DisabledStatistics,
+        LiveCheckStatistics, Sample, SampleRef, VersionedRegistry,
     };
 
     fn make_profile() -> SampleProfile {
@@ -110,6 +124,35 @@ mod tests {
     fn test_as_sample_ref() {
         let profile = make_profile();
         assert!(matches!(profile.as_sample_ref(), SampleRef::Profile(_)));
+    }
+
+    /// The OpenTelemetry SDKs cannot emit profiles yet, so this is the only
+    /// coverage of a profile matcher.
+    #[test]
+    fn a_profile_matcher_matches_a_profile() {
+        let mut profile = make_profile();
+        let mut live_checker = LiveChecker::new(empty_registry(), vec![]);
+        live_checker
+            .set_matchers(&matcher_configs(
+                r#"
+[[live-check.matchers]]
+id = "acme.profile"
+sample_type = "profile"
+when = 'true'
+"#,
+            ))
+            .expect("the matchers compile");
+        let mut stats = LiveCheckStatistics::Disabled(DisabledStatistics);
+        let parent = Sample::Profile(make_profile());
+        profile
+            .run_live_check(&mut live_checker, &mut stats, None, &parent)
+            .expect("the profile is checked");
+        let matcher = live_checker
+            .matchers()
+            .iter()
+            .next()
+            .expect("there is one matcher");
+        assert_eq!(matcher.matched(), 1);
     }
 
     #[test]

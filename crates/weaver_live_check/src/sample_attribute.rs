@@ -11,8 +11,8 @@ use weaver_checker::FindingLevel;
 use weaver_semconv::v1::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{
-    advice::FindingBuilder, live_checker::LiveChecker, Error, FindingId, LiveCheckResult,
-    LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef, VersionedSignal,
+    advice::FindingBuilder, live_checker::LiveChecker, matcher::SampleMatch, Error, FindingId,
+    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
     ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY,
 };
 
@@ -174,18 +174,34 @@ impl LiveCheckRunner for SampleAttribute {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
-        // find the attribute in the registry
-        let semconv_attribute = {
-            if let Some(attribute) = live_checker.find_attribute(&self.name) {
-                Some(attribute)
-            } else {
-                live_checker.find_template(&self.name)
-            }
-        };
+        // v1 searches the whole registry; v2 only when asked.
+        let search_registry = live_checker.is_searching_all_attributes() || !live_checker.is_v2();
+        // A signal's or group's copy of an attribute holds its refinements.
+        let semconv_attribute = parent
+            .as_deref()
+            .and_then(|sample_match| sample_match.find_attribute(live_checker, &self.name))
+            .or_else(|| {
+                if !search_registry {
+                    return None;
+                }
+                live_checker
+                    .find_attribute(&self.name)
+                    .or_else(|| {
+                        live_checker
+                            .find_base_attribute(&self.name)
+                            .map(|base| Rc::clone(&base.attribute))
+                    })
+                    .or_else(|| live_checker.find_template(&self.name))
+                    .or_else(|| {
+                        live_checker
+                            .find_base_template(&self.name)
+                            .map(|base| Rc::clone(&base.attribute))
+                    })
+            });
         if semconv_attribute.is_none() {
             let sample_ref = SampleRef::Attribute(self);
             let finding = FindingBuilder::new(FindingId::MissingAttribute)
@@ -231,7 +247,7 @@ impl LiveCheckRunner for SampleAttribute {
                 sample_ref.clone(),
                 parent_signal,
                 semconv_attribute.clone(),
-                parent_group.clone(),
+                parent.as_ref().and_then(|c| c.signal.clone()),
                 live_checker.otlp_emitter.clone(),
             )?;
             result.add_advice_list(

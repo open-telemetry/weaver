@@ -1,0 +1,253 @@
+# yaml-language-server: $schema=../../../../../schemas/semconv.schema.v2.json
+file_format: definition/2
+
+attributes:
+  - key: acme.checkout.id
+    type: string
+    brief: Identifier of the checkout.
+    stability: stable
+    examples: ["c-1"]
+  - key: acme.checkout.stage
+    type:
+      members:
+        - id: cart
+          value: cart
+          brief: The customer is filling the cart.
+          stability: stable
+        - id: payment
+          value: payment
+          brief: The customer is paying.
+          stability: stable
+    brief: Stage the checkout has reached.
+    stability: stable
+    annotations:
+      acme:
+        source: catalog
+  - key: acme.cart.item.count
+    type: int
+    brief: Number of items in the cart.
+    stability: stable
+    examples: [3]
+  - key: acme.session.id
+    type: string
+    brief: Identifier of the session.
+    stability: stable
+    examples: ["s-9"]
+    annotations:
+      acme:
+        source: catalog
+  - key: acme.checkout.coupon
+    type: string
+    brief: Coupon applied to the checkout.
+    stability: stable
+    examples: ["SAVE10"]
+  - key: acme.checkout.error.code
+    type: string
+    brief: Error that ended the checkout.
+    stability: stable
+    examples: ["declined"]
+  - key: acme.checkout.legacy.id
+    type: string
+    brief: Old identifier of the checkout.
+    stability: stable
+    examples: ["l-1"]
+    deprecated:
+      reason: renamed
+      renamed_to: acme.checkout.id
+  - key: acme.request.header
+    type: template[string]
+    brief: Headers of the request that started the checkout.
+    stability: stable
+    examples: ["application/json"]
+  - key: acme.deployment.id
+    type: string
+    brief: Identifier of the deployment.
+    stability: stable
+    examples: ["d-1"]
+  - key: acme.deployment.name
+    type: string
+    brief: Name of the deployment.
+    stability: stable
+    examples: ["checkout"]
+  - key: acme.deployment.owner
+    type: string
+    brief: Team that owns the deployment.
+    stability: stable
+    examples: ["payments"]
+  - key: acme.deployment.region
+    type: string
+    brief: Region the deployment runs in.
+    stability: stable
+    examples: ["eu-west-1"]
+  - key: acme.cluster.id
+    type: string
+    brief: Identifier of the cluster.
+    stability: stable
+    examples: ["k-1"]
+  - key: service.name
+    type: string
+    brief: Logical name of the service.
+    stability: stable
+    examples: ["acme-checkout"]
+  - key: acme.customer.tier
+    type: string
+    brief: Commercial tier of the customer.
+    stability: development
+    examples: ["gold"]
+
+entities:
+  - type: acme.deployment
+    brief: The deployment the telemetry came from.
+    stability: stable
+    requirement_level: recommended
+    identity:
+      - ref: acme.deployment.id
+        requirement_level: required
+    description:
+      - ref: acme.deployment.name
+        requirement_level: recommended
+      - ref: acme.deployment.owner
+        requirement_level: opt_in
+      - ref: acme.deployment.region
+        requirement_level:
+          conditionally_required: When the deployment is regional.
+  - type: acme.cluster
+    brief: The cluster the telemetry came from.
+    stability: stable
+    requirement_level: recommended
+    identity:
+      - ref: acme.cluster.id
+        requirement_level: required
+
+attribute_groups:
+  - id: acme.session
+    visibility: public
+    brief: Session attributes.
+    stability: stable
+    attributes:
+      - ref: acme.session.id
+        annotations:
+          acme:
+            source: group-session
+  - id: acme.service
+    visibility: public
+    brief: Attributes expected on a resource.
+    stability: stable
+    attributes:
+      - ref: service.name
+        requirement_level: required
+  - id: acme.step
+    visibility: public
+    brief: Checkout step attributes.
+    stability: stable
+    attributes:
+      - ref: acme.checkout.stage
+        annotations:
+          acme:
+            source: group-step
+  - id: acme.customer
+    visibility: public
+    brief: Customer attributes.
+    stability: stable
+    attributes:
+      - ref: acme.session.id
+        annotations:
+          acme:
+            source: group-customer
+      - ref: acme.customer.tier
+        requirement_level: recommended
+
+spans:
+  - type: acme.checkout
+    name:
+      note: The constant `checkout`.
+    kind: server
+    brief: One checkout request.
+    stability: stable
+    requirement_level: recommended
+    entity_associations:
+      - acme.cluster
+    attributes:
+      - ref: acme.checkout.id
+        requirement_level: required
+      - ref: acme.checkout.stage
+        requirement_level: recommended
+        annotations:
+          acme:
+            source: span
+      - ref: acme.checkout.coupon
+        requirement_level: opt_in
+      - ref: acme.checkout.error.code
+        requirement_level:
+          conditionally_required: When the checkout failed.
+      - ref: acme.checkout.legacy.id
+        requirement_level: opt_in
+      - ref: acme.request.header
+        requirement_level: opt_in
+  - type: acme.cart
+    name:
+      note: The constant `cart`.
+    kind: internal
+    brief: One cart operation.
+    stability: stable
+    requirement_level: recommended
+    attributes:
+      - ref: acme.cart.item.count
+        requirement_level: recommended
+
+metrics:
+  - name: acme.cart.items
+    instrument: counter
+    unit: "{item}"
+    brief: Items added to carts.
+    stability: stable
+    requirement_level: recommended
+    entity_associations:
+      - acme.deployment
+    attributes:
+      - ref: acme.checkout.stage
+        requirement_level: recommended
+  - name: acme.checkout.duration
+    instrument: histogram
+    unit: s
+    brief: Duration of a checkout.
+    stability: stable
+    requirement_level: recommended
+    attributes:
+      - ref: acme.checkout.stage
+        requirement_level: recommended
+
+  - name: acme.checkout.attempts
+    instrument: counter
+    unit: "{attempt}"
+    brief: Checkouts started.
+    stability: stable
+    requirement_level: recommended
+    attributes:
+      - ref: acme.checkout.stage
+        requirement_level: recommended
+      # Only this metric declares it, so a sample setting it is unexpected
+      # against the signal `acme.metric.mismatched` names instead.
+      - ref: acme.checkout.coupon
+        requirement_level: recommended
+
+events:
+  - name: acme.checkout.completed
+    brief: A checkout completed.
+    stability: stable
+    requirement_level: recommended
+    entity_associations:
+      - acme.deployment
+      - acme.cluster
+    attributes:
+      - ref: acme.checkout.id
+        requirement_level: required
+
+  # No entity associations, so naming it adds no entity findings.
+  - name: acme.checkout.abandoned
+    brief: A checkout was abandoned.
+    stability: stable
+    requirement_level: recommended
+    attributes:
+      - ref: acme.session.id
+        requirement_level: required

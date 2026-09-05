@@ -9,13 +9,14 @@ use serde::{Deserialize, Serialize};
 use weaver_checker::FindingLevel;
 
 use crate::{
-    advice::{check_entity_associations, emit_findings, FindingBuilder},
+    advice::{add_entity_association_findings, FindingBuilder},
     live_checker::LiveChecker,
+    matcher::SampleMatch,
     sample_attribute::SampleAttribute,
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_resource::SampleResource,
     Error, FindingId, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
-    VersionedSignal,
+    SampleType, VersionedSignal,
 };
 
 /// Represents a sample telemetry log parsed from any source
@@ -51,34 +52,45 @@ impl LiveCheckRunner for SampleLog {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        _parent_group: Option<Rc<VersionedSignal>>,
+        _parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
-        let semconv_event = if self.event_name.is_empty() {
-            // We allow Logd without event_names to be checked, but they cannot be matched to the registry
+        // A log with no event_name has no name to match on.
+        let natural = if self.event_name.is_empty() {
             None
         } else {
-            // find the event in the registry
-            let semconv_event = live_checker.find_event(&self.event_name);
-            if semconv_event.is_none() {
-                let finding = FindingBuilder::new(FindingId::MissingEvent)
-                    .message(format!(
-                        "Event '{}' does not exist in the registry.",
-                        self.event_name
-                    ))
-                    .level(FindingLevel::Violation)
-                    .signal(parent_signal)
-                    .build_and_emit(
-                        &SampleRef::Log(self),
-                        live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
-                        parent_signal,
-                    );
-                let sample_ref = SampleRef::Log(self);
-                result.add_advice(finding, live_checker.finding_modifier.as_ref(), &sample_ref);
-            };
-            semconv_event
+            live_checker.find_event(&self.event_name)
         };
+        // The match comes before the advisors, so a matcher's `signal` is what
+        // the attributes are checked against.
+        let sample_match = live_checker.match_for(SampleType::Log, self, natural);
+        live_checker.record_match(&sample_match);
+        let semconv_event = sample_match.signal.clone();
+        // Coverage is credited to the signal the match resolved, which a
+        // matcher can rename, except for a v1 group whose id is not the
+        // event name.
+        let coverage_name = match semconv_event.as_deref() {
+            Some(VersionedSignal::Event(event)) => event.name.to_string(),
+            _ => self.event_name.clone(),
+        };
+        // Raised only when no matcher named a signal.
+        if semconv_event.is_none() && !self.event_name.is_empty() {
+            let finding = FindingBuilder::new(FindingId::MissingEvent)
+                .message(format!(
+                    "Event '{}' does not exist in the registry.",
+                    self.event_name
+                ))
+                .level(FindingLevel::Violation)
+                .signal(parent_signal)
+                .build_and_emit(
+                    &SampleRef::Log(self),
+                    live_checker.otlp_emitter.as_ref().map(|rc| rc.as_ref()),
+                    parent_signal,
+                );
+            let sample_ref = SampleRef::Log(self);
+            result.add_advice(finding, live_checker.finding_modifier.as_ref(), &sample_ref);
+        }
         for advisor in live_checker.advisors.iter_mut() {
             let sample_ref = SampleRef::Log(self);
             let advice_list = advisor.advise(
@@ -94,55 +106,31 @@ impl LiveCheckRunner for SampleLog {
                 &sample_ref,
             );
         }
-        // Check entity attribute requirements against the resource (empty slice if no resource)
-        let resource_attributes: &[SampleAttribute] = parent_signal
-            .resource()
-            .map(|r| r.attributes.as_slice())
-            .unwrap_or(&[]);
-        // A v1 group and a v2 event hold the same expression in two shapes, so
-        // each arm calls the check with the shape it holds.
-        let findings = match semconv_event.as_deref() {
-            Some(VersionedSignal::Group(g)) => check_entity_associations(
-                &g.entity_associations,
-                live_checker,
-                resource_attributes,
-                parent_signal,
-            ),
-            Some(VersionedSignal::Event(e)) => check_entity_associations(
-                &e.entity_associations,
-                live_checker,
-                resource_attributes,
-                parent_signal,
-            ),
-            _ => Vec::new(),
-        };
-        if !findings.is_empty() {
-            let sample_ref = SampleRef::Log(self);
-            emit_findings(
-                &findings,
-                &sample_ref,
-                live_checker.otlp_emitter.as_deref(),
-                parent_signal,
-            );
-            result.add_advice_list(
-                findings,
-                live_checker.finding_modifier.as_ref(),
-                &sample_ref,
-            );
-        }
+        add_entity_association_findings(
+            semconv_event.as_deref(),
+            &SampleRef::Log(self),
+            &mut result,
+            live_checker,
+            parent_signal,
+        );
+
+        sample_match.add_findings(
+            &SampleRef::Log(self),
+            &self.attributes,
+            &mut result,
+            live_checker,
+            parent_signal,
+        );
+        let sample_match = Rc::new(sample_match);
 
         // Check attributes
-        self.attributes.run_live_check(
-            live_checker,
-            stats,
-            semconv_event.clone(),
-            parent_signal,
-        )?;
+        self.attributes
+            .run_live_check(live_checker, stats, Some(sample_match), parent_signal)?;
 
         self.live_check_result = Some(result);
         stats.inc_entity_count("log");
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
-        stats.add_event_name_to_coverage(self.event_name.clone());
+        stats.add_event_name_to_coverage(coverage_name);
         Ok(())
     }
 }

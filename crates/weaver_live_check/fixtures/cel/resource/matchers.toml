@@ -1,0 +1,7 @@
+# A resource has no name and no signal, so this can only add an attribute
+# group.
+[[live-check.matchers]]
+id = "myapp.resource"
+sample_type = "resource"
+when = '"service.name" in attributes && attributes["service.name"].startsWith("myapp.")'
+attribute_groups = ["myapp.resource"]

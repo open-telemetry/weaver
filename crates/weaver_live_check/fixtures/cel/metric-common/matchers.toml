@@ -1,0 +1,7 @@
+# Only myapp metrics. No `signal`, so each metric is still checked against
+# the signal its name resolves to, plus this attribute group.
+[[live-check.matchers]]
+id = "myapp.common.metric"
+sample_type = "metric"
+when = 'name.startsWith("myapp.")'
+attribute_groups = ["myapp.common"]

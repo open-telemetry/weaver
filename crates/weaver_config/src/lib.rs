@@ -69,13 +69,25 @@ pub struct WeaverConfig {
 impl WeaverConfig {
     /// Deserialize a per-command config section from the raw TOML table.
     ///
-    /// Returns `C::default()` when the section is absent or fails to deserialize.
-    #[must_use]
-    pub fn command_config<C: serde::de::DeserializeOwned + Default>(&self, section: &str) -> C {
+    /// Returns `C::default()` when the section is absent.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the section is present but does not deserialize.
+    pub fn command_config<C: serde::de::DeserializeOwned + Default>(
+        &self,
+        section: &str,
+    ) -> Result<C, ConfigError> {
         let Some(value) = self.commands.get(section) else {
-            return C::default();
+            return Ok(C::default());
         };
-        value.clone().try_into::<C>().unwrap_or_default()
+        value
+            .clone()
+            .try_into::<C>()
+            .map_err(|e| ConfigError::Section {
+                section: section.to_owned(),
+                reason: e.to_string(),
+            })
     }
 }
 
@@ -146,6 +158,14 @@ pub enum ConfigError {
     Parse {
         /// The path that failed to parse.
         path: PathBuf,
+        /// The error message.
+        reason: String,
+    },
+    /// A command section is present but does not deserialize.
+    #[error("Invalid `{section}` section in the config: {reason}")]
+    Section {
+        /// The command section, e.g. `live-check`.
+        section: String,
         /// The error message.
         reason: String,
     },

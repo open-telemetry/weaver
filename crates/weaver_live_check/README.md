@@ -79,6 +79,27 @@ Options for OTLP ingest:
 - `--admin-port`: Port used by the HTTP admin port (endpoints: /stop)
 - `--inactivity-timeout`: Max inactivity time in seconds before stopping the listener
 
+## Matchers
+
+Before a sample can be checked it has to be paired with a signal in the registry. A metric has its name and an event has its `event_name`, so those resolve themselves. A span name is free-form and a resource is a bare list of attributes, so nothing in them says which definition they were meant to be.
+
+A matcher supplies that missing identifier. You describe a signature your telemetry sets, and name the signal, or the attribute groups, that a matching sample should be compared with:
+
+```toml
+[[live-check.matchers]]
+id = "match.checkout"
+sample_type = "span"
+when = '"myapp.checkout.id" in attributes'
+signal = "myapp.checkout"
+attribute_groups = ["myapp.common"]
+```
+
+`when` is a [CEL](https://cel.dev) expression, compiled and linted at startup. A matcher never changes the checks themselves, only what a sample is compared with. v2 registries only.
+
+`attribute_groups` says which attributes are _permitted_ on the sample: they are checked against their definitions, but nothing is reported for one missing from the sample. Use `strict_attribute_groups` for a group whose requirement levels should be enforced.
+
+See [Matchers](docs/matchers.md) for the guide: worked examples for each sample type, the expression variables, resolution order and diagnostics.
+
 ## Advisors
 
 Sample entities are assessed by the set of `Advisors` and augmented with `Advice`. Built-ins check for fundamental compliance with the `Registry` supplied, for example `missing_attribute` and `type_mismatch`.
@@ -172,7 +193,7 @@ The default preprocessor produces these keys:
 - `data.schema_url`: the schema url of the registry under check. `null` for a v1 registry.
 - `data.entities`: the entity definitions, keyed by the schema url of the registry that defines them, and then by entity type or refinement id. Empty for a v1 registry.
 
-A signal declares the entities it belongs to with `entity_associations`, and an entity may be defined in a dependency rather than in the registry under check, so its definition is not in the input. Each association leaf carries the entity type and the provenance of the definition, which is the pair `data.entities` is keyed by, so a policy reads one definition rather than searching for it by name:
+A signal declares the entities it belongs to with `entity_associations`, and an entity may be defined in a dependency rather than in the registry under check, so its definition is not in the input. Each association leaf holds the entity type and the provenance of the definition, which is the pair `data.entities` is keyed by, so a policy reads one definition rather than searching for it by name:
 
 ```rego
 some assoc in input.registry_group.entity_associations
@@ -182,7 +203,7 @@ source := object.get(assoc, ["provenance", "source"], data.schema_url)
 entity := data.entities[source][assoc.type]
 ```
 
-An element of `entity_associations` can also be a `one_of` or `all_of` group rather than a direct reference. A group carries no `type`, so a policy that must cover those walks the tree itself. `data/policies/entity_advice/entities.rego` is a complete example of reading an entity definition.
+An element of `entity_associations` can also be a `one_of` or `all_of` group rather than a direct reference. A group has no `type`, so a policy that must cover those walks the tree itself. `data/policies/entity_advice/entities.rego` is a complete example of reading an entity definition.
 
 To override the default Otel jq preprocessor provide a path to the jq file through the `--advice-preprocessor` option.
 
@@ -199,7 +220,7 @@ weaver registry json-schema --json-schema weaver-config -o weaver-config.schema.
 ### Live-check settings
 
 ```toml
-[live_check]
+[live-check]
 input_source = "otlp"
 input_format = "json"
 format = "ansi"
@@ -211,19 +232,21 @@ output = "reports"
 advice_policies = "policies"
 advice_preprocessor = "preprocessor.jq"
 
-[live_check.otlp]
+[live-check.otlp]
 grpc_address = "127.0.0.1"
 grpc_port = 4317
 admin_port = 4320
 inactivity_timeout = 10
 
-[live_check.emit]
+[live-check.emit]
 otlp_logs = false
 otlp_logs_endpoint = "http://localhost:4317"
 otlp_logs_stdout = false
 ```
 
 Every key is optional: omit anything you want to leave at its default (or set on the CLI).
+
+`search_all_attributes` and the `[[live-check.matchers]]` array also live in this section. See [Matchers](docs/matchers.md).
 
 ### Finding filters
 
@@ -259,7 +282,7 @@ The `exclude_samples` and `sample_names` fields match by sample name: attribute 
 
 Level overrides are applied before finding filters, so a `min_level` filter evaluated afterwards sees the overridden level rather than the original one.
 
-Note that `signal_type` scopes by the _parent_ signal, not by what the finding is about — an attribute finding like `undefined_enum_variant` (which only ever fires on attribute values) still carries the `signal_type` of the span/metric/log/resource that attribute belongs to.
+Note that `signal_type` scopes by the _parent_ signal, not by what the finding is about — an attribute finding like `undefined_enum_variant` (which only ever fires on attribute values) still reports the `signal_type` of the span/metric/log/resource that attribute belongs to.
 
 ```toml
 # undefined_enum_variant is information by default; treat it as a violation everywhere

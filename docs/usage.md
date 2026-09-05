@@ -504,6 +504,8 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 
   Possible values: `true`, `false`
 
+* `-D`, `--param <PARAM>` — Parameters key=value, defined in the command line, to pass to the templates. The value must be a valid YAML value
+* `--params <PARAMS>` — Parameters, defined in a YAML file, to pass to the templates
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command. [default: ansi]
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located. [default: diagnostic_templates]
 * `--diagnostic-stdout <DIAGNOSTIC_STDOUT>` — Send the output to stdout instead of stderr. [default: false]
@@ -519,6 +521,10 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
   Possible values: `true`, `false`
 
 * `--no-stats <NO_STATS>` — Disable statistics accumulation. Useful for long-running sessions. [default: false]
+
+  Possible values: `true`, `false`
+
+* `--search-all-attributes <SEARCH_ALL_ATTRIBUTES>` — Search the base attribute definitions of the registry and its dependencies for an attribute that is on neither the matched signal nor its attribute groups. [default: false]
 
   Possible values: `true`, `false`
 

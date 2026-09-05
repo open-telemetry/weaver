@@ -270,6 +270,13 @@
           "type": "string",
           "default": "otlp"
         },
+        "matchers": {
+          "description": "Rules that assign a registry signal, additional attribute groups, or\nboth, to samples that cannot be identified by name alone. Evaluated in\nthe order they are declared.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MatcherConfig"
+          }
+        },
         "no_stats": {
           "description": "Disable statistics accumulation. Useful for long-running live-check sessions.",
           "type": "boolean",
@@ -291,6 +298,11 @@
             "null"
           ],
           "default": null
+        },
+        "search_all_attributes": {
+          "description": "Search the base attribute definitions of the registry and its\ndependencies for an attribute that is on neither the matched signal nor\nits attribute groups. An `unexpected_attribute` finding for one found\nthis way names every schema url that declares it. Without this, the\nattributes of a sample that matched no matcher are not checked at all.",
+          "type": "boolean",
+          "default": false
         },
         "templates": {
           "description": "Path to the directory where the templates are located.",
@@ -741,6 +753,99 @@
           "minimum": 0
         }
       }
+    },
+    "MatcherConfig": {
+      "description": "A rule that assigns a registry signal, additional attribute groups, or\nboth, to samples that cannot be identified by name alone.\n\nThe rule applies to a sample of kind `sample_type` when `when` evaluates to\ntrue. `signal` replaces the signal the sample would otherwise be checked\nagainst; the attribute groups are checked in addition to it. All are looked\nup in the registry at startup.",
+      "type": "object",
+      "properties": {
+        "attribute_groups": {
+          "description": "Registry attribute groups permitted on the sample, in priority order,\nwithout enforcing their requirement levels.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "id": {
+          "description": "Identifies the matcher in findings, statistics and coverage.",
+          "type": "string"
+        },
+        "sample_type": {
+          "description": "The kind of sample this matcher applies to.",
+          "$ref": "#/$defs/MatcherSampleType"
+        },
+        "signal": {
+          "description": "The registry signal the sample is checked against. When unset, the\nsample is checked against the signal its name resolves to.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "strict_attribute_groups": {
+          "description": "Registry attribute groups whose requirement levels are enforced.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "when": {
+          "description": "A CEL expression that must evaluate to true for the matcher to apply.\nWhen unset, the matcher applies to every sample of its `sample_type`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "sample_type"
+      ]
+    },
+    "MatcherSampleType": {
+      "description": "The kind of sample a matcher applies to.",
+      "oneOf": [
+        {
+          "description": "A span.",
+          "type": "string",
+          "const": "span"
+        },
+        {
+          "description": "An event attached to a span.",
+          "type": "string",
+          "const": "span_event"
+        },
+        {
+          "description": "A link between spans.",
+          "type": "string",
+          "const": "span_link"
+        },
+        {
+          "description": "A log record.",
+          "type": "string",
+          "const": "log"
+        },
+        {
+          "description": "A metric.",
+          "type": "string",
+          "const": "metric"
+        },
+        {
+          "description": "A resource.",
+          "type": "string",
+          "const": "resource"
+        },
+        {
+          "description": "An instrumentation scope.",
+          "type": "string",
+          "const": "instrumentation_scope"
+        },
+        {
+          "description": "A profile.",
+          "type": "string",
+          "const": "profile"
+        }
+      ]
     }
   }
 }
