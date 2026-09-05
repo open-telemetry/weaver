@@ -131,6 +131,14 @@ pub struct RegistryLiveCheckArgs {
     #[config(default = "false")]
     no_stats: Option<bool>,
 
+    /// Capture raw OTLP telemetry into the report, for consumers that
+    /// would like to visualize the original data used to generate the
+    /// report. Off by default: report output is unchanged unless this
+    /// is set.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    #[config(default = "false")]
+    capture_telemetry: Option<bool>,
+
     /// Findings at this level or higher cause a non-zero exit code.
     /// Levels (highest→lowest): violation, improvement, information.
     /// Use `none` to never fail.
@@ -221,8 +229,8 @@ fn generate_report(
         }
     } else {
         let report = LiveCheckReport {
-            statistics: stats,
             samples,
+            statistics: stats,
         };
         output.generate(&report)
     }
@@ -330,6 +338,7 @@ pub(crate) fn command(
                 otlp_grpc_port: config.otlp.grpc_port,
                 admin_port: config.otlp.admin_port,
                 inactivity_timeout: config.otlp.inactivity_timeout,
+                capture_telemetry: config.capture_telemetry,
             };
             let (iter, coordinator) = otlp.ingest_otlp()?;
             if is_http_output {
@@ -451,8 +460,8 @@ pub(crate) fn command(
                 lines.join("\n")
             } else {
                 let report = LiveCheckReport {
-                    statistics: stats,
                     samples,
+                    statistics: stats,
                 };
                 output
                     .generate_to_string(&report)

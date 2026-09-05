@@ -48,6 +48,9 @@ pub mod live_checker;
 pub mod otlp_logger;
 /// The intermediary format for attributes
 pub mod sample_attribute;
+/// Raw OTLP context (identity, timing, provenance) captured onto a sample
+/// with `--capture-telemetry`.
+pub mod sample_context;
 /// An intermediary format for instrumentation scope metadata.
 pub mod sample_instrumentation_scope;
 /// The intermediary format for logs
@@ -645,7 +648,25 @@ pub fn get_json_schema() -> Result<String, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sample_context::SampleContext;
+    use sample_log::SampleLog;
     use sample_profile::SampleProfile;
+
+    fn sample_log_with_context(context: Option<SampleContext>) -> SampleLog {
+        SampleLog {
+            event_name: "event".to_owned(),
+            severity_number: None,
+            severity_text: None,
+            body: None,
+            attributes: vec![],
+            trace_id: None,
+            span_id: None,
+            instrumentation_scope: None,
+            live_check_result: None,
+            resource: None,
+            context,
+        }
+    }
 
     fn make_sample_profile() -> SampleProfile {
         SampleProfile {
@@ -686,5 +707,32 @@ mod tests {
         let profile = make_sample_profile();
         let sample_ref = SampleRef::Profile(&profile);
         assert_eq!(sample_ref.sample_type(), SampleType::Profile);
+    }
+
+    #[test]
+    fn report_serializes_captured_context_on_its_source_sample() {
+        let report = LiveCheckReport {
+            samples: vec![Sample::Log(sample_log_with_context(Some(SampleContext {
+                trace_id: Some("trace-id".to_owned()),
+                span_id: Some("span-id".to_owned()),
+                ..SampleContext::default()
+            })))],
+            statistics: LiveCheckStatistics::Disabled(DisabledStatistics),
+        };
+
+        let json = serde_json::to_value(report).expect("serialize report");
+        assert_eq!(json["samples"][0]["log"]["context"]["trace_id"], "trace-id");
+        assert_eq!(json["samples"][0]["log"]["context"]["span_id"], "span-id");
+    }
+
+    #[test]
+    fn report_without_captured_context_omits_context_from_samples() {
+        let report = LiveCheckReport {
+            samples: vec![Sample::Log(sample_log_with_context(None))],
+            statistics: LiveCheckStatistics::Disabled(DisabledStatistics),
+        };
+
+        let json = serde_json::to_value(report).expect("serialize report");
+        assert!(json["samples"][0]["log"].get("context").is_none());
     }
 }

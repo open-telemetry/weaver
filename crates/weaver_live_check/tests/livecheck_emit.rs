@@ -210,6 +210,7 @@ async fn test_livecheck_emit_roundtrip() {
             instrumentation_scope: None,
             live_check_result: None,
             resource: None,
+            context: None,
         };
         let parent = Sample::Span(span.clone());
         let sample_ref = SampleRef::Span(&span);
@@ -315,6 +316,7 @@ async fn test_livecheck_emit_roundtrip() {
             instrumentation_scope: None,
             live_check_result: None,
             resource: Some(Rc::new(resource)),
+            context: None,
         };
         let parent = Sample::Span(span.clone());
         let sample_ref = SampleRef::Span(&span);
@@ -351,6 +353,7 @@ async fn test_livecheck_emit_roundtrip() {
             instrumentation_scope: None,
             live_check_result: None,
             resource: Some(Rc::new(resource)),
+            context: None,
         };
         let parent = Sample::Log(log.clone());
         let sample_ref = SampleRef::Log(&log);

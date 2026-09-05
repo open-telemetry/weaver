@@ -296,6 +296,7 @@ mod tests {
             instrumentation_scope: None,
             live_check_result: None,
             resource: None,
+            context: None,
         }
     }
 
@@ -838,6 +839,7 @@ mod tests {
             name: "test".to_owned(),
             attributes: vec![],
             live_check_result: None,
+            context: None,
         };
         assert_eq!(
             SampleRef::SpanEvent(&event_sample).sample_type(),
@@ -847,6 +849,7 @@ mod tests {
         let link_sample = SampleSpanLink {
             attributes: vec![],
             live_check_result: None,
+            context: None,
         };
         assert_eq!(
             SampleRef::SpanLink(&link_sample).sample_type(),

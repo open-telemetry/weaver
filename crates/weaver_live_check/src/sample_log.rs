@@ -12,6 +12,7 @@ use crate::{
     advice::{check_entity_associations, emit_findings, FindingBuilder},
     live_checker::LiveChecker,
     sample_attribute::SampleAttribute,
+    sample_context::SampleContext,
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_resource::SampleResource,
     Error, FindingId, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
@@ -44,6 +45,12 @@ pub struct SampleLog {
     /// Reference to the parent resource (not serialized)
     #[serde(skip)]
     pub resource: Option<Rc<SampleResource>>,
+    /// Raw OTLP context (trace correlation, start time, resource, scope).
+    /// `trace_id`/`span_id` remain in their existing fields above for
+    /// compatibility and are copied here when telemetry is captured.
+    /// Present only when captured via `--capture-telemetry`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<SampleContext>,
 }
 
 impl LiveCheckRunner for SampleLog {
