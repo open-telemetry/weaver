@@ -476,10 +476,23 @@ impl FromStr for VirtualDirectoryPath {
                 error: "Invalid virtual directory path. No local path or URL found".to_owned(),
             })?
             .as_str();
-        let refspec = captures.name("refspec").map(|m| m.as_str().to_owned());
+        let mut refspec = captures.name("refspec").map(|m| m.as_str().to_owned());
         let sub_folder = captures.name("sub_folder").map(|m| m.as_str().to_owned());
+        let is_url = source.starts_with("http://") || source.starts_with("https://");
 
-        if source.starts_with("http://") || source.starts_with("https://") {
+        // `@refspec` only has meaning for a Git repo, which requires an HTTP(S) URL.
+        // For local paths, `@` is just a valid path character (e.g. `/tmp/foo@bar`),
+        // so re-attach whatever the regex captured as `refspec` back onto the source.
+        let source = if is_url {
+            source.to_owned()
+        } else if let Some(refspec) = refspec.take() {
+            format!("{source}@{refspec}")
+        } else {
+            source.to_owned()
+        };
+        let source = source.as_str();
+
+        if is_url {
             if source.ends_with(".zip") || source.ends_with(".tar.gz") {
                 Ok(Self::RemoteArchive {
                     url: source.to_owned(),
@@ -1155,6 +1168,16 @@ mod tests {
     fn test_virtual_directory_path() {
         // Local folder
         let registry_path_str = "path/to/registry";
+        let registry_path: VirtualDirectoryPath = registry_path_str.parse().unwrap();
+        if let VirtualDirectoryPath::LocalFolder { path } = &registry_path {
+            assert_eq!(path, registry_path_str);
+        } else {
+            panic!("Expected LocalFolder, got something else");
+        }
+        assert_eq!(registry_path.to_string(), registry_path_str);
+
+        // Local folder containing an `@` (not a Git refspec separator for local paths)
+        let registry_path_str = "/tmp/foo@bar/model";
         let registry_path: VirtualDirectoryPath = registry_path_str.parse().unwrap();
         if let VirtualDirectoryPath::LocalFolder { path } = &registry_path {
             assert_eq!(path, registry_path_str);
