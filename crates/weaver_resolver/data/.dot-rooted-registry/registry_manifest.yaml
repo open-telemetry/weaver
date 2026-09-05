@@ -1,0 +1,6 @@
+name: dotrooted
+description: This registry lives in a dot-prefixed root directory to exercise the hidden-file filter.
+schema_url: https://dotrooted.example.com/schemas/0.1.0
+dependencies:
+  - schema_url: https://opentelemetry.io/schemas/1.30.0
+    registry_path: data/multi-registry/otel_registry
