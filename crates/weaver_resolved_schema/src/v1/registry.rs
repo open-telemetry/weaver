@@ -192,6 +192,14 @@ pub struct Group {
     #[schemars(skip)]
     pub span_name: Option<SpanName>,
 
+    /// The v2 span links, carried through the v1 intermediate
+    /// representation during resolution; they are omitted from v1
+    /// serialization and the v1 json schema.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub span_links: Vec<weaver_semconv::v1::group::SpanLink>,
+
     /// Requirement level of the signal (metric, span, event, entity).
     /// This is a v2-only concept carried through the v1 intermediate
     /// representation during resolution; it is omitted from v1 serialization

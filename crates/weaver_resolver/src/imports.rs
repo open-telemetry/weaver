@@ -28,7 +28,10 @@ use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::v2::Signal;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v1::attribute::{AttributeRole, RequirementLevel};
-use weaver_semconv::v1::group::{GroupType, GroupWildcard, ImportsWithProvenance};
+use weaver_semconv::v1::group::{
+    GroupType, GroupWildcard, ImportsWithProvenance, SpanLink as V1SpanLink,
+    SpanLinkAttribute as V1SpanLinkAttribute,
+};
 use weaver_semconv::v1::semconv::Imports;
 
 use crate::{
@@ -900,6 +903,7 @@ fn imported_v2_group(
         visibility: None,
         is_v2: true,
         span_name: None,
+        span_links: Vec::new(),
     }
 }
 
@@ -1124,6 +1128,44 @@ impl ImportableDependency for V2Schema {
             );
             group.span_kind = Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
             group.span_name = Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
+            // Forward the span's resolved links in the v1 carrier shape:
+            // catalog indices become attribute names via this dependency's
+            // catalog.
+            let mut links = Vec::new();
+            for link in s.links.iter() {
+                let mut link_attributes = Vec::new();
+                for la in link.attributes.iter() {
+                    let attr = self.attribute_catalog.attribute(&la.base).ok_or(
+                        Error::InvalidRegistryAttributeRef {
+                            registry_name: self.schema_url.name().to_owned(),
+                            attribute_ref: la.base.0,
+                        },
+                    )?;
+                    link_attributes.push(V1SpanLinkAttribute {
+                        r#ref: attr.key.clone(),
+                        brief: None,
+                        examples: None,
+                        requirement_level: Some(
+                            weaver_semconv::convert::v2_requirement_level_to_v1(
+                                la.requirement_level.clone(),
+                            ),
+                        ),
+                        note: None,
+                        annotations: Default::default(),
+                        sampling_relevant: la.sampling_relevant,
+                    });
+                }
+                links.push(V1SpanLink {
+                    r#ref: link.r#ref.to_string(),
+                    requirement_level: Some(weaver_semconv::convert::v2_requirement_level_to_v1(
+                        link.requirement_level.clone(),
+                    )),
+                    brief: link.brief.clone(),
+                    note: link.note.clone(),
+                    attributes: link_attributes,
+                });
+            }
+            group.span_links = links;
             group.name = Some(s.r#type.to_string());
             group.entity_associations = to_named_associations(&s.entity_associations);
             group.requirement_level = s.requirement_level.clone();
@@ -1599,6 +1641,7 @@ mod tests {
         let arc_v2 = Arc::new(crate::WeaverResolvedSchema::V2(chosen_schema));
 
         let group = Group {
+            span_links: Vec::new(),
             id: "metric.a".to_owned(),
             r#type: weaver_semconv::v1::group::GroupType::Metric,
             brief: "Old brief".to_owned(),
@@ -1638,6 +1681,7 @@ mod tests {
         assert_eq!(upgraded.attributes.len(), 0);
 
         let group_ag = Group {
+            span_links: Vec::new(),
             id: "attribute_group.e".to_owned(),
             r#type: weaver_semconv::v1::group::GroupType::AttributeGroup,
             brief: "Old brief".to_owned(),
