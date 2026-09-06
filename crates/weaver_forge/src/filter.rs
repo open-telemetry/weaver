@@ -46,13 +46,7 @@ impl Filter {
         if modules.is_empty() {
             self.apply(ctx, values)
         } else {
-            crate::jq::execute_jq_with_modules(
-                ctx,
-                &self.filter_expr,
-                values,
-                module_base,
-                modules,
-            )
+            crate::jq::execute_jq_with_modules(ctx, &self.filter_expr, values, module_base, modules)
         }
     }
 }

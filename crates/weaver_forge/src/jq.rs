@@ -181,7 +181,7 @@ fn module_includes(filter_expr: &str, modules: &[PathBuf]) -> Result<String, Err
         .collect()
 }
 
-fn read_module(import: Import<&str, PathBuf>) -> Result<File<String, PathBuf>, String> {
+fn read_module(import: Import<'_, &str, PathBuf>) -> Result<File<String, PathBuf>, String> {
     let requested_path = Path::new(import.path);
     let mut path = if requested_path.is_absolute() {
         requested_path.to_path_buf()
@@ -193,7 +193,9 @@ fn read_module(import: Import<&str, PathBuf>) -> Result<File<String, PathBuf>, S
             .join(requested_path)
     };
     _ = path.set_extension("jq");
-    let path = path.canonicalize().map_err(|_| "file not found".to_owned())?;
+    let path = path
+        .canonicalize()
+        .map_err(|_| "file not found".to_owned())?;
     let code = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
     Ok(File { code, path })
 }
@@ -371,6 +373,7 @@ fn source_with_original_filter_lines(
 
 #[cfg(test)]
 mod tests {
+    use crate::error::Error;
     use serde_json::json;
     use std::{collections::BTreeMap, fs};
 
@@ -428,7 +431,7 @@ mod tests {
     fn user_modules_resolve_nested_relative_includes() {
         let modules_dir = tempfile::tempdir().expect("Failed to create module directory");
         let nested_dir = modules_dir.path().join("nested");
-        fs::create_dir(&nested_dir).expect("Failed to create nested module directory");
+        fs::create_dir_all(&nested_dir).expect("Failed to create nested module directory");
         fs::write(
             modules_dir.path().join("custom.jq"),
             "include \"nested/helper\"; def custom_value: helper;",
@@ -527,8 +530,7 @@ mod tests {
     fn reports_invalid_user_module() {
         let modules_dir = tempfile::tempdir().expect("Failed to create module directory");
         let module_path = modules_dir.path().join("broken.jq");
-        fs::write(&module_path, "def broken: (")
-            .expect("Failed to write module");
+        fs::write(&module_path, "def broken: (").expect("Failed to write module");
 
         let error = execute_jq_with_modules(
             &json!({}),
@@ -545,7 +547,11 @@ mod tests {
         assert!(details[0].error.contains("expected closing parenthesis"));
         assert_eq!(
             details[0].file,
-            Some(module_path.canonicalize().expect("Failed to canonicalize module path"))
+            Some(
+                module_path
+                    .canonicalize()
+                    .expect("Failed to canonicalize module path")
+            )
         );
     }
 
@@ -568,7 +574,10 @@ mod tests {
             panic!("Expected a filter error");
         };
         assert!(details[0].file.is_none());
-        assert_eq!(details[0].source.as_ref().map(|source| source.start.line), Some(1));
+        assert_eq!(
+            details[0].source.as_ref().map(|source| source.start.line),
+            Some(1)
+        );
     }
 
     #[test]

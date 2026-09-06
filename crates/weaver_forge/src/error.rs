@@ -2,7 +2,7 @@
 
 //! Error types and utilities.
 
-use std::{path::{Path, PathBuf}, str::FromStr};
+use std::{path::PathBuf, str::FromStr};
 
 use miette::Diagnostic;
 use serde::Serialize;

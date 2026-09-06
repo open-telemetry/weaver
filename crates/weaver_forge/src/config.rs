@@ -730,7 +730,9 @@ impl WeaverConfig {
         let Some(incoming) = jq_modules else {
             return;
         };
-        self.jq_modules.get_or_insert_with(Vec::new).extend(incoming);
+        self.jq_modules
+            .get_or_insert_with(Vec::new)
+            .extend(incoming);
     }
 
     fn resolve_jq_modules(&mut self, config_path: &Path) {
@@ -1045,8 +1047,7 @@ mod tests {
     fn test_jq_modules_override_with() {
         let mut parent: WeaverConfig =
             serde_yaml::from_str("jq_modules: ['jq/common.jq']").unwrap();
-        let child: WeaverConfig =
-            serde_yaml::from_str("jq_modules: ['jq/rust.jq']").unwrap();
+        let child: WeaverConfig = serde_yaml::from_str("jq_modules: ['jq/rust.jq']").unwrap();
         parent.override_with(child);
 
         assert_eq!(

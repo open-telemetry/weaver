@@ -122,7 +122,7 @@ pub fn load(path: &Path) -> Result<WeaverConfig, ConfigError> {
         path: path.to_path_buf(),
         reason: e.to_string(),
     })?;
-    let mut config = toml::from_str(&content).map_err(|e| ConfigError::Parse {
+    let mut config: WeaverConfig = toml::from_str(&content).map_err(|e| ConfigError::Parse {
         path: path.to_path_buf(),
         reason: e.to_string(),
     })?;
@@ -234,18 +234,20 @@ endpoint = "http://example.com:4317"
     fn test_load_resolves_template_jq_modules_from_config_directory() {
         let dir = tempfile::tempdir().expect("Failed to create temp dir");
         let config_path = dir.path().join(CONFIG_FILENAME);
-        fs::write(&config_path, "[template]\njq_modules = [\"jq/common.jq\"]\n")
-            .expect("Failed to write config");
+        fs::write(
+            &config_path,
+            "[template]\njq_modules = [\"jq/common.jq\"]\n",
+        )
+        .expect("Failed to write config");
 
         let config = load(&config_path).expect("Failed to load config");
         assert_eq!(
             config.template.jq_modules,
-            Some(vec![
-                dir.path()
-                    .canonicalize()
-                    .expect("Failed to canonicalize config directory")
-                    .join("jq/common.jq"),
-            ])
+            Some(vec![dir
+                .path()
+                .canonicalize()
+                .expect("Failed to canonicalize config directory")
+                .join("jq/common.jq"),])
         );
     }
 }
