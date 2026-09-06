@@ -323,6 +323,24 @@ applied to each object in the array, i.e., to each group of attributes for a giv
 A series of JQ filters dedicated to the manipulation of semantic conventions registries is
 available to template authors. They can be found [here](/defaults/jq/semconv.jq)
 
+### User-provided JQ modules
+
+Template packages can add reusable JQ definitions in `weaver.yaml`:
+
+```yaml
+jq_modules:
+  - jq/common.jq
+  - jq/rust.jq
+```
+
+Projects can add modules to every template package with the `.weaver.toml`
+`[template].jq_modules` setting. Paths are resolved relative to the config file
+that declares them, and are loaded in declaration order after Weaver's built-in
+prelude. A later module definition takes precedence on a filter-name collision;
+the built-in filters remain available unless intentionally overridden. Module
+lists are additive: an empty list adds nothing and does not clear earlier modules.
+An `include` inside a module is resolved relative to that module's file.
+
 **Process Registry Attributes**
 
 The following JQ filter extracts the registry attributes from the resolved registry and

@@ -165,7 +165,7 @@ pub fn run_filter_raw<T: Serialize>(context: &T, filter: &str) -> Result<serde_j
     let filter = Filter::new(filter);
     // TODO - create real filter params
     let filter_params = BTreeMap::new();
-    let filtered_context = filter.apply(context, &filter_params)?;
+    let filtered_context = filter.apply(&context, &filter_params)?;
     Ok(filtered_context)
 }
 
@@ -327,7 +327,7 @@ impl TemplateEngine {
         // Apply the filter
         let filter = Filter::new(filter);
         let filter_params = Self::prepare_jq_context(&params)?;
-        let filtered_context = filter.apply(context, &filter_params)?;
+        let filtered_context = self.apply_filter(filter, &context, &filter_params)?;
         engine.add_global("params", Value::from_object(ParamsObject::new(params)));
         let template = engine
             .get_template(&snippet_id)
@@ -361,7 +361,7 @@ impl TemplateEngine {
                 }
 
                 let filter = Filter::new(template.filter.as_str());
-                let filtered_result = filter.apply(context.clone(), &params)?;
+                let filtered_result = self.apply_filter(filter, &context, &params)?;
 
                 match template.application_mode {
                     ApplicationMode::Single => {
@@ -491,7 +491,7 @@ impl TemplateEngine {
             return Ok(true);
         };
 
-        let result = jq::execute_jq(context, when, params)?;
+        let result = self.apply_filter(Filter::new(when), context, params)?;
         match result {
             serde_json::Value::Bool(true) => Ok(true),
             serde_json::Value::Bool(false) => {
@@ -503,6 +503,20 @@ impl TemplateEngine {
                 actual: other.to_string(),
             }),
         }
+    }
+
+    fn apply_filter(
+        &self,
+        filter: Filter,
+        context: &serde_json::Value,
+        params: &BTreeMap<String, serde_json::Value>,
+    ) -> Result<serde_json::Value, Error> {
+        filter.apply_with_modules(
+            context,
+            params,
+            self.file_loader.root(),
+            self.target_config.jq_modules.as_deref().unwrap_or_default(),
+        )
     }
 
     /// Process a single template file with the given template configuration,
@@ -530,7 +544,7 @@ impl TemplateEngine {
         }
 
         let filter = Filter::new(template.filter.as_str());
-        let filtered_result = filter.apply(context.clone(), &params)?;
+        let filtered_result = self.apply_filter(filter, context, &params)?;
 
         match template.application_mode {
             ApplicationMode::Single => self.process_single_mode(

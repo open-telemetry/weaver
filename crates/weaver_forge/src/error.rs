@@ -2,7 +2,7 @@
 
 //! Error types and utilities.
 
-use std::{path::PathBuf, str::FromStr};
+use std::{path::{Path, PathBuf}, str::FromStr};
 
 use miette::Diagnostic;
 use serde::Serialize;
@@ -36,6 +36,9 @@ pub struct Source {
 pub struct FilterErrorDetail {
     /// The detailed string reason for failure.
     pub error: String,
+    /// Source file containing the error, when known.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file: Option<PathBuf>,
     /// The span data marking the failed position.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<Source>,
@@ -43,10 +46,18 @@ pub struct FilterErrorDetail {
 
 impl std::fmt::Display for FilterErrorDetail {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(src) = &self.source {
-            write!(f, "{}:{}: {}", src.start.line, src.start.col, self.error)
-        } else {
-            write!(f, "{}", self.error)
+        match (&self.file, &self.source) {
+            (Some(file), Some(src)) => write!(
+                f,
+                "{}:{}:{}: {}",
+                file.display(),
+                src.start.line,
+                src.start.col,
+                self.error
+            ),
+            (Some(file), None) => write!(f, "{}: {}", file.display(), self.error),
+            (None, Some(src)) => write!(f, "{}:{}: {}", src.start.line, src.start.col, self.error),
+            (None, None) => write!(f, "{}", self.error),
         }
     }
 }
