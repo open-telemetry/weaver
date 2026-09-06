@@ -300,11 +300,8 @@ brief: Test span
 
     #[test]
     fn test_span_link_rejects_attribute_group_ref() {
-        // Attribute-group references are not supported on links; the
-        // parser must reject them instead of resolution failing later.
-        // Two shapes exist: a bare group entry fails on the missing
-        // `ref`, and a group key next to a valid `ref` fails as an
-        // unknown field.
+        // Both illegal shapes must fail at parse time: a bare group entry
+        // on the missing `ref`, a group key next to a valid `ref` as unknown.
         let span_yaml = |attribute_entry: &str| {
             format!(
                 r#"type: my_span

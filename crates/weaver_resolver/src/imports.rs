@@ -1128,9 +1128,8 @@ impl ImportableDependency for V2Schema {
             );
             group.span_kind = Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
             group.span_name = Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
-            // Forward the span's resolved links in the v1 carrier shape:
-            // catalog indices become attribute names via this dependency's
-            // catalog.
+            // Forward the resolved links in the v1 carrier shape: catalog
+            // indices become attribute names via this dependency's catalog.
             let mut links = Vec::new();
             for link in s.links.iter() {
                 let mut link_attributes = Vec::new();

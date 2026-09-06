@@ -232,11 +232,8 @@ fn convert_attribute_ref<'a>(
     Ok((attr, v2_ref))
 }
 
-/// Converts one span link attribute into its resolved form.
-///
-/// The attribute resolves by name: the lookup finds the root
-/// attribute, and the root attribute maps to a v2 catalog reference.
-/// An unsupported construct fails loudly instead of being dropped.
+/// Resolves one link attribute by name to a v2 catalog reference;
+/// unsupported constructs fail instead of dropping data silently.
 fn convert_span_link_attribute(
     ar: &weaver_semconv::v1::group::SpanLinkAttribute,
     g: &V1Group,
@@ -280,12 +277,8 @@ fn convert_span_link_attribute(
     })
 }
 
-/// Converts the v2 span links carried on a v1 group into resolved links.
-///
-/// Link attributes skip v1 attribute resolution (they ride the hidden
-/// GroupSpec carrier), so they resolve here: the name finds the root
-/// attribute, and the root attribute maps to a v2 catalog reference.
-/// Unsupported constructs fail loudly instead of being dropped.
+/// Converts the span links carried on a v1 group into resolved links;
+/// link attributes skipped v1 resolution, so they resolve here by name.
 fn convert_span_links(
     g: &V1Group,
     span_types: &HashSet<SignalId>,
@@ -296,9 +289,8 @@ fn convert_span_links(
 ) -> Result<Vec<span::SpanLink>, crate::error::Error> {
     let mut links = Vec::new();
     for link in g.span_links.iter() {
-        // Refinement links can be inherited from a dependency span, so
-        // their targets may live outside this registry; only locally
-        // declared links are validated against the local span set.
+        // Only locally declared links are validated: refinement links can
+        // be inherited from a dependency, so their targets may live elsewhere.
         if validate_targets && !span_types.contains(&SignalId::from(link.r#ref.clone())) {
             return Err(crate::error::Error::SpanLinkTargetNotFound {
                 group_id: g.id.clone(),
@@ -513,9 +505,8 @@ pub fn convert_v1_to_v2(
         origins: &r.entity_association_origins,
     };
 
-    // Collect the set of span types up front, so span link targets can be
-    // validated while each group converts. Refinements are excluded: a link
-    // targets a span type, not a refinement id.
+    // Span link targets are validated against this set. Refinements are
+    // excluded: a link targets a span type, not a refinement id.
     let span_types: HashSet<SignalId> = r
         .groups
         .iter()
