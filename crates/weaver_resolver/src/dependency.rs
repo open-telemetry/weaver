@@ -758,7 +758,22 @@ pub(crate) mod tests {
                     },
                     attributes: vec![],
                     entity_associations: vec![],
-                    links: vec![],
+                    // A link with a link attribute; both the normal import
+                    // path and the upgrade path must carry it over.
+                    links: vec![weaver_resolved_schema::v2::span::SpanLink {
+                        r#ref: "span.d".to_owned().into(),
+                        requirement_level: weaver_semconv::v2::attribute::RequirementLevel::Basic(
+                            weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
+                        ),
+                        brief: Some("test link".to_owned()),
+                        note: None,
+                        attributes: vec![weaver_resolved_schema::v2::span::SpanAttributeRef {
+                            base: weaver_resolved_schema::v2::attribute::AttributeRef(0),
+                            requirement_level: Default::default(),
+                            sampling_relevant: None,
+                        }],
+                        provenance: Default::default(),
+                    }],
                     requirement_level: None,
                     common: Default::default(),
                     provenance: Default::default(),

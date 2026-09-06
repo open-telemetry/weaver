@@ -24,6 +24,7 @@ use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
 use weaver_resolved_schema::v2::entity::{
     to_named_associations, EntityAssociation as V2EntityAssociation,
 };
+use weaver_resolved_schema::v2::span::SpanLink as V2SpanLink;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::v2::Signal;
 use weaver_semconv::schema_url::SchemaUrl;
@@ -648,6 +649,7 @@ fn upgrade_imported_group_v2<C: crate::SchemaCacheLookup>(
             );
             upgraded.span_kind = Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
             upgraded.span_name = Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
+            upgraded.span_links = v2_span_links_to_v1(chosen_v2, &s.links)?;
             upgraded.name = Some(s.r#type.to_string());
             upgraded.entity_associations = to_named_associations(&s.entity_associations);
             upgraded.requirement_level = s.requirement_level.clone();
@@ -907,6 +909,44 @@ fn imported_v2_group(
     }
 }
 
+/// Converts a resolved v2 span's links into the v1 carrier shape: catalog
+/// indices become attribute names via the owning schema's catalog.
+fn v2_span_links_to_v1(schema: &V2Schema, links: &[V2SpanLink]) -> Result<Vec<V1SpanLink>, Error> {
+    let mut v1_links = Vec::new();
+    for link in links {
+        let mut link_attributes = Vec::new();
+        for la in link.attributes.iter() {
+            let attr = schema.attribute_catalog.attribute(&la.base).ok_or(
+                Error::InvalidRegistryAttributeRef {
+                    registry_name: schema.schema_url.name().to_owned(),
+                    attribute_ref: la.base.0,
+                },
+            )?;
+            link_attributes.push(V1SpanLinkAttribute {
+                r#ref: attr.key.clone(),
+                brief: None,
+                examples: None,
+                requirement_level: Some(weaver_semconv::convert::v2_requirement_level_to_v1(
+                    la.requirement_level.clone(),
+                )),
+                note: None,
+                annotations: Default::default(),
+                sampling_relevant: la.sampling_relevant,
+            });
+        }
+        v1_links.push(V1SpanLink {
+            r#ref: link.r#ref.to_string(),
+            requirement_level: Some(weaver_semconv::convert::v2_requirement_level_to_v1(
+                link.requirement_level.clone(),
+            )),
+            brief: link.brief.clone(),
+            note: link.note.clone(),
+            attributes: link_attributes,
+        });
+    }
+    Ok(v1_links)
+}
+
 /// Where each entity a v2 signal is associated with is defined.
 ///
 /// A resolved leaf that names a dependency already names the registry that
@@ -1128,43 +1168,7 @@ impl ImportableDependency for V2Schema {
             );
             group.span_kind = Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
             group.span_name = Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
-            // Forward the resolved links in the v1 carrier shape: catalog
-            // indices become attribute names via this dependency's catalog.
-            let mut links = Vec::new();
-            for link in s.links.iter() {
-                let mut link_attributes = Vec::new();
-                for la in link.attributes.iter() {
-                    let attr = self.attribute_catalog.attribute(&la.base).ok_or(
-                        Error::InvalidRegistryAttributeRef {
-                            registry_name: self.schema_url.name().to_owned(),
-                            attribute_ref: la.base.0,
-                        },
-                    )?;
-                    link_attributes.push(V1SpanLinkAttribute {
-                        r#ref: attr.key.clone(),
-                        brief: None,
-                        examples: None,
-                        requirement_level: Some(
-                            weaver_semconv::convert::v2_requirement_level_to_v1(
-                                la.requirement_level.clone(),
-                            ),
-                        ),
-                        note: None,
-                        annotations: Default::default(),
-                        sampling_relevant: la.sampling_relevant,
-                    });
-                }
-                links.push(V1SpanLink {
-                    r#ref: link.r#ref.to_string(),
-                    requirement_level: Some(weaver_semconv::convert::v2_requirement_level_to_v1(
-                        link.requirement_level.clone(),
-                    )),
-                    brief: link.brief.clone(),
-                    note: link.note.clone(),
-                    attributes: link_attributes,
-                });
-            }
-            group.span_links = links;
+            group.span_links = v2_span_links_to_v1(self, &s.links)?;
             group.name = Some(s.r#type.to_string());
             group.entity_associations = to_named_associations(&s.entity_associations);
             group.requirement_level = s.requirement_level.clone();
@@ -1711,6 +1715,45 @@ mod tests {
             .expect("attribute_group should be upgraded");
         assert_eq!(upgraded_ag.id, "attribute_group.e");
         assert_eq!(upgraded_ag.attributes.len(), 1);
+
+        // The imported copy carries no links; the upgraded definition must
+        // get them from the chosen registry, not keep the empty default.
+        let group_span = Group {
+            span_links: Vec::new(),
+            id: "span.d".to_owned(),
+            r#type: weaver_semconv::v1::group::GroupType::Span,
+            brief: "Old brief".to_owned(),
+            note: String::new(),
+            prefix: String::new(),
+            extends: None,
+            stability: None,
+            deprecated: None,
+            attributes: vec![],
+            lineage: Some(GroupLineage::new(Provenance::new(old_url.clone(), "test"))),
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            span_kind: None,
+            span_name: None,
+            events: vec![],
+            annotations: None,
+            display_name: None,
+            body: None,
+            entity_associations: vec![],
+            requirement_level: None,
+            name: Some("span.d".to_owned()),
+            visibility: None,
+            is_v2: true,
+        };
+
+        let upgraded_span = upgrade_imported_group(&group_span, &old_url, &mut catalog, &lookup)?
+            .expect("span should be upgraded");
+        assert_eq!(upgraded_span.id, "span.d");
+        assert_eq!(upgraded_span.span_links.len(), 1);
+        let link = &upgraded_span.span_links[0];
+        assert_eq!(link.r#ref, "span.d");
+        assert_eq!(link.attributes.len(), 1);
+        assert_eq!(link.attributes[0].r#ref, "attr.in.group");
 
         Ok(())
     }
