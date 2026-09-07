@@ -1994,6 +1994,8 @@ mod tests {
                     flags: 0,
                     zero_threshold: 0.0,
                     exemplars: vec![],
+                    start_time: None,
+                    end_time: None,
                 },
             ])),
             instrumentation_scope: None,
@@ -2073,6 +2075,8 @@ mod tests {
                     trace_id: "".to_owned(),
                     live_check_result: None,
                 }],
+                start_time: None,
+                end_time: None,
             }])),
             instrumentation_scope: None,
             live_check_result: None,
@@ -2474,6 +2478,7 @@ mod tests {
             instrumentation_scope: None,
             live_check_result: None,
             resource: Some(resource),
+            timestamp: None,
         })
     }
 
@@ -2629,6 +2634,7 @@ mod tests {
             instrumentation_scope: None,
             live_check_result: None,
             resource: None,
+            timestamp: None,
         });
         sample_no_resource
             .run_live_check(
@@ -2744,6 +2750,12 @@ mod tests {
                 attributes: vec![],
                 live_check_result: None,
             })),
+            trace_id: None,
+            span_id: None,
+            parent_span_id: None,
+            trace_state: None,
+            start_time: None,
+            end_time: None,
         });
         let mut stats =
             LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
@@ -3744,6 +3756,8 @@ mod tests {
                     flags: 0,
                     exemplars: vec![],
                     live_check_result: None,
+                    start_time: None,
+                    end_time: None,
                 }])),
                 instrumentation_scope: None,
                 live_check_result: None,

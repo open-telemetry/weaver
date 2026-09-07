@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+# Unreleased
+
+- Live-check reports now retain OTLP context on their samples, including span and log trace IDs, timestamps, span-event and link context, and metric data-point timing. OTLP finding logs are correlated with their source spans. ([#1749](https://github.com/open-telemetry/weaver/pull/1749) by @clarsen)
+
 # [0.26.1] - 2026-09-02
 
 - Fix `weaver-installer.sh` failing to detect Unix platforms due to missing bash shell in release workflow. ([#1744](https://github.com/open-telemetry/weaver/issues/1744))
