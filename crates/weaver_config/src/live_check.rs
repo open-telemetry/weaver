@@ -362,6 +362,7 @@ otlp_logs_stdout = false
         assert!(!lc.no_stream);
         assert!(lc.no_stats);
         assert_eq!(lc.fail_on, FailOnLevel::Improvement);
+        assert_eq!(lc.output.as_deref(), Some(Path::new("reports")));
         assert_eq!(
             lc.advice_policies,
             Some(VirtualDirectoryPath::LocalFolder {
@@ -374,6 +375,7 @@ otlp_logs_stdout = false
                 path: "data".to_owned()
             })
         );
+        assert_eq!(lc.advice_preprocessor.as_deref(), Some(Path::new("pre.jq")));
 
         assert_eq!(lc.otlp.grpc_address, "127.0.0.1");
         assert_eq!(lc.otlp.grpc_port, 4317);
