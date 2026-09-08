@@ -1049,7 +1049,8 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
 }
 
 /// Errors when an entity refinement alters the identity of the base entity
-/// (demoting, promoting, or adding an identity attribute).
+/// (demoting, promoting, or adding an identity attribute) or refines an entity
+/// that does not declare any identity attributes.
 fn entity_identity_refinement_errors(
     group: &UnresolvedGroup,
     extends: &str,
@@ -1060,6 +1061,18 @@ fn entity_identity_refinement_errors(
     let role_of = |spec: &AttributeSpec| match spec {
         AttributeSpec::Ref { role, .. } | AttributeSpec::Id { role, .. } => role.clone(),
     };
+
+    let has_identity = parent_attrs
+        .iter()
+        .any(|p| role_of(&p.spec) == Some(AttributeRole::Identifying));
+
+    if !has_identity {
+        return vec![Error::EntityRefinementWithoutIdentity {
+            refinement_id: group.group.id.clone(),
+            r#ref: extends.to_owned(),
+            provenance: group.provenance.clone().map(Box::new),
+        }];
+    }
 
     group
         .attributes
@@ -1073,7 +1086,8 @@ fn entity_identity_refinement_errors(
                 // Attribute declared by the base entity: its identity role
                 // must not change.
                 Some(base) => {
-                    role_of(&base.spec).is_some_and(|base_role| base_role != *refined_role)
+                    let base_role = role_of(&base.spec).unwrap_or(AttributeRole::Descriptive);
+                    base_role != *refined_role
                 }
                 // Attribute introduced by the refinement: allowed only under
                 // `description`, never as a new identity attribute.
