@@ -525,8 +525,8 @@ mod tests {
 
         let sample = Sample::InstrumentationScope(SampleInstrumentationScope {
             name: "scope-name".to_owned(),
-            version: "1.2.3".to_owned(),
-            schema_url: "https://example.test/schema".to_owned(),
+            version: Some("1.2.3".to_owned()),
+            schema_url: Some("https://example.test/schema".to_owned()),
             attributes: vec![SampleAttribute {
                 name: "scope.environment".to_owned(),
                 value: Some(json!("test")),

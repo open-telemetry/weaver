@@ -40,8 +40,8 @@ pub fn otlp_instrumentation_scope_to_sample(
 
     Some(SampleInstrumentationScope {
         name: scope.map_or_else(String::new, |scope| scope.name.clone()),
-        version: scope.map_or_else(String::new, |scope| scope.version.clone()),
-        schema_url: schema_url.to_owned(),
+        version: scope.map(|scope| scope.version.clone()),
+        schema_url: Some(schema_url.to_owned()),
         attributes: scope.map_or_else(Vec::new, |scope| {
             scope
                 .attributes

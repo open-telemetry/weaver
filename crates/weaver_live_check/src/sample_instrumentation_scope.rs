@@ -20,10 +20,10 @@ pub struct SampleInstrumentationScope {
     pub name: String,
     /// Instrumentation scope version.
     #[serde(default)]
-    pub version: String,
+    pub version: Option<String>,
     /// Schema URL declared by the OTLP scope container.
     #[serde(default)]
-    pub schema_url: String,
+    pub schema_url: Option<String>,
     /// Instrumentation scope attributes.
     #[serde(default)]
     pub attributes: Vec<SampleAttribute>,
