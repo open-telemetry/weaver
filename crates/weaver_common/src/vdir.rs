@@ -32,7 +32,6 @@
 //!
 //! - `source`: Can be a local path (`/path/to/dir`, `./archive.zip`) or a URL (`https://...`).
 //! - `@refspec`: (Optional) For Git repositories, specifies a tag, branch, or commit hash.
-//!   *(Note: Currently, fetching specific refspecs is not fully implemented)*.
 //! - `[sub_folder]`: (Optional) Specifies a directory *within* the source (archive or Git repo)
 //!   that should become the root of the virtual directory.
 //!
@@ -321,7 +320,7 @@ static REGISTRY_REGEX: Lazy<Regex> = Lazy::new(|| {
 ///
 /// Paths may optionally specify:
 /// - A sub-folder within the archive or repository via `[sub_folder]`
-/// - [Not Yet Implemented] A specific Git refspec (branch, tag, or commit) via `@refspec`
+/// - A specific Git refspec (branch, tag, or commit) via `@refspec`
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(try_from = "String")]
 #[serde(into = "String")]
