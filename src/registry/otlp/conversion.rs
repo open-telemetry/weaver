@@ -38,10 +38,11 @@ pub fn otlp_instrumentation_scope_to_sample(
         return None;
     }
 
+    // In OTLP, proto3 strings default to empty when unset.
     Some(SampleInstrumentationScope {
         name: scope.map_or_else(String::new, |scope| scope.name.clone()),
-        version: scope.map(|scope| scope.version.clone()),
-        schema_url: Some(schema_url.to_owned()),
+        version: scope.and_then(|scope| (!scope.version.is_empty()).then(|| scope.version.clone())),
+        schema_url: (!schema_url.is_empty()).then(|| schema_url.to_owned()),
         attributes: scope.map_or_else(Vec::new, |scope| {
             scope
                 .attributes
@@ -439,5 +440,39 @@ pub fn otlp_log_record_to_sample_log(log_record: &LogRecord) -> SampleLog {
         instrumentation_scope: None,
         live_check_result: None,
         resource: None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_otlp_scope_empty_strings_convert_to_none() {
+        let scope = InstrumentationScope {
+            name: "test-scope".to_owned(),
+            version: String::new(),
+            attributes: vec![],
+            dropped_attributes_count: 0,
+        };
+        let sample = otlp_instrumentation_scope_to_sample(Some(&scope), "")
+            .expect("scope should be converted");
+        assert_eq!(sample.name, "test-scope");
+        assert_eq!(sample.version, None);
+        assert_eq!(sample.schema_url, None);
+
+        let populated = otlp_instrumentation_scope_to_sample(
+            Some(&InstrumentationScope {
+                version: "1.0.0".to_owned(),
+                ..scope
+            }),
+            "https://opentelemetry.io/schemas/1.32.0",
+        )
+        .expect("populated scope should convert");
+        assert_eq!(populated.version.as_deref(), Some("1.0.0"));
+        assert_eq!(
+            populated.schema_url.as_deref(),
+            Some("https://opentelemetry.io/schemas/1.32.0")
+        );
     }
 }
