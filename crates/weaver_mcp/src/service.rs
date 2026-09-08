@@ -46,7 +46,7 @@ pub struct WeaverMcpService {
     versioned_registry: Arc<VersionedRegistry>,
     /// Path to custom Rego advice policies directory.
     advice_policies: Option<PathBuf>,
-    /// Path to the directory or file containing additional rego data (JSON/YAML files) or a glob pattern.
+    /// Glob pattern containing additional rego data (JSON/YAML files).
     advice_data: Option<String>,
     /// Path to jq preprocessor script for Rego policies.
     advice_preprocessor: Option<PathBuf>,
@@ -1506,8 +1506,9 @@ mod tests {
             advice_policies: Some(fixture_path("policies")),
             advice_data: Some(
                 fixture_path("data/denylist.json")
-                    .to_string_lossy()
-                    .into_owned(),
+                    .to_str()
+                    .unwrap()
+                    .to_owned(),
             ),
             ..McpConfig::default()
         };

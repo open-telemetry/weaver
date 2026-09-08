@@ -209,18 +209,26 @@
       "type": "object",
       "properties": {
         "advice_data": {
-          "description": "Glob pattern pointing to additional JSON/YAML files to load into OPA rego data.\nFiles are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).",
-          "type": [
-            "string",
-            "null"
+          "description": "Virtual directory, file, or glob pattern pointing to additional JSON/YAML files to load into OPA rego data.\nFiles are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VirtualDirectoryPath"
+            },
+            {
+              "type": "null"
+            }
           ],
           "default": null
         },
         "advice_policies": {
-          "description": "Advice policies directory. Overrides the built-in default policies.",
-          "type": [
-            "string",
-            "null"
+          "description": "Advice policies directory or virtual directory. Overrides the built-in default policies.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VirtualDirectoryPath"
+            },
+            {
+              "type": "null"
+            }
           ],
           "default": null
         },
@@ -304,18 +312,26 @@
       "type": "object",
       "properties": {
         "advice_data": {
-          "description": "Glob pattern pointing to additional JSON/YAML files to load into OPA rego data.\nFiles are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).",
-          "type": [
-            "string",
-            "null"
+          "description": "Virtual directory, file, or glob pattern pointing to additional JSON/YAML files to load into OPA rego data.\nFiles are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VirtualDirectoryPath"
+            },
+            {
+              "type": "null"
+            }
           ],
           "default": null
         },
         "advice_policies": {
-          "description": "Advice policies directory. Set this to override the default policies.",
-          "type": [
-            "string",
-            "null"
+          "description": "Advice policies directory or virtual directory. Set this to override the default policies.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VirtualDirectoryPath"
+            },
+            {
+              "type": "null"
+            }
           ],
           "default": null
         },
@@ -741,6 +757,10 @@
           "minimum": 0
         }
       }
+    },
+    "VirtualDirectoryPath": {
+      "description": "Represents a virtual path pointing to a directory-like resource.\n\nSupported formats include:\n- **Local directories** (`/path/to/directory`)\n- **Local archives** (`/path/to/archive.zip` or `/path/to/archive.tar.gz`)\n- **Remote archives** (`https://example.com/archive.zip` or `.tar.gz`)\n- **Git repositories** (`https://github.com/user/repo.git`)\n\nPaths may optionally specify:\n- A sub-folder within the archive or repository via `[sub_folder]`\n- [Not Yet Implemented] A specific Git refspec (branch, tag, or commit) via `@refspec`",
+      "type": "string"
     }
   }
 }

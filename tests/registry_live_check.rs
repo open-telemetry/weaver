@@ -130,3 +130,80 @@ fn no_stats_with_none_threshold_is_silent_and_exits_zero() {
         "should not warn when --fail-on=none, got: {combined}"
     );
 }
+
+/// Advice policies and data can be loaded from a virtual directory archive (`.zip` with `[sub_folder]`).
+#[test]
+fn live_check_archive_advice_policies_and_data() {
+    use std::fs::File;
+    use std::io::Write;
+    use zip::write::SimpleFileOptions;
+    use zip::ZipWriter;
+
+    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+    let archive_path = temp_dir.path().join("bundle.zip");
+
+    let rego_content = r#"
+        package live_check_advice
+
+        import rego.v1
+
+        make_advice(advice_type, advice_level, advice_context, message) := {
+            "type": "advice",
+            "advice_type": advice_type,
+            "advice_level": advice_level,
+            "advice_context": advice_context,
+            "message": message,
+        }
+
+        deny contains make_advice(advice_type, advice_level, advice_context, message) if {
+            input.sample.attribute
+            input.sample.attribute.name == "task.id"
+            data.settings.enabled == true
+            advice_type := "custom_archive_violation"
+            advice_level := "violation"
+            advice_context := {"attribute_key": input.sample.attribute.name}
+            message := "Custom violation triggered from archive policy and data"
+        }
+    "#;
+
+    let json_content = r#"
+        {
+            "enabled": true
+        }
+    "#;
+
+    let zip_file = File::create(&archive_path).expect("Failed to create archive file");
+    let mut zip = ZipWriter::new(zip_file);
+    let options = SimpleFileOptions::default();
+
+    zip.start_file("bundle/policies/custom.rego", options)
+        .expect("Failed to add rego to zip");
+    zip.write_all(rego_content.as_bytes())
+        .expect("Failed to write rego");
+
+    zip.start_file("bundle/data/settings.json", options)
+        .expect("Failed to add json to zip");
+    zip.write_all(json_content.as_bytes())
+        .expect("Failed to write json");
+
+    let _ = zip.finish().expect("Failed to finish zip archive");
+
+    let archive_str = archive_path.to_str().expect("valid utf8 path");
+    let policies_arg = format!("{}[policies]", archive_str);
+    let data_arg = format!("{}[data]", archive_str);
+
+    let out = run_live_check(&[
+        "--advice-policies",
+        &policies_arg,
+        "--advice-data",
+        &data_arg,
+        "--fail-on",
+        "violation",
+    ]);
+
+    assert_eq!(
+        exit_code(&out),
+        1,
+        "custom advice finding from archive should trigger violation failure"
+    );
+}

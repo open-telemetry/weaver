@@ -13,6 +13,7 @@ use include_dir::{include_dir, Dir};
 use log::info;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
+use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
 use weaver_common::{log_success, log_warn};
 use weaver_config::{FailOnLevel, WeaverConfig};
 use weaver_forge::{OutputProcessor, OutputTarget};
@@ -179,15 +180,15 @@ pub struct RegistryLiveCheckArgs {
     #[config(path = "otlp.inactivity_timeout")]
     inactivity_timeout: Option<u64>,
 
-    /// Advice policies directory. Set this to override the default policies.
+    /// Advice policies directory or virtual directory. Set this to override the default policies.
     #[arg(long)]
     #[config]
-    advice_policies: Option<PathBuf>,
+    advice_policies: Option<VirtualDirectoryPath>,
 
-    /// Glob pattern pointing to additional JSON/YAML files to load into OPA rego data (other extensions are ignored). Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).
+    /// Virtual directory, file, or glob pattern pointing to additional JSON/YAML files to load into OPA rego data (other extensions are ignored). Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).
     #[arg(long)]
     #[config]
-    advice_data: Option<String>,
+    advice_data: Option<VirtualDirectoryPath>,
 
     /// Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
     #[arg(long)]
@@ -305,11 +306,22 @@ pub(crate) fn command(
     live_checker.finding_modifier =
         FindingModifier::from_rules(&config.finding_filters, &config.finding_level_overrides)?;
 
+    let advice_policies_dir =
+        VirtualDirectory::try_from_opt_with_auth(config.advice_policies.as_ref(), auth)
+            .map_err(DiagnosticMessages::from_error)?;
+
+    let advice_data_dir =
+        VirtualDirectory::try_from_opt_with_auth(config.advice_data.as_ref(), auth)
+            .map_err(DiagnosticMessages::from_error)?;
+
+    let policy_path = advice_policies_dir.as_ref().map(VirtualDirectory::path_buf);
+    let data_pattern = advice_data_dir.as_ref().map(|v| v.path_str().to_owned());
+
     let rego_advisor = RegoAdvisor::new(
         &live_checker,
-        &config.advice_policies,
+        &policy_path,
         &config.advice_preprocessor,
-        &config.advice_data,
+        &data_pattern,
     )?;
     live_checker.add_advisor(Box::new(rego_advisor));
 
