@@ -176,6 +176,8 @@ fn live_check_archive_advice_policies_and_data() {
     let mut zip = ZipWriter::new(zip_file);
     let options = SimpleFileOptions::default();
 
+    // VirtualDirectory unpack logic automatically strips the single top-level root folder
+    // ("bundle/"), so subfolder selectors "[policies]" and "[data]" match directly.
     zip.start_file("bundle/policies/custom.rego", options)
         .expect("Failed to add rego to zip");
     zip.write_all(rego_content.as_bytes())
