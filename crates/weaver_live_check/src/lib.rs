@@ -444,6 +444,16 @@ impl Sample {
             Sample::Profile(_) => None,
         }
     }
+
+    /// Returns the trace and span IDs associated with a signal, if available.
+    #[must_use]
+    pub fn trace_context_ids(&self) -> Option<(&str, &str)> {
+        match self {
+            Sample::Span(span) => span.trace_id.as_deref().zip(span.span_id.as_deref()),
+            Sample::Log(log) => log.trace_id.as_deref().zip(log.span_id.as_deref()),
+            _ => None,
+        }
+    }
 }
 
 // Dispatch the live check to the sample type
@@ -645,7 +655,26 @@ pub fn get_json_schema() -> Result<String, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sample_log::SampleLog;
     use sample_profile::SampleProfile;
+    use sample_span::{SampleSpan, Status, StatusCode};
+    use weaver_semconv::v1::group::SpanKindSpec;
+
+    fn sample_log_with_timestamp(timestamp: Option<String>) -> SampleLog {
+        SampleLog {
+            event_name: "event".to_owned(),
+            severity_number: None,
+            severity_text: None,
+            body: None,
+            attributes: vec![],
+            trace_id: None,
+            span_id: None,
+            instrumentation_scope: None,
+            live_check_result: None,
+            resource: None,
+            timestamp,
+        }
+    }
 
     fn make_sample_profile() -> SampleProfile {
         SampleProfile {
@@ -654,6 +683,29 @@ mod tests {
             instrumentation_scope: None,
             live_check_result: None,
             resource: None,
+        }
+    }
+
+    fn sample_span_with_trace_context(trace_id: Option<&str>, span_id: Option<&str>) -> SampleSpan {
+        SampleSpan {
+            name: "operation".to_owned(),
+            kind: SpanKindSpec::Internal,
+            status: Some(Status {
+                code: StatusCode::Ok,
+                message: String::new(),
+            }),
+            attributes: vec![],
+            span_events: vec![],
+            span_links: vec![],
+            instrumentation_scope: None,
+            live_check_result: None,
+            resource: None,
+            trace_id: trace_id.map(str::to_owned),
+            span_id: span_id.map(str::to_owned),
+            parent_span_id: None,
+            trace_state: None,
+            start_time: None,
+            end_time: None,
         }
     }
 
@@ -682,9 +734,74 @@ mod tests {
     }
 
     #[test]
+    fn trace_context_ids_returns_span_context() {
+        let sample = Sample::Span(sample_span_with_trace_context(
+            Some("00000000000000000000000000000001"),
+            Some("0000000000000001"),
+        ));
+
+        assert_eq!(
+            sample.trace_context_ids(),
+            Some(("00000000000000000000000000000001", "0000000000000001"))
+        );
+    }
+
+    #[test]
+    fn trace_context_ids_returns_log_context() {
+        let mut log = sample_log_with_timestamp(None);
+        log.trace_id = Some("00000000000000000000000000000002".to_owned());
+        log.span_id = Some("0000000000000002".to_owned());
+
+        assert_eq!(
+            Sample::Log(log).trace_context_ids(),
+            Some(("00000000000000000000000000000002", "0000000000000002"))
+        );
+    }
+
+    #[test]
+    fn trace_context_ids_returns_none_without_signal_context() {
+        assert_eq!(
+            Sample::Profile(make_sample_profile()).trace_context_ids(),
+            None
+        );
+        assert_eq!(
+            Sample::Span(sample_span_with_trace_context(
+                Some("00000000000000000000000000000001"),
+                None,
+            ))
+            .trace_context_ids(),
+            None
+        );
+    }
+
+    #[test]
     fn test_sample_ref_profile_sample_type() {
         let profile = make_sample_profile();
         let sample_ref = SampleRef::Profile(&profile);
         assert_eq!(sample_ref.sample_type(), SampleType::Profile);
+    }
+
+    #[test]
+    fn report_serializes_captured_timestamp_on_its_source_sample() {
+        let report = LiveCheckReport {
+            samples: vec![Sample::Log(sample_log_with_timestamp(Some(
+                "timestamp".to_owned(),
+            )))],
+            statistics: LiveCheckStatistics::Disabled(DisabledStatistics),
+        };
+
+        let json = serde_json::to_value(report).expect("serialize report");
+        assert_eq!(json["samples"][0]["log"]["timestamp"], "timestamp");
+    }
+
+    #[test]
+    fn report_without_captured_timestamp_omits_it_from_samples() {
+        let report = LiveCheckReport {
+            samples: vec![Sample::Log(sample_log_with_timestamp(None))],
+            statistics: LiveCheckStatistics::Disabled(DisabledStatistics),
+        };
+
+        let json = serde_json::to_value(report).expect("serialize report");
+        assert!(json["samples"][0]["log"].get("timestamp").is_none());
     }
 }

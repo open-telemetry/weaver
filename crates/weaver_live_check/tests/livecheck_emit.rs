@@ -210,6 +210,12 @@ async fn test_livecheck_emit_roundtrip() {
             instrumentation_scope: None,
             live_check_result: None,
             resource: None,
+            trace_id: Some("00000000000000000000000000000001".to_owned()),
+            span_id: Some("0000000000000001".to_owned()),
+            parent_span_id: None,
+            trace_state: None,
+            start_time: None,
+            end_time: None,
         };
         let parent = Sample::Span(span.clone());
         let sample_ref = SampleRef::Span(&span);
@@ -315,6 +321,12 @@ async fn test_livecheck_emit_roundtrip() {
             instrumentation_scope: None,
             live_check_result: None,
             resource: Some(Rc::new(resource)),
+            trace_id: None,
+            span_id: None,
+            parent_span_id: None,
+            trace_state: None,
+            start_time: None,
+            end_time: None,
         };
         let parent = Sample::Span(span.clone());
         let sample_ref = SampleRef::Span(&span);
@@ -351,6 +363,7 @@ async fn test_livecheck_emit_roundtrip() {
             instrumentation_scope: None,
             live_check_result: None,
             resource: Some(Rc::new(resource)),
+            timestamp: None,
         };
         let parent = Sample::Log(log.clone());
         let sample_ref = SampleRef::Log(&log);
@@ -402,6 +415,35 @@ async fn test_livecheck_emit_roundtrip() {
     assert!(
         total_entities > 0,
         "Expected total_entities > 0 (data flowed through), got {total_entities}"
+    );
+
+    let samples = report["samples"].as_array().expect("report samples");
+    let emitted_finding = samples
+        .iter()
+        .filter_map(|sample| sample.get("log"))
+        .find(|log| {
+            log["trace_id"] == "00000000000000000000000000000001"
+                && log["span_id"] == "0000000000000001"
+        })
+        .expect("captured finding log correlated with its source span");
+    assert!(
+        emitted_finding["timestamp"].is_string(),
+        "captured finding log should retain its OTLP timestamp"
+    );
+    let attributes = emitted_finding["attributes"]
+        .as_array()
+        .expect("captured finding log attributes");
+    assert!(
+        attributes
+            .iter()
+            .any(|attribute| attribute["name"] == "weaver.finding.id"),
+        "captured finding log should retain generated finding attributes"
+    );
+    assert!(
+        attributes
+            .iter()
+            .any(|attribute| attribute["name"] == "weaver.finding.context.attribute_key"),
+        "captured finding log should retain generated finding context attributes"
     );
 
     // Read violation count from statistics
