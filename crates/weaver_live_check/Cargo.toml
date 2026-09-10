@@ -41,6 +41,7 @@ serial_test = "3.4.0"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 ureq.workspace = true
 reqwest.workspace = true
+opentelemetry_sdk = { workspace = true, features = ["testing"] }
 
 [lints]
 workspace = true

@@ -45,6 +45,9 @@ pub struct SampleLog {
     /// Reference to the parent resource (not serialized)
     #[serde(skip)]
     pub resource: Option<Rc<SampleResource>>,
+    /// Event timestamp from the OTLP log record in RFC3339 format.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timestamp: Option<String>,
 }
 
 impl LiveCheckRunner for SampleLog {

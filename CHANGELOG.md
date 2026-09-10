@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Live-check reports now retain OTLP context on their samples, including span and log trace IDs, timestamps, span-event and link context, and metric data-point timing. OTLP finding logs are correlated with their source spans. ([#1749](https://github.com/open-telemetry/weaver/pull/1749) by @clarsen)
+
+# Unreleased
+
+- Live-check reports now retain OTLP context on their samples, including span and log trace IDs, timestamps, span-event and link context, and metric data-point timing. OTLP finding logs are correlated with their source spans. ([#1749](https://github.com/open-telemetry/weaver/pull/1749) by @clarsen)
+
+# Unreleased
+
 - Live-check matchers ([#1721](https://github.com/open-telemetry/weaver/pull/1721) by @jerbly)
   - Added `[[live-check.matchers]]`, which picks the v2 signal and attribute groups a sample is checked against with a CEL expression. v2 registries only.
   - A matcher's `attribute_groups` says which attributes are permitted on a sample: their definitions are used for the attribute checks, but one missing from the sample is not reported. Name a group in the new `strict_attribute_groups` to enforce its requirement levels; a signal's own attributes are always enforced.

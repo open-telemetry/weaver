@@ -310,6 +310,34 @@ To provide your own custom templates use the `--templates` option.
 
 As mentioned, the exit-code is set non-zero if any `violation` finding is provided in the output. This can be used in tests and/or CI to fail builds for example.
 
+### OTLP context in reports
+
+When live check receives OTLP, it records the full telemetry fields on the
+corresponding live-check samples in the report:
+
+```sh
+weaver registry live-check --format json --output ./outdir
+```
+
+Spans include `trace_id`, `span_id`, `parent_span_id`, `trace_state`,
+`start_time`, and `end_time`. Span events include `timestamp`, span links
+include their linked `trace_id` and `span_id`, logs include their trace and
+span IDs plus `timestamp`, and metric data points include `start_time` and
+`end_time`. Timestamps use RFC 3339 format.
+
+Resource and instrumentation-scope data is emitted as `resource` and
+`instrumentation_scope` samples before the signals that share it, rather than
+being repeated on every span, log, or metric. The serialized signal samples do
+not contain a separate reference to those entries, so consumers that need this
+provenance must retain that ordering and grouping.
+
+This is Weaver's live-check report format (JSON, YAML, or JSON Lines), not
+OTLP JSON or OTLP protobuf, and it is not directly ingestible by an OTLP
+backend. It is intended to supplement validation findings with enough source
+context for report consumers. To inspect findings in a standard OpenTelemetry
+backend, enable [`OTLP Log Record Emission`](#otlp-log-record-emission), which
+emits the findings themselves as OTLP log records.
+
 ### Statistics
 
 A statistics entity is produced when the input is closed like this snippet:

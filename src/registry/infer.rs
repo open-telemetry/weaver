@@ -124,6 +124,12 @@ fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSampl
                             instrumentation_scope: None,
                             live_check_result: None,
                             resource: None,
+                            trace_id: None,
+                            span_id: None,
+                            parent_span_id: None,
+                            trace_state: None,
+                            start_time: None,
+                            end_time: None,
                         };
                         for attribute in span.attributes {
                             sample_span
@@ -137,6 +143,7 @@ fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSampl
                                 name: event.name,
                                 attributes: Vec::new(),
                                 live_check_result: None,
+                                timestamp: None,
                             };
                             for attribute in event.attributes {
                                 sample_event
