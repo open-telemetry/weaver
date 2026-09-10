@@ -246,7 +246,8 @@ impl AccumulatedSamples {
                     r#type: SignalId::from(span.name.clone()),
                     kind: span.kind,
                     name: SpanName {
-                        note: span.name.clone(),
+                        templates: Vec::new(),
+                        note: Some(span.name.clone()),
                     },
                     attributes,
                     entity_associations: vec![],
@@ -1349,7 +1350,7 @@ mod tests {
         assert_eq!(registry.spans().len(), 1);
         assert_eq!(registry.spans()[0].r#type.to_string(), "HTTP GET");
         assert_eq!(registry.spans()[0].kind, SpanKindSpec::Client);
-        assert_eq!(registry.spans()[0].name.note, "HTTP GET");
+        assert_eq!(registry.spans()[0].name.note.as_deref(), Some("HTTP GET"));
         assert_eq!(registry.spans()[0].attributes.len(), 1);
         match &registry.spans()[0].attributes[0] {
             SpanAttributeOrGroupRef::Attribute(attribute) => {

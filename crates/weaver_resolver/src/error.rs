@@ -280,6 +280,20 @@ pub enum Error {
         attribute_id: String,
     },
 
+    /// An attribute used in a span name template is not referenced on the span.
+    #[error("Span `{span_id}` uses attribute `{attribute_key}` in its name templates, but the attribute is not declared or inherited on the span.\nProvenance: {provenance:?}")]
+    #[diagnostic(help(
+        "Add `{attribute_key}` to the span's `attributes` list, or remove it from the name template."
+    ))]
+    SpanNameAttributeNotOnSpan {
+        /// The id/type of the span.
+        span_id: String,
+        /// The attribute key referenced in the template.
+        attribute_key: String,
+        /// The provenance of the span.
+        provenance: Option<Box<Provenance>>,
+    },
+
     /// Invalid import wildcard.
     #[error("Invalid import wildcard: {error:?}")]
     #[diagnostic(help(

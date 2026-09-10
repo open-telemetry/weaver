@@ -525,7 +525,8 @@ mod tests {
                     r#type: "trace.test".to_owned().into(),
                     kind: SpanKindSpec::Client,
                     name: SpanName {
-                        note: "note".to_owned(),
+                        note: Some("note".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![SpanAttributeRef {
                         base: AttributeRef(0),
@@ -588,7 +589,8 @@ mod tests {
                         r#type: "trace.test".to_owned().into(),
                         kind: SpanKindSpec::Client,
                         name: SpanName {
-                            note: "note".to_owned(),
+                            note: Some("note".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![SpanAttributeRef {
                             base: AttributeRef(0),
