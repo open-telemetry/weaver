@@ -33,7 +33,7 @@ use crate::{
     LiveCheckResult, Sample, SampleRef, VersionedAttribute, VersionedEntity, VersionedSignal,
     ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY, ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY,
     ENTITY_TYPE_ADVICE_CONTEXT_KEY, EXPECTED_VALUE_ADVICE_CONTEXT_KEY,
-    INSTRUMENT_ADVICE_CONTEXT_KEY, UNIT_ADVICE_CONTEXT_KEY,
+    INSTRUMENT_ADVICE_CONTEXT_KEY, SPAN_KIND_ADVICE_CONTEXT_KEY, UNIT_ADVICE_CONTEXT_KEY,
 };
 
 /// An advisor that checks if a sample has the correct type
@@ -880,6 +880,7 @@ impl Advisor for TypeAdvisor {
                     advice_list.push(PolicyFinding {
                         id: FindingId::KindMismatch.into(),
                         context: Some(json!({
+                            SPAN_KIND_ADVICE_CONTEXT_KEY: sample_span.kind,
                             EXPECTED_VALUE_ADVICE_CONTEXT_KEY: span.kind,
                         })),
                         message: format!(

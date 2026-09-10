@@ -1592,15 +1592,16 @@ signal = "myapp.checkout"
         use crate::advice::StabilityAdvisor;
         use crate::{
             sample_span::SampleSpan, CumulativeStatistics, LiveCheckRunner, LiveCheckStatistics,
-            Sample,
+            Sample, EXPECTED_VALUE_ADVICE_CONTEXT_KEY, SPAN_KIND_ADVICE_CONTEXT_KEY,
         };
+        use weaver_checker::PolicyFinding;
         use weaver_forge::v1::registry::ResolvedGroup;
         use weaver_semconv::v1::group::{GroupType, SpanKindSpec};
 
         const MATCHERS: &str = include_str!("../fixtures/cel/span-checkout/matchers.toml");
 
         /// The findings on the span itself, after a full live check.
-        fn check(span: &mut SampleSpan, attributes: Vec<SpanAttribute>) -> Vec<String> {
+        fn findings(span: &mut SampleSpan, attributes: Vec<SpanAttribute>) -> Vec<PolicyFinding> {
             let mut live_checker = v2_live_checker_with(attributes, vec![Box::new(TypeAdvisor)]);
             live_checker
                 .set_matchers(&matcher_configs(MATCHERS))
@@ -1614,6 +1615,11 @@ signal = "myapp.checkout"
                 .as_ref()
                 .expect("it has a result")
                 .all_advice
+                .clone()
+        }
+
+        fn check(span: &mut SampleSpan, attributes: Vec<SpanAttribute>) -> Vec<String> {
+            findings(span, attributes)
                 .iter()
                 .map(|finding| finding.id.clone())
                 .collect()
@@ -1661,6 +1667,16 @@ signal = "myapp.checkout"
             span.kind = SpanKindSpec::Client;
             let ids = check(&mut span, sample_span_attributes());
             assert_eq!(ids, ["kind_mismatch"]);
+        }
+
+        #[test]
+        fn a_kind_mismatch_carries_the_sample_kind_and_the_registry_kind() {
+            let mut span = checkout_span();
+            span.kind = SpanKindSpec::Client;
+            let findings = findings(&mut span, sample_span_attributes());
+            let context = findings[0].context.as_ref().expect("it has a context");
+            assert_eq!(context[SPAN_KIND_ADVICE_CONTEXT_KEY], "client");
+            assert_eq!(context[EXPECTED_VALUE_ADVICE_CONTEXT_KEY], "internal");
         }
 
         /// The findings on the span's attributes, after a full live check.

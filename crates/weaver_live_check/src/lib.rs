@@ -103,6 +103,8 @@ pub const UNIT_ADVICE_CONTEXT_KEY: &str = "unit";
 pub const INSTRUMENT_ADVICE_CONTEXT_KEY: &str = "instrument";
 /// Expected value key in advice context
 pub const EXPECTED_VALUE_ADVICE_CONTEXT_KEY: &str = "expected";
+/// Span kind key in advice context
+pub const SPAN_KIND_ADVICE_CONTEXT_KEY: &str = "span_kind";
 /// Event name key in advice context
 pub const EVENT_NAME_ADVICE_CONTEXT_KEY: &str = "event_name";
 /// Metric name key in advice context

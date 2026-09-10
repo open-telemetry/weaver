@@ -351,7 +351,7 @@ signal = "myapp.checkout"
 
 A span with the same attributes from somewhere else no longer matches, and its `match_info` says nothing applied.
 
-> **Note**: `instrumentation_scope` is only bound for OTLP input today. On a JSON file or stdin it is unbound and the expression errors on every sample.
+> **Note**: `instrumentation_scope` is only bound for OTLP input today. On a JSON file or stdin it is null, so an unguarded expression errors on every sample.
 
 ## Where matchers go
 
@@ -414,7 +414,7 @@ The expression looks at one sample and comes out true or false. These are the va
 | `kind`                                                   | Span                                            | One of `client`, `server`, `internal`, `producer` or `consumer`.                                                                                         |
 | `status.code`, `status.message`                          | Span                                            | The outcome of the span. The code is one of `unset`, `ok` or `error`, and a span with no status is `unset`.                                              |
 | `unit`, `instrument`                                     | Metric                                          | The unit and the instrument of the metric.                                                                                                               |
-| `event_name`, `severity_text`, `severity_number`, `body` | Log                                             | The fields on the log record. All but `event_name` are optional, and one the record omits is unbound, so reading it errors.                     |
+| `event_name`, `severity_text`, `severity_number`, `body` | Log                                             | The fields on the log record. All but `event_name` are optional, and one the record omits is null.                                              |
 
 CEL brings the operators you would expect, `==`, `!=`, `&&`, `||`, `!` and brackets, along with the string methods `matches`, `startsWith`, `endsWith` and `contains`, and the macros `has`, `exists`, `exists_one`, `all`, `map` and `filter`.
 
@@ -436,6 +436,14 @@ Reading an attribute absent from the sample is an error in CEL, not an empty val
 ```
 
 An `&&` absorbs that error while the other side is false, whichever side the test is on.
+
+The optional variables `severity_text`, `severity_number`, `body`, `resource` and `instrumentation_scope` are null on a sample that does not carry them. Reading through a null errors too, so guard them with `!= null`:
+
+```cel
+body != null && body.contains("declined")
+```
+
+`has(body)` does not compile. The macro takes a field selection, not a name on its own.
 
 Without the guard the matcher errors on every sample missing the key, applies to nothing, and the run still finishes. The coverage block reports the count and the first message:
 

@@ -135,22 +135,18 @@ impl Bindings for SampleLog {
         if referenced.wants("event_name") {
             context.add_variable_from_value("event_name", self.event_name.as_str());
         }
-        // An absent field is left unbound, so reading it errors rather than
-        // testing a default.
         if referenced.wants("severity_text") {
-            if let Some(severity_text) = self.severity_text.as_deref() {
-                context.add_variable_from_value("severity_text", severity_text);
-            }
+            bind_optional("severity_text", self.severity_text.as_deref(), context);
         }
         if referenced.wants("severity_number") {
-            if let Some(severity_number) = self.severity_number {
-                context.add_variable_from_value("severity_number", i64::from(severity_number));
-            }
+            bind_optional(
+                "severity_number",
+                self.severity_number.map(i64::from),
+                context,
+            );
         }
         if referenced.wants("body") {
-            if let Some(body) = self.body.as_deref() {
-                context.add_variable_from_value("body", body);
-            }
+            bind_optional("body", self.body.as_deref(), context);
         }
         bind_attributes(&self.attributes, referenced, context);
         bind_signal_context(
@@ -244,9 +240,12 @@ fn bind_attributes(
     }
 }
 
+/// Binds an optional field, an absent one as `Value::Null` so `!= null` can guard it.
+fn bind_optional(name: &str, value: Option<impl Into<Value>>, context: &mut Context<'_>) {
+    context.add_variable_from_value(name, value.map_or(Value::Null, Into::into));
+}
+
 /// Binds `resource` and `instrumentation_scope`.
-///
-/// An absent one is left unbound, so reading it errors.
 fn bind_signal_context(
     resource: Option<&SampleResource>,
     scope: Option<&SampleInstrumentationScope>,
@@ -254,34 +253,30 @@ fn bind_signal_context(
     context: &mut Context<'_>,
 ) {
     if referenced.wants(RESOURCE) {
-        if let Some(resource) = resource {
-            context.add_variable_from_value(
-                RESOURCE,
-                HashMap::from([(
-                    "attributes".to_owned(),
-                    Value::from(attribute_map(resource.attributes.iter())),
-                )]),
-            );
-        }
+        let value = resource.map(|resource| {
+            HashMap::from([(
+                "attributes".to_owned(),
+                Value::from(attribute_map(resource.attributes.iter())),
+            )])
+        });
+        bind_optional(RESOURCE, value, context);
     }
     if referenced.wants(INSTRUMENTATION_SCOPE) {
-        if let Some(scope) = scope {
-            context.add_variable_from_value(
-                INSTRUMENTATION_SCOPE,
-                HashMap::from([
-                    ("name".to_owned(), Value::from(scope.name.as_str())),
-                    ("version".to_owned(), Value::from(scope.version.as_str())),
-                    (
-                        "schema_url".to_owned(),
-                        Value::from(scope.schema_url.as_str()),
-                    ),
-                    (
-                        "attributes".to_owned(),
-                        Value::from(attribute_map(scope.attributes.iter())),
-                    ),
-                ]),
-            );
-        }
+        let value = scope.map(|scope| {
+            HashMap::from([
+                ("name".to_owned(), Value::from(scope.name.as_str())),
+                ("version".to_owned(), Value::from(scope.version.as_str())),
+                (
+                    "schema_url".to_owned(),
+                    Value::from(scope.schema_url.as_str()),
+                ),
+                (
+                    "attributes".to_owned(),
+                    Value::from(attribute_map(scope.attributes.iter())),
+                ),
+            ])
+        });
+        bind_optional(INSTRUMENTATION_SCOPE, value, context);
     }
 }
 
@@ -494,6 +489,12 @@ mod tests {
 
         const MATCHERS: &str = include_str!("../fixtures/cel/log-common/matchers.toml");
 
+        fn log_without_optional_fields() -> SampleLog {
+            parse(
+                r#"{ "event_name": "myapp.order.placed", "attributes": [], "live_check_result": null }"#,
+            )
+        }
+
         #[test]
         fn config_adds_a_group_and_no_signal() {
             let matchers = compile(MATCHERS);
@@ -505,18 +506,46 @@ mod tests {
         }
 
         #[test]
-        fn an_absent_optional_field_errors_rather_than_defaulting() {
-            let log: SampleLog = parse(
-                r#"{ "event_name": "myapp.order.placed", "attributes": [], "live_check_result": null }"#,
-            );
-            for when in [
-                "severity_number < 10",
-                r#"severity_text == """#,
-                r#"body.contains("x")"#,
-            ] {
+        fn an_unguarded_read_of_an_absent_optional_field_errors() {
+            let log = log_without_optional_fields();
+            for when in ["severity_number < 10", r#"body.contains("x")"#] {
                 let error = evaluate(when, &log).expect_err("it errors");
                 assert!(matches!(error, Error::EvalFailed { .. }), "{when}: {error}");
             }
+        }
+
+        #[test]
+        fn an_absent_optional_field_is_null_and_can_be_guarded() {
+            let log = log_without_optional_fields();
+            for when in [
+                r#"body != null && body.contains("order")"#,
+                "severity_number != null && severity_number < 10",
+                r#"severity_text != null && severity_text == "INFO""#,
+            ] {
+                assert!(!evaluate(when, &log).expect("it evaluates"), "{when}");
+            }
+        }
+
+        #[test]
+        fn a_guarded_read_of_a_present_optional_field_matches() {
+            let log: SampleLog = parse(include_str!(
+                "../fixtures/cel/log-common/log-order-placed.json"
+            ));
+            for when in [
+                r#"body != null && body.contains("order")"#,
+                "severity_number != null && severity_number < 10",
+                r#"severity_text != null && severity_text == "INFO""#,
+            ] {
+                assert!(evaluate(when, &log).expect("it evaluates"), "{when}");
+            }
+        }
+
+        #[test]
+        fn an_absent_optional_field_compares_false_rather_than_erroring() {
+            assert!(
+                !evaluate(r#"severity_text == "INFO""#, &log_without_optional_fields())
+                    .expect("it evaluates")
+            );
         }
 
         /// The fixture has no `when`.
@@ -721,13 +750,27 @@ mod tests {
             assert!(evaluate(when, &span).expect("it evaluates"));
         }
 
-        /// The variable is unbound, not empty.
         #[test]
-        fn a_sample_with_no_scope_errors() {
+        fn an_unguarded_read_of_an_absent_scope_errors() {
             let span = span_from_scope(None);
             let error =
                 evaluate(r#"instrumentation_scope.name == "x""#, &span).expect_err("it errors");
             assert!(matches!(error, Error::EvalFailed { .. }), "{error}");
+        }
+
+        #[test]
+        fn an_absent_scope_is_null_and_can_be_guarded() {
+            let span = span_from_scope(None);
+            let when = r#"instrumentation_scope != null && instrumentation_scope.name == "x""#;
+            assert!(!evaluate(when, &span).expect("it evaluates"));
+        }
+
+        #[test]
+        fn an_absent_resource_is_null_and_can_be_guarded() {
+            let mut span = span_from_scope(None);
+            span.resource = None;
+            let when = r#"resource != null && "service.name" in resource.attributes"#;
+            assert!(!evaluate(when, &span).expect("it evaluates"));
         }
     }
 

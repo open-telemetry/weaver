@@ -356,7 +356,7 @@ The expression looks at one sample and comes out true or false. These are the va
 | `kind`                                                                                            | Span                                            | One of `client`, `server`, `internal`, `producer` or `consumer`.                                            |
 | `status.code`, `status.message`                                                                   | Span                                            | The outcome of the span. The code is one of `unset`, `ok` or `error`, and a span with no status is `unset`. |
 | `unit`, `instrument`                                                                              | Metric                                          | The unit and the instrument of the metric.                                                                  |
-| `event_name`, `severity_text`, `severity_number`, `body`                                          | Log                                             | The fields on the log record. All but `event_name` are optional, and one the record omits is unbound, so reading it errors. |
+| `event_name`, `severity_text`, `severity_number`, `body`                                          | Log                                             | The fields on the log record. All but `event_name` are optional, and one the record omits is null.                          |
 
 CEL brings the operators you would expect, `==`, `!=`, `&&`, `||`, `!` and brackets, along with the string methods `matches`, `startsWith`, `endsWith` and `contains`, and the macros `has`, `exists`, `exists_one`, `all`, `map` and `filter`. Everything in a matcher is plain CEL, so anything you already know about the language holds here.
 
@@ -378,6 +378,14 @@ Reading an attribute absent from the sample is an error in CEL and not an empty 
 ```
 
 An `&&` absorbs that error while the other side is false, whichever side the test is on.
+
+The optional variables `severity_text`, `severity_number`, `body`, `resource` and `instrumentation_scope` are null on a sample that does not carry them. Reading through a null errors too, so guard them with `!= null`:
+
+```cel
+body != null && body.contains("declined")
+```
+
+`has(body)` does not compile. The macro takes a field selection, not a name on its own.
 
 We compile and lint every expression at startup, so a matcher that does not parse, or that reads a variable we do not have for that sample type, stops us there. Nothing else is checked until the expression runs: an unguarded read of an absent key, an unknown function, and the wrong number of arguments are all runtime errors. We log the first one once as a diagnostic against the matcher, with a count, not as a finding.
 
