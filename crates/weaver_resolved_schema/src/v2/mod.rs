@@ -193,7 +193,7 @@ mod tests {
     use crate::v2::entity::Entity;
     use crate::v2::event::Event;
     use crate::v2::metric::Metric;
-    use weaver_semconv::stability::Stability;
+    use weaver_semconv::v2::stability::Stability;
 
     #[test]
     fn no_diff() {

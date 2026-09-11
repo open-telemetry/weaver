@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Requirement level for signals (metrics, spans, events, entities).
+//! Requirement level for signals (metrics, spans, events, entities) in version 2 semantic conventions.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

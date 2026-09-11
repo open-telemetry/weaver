@@ -9,7 +9,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::deprecated::Deprecated;
-use crate::stability::Stability;
+use crate::v2::stability::Stability;
 use crate::v2::{signal_id::SignalId, CommonFields};
 use crate::YamlValue;
 use weaver_common::ordered_float::OrderedF64;

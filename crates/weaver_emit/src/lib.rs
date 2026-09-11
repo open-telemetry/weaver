@@ -265,8 +265,8 @@ mod tests {
     use super::*;
     use weaver_forge::v1::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_resolved_schema::v1::attribute::Attribute;
-    use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
-    use weaver_semconv::stability::Stability;
+    use weaver_semconv::v1::signal_requirement_level::SignalRequirementLevel;
+    use weaver_semconv::v1::stability::Stability;
     use weaver_semconv::v1::{
         attribute::{AttributeType, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel},
         group::{GroupType, InstrumentSpec, SpanKindSpec},
@@ -590,7 +590,8 @@ mod tests {
             registry::{ForgeResolvedRegistry, Refinements, Registry},
             span::{Span, SpanAttribute},
         };
-        use weaver_semconv::stability::Stability;
+        use weaver_semconv::v2::signal_requirement_level::SignalRequirementLevel;
+        use weaver_semconv::v2::stability::Stability;
         use weaver_semconv::v2::{
             attribute::{
                 AttributeType, BasicRequirementLevelSpec, Examples, PrimitiveOrArrayTypeSpec,

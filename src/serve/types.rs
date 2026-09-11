@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use weaver_resolved_schema::v2::stats::Stats;
 use weaver_search::{SearchResult, SearchType};
-use weaver_semconv::stability::Stability;
+use weaver_semconv::v2::stability::Stability;
 
 /// Registry stats response.
 ///

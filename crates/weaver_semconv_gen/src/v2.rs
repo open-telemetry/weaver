@@ -444,12 +444,12 @@ mod tests {
         span::{Span, SpanAttributeRef, SpanRefinement},
         ResolvedTelemetrySchema,
     };
-    use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
     use weaver_semconv::v2::{
         attribute::{
             AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
         },
         metric::InstrumentSpec,
+        signal_requirement_level::SignalRequirementLevel,
         span::{SpanKindSpec, SpanName},
         CommonFields,
     };

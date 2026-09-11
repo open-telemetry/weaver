@@ -95,12 +95,12 @@ impl SemConvSpecV1 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stability::Stability;
     use crate::v1::attribute::{
         AttributeSpec, AttributeType, BasicRequirementLevelSpec, Examples,
         PrimitiveOrArrayTypeSpec, RequirementLevel,
     };
     use crate::v1::group::{GroupSpec, GroupType};
+    use crate::v1::stability::Stability;
 
     #[test]
     fn test_semconv_spec_v1_validate_ok() {

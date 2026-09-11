@@ -27,8 +27,7 @@ use weaver_forge::{
 };
 use weaver_semconv::{
     deprecated::Deprecated,
-    stability::Stability,
-    v1::{attribute::AttributeType, group::InstrumentSpec},
+    v1::{attribute::AttributeType, group::InstrumentSpec, stability::Stability},
 };
 
 /// Advisors for live checks
@@ -158,10 +157,10 @@ impl VersionedAttribute {
 
     /// Get the stability field of the attribute
     #[must_use]
-    pub fn stability(&self) -> Option<&Stability> {
+    pub fn stability(&self) -> Option<Stability> {
         match self {
-            VersionedAttribute::V1(attr) => attr.stability.as_ref(),
-            VersionedAttribute::V2(attr) => Some(&attr.common.stability),
+            VersionedAttribute::V1(attr) => attr.stability.clone(),
+            VersionedAttribute::V2(attr) => Some(attr.common.stability.clone().into()),
         }
     }
 }
@@ -194,12 +193,12 @@ impl VersionedSignal {
 
     /// Get the stability field of the signal
     #[must_use]
-    pub fn stability(&self) -> Option<&Stability> {
+    pub fn stability(&self) -> Option<Stability> {
         match self {
-            VersionedSignal::Group(group) => group.as_ref().stability.as_ref(),
-            VersionedSignal::Metric(metric) => Some(&metric.common.stability),
-            VersionedSignal::Span(span) => Some(&span.common.stability),
-            VersionedSignal::Event(event) => Some(&event.common.stability),
+            VersionedSignal::Group(group) => group.as_ref().stability.clone(),
+            VersionedSignal::Metric(metric) => Some(metric.common.stability.clone().into()),
+            VersionedSignal::Span(span) => Some(span.common.stability.clone().into()),
+            VersionedSignal::Event(event) => Some(event.common.stability.clone().into()),
         }
     }
 

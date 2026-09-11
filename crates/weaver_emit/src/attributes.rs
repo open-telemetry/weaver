@@ -203,11 +203,11 @@ mod tests {
     use opentelemetry::{Array, KeyValue, Value};
     use weaver_common::ordered_float::OrderedF64;
     use weaver_resolved_schema::v1::attribute::Attribute;
-    use weaver_semconv::stability::Stability;
     use weaver_semconv::v1::attribute::{
         AttributeType, EnumEntriesSpec, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel,
         TemplateTypeSpec, ValueSpec,
     };
+    use weaver_semconv::v1::stability::Stability;
 
     fn create_test_attribute(
         name: &str,
@@ -722,6 +722,7 @@ mod tests {
         use std::collections::BTreeMap;
         use weaver_forge::v2::attribute::Attribute as V2Attribute;
         use weaver_semconv::v2::attribute::{AttributeType, Examples, PrimitiveOrArrayTypeSpec};
+        use weaver_semconv::v2::stability::Stability as V2Stability;
         use weaver_semconv::v2::CommonFields;
 
         let attr = V2Attribute {
@@ -731,7 +732,7 @@ mod tests {
             common: CommonFields {
                 brief: "Test v2 attribute".to_owned(),
                 note: String::new(),
-                stability: Stability::Stable,
+                stability: V2Stability::Stable,
                 deprecated: None,
                 annotations: BTreeMap::new(),
             },

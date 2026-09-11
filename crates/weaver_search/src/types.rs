@@ -11,7 +11,7 @@ use weaver_forge::v2::entity::Entity;
 use weaver_forge::v2::event::Event;
 use weaver_forge::v2::metric::Metric;
 use weaver_forge::v2::span::Span;
-use weaver_semconv::stability::Stability;
+use weaver_semconv::v2::stability::Stability;
 
 /// Generic wrapper that adds a relevance score to any searchable object.
 #[derive(Debug, Serialize, Clone, ToSchema)]

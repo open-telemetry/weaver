@@ -24,7 +24,7 @@ use weaver_live_check::{
     VersionedRegistry,
 };
 use weaver_search::{SearchContext, SearchType};
-use weaver_semconv::stability::Stability;
+use weaver_semconv::v2::stability::Stability;
 
 use crate::McpConfig;
 
@@ -560,11 +560,11 @@ mod tests {
     use weaver_forge::v2::registry::{ForgeResolvedRegistry, Refinements, Registry};
     use weaver_forge::v2::span::Span;
     use weaver_search::SearchType;
-    use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
-    use weaver_semconv::stability::Stability;
     use weaver_semconv::v2::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
     use weaver_semconv::v2::metric::InstrumentSpec;
+    use weaver_semconv::v2::signal_requirement_level::SignalRequirementLevel;
     use weaver_semconv::v2::span::{SpanKindSpec, SpanName};
+    use weaver_semconv::v2::stability::Stability;
     use weaver_semconv::v2::CommonFields;
 
     fn make_test_registry() -> ForgeResolvedRegistry {
