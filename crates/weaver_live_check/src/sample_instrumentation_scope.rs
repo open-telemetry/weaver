@@ -18,12 +18,10 @@ pub struct SampleInstrumentationScope {
     /// Instrumentation scope name.
     #[serde(default)]
     pub name: String,
-    /// Instrumentation scope version.
-    #[serde(default)]
-    pub version: String,
-    /// Schema URL declared by the OTLP scope container.
-    #[serde(default)]
-    pub schema_url: String,
+    /// Instrumentation scope version. `None` when missing (emitted as `null` in Rego).
+    pub version: Option<String>,
+    /// Schema URL declared by the scope container. `None` when missing (emitted as `null` in Rego).
+    pub schema_url: Option<String>,
     /// Instrumentation scope attributes.
     #[serde(default)]
     pub attributes: Vec<SampleAttribute>,

@@ -412,9 +412,15 @@ mod tests {
 
         assert_eq!(scopes.len(), 2);
         assert_eq!(scopes[0].name, "library-a");
-        assert_eq!(scopes[0].schema_url, "https://example.test/schema/a");
+        assert_eq!(
+            scopes[0].schema_url.as_deref(),
+            Some("https://example.test/schema/a")
+        );
         assert_eq!(scopes[1].name, "library-b");
-        assert_eq!(scopes[1].schema_url, "https://example.test/schema/b");
+        assert_eq!(
+            scopes[1].schema_url.as_deref(),
+            Some("https://example.test/schema/b")
+        );
     }
 
     #[test]
@@ -576,11 +582,14 @@ mod tests {
             .as_ref()
             .expect("schema URL is ownership metadata even when scope is absent");
         assert_eq!(schema_only.name, "");
-        assert_eq!(schema_only.schema_url, "https://example.test/schema-only");
+        assert_eq!(
+            schema_only.schema_url.as_deref(),
+            Some("https://example.test/schema-only")
+        );
         assert_eq!(emitted_scopes.len(), 1);
         assert_eq!(
-            emitted_scopes[0].schema_url,
-            "https://example.test/schema-only"
+            emitted_scopes[0].schema_url.as_deref(),
+            Some("https://example.test/schema-only")
         );
     }
 

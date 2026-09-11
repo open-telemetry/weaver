@@ -13,8 +13,8 @@ use weaver_live_check::{
 fn scope(name: &str) -> Rc<SampleInstrumentationScope> {
     Rc::new(SampleInstrumentationScope {
         name: name.to_owned(),
-        version: "1.2.3".to_owned(),
-        schema_url: "https://opentelemetry.io/schemas/1.32.0".to_owned(),
+        version: Some("1.2.3".to_owned()),
+        schema_url: Some("https://opentelemetry.io/schemas/1.32.0".to_owned()),
         attributes: vec![SampleAttribute {
             name: "scope.environment".to_owned(),
             value: Some(json!("test")),

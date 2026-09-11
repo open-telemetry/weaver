@@ -2711,6 +2711,16 @@ mod tests {
                 advice_context := {"scope_name": null}
                 message := "Missing instrumentation scope is explicitly null"
             }
+
+            deny contains make_advice(advice_type, advice_level, advice_context, message) if {
+                input.instrumentation_scope.name == "framework"
+                input.instrumentation_scope.version == null
+                input.instrumentation_scope.schema_url == null
+                advice_type := "instrumentation_scope_missing_values"
+                advice_level := "information"
+                advice_context := {"scope_name": "framework"}
+                message := "Missing instrumentation scope values are explicitly null"
+            }
         "#;
         std::fs::write(&policy_path, rego_content).expect("Failed to write custom policy");
 
@@ -2734,8 +2744,8 @@ mod tests {
             span_links: vec![],
             instrumentation_scope: Some(Rc::new(SampleInstrumentationScope {
                 name: "framework".to_owned(),
-                version: "1.2.3".to_owned(),
-                schema_url: "https://opentelemetry.io/schemas/1.32.0".to_owned(),
+                version: Some("1.2.3".to_owned()),
+                schema_url: Some("https://opentelemetry.io/schemas/1.32.0".to_owned()),
                 attributes: vec![SampleAttribute {
                     name: "scope.environment".to_owned(),
                     value: Some(json!("test")),
@@ -2806,6 +2816,40 @@ mod tests {
                 .iter()
                 .any(|finding| finding.id == "instrumentation_scope_absent"),
             "expected missing scope to be explicitly null for Rego: {unscoped_advice:?}"
+        );
+
+        let mut missing_values_sample = sample.clone();
+        match &mut missing_values_sample {
+            Sample::Span(span) => {
+                span.instrumentation_scope = Some(Rc::new(SampleInstrumentationScope {
+                    name: "framework".to_owned(),
+                    version: None,
+                    schema_url: None,
+                    attributes: vec![],
+                    dropped_attributes_count: 0,
+                    live_check_result: None,
+                }));
+                span.live_check_result = None;
+            }
+            _ => unreachable!("test constructs a span"),
+        }
+        missing_values_sample
+            .run_live_check(
+                &mut live_checker,
+                &mut stats,
+                None,
+                &missing_values_sample.clone(),
+            )
+            .expect("missing values live check should not error");
+        let missing_values_advice = match &missing_values_sample {
+            Sample::Span(span) => &span.live_check_result.as_ref().unwrap().all_advice,
+            _ => unreachable!("test constructs a span"),
+        };
+        assert!(
+            missing_values_advice
+                .iter()
+                .any(|finding| finding.id == "instrumentation_scope_missing_values"),
+            "expected missing scope values to be explicitly null for Rego: {missing_values_advice:?}"
         );
     }
 
