@@ -13,6 +13,7 @@ use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_config::{WeaverCommand, WeaverConfig};
+use weaver_forge::config::Params;
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_macros::weaver_command;
 use weaver_semconv::registry_repo::RegistryRepo;
@@ -99,6 +100,7 @@ pub(crate) fn command(
         Some(&DEFAULT_DIFF_TEMPLATES),
         Some(templates),
         target,
+        Params::default(),
     )?;
 
     match diff {

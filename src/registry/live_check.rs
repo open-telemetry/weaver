@@ -291,7 +291,7 @@ pub(crate) fn command(
     } else {
         OutputTarget::from_optional_dir(config.output.as_ref())
     };
-    let mut output = OutputProcessor::with_params(
+    let mut output = OutputProcessor::new(
         &config.format,
         "live_check",
         Some(&DEFAULT_LIVE_CHECK_TEMPLATES),
@@ -542,6 +542,7 @@ pub(crate) fn command(
 #[cfg(test)]
 mod tests {
     use serde_json::json;
+    use weaver_forge::config::Params;
     use weaver_forge::{OutputProcessor, OutputTarget};
     use weaver_live_check::{
         sample_attribute::SampleAttribute,
@@ -564,6 +565,7 @@ mod tests {
             Some(&DEFAULT_LIVE_CHECK_TEMPLATES),
             None,
             OutputTarget::Stdout,
+            Params::default(),
         )
         .expect("ANSI output processor should load");
 
