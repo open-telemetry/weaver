@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     live_checker::LiveChecker, matcher::SampleMatch, sample_attribute::SampleAttribute, Advisable,
-    Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef, SampleType,
+    Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
 };
 
 /// Identifies the instrumentation scope that produced a telemetry signal.
@@ -52,8 +52,7 @@ impl LiveCheckRunner for SampleInstrumentationScope {
         _parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        let sample_match =
-            Rc::new(live_checker.match_for(SampleType::InstrumentationScope, self, None));
+        let sample_match = Rc::new(live_checker.match_for(self, None));
         live_checker.record_match(&sample_match);
         let mut result = self.run_advisors(
             live_checker,

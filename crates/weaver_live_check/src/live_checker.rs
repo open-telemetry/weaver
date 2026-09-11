@@ -10,6 +10,7 @@ use std::sync::Arc;
 use weaver_semconv::v1::{attribute::AttributeType, group::GroupType};
 use weaver_semconv::v2::attribute::AttributeType as V2AttributeType;
 
+use crate::matcher::Matchable;
 use crate::{
     advice::Advisor,
     finding_modifier::FindingModifier,
@@ -17,7 +18,6 @@ use crate::{
     otlp_logger::OtlpEmitter,
     Error, SampleType, VersionedAttribute, VersionedEntity, VersionedRegistry, VersionedSignal,
 };
-use weaver_cel::Bindings;
 use weaver_config::live_check::MatcherConfig;
 use weaver_forge::v2::attribute::Attribute as V2Attribute;
 use weaver_forge::v2::attribute_group::AttributeGroup;
@@ -289,9 +289,7 @@ impl LiveChecker {
     /// sample type does not have, or names something that is not in the
     /// registry. Matchers need a v2 registry.
     pub fn set_matchers(&mut self, configs: &[MatcherConfig]) -> Result<(), Error> {
-        let matchers = Matchers::compile(configs)?;
-        matchers.check_against(self)?;
-        self.matchers = matchers;
+        self.matchers = Matchers::compile(configs, self)?;
         Ok(())
     }
 
@@ -326,12 +324,10 @@ impl LiveChecker {
     #[must_use]
     pub fn match_for(
         &self,
-        sample_type: SampleType,
-        bindings: &dyn Bindings,
+        sample: &dyn Matchable,
         natural: Option<Rc<VersionedSignal>>,
     ) -> SampleMatch {
-        self.matchers
-            .match_for(sample_type, bindings, natural, self)
+        self.matchers.match_for(sample, natural)
     }
 
     /// Add an advisor

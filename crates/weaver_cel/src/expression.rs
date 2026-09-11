@@ -19,11 +19,11 @@ fn stdlib() -> Arc<Env> {
 }
 
 /// Variables bound once, for evaluating several expressions against one sample.
-pub struct Scope<'a> {
-    context: Context<'a>,
+pub struct Scope {
+    context: Context<'static>,
 }
 
-impl Scope<'_> {
+impl Scope {
     /// Binds the variables in `referenced`.
     #[must_use]
     pub fn new(referenced: &Referenced, bindings: &dyn Bindings) -> Self {
@@ -95,7 +95,7 @@ impl Expression {
     ///
     /// Returns an error when the expression fails to evaluate, or returns a
     /// value that is not a bool.
-    pub fn evaluate_in(&self, scope: &Scope<'_>) -> Result<bool, Error> {
+    pub fn evaluate_in(&self, scope: &Scope) -> Result<bool, Error> {
         let value = self
             .program
             .execute(&scope.context)

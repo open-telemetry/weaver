@@ -16,7 +16,7 @@ use crate::{
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_resource::SampleResource,
     Error, FindingId, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
-    SampleType, VersionedSignal,
+    VersionedSignal,
 };
 
 /// Represents a sample telemetry log parsed from any source
@@ -67,7 +67,7 @@ impl LiveCheckRunner for SampleLog {
         };
         // The match comes before the advisors, so a matcher's `signal` is what
         // the attributes are checked against.
-        let sample_match = live_checker.match_for(SampleType::Log, self, natural);
+        let sample_match = live_checker.match_for(self, natural);
         live_checker.record_match(&sample_match);
         let semconv_event = sample_match.signal.clone();
         // Coverage is credited to the signal the match resolved, which a

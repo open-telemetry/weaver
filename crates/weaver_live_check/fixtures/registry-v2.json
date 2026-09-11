@@ -8,6 +8,18 @@
         "attributes": [],
         "brief": "Attributes on every myapp signal",
         "stability": "stable"
+      },
+      {
+        "id": "myapp.scope",
+        "attributes": [],
+        "brief": "Attributes on the myapp instrumentation scope",
+        "stability": "stable"
+      },
+      {
+        "id": "myapp.resource",
+        "attributes": [],
+        "brief": "Attributes on the myapp resource",
+        "stability": "stable"
       }
     ],
     "metrics": [

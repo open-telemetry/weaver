@@ -12,7 +12,7 @@ use crate::{
     advice::add_entity_association_findings, live_checker::LiveChecker, matcher::SampleMatch,
     sample_attribute::SampleAttribute, sample_instrumentation_scope::SampleInstrumentationScope,
     sample_resource::SampleResource, Advisable, Error, LiveCheckResult, LiveCheckRunner,
-    LiveCheckStatistics, Sample, SampleRef, SampleType,
+    LiveCheckStatistics, Sample, SampleRef,
 };
 
 /// The status code of the span
@@ -101,7 +101,7 @@ impl LiveCheckRunner for SampleSpan {
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         // Nothing nests a span, so it always matches on its own.
-        let sample_match = Rc::new(live_checker.match_for(SampleType::Span, self, None));
+        let sample_match = Rc::new(live_checker.match_for(self, None));
         live_checker.record_match(&sample_match);
         let mut result = self.run_advisors(
             live_checker,
@@ -195,7 +195,7 @@ impl LiveCheckRunner for SampleSpanEvent {
         _parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        let sample_match = Rc::new(live_checker.match_for(SampleType::SpanEvent, self, None));
+        let sample_match = Rc::new(live_checker.match_for(self, None));
         live_checker.record_match(&sample_match);
         let mut result = self.run_advisors(
             live_checker,
@@ -257,7 +257,7 @@ impl LiveCheckRunner for SampleSpanLink {
         _parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        let sample_match = Rc::new(live_checker.match_for(SampleType::SpanLink, self, None));
+        let sample_match = Rc::new(live_checker.match_for(self, None));
         live_checker.record_match(&sample_match);
         let mut result = self.run_advisors(
             live_checker,

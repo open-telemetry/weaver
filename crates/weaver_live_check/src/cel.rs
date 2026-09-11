@@ -12,6 +12,7 @@ use weaver_cel::{Bindings, Context, Referenced, Value};
 
 use crate::{
     enum_name,
+    matcher::Matchable,
     sample_attribute::SampleAttribute,
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_log::SampleLog,
@@ -69,6 +70,28 @@ pub fn variables(sample_type: SampleType) -> &'static [&'static str] {
         | SampleType::ExponentialHistogramDataPoint
         | SampleType::Exemplar => &[],
     }
+}
+
+/// Implements [`Matchable`] for sample types that implement [`Bindings`].
+macro_rules! matchable {
+    ($($sample:ty => $sample_type:ident),* $(,)?) => {
+        $(impl Matchable for $sample {
+            fn sample_type(&self) -> SampleType {
+                SampleType::$sample_type
+            }
+        })*
+    };
+}
+
+matchable! {
+    SampleSpan => Span,
+    SampleSpanEvent => SpanEvent,
+    SampleSpanLink => SpanLink,
+    SampleLog => Log,
+    SampleMetric => Metric,
+    SampleResource => Resource,
+    SampleInstrumentationScope => InstrumentationScope,
+    SampleProfile => Profile,
 }
 
 impl Bindings for SampleSpan {
@@ -342,7 +365,8 @@ mod tests {
     fn compile(toml_str: &str) -> Matchers {
         let configs = fixture::matcher_configs(toml_str);
         assert_eq!(configs.len(), 1, "the fixture declares one matcher");
-        Matchers::compile(&configs).expect("the fixture matchers compile")
+        Matchers::compile(&configs, &fixture::v2_live_checker())
+            .expect("the fixture matchers compile")
     }
 
     /// Evaluates the `when` of a fixture against a sample.

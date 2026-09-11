@@ -18,7 +18,7 @@ use crate::{
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_resource::SampleResource,
     Advisable, Error, FindingId, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample,
-    SampleRef, SampleType, VersionedSignal,
+    SampleRef, VersionedSignal,
 };
 
 /// Represents the instrument type of a metric
@@ -360,7 +360,7 @@ impl LiveCheckRunner for SampleMetric {
         // The match comes before the advisors, so a matcher's `signal` is what
         // the instrument, unit and attributes are checked against.
         let natural = live_checker.find_metric(&self.name);
-        let sample_match = live_checker.match_for(SampleType::Metric, self, natural);
+        let sample_match = live_checker.match_for(self, natural);
         live_checker.record_match(&sample_match);
         let semconv_metric = sample_match.signal.clone();
         // Coverage is credited to the signal the match resolved, which a

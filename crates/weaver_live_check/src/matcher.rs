@@ -43,56 +43,76 @@ impl From<MatcherSampleType> for SampleType {
     }
 }
 
-/// A matcher from the config, with its `when` compiled.
+/// A sample the matchers can select.
+pub trait Matchable: Bindings {
+    /// The kind of sample, which decides which matchers apply to it.
+    fn sample_type(&self) -> SampleType;
+}
+
+/// One matcher from the config, compiled and resolved against the registry.
 #[derive(Debug)]
 pub struct Matcher {
-    /// Identifies the matcher in findings, statistics and coverage.
+    /// The name used for this matcher in findings, statistics and coverage.
     pub id: String,
 
     /// The kind of sample this matcher applies to.
     pub sample_type: SampleType,
 
-    /// The compiled `when`. When `None`, the matcher applies to every sample of
-    /// its `sample_type`.
+    /// The compiled `when` expression. `None` means the matcher applies to
+    /// every sample of its type.
     pub when: Option<Expression>,
 
-    /// The registry signal the sample is checked against.
+    /// The name of the registry signal to check the sample against.
     pub signal: Option<String>,
 
-    /// Attribute groups permitted on the sample, in priority order.
+    /// Names of attribute groups allowed on the sample, in priority order.
     pub attribute_groups: Vec<String>,
 
-    /// Attribute groups whose requirement levels are enforced.
+    /// Names of attribute groups whose requirement levels are also enforced.
     pub strict_attribute_groups: Vec<String>,
 
-    /// The number of samples the matcher applied to.
+    /// The registry signal that `signal` names.
+    resolved_signal: Option<Rc<VersionedSignal>>,
+
+    /// The registry groups that `strict_attribute_groups` and
+    /// `attribute_groups` name, in that order.
+    groups: Vec<MatchedGroup>,
+
+    /// How many samples this matcher applied to.
     matched: u64,
 
-    /// The number of samples whose `when` errored.
+    /// How many samples had a `when` that failed to evaluate.
     errors: u64,
 
-    /// The message from the first sample whose `when` errored.
+    /// The error message from the first `when` failure.
     first_error: Option<String>,
 }
 
-/// The configured matchers, in declaration order.
+/// The matchers from the config, in declaration order.
 #[derive(Debug, Default)]
 pub struct Matchers {
     matchers: Vec<Matcher>,
-    /// The variables the matchers of each sample type read, so a sample binds
-    /// once.
+    /// For each sample type, the variables its matchers read. A sample binds
+    /// these once and every matcher of that type evaluates against them.
     referenced: HashMap<SampleType, Referenced>,
 }
 
 impl Matchers {
-    /// Compiles each `when` and checks it only reads variables its sample type
-    /// has.
+    /// Compiles the matchers and resolves the names they use against the
+    /// registry.
+    ///
+    /// Each `when` is compiled and checked to only read variables its sample
+    /// type has. Each `signal` and attribute group is looked up in the
+    /// registry, so matching a sample needs no further lookups.
     ///
     /// # Errors
     ///
-    /// Returns an error for a repeated `id`, a `when` that does not compile, or
-    /// a `when` that reads a variable the sample type does not have.
-    pub fn compile(configs: &[MatcherConfig]) -> Result<Self, Error> {
+    /// Returns the first of these problems found: a repeated `id`, a `when`
+    /// that does not compile, a `when` that reads a variable its sample type
+    /// does not have, a v1 registry with any matcher, a `signal` on a sample
+    /// type that has none, or a `signal` or attribute group that is not in
+    /// the registry.
+    pub fn compile(configs: &[MatcherConfig], live_checker: &LiveChecker) -> Result<Self, Error> {
         let mut matchers: Vec<Matcher> = Vec::with_capacity(configs.len());
         for config in configs {
             if matchers.iter().any(|matcher| matcher.id == config.id) {
@@ -112,10 +132,22 @@ impl Matchers {
                 signal: config.signal.clone(),
                 attribute_groups: config.attribute_groups.clone(),
                 strict_attribute_groups: config.strict_attribute_groups.clone(),
+                resolved_signal: None,
+                groups: Vec::new(),
                 matched: 0,
                 errors: 0,
                 first_error: None,
             });
+        }
+        if let Some(first) = matchers.first() {
+            if matches!(live_checker.registry.as_ref(), VersionedRegistry::V1(_)) {
+                return Err(Error::MatchersRequireV2Registry {
+                    id: first.id.clone(),
+                });
+            }
+        }
+        for matcher in &mut matchers {
+            matcher.resolve(live_checker)?;
         }
         let mut referenced: HashMap<SampleType, Referenced> = HashMap::new();
         for matcher in &matchers {
@@ -134,56 +166,30 @@ impl Matchers {
         })
     }
 
-    /// Checks every `signal` and attribute group names something in the
-    /// registry.
+    /// Decides which signal and attribute groups to check a sample against.
     ///
-    /// # Errors
+    /// `natural` is the signal the sample's own name resolves to, if any. The
+    /// first applicable matcher that names a `signal` replaces it. A later one
+    /// is recorded in [`SampleMatch::conflicts`] and otherwise ignored.
     ///
-    /// Returns an error when the registry is v1, when a sample type that has no
-    /// signal sets `signal`, or when a name is not in the registry.
-    pub fn check_against(&self, live_checker: &LiveChecker) -> Result<(), Error> {
-        let Some(first) = self.matchers.first() else {
-            return Ok(());
-        };
-        if matches!(live_checker.registry.as_ref(), VersionedRegistry::V1(_)) {
-            return Err(Error::MatchersRequireV2Registry {
-                id: first.id.clone(),
-            });
-        }
-        for matcher in &self.matchers {
-            matcher.check_signal(live_checker)?;
-            for attribute_group in matcher.named_attribute_groups() {
-                if live_checker.find_attribute_group(attribute_group).is_none() {
-                    return Err(Error::UnknownMatcherAttributeGroup {
-                        id: matcher.id.clone(),
-                        attribute_group: attribute_group.clone(),
-                    });
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// The signal and attribute groups to compare a sample with.
-    ///
-    /// The first matcher with a `signal` overrides the natural match; a later
-    /// one is listed in [`SampleMatch::conflicts`]. Attribute groups accumulate
-    /// in declaration order, first mention winning.
+    /// Attribute groups are collected from every applicable matcher in
+    /// declaration order. A group named more than once is kept once, and it
+    /// is strict if any matcher named it as strict.
     pub fn match_for(
         &self,
-        sample_type: SampleType,
-        bindings: &dyn Bindings,
+        sample: &dyn Matchable,
         natural: Option<Rc<VersionedSignal>>,
-        live_checker: &LiveChecker,
     ) -> SampleMatch {
         let mut sample_match = SampleMatch {
             signal: natural,
             ..SampleMatch::default()
         };
+        let sample_type = sample.sample_type();
+        // No matcher targets this sample type.
         let Some(referenced) = self.referenced.get(&sample_type) else {
             return sample_match;
         };
-        let scope = Scope::new(referenced, bindings);
+        let scope = Scope::new(referenced, sample);
         for (index, matcher) in self.matchers.iter().enumerate() {
             if matcher.sample_type != sample_type {
                 continue;
@@ -198,40 +204,29 @@ impl Matchers {
                 }
             }
             sample_match.applied.push(index);
-            if let Some(signal) = &matcher.signal {
+            if let Some(signal) = &matcher.resolved_signal {
                 if sample_match.signal_matcher.is_none() {
-                    sample_match.signal = live_checker.find_signal(signal, sample_type);
+                    sample_match.signal = Some(Rc::clone(signal));
                     sample_match.signal_matcher = Some(matcher.id.clone());
                 } else {
                     sample_match.conflicts.push(matcher.id.clone());
                 }
             }
-            for (attribute_group, strict) in matcher
-                .strict_attribute_groups
-                .iter()
-                .map(|id| (id, true))
-                .chain(matcher.attribute_groups.iter().map(|id| (id, false)))
-            {
-                // Strict wins, whichever matcher named the group first.
-                if let Some(held) = sample_match
+            for matched in &matcher.groups {
+                let held = sample_match
                     .attribute_groups
                     .iter_mut()
-                    .find(|held| held.group.id.to_string() == **attribute_group)
-                {
-                    held.strict |= strict;
-                    continue;
-                }
-                if let Some(group) = live_checker.find_attribute_group(attribute_group) {
-                    sample_match
-                        .attribute_groups
-                        .push(MatchedGroup { group, strict });
+                    .find(|held| held.group.id == matched.group.id);
+                match held {
+                    Some(held) => held.strict |= matched.strict,
+                    None => sample_match.attribute_groups.push(matched.clone()),
                 }
             }
         }
         sample_match
     }
 
-    /// What a match compared the sample with, by name.
+    /// Describes a match by name, for the sample's result.
     #[must_use]
     pub fn match_info(&self, sample_match: &SampleMatch, signal_expected: bool) -> MatchInfo {
         MatchInfo {
@@ -269,7 +264,7 @@ impl Matchers {
         }
     }
 
-    /// Counts a match against the matchers that produced it.
+    /// Adds a match to the counts of the matchers that produced it.
     pub fn record_match(&mut self, sample_match: &SampleMatch) {
         for &index in &sample_match.applied {
             if let Some(matcher) = self.matchers.get_mut(index) {
@@ -288,7 +283,7 @@ impl Matchers {
         self.matchers.iter()
     }
 
-    /// Whether the config declares no matchers.
+    /// Whether there are no matchers.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.matchers.is_empty()
@@ -296,50 +291,41 @@ impl Matchers {
 }
 
 impl Matcher {
-    /// Every attribute group the matcher names, strict ones first.
-    fn named_attribute_groups(&self) -> impl Iterator<Item = &String> {
+    /// Looks up `signal` and the attribute groups in the registry.
+    fn resolve(&mut self, live_checker: &LiveChecker) -> Result<(), Error> {
+        self.resolved_signal = self.resolve_signal(live_checker)?;
+        self.groups = self
+            .named_attribute_groups()
+            .map(|(attribute_group, strict)| {
+                live_checker
+                    .find_attribute_group(attribute_group)
+                    .map(|group| MatchedGroup { group, strict })
+                    .ok_or_else(|| Error::UnknownMatcherAttributeGroup {
+                        id: self.id.clone(),
+                        attribute_group: attribute_group.clone(),
+                    })
+            })
+            .collect::<Result<_, _>>()?;
+        Ok(())
+    }
+
+    /// Every attribute group the matcher names, with whether it is strict.
+    /// Strict groups come first.
+    fn named_attribute_groups(&self) -> impl Iterator<Item = (&String, bool)> {
         self.strict_attribute_groups
             .iter()
-            .chain(self.attribute_groups.iter())
+            .map(|id| (id, true))
+            .chain(self.attribute_groups.iter().map(|id| (id, false)))
     }
 
-    /// Whether the matcher's `when` passes for this sample.
-    ///
-    /// A `when` that errors does not match, and returns the error for the
-    /// caller to record.
-    fn applies_to(&self, scope: &Scope<'_>) -> Result<bool, weaver_cel::Error> {
-        let Some(when) = &self.when else {
-            return Ok(true);
-        };
-        when.evaluate_in(scope)
-    }
-
-    /// Counts one sample whose `when` errored, keeping the first message.
-    fn record_error(&mut self, message: String) {
-        self.errors = self.errors.saturating_add(1);
-        if self.first_error.is_none() {
-            self.first_error = Some(message);
-        }
-    }
-
-    /// The number of samples the matcher applied to.
-    #[must_use]
-    pub fn matched(&self) -> u64 {
-        self.matched
-    }
-
-    /// The number of samples whose `when` errored, with the first message.
-    #[must_use]
-    pub fn errors(&self) -> Option<(u64, &str)> {
-        let message = self.first_error.as_deref()?;
-        Some((self.errors, message))
-    }
-
-    /// Checks `signal` is allowed for the sample type and names something in
-    /// the registry.
-    fn check_signal(&self, live_checker: &LiveChecker) -> Result<(), Error> {
+    /// Looks up `signal` in the registry. `None` when the matcher names no
+    /// signal.
+    fn resolve_signal(
+        &self,
+        live_checker: &LiveChecker,
+    ) -> Result<Option<Rc<VersionedSignal>>, Error> {
         let Some(signal) = &self.signal else {
-            return Ok(());
+            return Ok(None);
         };
         let Some(kind) = SignalKind::for_sample_type(self.sample_type) else {
             return Err(Error::MatcherSignalNotAllowed {
@@ -347,19 +333,47 @@ impl Matcher {
                 sample_type: self.sample_type.to_string(),
             });
         };
-        let found = match kind {
-            SignalKind::SpanType => live_checker.find_span(signal),
-            SignalKind::EventName => live_checker.find_event(signal),
-            SignalKind::MetricName => live_checker.find_metric(signal),
-        };
-        if found.is_none() {
-            return Err(Error::UnknownMatcherSignal {
+        live_checker
+            .find_signal(signal, self.sample_type)
+            .map(Some)
+            .ok_or_else(|| Error::UnknownMatcherSignal {
                 id: self.id.clone(),
                 signal: signal.clone(),
                 expected: kind.described().to_owned(),
-            });
+            })
+    }
+
+    /// Whether the `when` expression is true for this sample.
+    ///
+    /// A `when` that fails to evaluate does not match. The error is returned
+    /// so the caller can record it.
+    fn applies_to(&self, scope: &Scope) -> Result<bool, weaver_cel::Error> {
+        let Some(when) = &self.when else {
+            return Ok(true);
+        };
+        when.evaluate_in(scope)
+    }
+
+    /// Records one `when` failure, keeping the first message.
+    fn record_error(&mut self, message: String) {
+        self.errors = self.errors.saturating_add(1);
+        if self.first_error.is_none() {
+            self.first_error = Some(message);
         }
-        Ok(())
+    }
+
+    /// How many samples this matcher applied to.
+    #[must_use]
+    pub fn matched(&self) -> u64 {
+        self.matched
+    }
+
+    /// How many samples had a `when` that failed, with the first error
+    /// message. `None` when none failed.
+    #[must_use]
+    pub fn errors(&self) -> Option<(u64, &str)> {
+        let message = self.first_error.as_deref()?;
+        Some((self.errors, message))
     }
 }
 
@@ -706,8 +720,28 @@ fn compile_when(config: &MatcherConfig, when: &str) -> Result<Expression, Error>
 
 #[cfg(test)]
 pub(crate) mod fixture {
+    use std::sync::Arc;
+
     use serde::Deserialize;
     use weaver_config::live_check::MatcherConfig;
+    use weaver_forge::v2::registry::ForgeResolvedRegistry;
+
+    use crate::{live_checker::LiveChecker, VersionedRegistry};
+
+    /// The fixture registry: one span type, one metric, one event and the
+    /// attribute groups the fixture matchers name.
+    pub(crate) fn registry() -> ForgeResolvedRegistry {
+        serde_json::from_str(include_str!("../fixtures/registry-v2.json"))
+            .expect("the fixture registry parses")
+    }
+
+    /// A live checker over the fixture registry, with no advisors.
+    pub(crate) fn v2_live_checker() -> LiveChecker {
+        LiveChecker::new(
+            Arc::new(VersionedRegistry::V2(Box::new(registry()))),
+            Vec::new(),
+        )
+    }
 
     /// The matchers declared in a `[[live-check.matchers]]` fixture.
     pub(crate) fn matcher_configs(toml_str: &str) -> Vec<MatcherConfig> {
@@ -736,7 +770,7 @@ mod tests {
     use weaver_forge::v2::attribute::Attribute as V2Attribute;
     use weaver_forge::v2::attribute_group::AttributeGroupAttribute;
     use weaver_forge::v2::provenance::Provenance;
-    use weaver_forge::v2::registry::{ForgeDependency, ForgeResolvedRegistry};
+    use weaver_forge::v2::registry::ForgeDependency;
     use weaver_forge::v2::span::SpanAttribute;
     use weaver_semconv::stability::Stability;
     use weaver_semconv::v2::attribute::{
@@ -748,7 +782,10 @@ mod tests {
     use crate::advice::{Advisor, TypeAdvisor};
     use crate::sample_log::SampleLog;
 
-    use super::{fixture::matcher_configs, *};
+    use super::{
+        fixture::{matcher_configs, registry, v2_live_checker},
+        *,
+    };
 
     /// An empty v1 registry.
     fn v1_live_checker() -> LiveChecker {
@@ -760,12 +797,6 @@ mod tests {
             Arc::new(VersionedRegistry::V1(Box::new(registry))),
             Vec::new(),
         )
-    }
-
-    /// A v2 registry with one span type, one attribute group, one metric and
-    /// one event.
-    fn v2_live_checker() -> LiveChecker {
-        v2_live_checker_with(Vec::new(), Vec::new())
     }
 
     /// The fixture registry, with the span declaring `attributes` and the
@@ -800,9 +831,7 @@ mod tests {
         attribute_group_attributes: Vec<AttributeGroupAttribute>,
         advisors: Vec<Box<dyn Advisor>>,
     ) -> LiveChecker {
-        let mut registry: ForgeResolvedRegistry =
-            serde_json::from_str(include_str!("../fixtures/registry-v2.json"))
-                .expect("the fixture registry parses");
+        let mut registry = registry();
         // Neither `Attribute` nor `SpanAttribute` can be deserialized: both
         // combine `deny_unknown_fields` with `flatten`, which serde does not
         // support.
@@ -881,7 +910,7 @@ mod tests {
     ];
 
     fn compile(toml_str: &str) -> Result<Matchers, Error> {
-        Matchers::compile(&matcher_configs(toml_str))
+        Matchers::compile(&matcher_configs(toml_str), &v2_live_checker())
     }
 
     #[test]
@@ -894,7 +923,7 @@ mod tests {
 
     #[test]
     fn no_matchers_is_not_an_error() {
-        let matchers = Matchers::compile(&[]).expect("it compiles");
+        let matchers = Matchers::compile(&[], &v2_live_checker()).expect("it compiles");
         assert!(matchers.is_empty());
         assert_eq!(matchers.iter().count(), 0);
     }
@@ -1038,8 +1067,7 @@ sample_type = "log"
     }
 
     fn check(toml_str: &str) -> Result<(), Error> {
-        let matchers = Matchers::compile(&matcher_configs(toml_str)).expect("they compile");
-        matchers.check_against(&v2_live_checker())
+        Matchers::compile(&matcher_configs(toml_str), &v2_live_checker()).map(|_| ())
     }
 
     #[test]
@@ -1185,17 +1213,17 @@ signal = "myapp.checkout"
 
     #[test]
     fn matchers_are_rejected_against_a_v1_registry() {
-        let matchers = Matchers::compile(&matcher_configs(
-            r#"
+        let error = Matchers::compile(
+            &matcher_configs(
+                r#"
 [[live-check.matchers]]
 id = "myapp.checkout"
 sample_type = "span"
 "#,
-        ))
-        .expect("it compiles");
-        let error = matchers
-            .check_against(&v1_live_checker())
-            .expect_err("matchers need a v2 registry");
+            ),
+            &v1_live_checker(),
+        )
+        .expect_err("matchers need a v2 registry");
         assert!(
             matches!(&error, Error::MatchersRequireV2Registry { id } if id == "myapp.checkout"),
             "{error}"
@@ -1205,9 +1233,8 @@ sample_type = "span"
     /// Without matchers a v1 registry is untouched.
     #[test]
     fn no_matchers_passes_against_a_v1_registry() {
-        Matchers::default()
-            .check_against(&v1_live_checker())
-            .expect("nothing to check");
+        let matchers = Matchers::compile(&[], &v1_live_checker()).expect("nothing to check");
+        assert!(matchers.is_empty());
     }
 
     mod sample_match {
@@ -1215,7 +1242,7 @@ sample_type = "span"
         use crate::{sample_span::SampleSpan, CumulativeStatistics, LiveCheckStatistics};
 
         fn matchers(toml_str: &str) -> Matchers {
-            Matchers::compile(&matcher_configs(toml_str)).expect("they compile")
+            Matchers::compile(&matcher_configs(toml_str), &v2_live_checker()).expect("they compile")
         }
 
         fn span(json: &str) -> SampleSpan {
@@ -1235,8 +1262,7 @@ sample_type = "span"
         }
 
         fn match_for(matchers: &Matchers, sample: &SampleSpan) -> SampleMatch {
-            let live_checker = v2_live_checker();
-            matchers.match_for(SampleType::Span, sample, None, &live_checker)
+            matchers.match_for(sample, None)
         }
 
         /// A live checker holding the matchers, as the sample path uses it.
@@ -1250,7 +1276,7 @@ sample_type = "span"
 
         /// Compares a sample and records the errors, as the sample path does.
         fn compare_and_record(live_checker: &mut LiveChecker, sample: &SampleSpan) -> SampleMatch {
-            let sample_match = live_checker.match_for(SampleType::Span, sample, None);
+            let sample_match = live_checker.match_for(sample, None);
             live_checker.record_match(&sample_match);
             sample_match
         }
@@ -1310,12 +1336,7 @@ when = 'instrumentation_scope.name == "myapp"'
         fn no_matchers_keeps_the_natural_match() {
             let live_checker = v2_live_checker();
             let natural = live_checker.find_span("myapp.checkout");
-            let sample_match = Matchers::default().match_for(
-                SampleType::Span,
-                &checkout_span(),
-                natural,
-                &live_checker,
-            );
+            let sample_match = Matchers::default().match_for(&checkout_span(), natural);
             assert!(sample_match.signal.is_some());
             assert!(sample_match.applied.is_empty());
             assert!(sample_match.signal_matcher.is_none());
@@ -1333,8 +1354,7 @@ signal = "myapp.checkout"
 "#,
             );
             let natural = live_checker.find_metric("myapp.checkout.duration");
-            let sample_match =
-                matchers.match_for(SampleType::Span, &checkout_span(), natural, &live_checker);
+            let sample_match = matchers.match_for(&checkout_span(), natural);
             assert_eq!(
                 sample_match.signal_matcher.as_deref(),
                 Some("myapp.override")
@@ -1387,7 +1407,6 @@ attribute_groups = ["myapp.common"]
 
         #[test]
         fn a_matcher_for_another_sample_type_does_not_apply() {
-            let live_checker = v2_live_checker();
             let matchers = matchers(
                 r#"
 [[live-check.matchers]]
@@ -1396,8 +1415,7 @@ sample_type = "log"
 attribute_groups = ["myapp.common"]
 "#,
             );
-            let sample_match =
-                matchers.match_for(SampleType::Span, &checkout_span(), None, &live_checker);
+            let sample_match = matchers.match_for(&checkout_span(), None);
             assert!(sample_match.applied.is_empty());
             assert!(sample_match.attribute_groups.is_empty());
         }
@@ -1481,7 +1499,7 @@ attribute_groups = ["myapp.common"]
             live_checker
                 .set_matchers(&matcher_configs(toml_str))
                 .expect("they check out");
-            let sample_match = live_checker.match_for(SampleType::Span, sample, None);
+            let sample_match = live_checker.match_for(sample, None);
             live_checker.matchers().match_info(&sample_match, true)
         }
 
@@ -1505,7 +1523,7 @@ when = 'name == "no-such-span"'
         fn no_matchers_raises_no_unmatched_sample() {
             let live_checker = v2_live_checker();
             let sample = checkout_span();
-            let sample_match = live_checker.match_for(SampleType::Span, &sample, None);
+            let sample_match = live_checker.match_for(&sample, None);
             assert!(!sample_match.is_unmatched());
             let mut result = LiveCheckResult::new();
             let parent = Sample::Span(sample.clone());
@@ -1531,7 +1549,7 @@ when = 'name == "no-such-span"'
             .expect("the fixture sample parses");
             let natural = live_checker.find_event("myapp.order.placed");
             assert!(natural.is_some(), "the fixture registry declares the event");
-            let sample_match = live_checker.match_for(SampleType::Log, &sample, natural);
+            let sample_match = live_checker.match_for(&sample, natural);
             let mut result = LiveCheckResult::new();
             let parent = Sample::Log(sample.clone());
             sample_match.add_findings(
@@ -1794,9 +1812,7 @@ signal = "myapp.checkout"
             base_attributes: Vec<V2Attribute>,
             dependency: ForgeDependency,
         ) -> LiveChecker {
-            let mut registry: ForgeResolvedRegistry =
-                serde_json::from_str(include_str!("../fixtures/registry-v2.json"))
-                    .expect("the fixture registry parses");
+            let mut registry = registry();
             if let Some(span) = registry.registry.spans.first_mut() {
                 span.attributes = vec![span_attribute(
                     "myapp.checkout.id",
@@ -1817,9 +1833,7 @@ signal = "myapp.checkout"
         /// A registry declaring `myapp.checkout.stage`, which the fixture span
         /// does not.
         fn dependency_registry() -> ForgeDependency {
-            let mut registry: ForgeResolvedRegistry =
-                serde_json::from_str(include_str!("../fixtures/registry-v2.json"))
-                    .expect("the fixture registry parses");
+            let mut registry = registry();
             registry.registry.attributes =
                 vec![base_attribute("myapp.checkout.stage", Stability::Stable)];
             ForgeDependency {
@@ -1945,9 +1959,7 @@ strict_attribute_groups = ["myapp.extra"]
         /// The fixture registry, with `myapp.common` and `myapp.extra` both
         /// declaring `myapp.checkout.coupon`, which the span omits.
         fn two_group_live_checker() -> LiveChecker {
-            let mut registry: ForgeResolvedRegistry =
-                serde_json::from_str(include_str!("../fixtures/registry-v2.json"))
-                    .expect("the fixture registry parses");
+            let mut registry = registry();
             if let Some(span) = registry.registry.spans.first_mut() {
                 span.attributes = Vec::new();
             }
