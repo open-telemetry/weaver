@@ -2320,9 +2320,6 @@ groups:
         matches!(
             e,
             Error::FailToResolveDefinition(weaver_semconv::Error::UnstableFileFormat { .. })
-                | Error::FailToResolveDefinition(
-                    weaver_semconv::Error::MissingManifestFileFormat { .. }
-                )
         )
     }
 

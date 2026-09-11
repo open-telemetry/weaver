@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: local_private_pair
 description: >
   Both the `host` entity and the metric associated with it are kept out of the

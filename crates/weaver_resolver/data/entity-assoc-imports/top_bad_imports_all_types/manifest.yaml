@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: top
 description: >
   An import of every signal type that no dependency offers. The resolver must

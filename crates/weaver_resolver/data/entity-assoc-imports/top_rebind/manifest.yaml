@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: top_rebind
 description: >
   Imports the metric of `middle_assoc_export` and defines an unrelated entity

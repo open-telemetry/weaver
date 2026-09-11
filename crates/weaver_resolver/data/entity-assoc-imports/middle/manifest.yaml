@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: middle
 description: >
   This registry defines a `service` entity and a metric. The metric is
