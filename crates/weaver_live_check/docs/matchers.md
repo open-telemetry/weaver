@@ -2,9 +2,9 @@
 
 Live-check compares a telemetry sample with a signal in your registry. Before it can do that it has to work out which signal the sample belongs to.
 
-Some samples say so themselves. A metric has its name and an event has its `event_name`, and we look those up in the registry. Spans do not. A span name is free-form, so nothing in the sample tells us which span definition it was meant to be. Logs without an `event_name`, resources and instrumentation scopes are in the same position: a bag of attributes with no identifier on it.
+Some samples carry their own identifier. A metric has its name and an event has its `event_name`, and live-check looks those up in the registry. A span does not. Its name is free-form, so nothing in the sample says which span definition it belongs to. A log without an `event_name`, a resource and an instrumentation scope are in the same position: a set of attributes with no identifier.
 
-A matcher gives live-check that identifier. You describe a signature you know your telemetry has, and you say which signal, or which attributes, a sample matching that signature should be compared with.
+A matcher supplies that identifier. You describe a signature that your telemetry is known to have. Then you say which signal, or which attributes, to compare a matching sample with.
 
 A matcher never changes the checks themselves. It only decides what a sample is compared with.
 
@@ -107,7 +107,7 @@ Span checkout payment `internal`
         - [violation] Attribute 'myapp.checkout.stage' does not exist in the registry.
 ```
 
-Both attributes are declared in the registry, and both are on the span definition. But no signal was resolved, so there is no set of attributes to compare them against, and each one reports that it does not exist. This is the state a matcher fixes.
+Both attributes are declared in the registry, and both are on the span definition. But no signal was resolved, so there is nothing to compare them with, and each one is reported as unknown. A matcher fixes this.
 
 ## Giving the span an identifier
 
@@ -121,7 +121,7 @@ when = '"myapp.checkout.id" in attributes'
 signal = "myapp.checkout"
 ```
 
-The `id` is yours to choose to name the matcher in the output. It must be unique among all matchers. These examples use a `match.` prefix to make it clear what is a matcher and what is a signal.
+The `id` names the matcher in the output. Choose any name, as long as it is unique among the matchers. These examples use a `match.` prefix to tell matchers apart from signals.
 
 The same span now:
 
@@ -133,9 +133,9 @@ Span checkout payment `internal`
     myapp.checkout.stage = payment
 ```
 
-The two violations are gone, because the span is being compared with the definition that declares those attributes. In their place is the finding you wanted: the span is missing a recommended attribute.
+The two violations are gone, because the span is now compared with the definition that declares those attributes. In their place is the finding you wanted: the span is missing a recommended attribute.
 
-The line under the span name tells you what happened. `match.checkout -> signal: myapp.checkout` is the matcher id on the left and what it contributed on the right.
+The line under the span name shows what happened. The matcher id is on the left and what it contributed is on the right.
 
 A span without the signature is left alone:
 
@@ -156,11 +156,11 @@ Span checkout refund `internal`
         - [violation] Attribute 'myapp.cart.item_count' does not exist in the registry.
 ```
 
-The span name looks right, but the name is not part of the signature. Write the signature around what your instrumentation actually guarantees.
+The span name looks right, but the name is not part of the signature. Base the signature on what your instrumentation guarantees.
 
 ## Attributes the signal does not declare
 
-Real telemetry holds more than one signal's worth of attributes. Here the checkout span also sets the tenant:
+Real telemetry carries attributes from more than one source. Here the checkout span also sets the tenant:
 
 ```json
 {
@@ -189,9 +189,9 @@ Span checkout payment `internal`
         - [violation] Attribute 'myapp.tenant.code' does not exist in the registry.
 ```
 
-The attribute is reported twice over: once as unexpected on this signal, and once as unresolved, because it is not in the set the span was compared with.
+The attribute is reported twice: once as unexpected on this signal, and once as unknown, because it is not in the set the span was compared with.
 
-That attribute is expected, though. It is declared in the registry, and it is in the `myapp.common` attribute group. Say so:
+But that attribute is expected. It is declared in the registry, and it is in the `myapp.common` attribute group. Say so:
 
 ```toml
 [[live-check.matchers]]
@@ -212,17 +212,17 @@ Span checkout payment `internal`
     myapp.tenant.code = acme-eu
 ```
 
-The span definition has not changed and neither has the signature. All the matcher says is that the attributes in `myapp.common` are permitted here too. The tenant is now compared against your refinement of it, so its type and stability are checked and any annotation-based policy you have written runs on it.
+The span definition and the signature are unchanged. The matcher only adds that the attributes in `myapp.common` are permitted here too. The tenant is now compared with its definition in that group, so its type and stability are checked, and any annotation-based policy you have written runs on it.
 
-This matters beyond quietening a finding. Weaver promotes schema-driven practice, so the value is in comparing what you emit against the same definitions your documentation and generated code came from.
+The point is not to silence a finding. The attribute is now checked against the same definition that your documentation and generated code come from.
 
 ## Logs, which have no signal of their own
 
-A log with an `event_name` matches an event in the registry by that name, in the normal way. A log without one has no identifier at all.
+A log with an `event_name` matches the event of that name in the registry. A log without one has no identifier at all.
 
-There is no log signal in semconv, so there is nothing to put in `signal`. What you can do is give the log a set of attributes to be compared with. In semconv a set of attributes is an attribute group.
+Semconv has no log signal, so there is nothing to put in `signal`. Instead, give the log a set of attributes to compare with. In semconv, a set of attributes is an attribute group.
 
-It is common to want the same group on every log, and a matcher with no `when` does exactly that:
+A matcher with no `when` applies to every log, which is often what you want:
 
 ```toml
 [[live-check.matchers]]
@@ -240,7 +240,7 @@ attribute_groups = ["myapp.common"]
 }
 ```
 
-Without the matcher the attribute has nothing to compare against:
+Without the matcher, the attribute has nothing to compare with:
 
 ```text
 Log
@@ -259,15 +259,15 @@ Log
         - [improvement] Attribute 'myapp.request.id' is not stable; stability = development.
 ```
 
-The attribute now resolves to its definition, so it gets the checks that definition earns: its type, its stability, whether it is deprecated, and any annotation-based policy you have written.
+The attribute now resolves to its definition, so it gets the checks for that definition: type, stability, deprecation, and any annotation-based policy you have written.
 
-`none -> signal: no match` is still on the line above. A log with no `event_name` names no signal, so that is expected rather than a gap, and live-check greys it rather than colouring it yellow.
+`none -> signal: no match` is still on the line above. A log with no `event_name` names no signal, so this is expected rather than a gap, and live-check shows it in gray rather than yellow.
 
-A log that does name a declared event keeps that event, and the group is checked on top of it.
+A log that names a declared event keeps that event, and the group is checked in addition.
 
 ## Metrics, which already match
 
-A metric resolves its own signal by name. You do not want a matcher to take that away, so leave `signal` out and add only the group:
+A metric resolves its own signal by name. A matcher must not take that away, so leave `signal` out and add only the group:
 
 ```toml
 [[live-check.matchers]]
@@ -306,15 +306,15 @@ Metric myapp.checkout.attempts `counter`, `{attempt}`
         myapp.tenant.code = acme-eu
 ```
 
-`none -> signal:` means the metric's own name resolved the signal, not a matcher. The `when` on the name is what keeps this off the metrics you did not write: `http.client.request.duration` and everything else from your dependencies is left exactly as it was.
+`none -> signal:` means the metric's own name resolved the signal, not a matcher. The `when` on the name keeps the matcher away from metrics you did not write, such as `http.client.request.duration` from a dependency. Those are checked as before.
 
-A metric's attributes live on its data points, so the group is checked against each point.
+A metric's attributes are on its data points, so the group is checked against each point.
 
 ## Resources and instrumentation scopes
 
-A resource is a list of attributes with no identifier and no signal that describes it, so an attribute group is the only thing it can be compared with. A matcher for a resource never has a `signal`.
+A resource is a set of attributes with no identifier and no signal that describes it. An attribute group is the only thing it can be compared with, so a resource matcher never has a `signal`.
 
-It is tempting to compare a resource with an entity, but that would be wrong. Entities are pulled in by the signals: when a metric declares `entity_associations`, live-check takes the attributes that entity asks for out of the resource and checks them as part of that metric. One message holds many signals sharing one resource, so the resource holds the attributes every one of those entities needs, and probably more. It is a superset. Compared with any single entity, everything the other signals needed would be reported as unexpected.
+Do not compare a resource with an entity. Entities are checked through the signals. When a metric declares `entity_associations`, live-check takes the attributes that entity needs from the resource and checks them as part of that metric. One message holds many signals that share one resource, so the resource carries the attributes of every entity those signals need. Compared with any single entity, the attributes the other signals need would all be reported as unexpected.
 
 ```toml
 [[live-check.matchers]]
@@ -324,9 +324,9 @@ when = '"service.name" in attributes && attributes["service.name"].startsWith("m
 attribute_groups = ["myapp.common"]
 ```
 
-The `when` keeps the matcher off the resources belonging to anything other than your own services.
+The `when` keeps the matcher away from resources that belong to other services.
 
-A scope is in the same position, with one difference: it has an identifier. The name and version tell you which library produced the telemetry, so a scope matcher needs no signature.
+An instrumentation scope is similar, with one difference: it has an identifier. Its name and version say which library produced the telemetry, so a scope matcher can use those directly.
 
 ```toml
 [[live-check.matchers]]
@@ -336,7 +336,7 @@ when = 'name.startsWith("myapp.")'
 attribute_groups = ["myapp.common"]
 ```
 
-The scope is often more useful inside other matchers than in one of its own. Any matcher can read `instrumentation_scope.name` and `instrumentation_scope.version`, so you can trust a signature only when it came from your own instrumentation:
+The scope is often more useful inside other matchers than in one of its own. Any matcher can read `instrumentation_scope.name` and `instrumentation_scope.version`, so a signature can be limited to telemetry from your own instrumentation:
 
 ```toml
 [[live-check.matchers]]
@@ -349,13 +349,13 @@ instrumentation_scope.name.startsWith("myapp.")
 signal = "myapp.checkout"
 ```
 
-A span with the same attributes from somewhere else no longer matches, and its `match_info` says nothing applied.
+A span with the same attributes from another library no longer matches, and its `match_info` shows that nothing applied.
 
-> **Note**: `instrumentation_scope` is only bound for OTLP input today. On a JSON file or stdin it is null, so an unguarded expression errors on every sample.
+> **Note**: `instrumentation_scope` is only available for OTLP input today. On a JSON file or stdin it is null, so an expression that reads it without a guard errors on every sample.
 
 ## Where matchers go
 
-Matchers describe the telemetry you emit, not the schema you define, so they belong in `.weaver.toml` and not in the registry. They are an array of tables, evaluated in the order you write them.
+Matchers describe the telemetry you emit, not the schema you define, so they belong in `.weaver.toml` and not in the registry. They are an array of tables, and they are evaluated in the order you write them.
 
 ```toml
 [[live-check.matchers]]
@@ -370,16 +370,16 @@ attribute_groups = ["myapp.common"]
 | ------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `id`               | Yes      | Names the matcher in findings, statistics and coverage.                                                                                                |
 | `sample_type`      | Yes      | The kind of sample this matcher looks at. One of `span`, `span_event`, `span_link`, `log`, `metric`, `resource`, `instrumentation_scope` or `profile`. |
-| `when`             | No       | The matcher expression, in CEL. It has to be true for the matcher to apply. Leave it out and the matcher applies to every sample of this type.         |
+| `when`             | No       | The matcher expression, in CEL. The matcher applies when it is true. Leave it out and the matcher applies to every sample of this type.               |
 | `signal`           | No       | The one signal the sample is compared with. Leave it out to keep the natural match.                                                                    |
 | `attribute_groups` | No | Attribute groups whose attributes are *permitted* on the sample, in priority order. Their definitions are used for the attribute checks, but an attribute missing from the sample is not reported. |
 | `strict_attribute_groups` | No | Attribute groups whose requirement levels are *enforced*, so an attribute missing from the sample is reported. |
 
-Matchers are a v2 feature. Configuring one against a v1 registry stops the run at startup.
+Matchers are a v2 feature. A matcher configured against a v1 registry stops the run at startup.
 
 ### What `signal` can name
 
-References are plain ids, and `sample_type` decides what `signal` means.
+`signal` is a plain id, and `sample_type` decides what kind of id it is.
 
 | `sample_type`           | What `signal` names              | The natural match, if `signal` is left out |
 | ----------------------- | -------------------------------- | ------------------------------------------ |
@@ -392,17 +392,17 @@ References are plain ids, and `sample_type` decides what `signal` means.
 | `instrumentation_scope` | Nothing, `signal` is not allowed | None                                       |
 | `profile`               | Nothing, `signal` is not allowed | None                                       |
 
-The id is looked up in your registry at startup, so a name that is not there stops the run there rather than halfway through a stream.
+Live-check looks the id up in your registry at startup. A name that is not there stops the run before any sample is read.
 
 An attribute group never goes in `signal`. A group adds to the comparison rather than replacing it, so it always goes in one of the two group lists.
 
-A group named in `strict_attribute_groups` by any matcher that applied is strict, whichever matcher mentioned it first.
+If any applied matcher names a group in `strict_attribute_groups`, the group is strict, even when an earlier matcher named it as permitted.
 
 ## The expression
 
-`when` is written in [CEL](https://cel.dev), the Common Expression Language. CEL was designed for this job: it is not Turing complete, and an expression cannot loop or reach outside the sample it is given. Every expression is compiled once at startup and then run against each sample.
+`when` is written in [CEL](https://cel.dev), the Common Expression Language. CEL is made for this job: it is not Turing complete, and an expression cannot loop or reach outside the sample it is given. Every expression is compiled once at startup and then run against each sample.
 
-The expression looks at one sample and comes out true or false. These are the variables it is given:
+An expression sees one sample and returns true or false. It can read these variables:
 
 | Selector                                                 | Where you can use it                            | What you get                                                                                                                                             |
 | -------------------------------------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -414,9 +414,9 @@ The expression looks at one sample and comes out true or false. These are the va
 | `kind`                                                   | Span                                            | One of `client`, `server`, `internal`, `producer` or `consumer`.                                                                                         |
 | `status.code`, `status.message`                          | Span                                            | The outcome of the span. The code is one of `unset`, `ok` or `error`, and a span with no status is `unset`.                                              |
 | `unit`, `instrument`                                     | Metric                                          | The unit and the instrument of the metric.                                                                                                               |
-| `event_name`, `severity_text`, `severity_number`, `body` | Log                                             | The fields on the log record. All but `event_name` are optional, and one the record omits is null.                                              |
+| `event_name`, `severity_text`, `severity_number`, `body` | Log                                             | The fields on the log record. All but `event_name` are optional. A field the record omits is null.                                                      |
 
-CEL brings the operators you would expect, `==`, `!=`, `&&`, `||`, `!` and brackets, along with the string methods `matches`, `startsWith`, `endsWith` and `contains`, and the macros `has`, `exists`, `exists_one`, `all`, `map` and `filter`.
+CEL has the usual operators, `==`, `!=`, `&&`, `||`, `!` and brackets. It also has the string methods `matches`, `startsWith`, `endsWith` and `contains`, and the macros `has`, `exists`, `exists_one`, `all`, `map` and `filter`.
 
 | Expression                               | What it does                                                                                                                                                                |
 | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -424,28 +424,28 @@ CEL brings the operators you would expect, `==`, `!=`, `&&`, `||`, `!` and brack
 | `attributes["key"] == "value"`           | True if the value is the one you give.                                                                                                                                      |
 | `attributes["key"] in ["a", "b"]`        | True if the value is one of the ones you list.                                                                                                                              |
 | `attributes["key"].startsWith("myapp.")` | Also `endsWith` and `contains`.                                                                                                                                             |
-| `attributes["key"].matches("regex")`     | True if the value is a string and the regular expression matches it. The pattern is compiled on every sample, so prefer `in` or `startsWith` where they say the same thing. |
+| `attributes["key"].matches("regex")`     | True if the value is a string and the regular expression matches it. The pattern is compiled on every sample, so use `in` or `startsWith` when they say the same thing.    |
 
 ### Guarding a read
 
-Reading an attribute absent from the sample is an error in CEL, not an empty value. So every value you read needs an `in` test on the same key:
+In CEL, reading an attribute that is not on the sample is an error, not an empty value. So every value you read needs an `in` test on the same key:
 
 ```cel
 "myapp.checkout.stage" in attributes
   && attributes["myapp.checkout.stage"] in ["cart", "payment", "confirm"]
 ```
 
-An `&&` absorbs that error while the other side is false, whichever side the test is on.
+When one side of an `&&` is false, CEL ignores an error on the other side. The order of the two sides does not matter.
 
-The optional variables `severity_text`, `severity_number`, `body`, `resource` and `instrumentation_scope` are null on a sample that does not carry them. Reading through a null errors too, so guard them with `!= null`:
+The optional variables `severity_text`, `severity_number`, `body`, `resource` and `instrumentation_scope` are null on a sample that does not carry them. Reading a field of null is also an error, so guard them with `!= null`:
 
 ```cel
 body != null && body.contains("declined")
 ```
 
-`has(body)` does not compile. The macro takes a field selection, not a name on its own.
+`has(body)` does not compile, because the `has` macro takes a field selection such as `has(status.code)`, not a bare name.
 
-Without the guard the matcher errors on every sample missing the key, applies to nothing, and the run still finishes. The coverage block reports the count and the first message:
+Without the guard, the matcher errors on every sample that lacks the key and applies to none of them. The run still finishes. The coverage block reports the count and the first message:
 
 ```text
 Matcher coverage
@@ -466,20 +466,20 @@ and two warnings land in the diagnostic report at the end of the run:
 
 For each sample:
 
-1. First the natural match, so a metric by its name and a log by its `event_name`.
-2. Then every matcher whose `sample_type` and `when` both pass.
-3. The first matcher with a `signal` sets it, overriding the natural match. If another matcher also has a `signal` it is ignored and named in the sample's `match_info`.
-4. The attribute groups from every matcher that applied are added in the order they are written, first mention winning, strict before permitted within one matcher.
+1. The natural match is found first: a metric by its name, a log by its `event_name`.
+2. Every matcher whose `sample_type` and `when` both pass is applied.
+3. The first applied matcher with a `signal` sets it, replacing the natural match. A later matcher with a `signal` is ignored and named in the sample's `match_info`.
+4. The attribute groups from every applied matcher are added in the order the matchers are written. Within one matcher, strict groups come before permitted ones. A group named twice is kept once.
 5. Only the strict groups have their requirement levels enforced.
 6. The sample and its attributes are compared with the signal and the groups together.
 
-This is why a matcher that only adds attributes leaves `signal` out. If it named one it would take a typed sample away from the signal it already matched.
+This is why a matcher that only adds attributes leaves `signal` out. If it named one, it would replace the signal that a metric or log already resolved by name.
 
 ## What a sample was checked against
 
-Every sample's result holds a `match_info`: the signal, the matcher whose `signal` won, the attribute groups, and one entry per matcher that applied. The ansi output puts one dimmed line under the sample for each thing a matcher contributed.
+Every sample's result holds a `match_info`: the signal, the matcher whose `signal` won, the attribute groups, and one entry per applied matcher. The ansi output puts one dimmed line under the sample for each thing a matcher contributed.
 
-This is a fuller set of matchers than the ones above, to show what several of them look like together:
+This output comes from a larger set of matchers than the examples above, to show several at once:
 
 ```text
 Span checkout `server`
@@ -495,7 +495,7 @@ Span unknown-op `internal`
   none -> signal: no match
 ```
 
-`none` means the sample's own name resolved the signal, or that nothing set one. `no match` is yellow on a sample that should resolve a signal and has not: a span, a span event, a metric, or a log with an `event_name`. It is grey on a resource, a scope, a span link, a profile and a log with no `event_name`, none of which name a signal. `(conflict, ignored)` is red.
+`none` means the sample's own name resolved the signal, or that nothing set one. `no match` is yellow on a sample that is expected to resolve a signal and has not: a span, a span event, a metric, or a log with an `event_name`. It is gray on a resource, a scope, a span link, a profile and a log with no `event_name`, because none of those name a signal. `(conflict, ignored)` is red.
 
 `match_info` is not a finding, so it does not reach `finding_filters`, `fail_on` or the emitted OTLP logs.
 
@@ -506,13 +506,13 @@ Span unknown-op `internal`
 search_all_attributes = true
 ```
 
-With this set, live-check also searches the base attribute definitions in your registry and its dependencies. An attribute found that way names the `schema_url` that declares it, which is a clue that your registry could reference or import it.
+With this set, live-check also searches the base attribute definitions in your registry and its dependencies. An attribute found this way reports the `schema_url` that declares it, a hint that your registry can reference or import it.
 
-Without it a v2 registry compares an attribute against the signal and attribute groups its match holds, and nothing else. That is what the first example on this page shows: no match, so nothing to compare against. The plain attribute-name inputs, `--input-format text` and a JSON file of bare attributes, have no match at all and need this setting. A v1 registry always searches every attribute it holds.
+Without it, a v2 registry compares an attribute with the signal and attribute groups of its match, and nothing else. The first example on this page shows the result: no match, so nothing to compare with. The bare attribute inputs, `--input-format text` and a JSON file of attributes alone, never have a match and need this setting. A v1 registry always searches every attribute it holds.
 
 ## Diagnostics
 
-Everything a matcher can get wrong is reported, either at startup or in the matcher coverage block at the end of a run.
+Every problem with a matcher is reported, either at startup or in the matcher coverage block at the end of a run.
 
 | What happened                                                  | When you hear about it                      |
 | -------------------------------------------------------------- | ------------------------------------------- |
@@ -524,7 +524,7 @@ Everything a matcher can get wrong is reported, either at startup or in the matc
 | The expression errors while running, e.g. an unguarded read    | Warning, with a count and the first message |
 | A matcher applied to no samples                                | Warning                                     |
 
-The coverage block lists what each matcher matched, so you can see which ones are earning their place:
+The coverage block lists how many samples each matcher applied to, so you can see which ones are useful:
 
 ```text
 Matcher coverage
@@ -536,5 +536,5 @@ Matcher coverage
 
 | Finding                | Level       | When it is raised                                                                                                                                                                                                                                                                                      |
 | ---------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `unexpected_attribute` | Improvement | A sample has an attribute that is not in the comparison set. A metric or a log has one as soon as its name resolves, so this fires with no matchers configured; a span needs a matcher. When a matcher sets `signal` the comparison set comes from that signal, not from the one the name resolved to. |
-| `kind_mismatch`        | Violation   | A matched span has a different `kind` to the one on the span signal. Comparing spans is what makes this check possible at all.                                                                                                                                                                         |
+| `unexpected_attribute` | Improvement | A sample has an attribute that is not in the comparison set. A metric or a log has a comparison set as soon as its name resolves, so this is raised with no matchers configured. A span needs a matcher. When a matcher sets `signal`, the comparison set comes from that signal, not from the natural match. |
+| `kind_mismatch`        | Violation   | A matched span has a different `kind` from the one on the span signal. This check is only possible once a span has a matcher.                                                                                                                                                                                 |
