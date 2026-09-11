@@ -18,7 +18,7 @@ where a `when` expression selects the samples a matcher applies to.
 | `Bindings` | Implemented by the caller to supply variable values. |
 | `Referenced::union` | The variables a set of expressions read, for one binding pass. |
 | `Scope` / `Expression::evaluate_in` | Binds once, then evaluates several expressions against it. |
-| `Error` | `CompileFailed`, `EvalFailed` or `NotBoolean`, each carrying the source text. |
+| `Error` | `CompileFailed`, `BadPattern`, `EvalFailed` or `NotBoolean`, each carrying the source text. |
 
 `Context` and `Value` are re-exported so implementors of `Bindings` need no
 direct `cel` dependency.

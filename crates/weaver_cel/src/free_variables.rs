@@ -8,6 +8,10 @@ use cel::common::ast::{EntryExpr, Expr, IdedExpr};
 
 /// The variables an expression reads that nothing in it binds.
 ///
+/// This is what [`Referenced`](crate::Referenced) holds. A `Bindings`
+/// implementation consults it to build only the variables an expression
+/// reads, and a `Scope` binds the union for several expressions once.
+///
 /// `Program::references().variables()` includes a comprehension's loop
 /// variable, so it cannot be used for this.
 pub(crate) fn free_variables(expression: &IdedExpr) -> BTreeSet<String> {

@@ -3,17 +3,19 @@
 //! Compiled expressions.
 
 use std::collections::BTreeSet;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use cel::{Context, Env, Program, Value};
 
 use crate::matches::literal_patterns;
 use crate::{free_variables::free_variables, Bindings, Error};
 
-thread_local! {
-    /// The CEL standard environment, built once per thread because
-    /// `Context::default` rebuilds the whole function table.
-    static STDLIB: Arc<Env> = Arc::new(Env::stdlib());
+/// The CEL standard environment, built once because `Context::default`
+/// rebuilds the whole function table.
+static STDLIB: OnceLock<Arc<Env>> = OnceLock::new();
+
+fn stdlib() -> Arc<Env> {
+    Arc::clone(STDLIB.get_or_init(|| Arc::new(Env::stdlib())))
 }
 
 /// Variables bound once, for evaluating several expressions against one sample.
@@ -25,12 +27,7 @@ impl Scope<'_> {
     /// Binds the variables in `referenced`.
     #[must_use]
     pub fn new(referenced: &Referenced, bindings: &dyn Bindings) -> Self {
-        let mut context = Context::Root {
-            env: STDLIB.with(Arc::clone),
-            variables: Default::default(),
-            functions: Default::default(),
-            resolver: None,
-        };
+        let mut context = Context::with_env(stdlib());
         bindings.bind(referenced, &mut context);
         Self { context }
     }
@@ -51,12 +48,16 @@ impl Expression {
             expression: source.to_owned(),
             error: error.to_string(),
         })?;
+        // The interpreter only compiles a pattern when it runs, so check the
+        // literal ones now. The compiled regex itself is not kept.
         for pattern in literal_patterns(program.expression()) {
-            let _ = regex::Regex::new(pattern).map_err(|error| Error::BadPattern {
-                expression: source.to_owned(),
-                pattern: pattern.to_owned(),
-                error: error.to_string(),
-            })?;
+            if let Err(error) = regex::Regex::new(pattern) {
+                return Err(Error::BadPattern {
+                    expression: source.to_owned(),
+                    pattern: pattern.to_owned(),
+                    error: error.to_string(),
+                });
+            }
         }
         let referenced = Referenced {
             variables: free_variables(program.expression()),
