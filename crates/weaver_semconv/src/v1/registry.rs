@@ -2,12 +2,12 @@
 
 //! Semantic Convention Registry.
 
-use crate::manifest::{DefinitionRegistryManifest, RegistryManifest};
 use crate::registry_repo::RegistryRepo;
 use crate::schema_url::SchemaUrl;
 use crate::semconv::SemConvSpecWithProvenance;
 use crate::v1::attribute::AttributeSpecWithProvenance;
 use crate::v1::group::{GroupSpecWithProvenance, ImportsWithProvenance};
+use crate::v1::manifest::{DefinitionRegistryManifest, RegistryManifest};
 use crate::v1::semconv::SemConvSpecV1WithProvenance;
 use crate::v1::stats::Stats;
 use crate::Error;
@@ -152,7 +152,7 @@ impl SemConvRegistry {
                 DefinitionRegistryManifest::from_schema_url(schema_url),
             ));
         } else {
-            registry.manifest = registry_repo.manifest().cloned();
+            registry.manifest = registry_repo.v1_manifest();
         }
 
         Ok(registry)

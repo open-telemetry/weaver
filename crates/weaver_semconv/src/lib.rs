@@ -15,7 +15,6 @@ use weaver_common::error::{format_errors, WeaverError};
 pub mod convert;
 pub mod deprecated;
 pub mod json_schema;
-pub mod manifest;
 pub mod provenance;
 pub mod registry_repo;
 pub mod schema_url;
@@ -383,6 +382,16 @@ pub enum Error {
         path: PathBuf,
     },
 
+    /// This warning is raised when a `manifest.yaml` file is missing the `file_format` field.
+    #[diagnostic(severity(Warning))]
+    #[error("The registry manifest at {path:?} is missing the 'file_format' field. It is assumed to be a V2 definition manifest ('{expected_format}'). Please add 'file_format: {expected_format}' to the manifest.")]
+    MissingManifestFileFormat {
+        /// The path to the registry manifest file.
+        path: PathBuf,
+        /// The expected file format string.
+        expected_format: String,
+    },
+
     /// This error is raised when a registry manifest includes deprecated properties.
     #[error("The syntax used in the registry manifest at {path:?} is deprecated. {error}")]
     #[diagnostic(severity(Warning))]
@@ -410,6 +419,11 @@ pub enum Error {
         /// The schema URL of the publication manifest.
         schema_url: String,
     },
+
+    /// Failed to resolve the schema URL for a registry.
+    #[error("Schema URL is missing in the manifest and cannot be constructed from the registry name and version.")]
+    #[diagnostic(severity(Error))]
+    FailToResolveSchemaUrl {},
 
     /// A registry whose dependencies do not pin a version cannot be packaged.
     #[error("Dependency `{schema_url}` (registry_path: {}) does not pin a version, which a publication manifest requires. Declare it with a versioned `schema_url` before packaging.", .registry_path.as_deref().unwrap_or("not specified"))]

@@ -8,9 +8,9 @@
 use serde::Serialize;
 use std::collections::{BTreeSet, HashMap};
 use weaver_semconv::deprecated::Deprecated;
-use weaver_semconv::manifest::RegistryManifest;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v1::group::GroupType;
+use weaver_semconv::v1::manifest::RegistryManifest;
 use weaver_version::schema_changes::{SchemaChanges, SchemaItemChange, SchemaItemType};
 use weaver_version::Versions;
 

@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: entities_main
 description: >
   A registry whose stable metric is associated with entities of its dependency.

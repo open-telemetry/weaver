@@ -10,11 +10,11 @@ use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::result::WResult;
 use weaver_resolved_schema::v1::ResolvedTelemetrySchema;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
-use weaver_semconv::manifest::Dependency;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::semconv::SemConvSpecWithProvenance;
 use weaver_semconv::v1::group::ImportsWithProvenance;
+use weaver_semconv::v2::manifest::Dependency;
 
 use crate::attribute::AttributeCatalog;
 use crate::dependency::ResolvedDependency;
@@ -210,14 +210,11 @@ impl WeaverResolver {
     ) -> WResult<ResolvedDependency, Error> {
         let schema_url = match &loaded {
             LoadedSemconvRegistry::Unresolved { repo, .. } => {
-                if let Some(m) = repo.manifest() {
-                    m.schema_url().clone()
-                } else {
-                    match SchemaUrl::try_from_name_version(repo.name(), repo.version()) {
-                        Ok(url) => url,
-                        Err(_) => return WResult::FatalErr(Error::FailToResolveSchemaUrl {}),
-                    }
-                }
+                let manifest = match repo.to_v2_manifest() {
+                    Ok(m) => m,
+                    Err(e) => return WResult::FatalErr(e.into()),
+                };
+                manifest.schema_url().clone()
             }
             LoadedSemconvRegistry::Resolved { schema, .. } => {
                 match SchemaUrl::try_from(schema.schema_url.as_str()) {
@@ -428,7 +425,10 @@ impl WeaverResolver {
             }
         }
 
-        let manifest = repo.manifest().cloned();
+        let manifest = match repo.v2_manifest().transpose() {
+            Ok(m) => m,
+            Err(e) => return WResult::FatalErr(e.into()),
+        };
         let schema_url = if let Some(m) = manifest.as_ref() {
             m.schema_url().clone()
         } else {
@@ -497,7 +497,7 @@ impl WeaverResolver {
             instrumentation_library: None,
             dependencies,
             versions: None,
-            registry_manifest: manifest,
+            registry_manifest: manifest.map(Into::into),
         })
     }
 
@@ -2320,6 +2320,9 @@ groups:
         matches!(
             e,
             Error::FailToResolveDefinition(weaver_semconv::Error::UnstableFileFormat { .. })
+                | Error::FailToResolveDefinition(
+                    weaver_semconv::Error::MissingManifestFileFormat { .. }
+                )
         )
     }
 

@@ -17,6 +17,10 @@ use crate::v1::{
         GroupType as V1GroupType, GroupWildcard as V1GroupWildcard,
         InstrumentSpec as V1InstrumentSpec, SpanKindSpec as V1SpanKindSpec, SpanName as V1SpanName,
     },
+    manifest::{
+        DefinitionRegistryManifest as V1DefinitionRegistryManifest, Dependency as V1Dependency,
+        RegistryManifest as V1RegistryManifest,
+    },
     semconv::{Imports as V1Imports, SemConvSpecV1},
     signal_requirement_level::SignalRequirementLevel as V1SignalRequirementLevel,
     stability::Stability as V1Stability,
@@ -34,6 +38,10 @@ use crate::v2::{
     entity::{Entity, EntityRefinement},
     entity_association::EntityAssociation as V2EntityAssociation,
     event::{Event, EventRefinement},
+    manifest::{
+        DefinitionRegistryManifest as V2DefinitionRegistryManifest, Dependency as V2Dependency,
+        RegistryManifest as V2RegistryManifest,
+    },
     metric::{InstrumentSpec as V2InstrumentSpec, Metric, MetricRefinement},
     signal_requirement_level::SignalRequirementLevel as V2SignalRequirementLevel,
     span::{
@@ -393,6 +401,74 @@ pub fn v2_entity_association_to_v1(e: V2EntityAssociation) -> V1EntityAssociatio
 impl From<V2EntityAssociation> for V1EntityAssociation {
     fn from(e: V2EntityAssociation) -> Self {
         v2_entity_association_to_v1(e)
+    }
+}
+
+/// Converts a V2 dependency to V1.
+#[must_use]
+pub fn v2_dependency_to_v1(d: V2Dependency) -> V1Dependency {
+    V1Dependency {
+        schema_url: d.schema_url,
+        registry_path: d.registry_path,
+    }
+}
+
+impl From<V2Dependency> for V1Dependency {
+    fn from(d: V2Dependency) -> Self {
+        v2_dependency_to_v1(d)
+    }
+}
+
+/// Converts a V2 definition registry manifest to V1.
+#[must_use]
+pub fn v2_definition_manifest_to_v1(
+    m: V2DefinitionRegistryManifest,
+) -> V1DefinitionRegistryManifest {
+    V1DefinitionRegistryManifest {
+        schema_url: m.schema_url,
+        description: m.description,
+        dependencies: m
+            .dependencies
+            .into_iter()
+            .map(v2_dependency_to_v1)
+            .collect(),
+        stability: v2_stability_to_v1(m.stability),
+        deserialization_warnings: m.deserialization_warnings,
+    }
+}
+
+impl From<V2DefinitionRegistryManifest> for V1DefinitionRegistryManifest {
+    fn from(m: V2DefinitionRegistryManifest) -> Self {
+        v2_definition_manifest_to_v1(m)
+    }
+}
+
+/// Converts a V2 registry manifest to V1.
+#[must_use]
+pub fn v2_manifest_to_v1(m: V2RegistryManifest) -> V1RegistryManifest {
+    match m {
+        V2RegistryManifest::Definition(def) => {
+            V1RegistryManifest::Definition(v2_definition_manifest_to_v1(def))
+        }
+        V2RegistryManifest::Publication(pubm) => {
+            V1RegistryManifest::Definition(V1DefinitionRegistryManifest {
+                schema_url: pubm.schema_url,
+                description: pubm.description,
+                dependencies: pubm
+                    .dependencies
+                    .into_iter()
+                    .map(v2_dependency_to_v1)
+                    .collect(),
+                stability: v2_stability_to_v1(pubm.stability),
+                deserialization_warnings: pubm.deserialization_warnings,
+            })
+        }
+    }
+}
+
+impl From<V2RegistryManifest> for V1RegistryManifest {
+    fn from(m: V2RegistryManifest) -> Self {
+        v2_manifest_to_v1(m)
     }
 }
 
@@ -1105,6 +1181,66 @@ pub fn v1_entity_association_to_v2(e: V1EntityAssociation) -> V2EntityAssociatio
 impl From<V1EntityAssociation> for V2EntityAssociation {
     fn from(e: V1EntityAssociation) -> Self {
         v1_entity_association_to_v2(e)
+    }
+}
+
+/// Converts a V1 dependency to V2.
+#[must_use]
+pub fn v1_dependency_to_v2(d: V1Dependency) -> V2Dependency {
+    V2Dependency {
+        schema_url: d.schema_url,
+        registry_path: d.registry_path,
+    }
+}
+
+impl From<V1Dependency> for V2Dependency {
+    fn from(d: V1Dependency) -> Self {
+        v1_dependency_to_v2(d)
+    }
+}
+
+/// Converts a V1 definition registry manifest to V2.
+pub fn v1_definition_manifest_to_v2(
+    m: V1DefinitionRegistryManifest,
+) -> Result<V2DefinitionRegistryManifest, Error> {
+    let stability = v1_stability_to_v2(m.stability)?;
+    let dependencies = m
+        .dependencies
+        .into_iter()
+        .map(v1_dependency_to_v2)
+        .collect();
+    Ok(V2DefinitionRegistryManifest {
+        file_format: crate::v2::manifest::DEFINITION_MANIFEST_FILE_FORMAT.to_owned(),
+        schema_url: m.schema_url,
+        description: m.description,
+        dependencies,
+        stability,
+        deserialization_warnings: m.deserialization_warnings,
+    })
+}
+
+impl TryFrom<V1DefinitionRegistryManifest> for V2DefinitionRegistryManifest {
+    type Error = Error;
+
+    fn try_from(m: V1DefinitionRegistryManifest) -> Result<Self, Self::Error> {
+        v1_definition_manifest_to_v2(m)
+    }
+}
+
+/// Converts a V1 registry manifest to V2.
+pub fn v1_manifest_to_v2(m: V1RegistryManifest) -> Result<V2RegistryManifest, Error> {
+    match m {
+        V1RegistryManifest::Definition(def) => {
+            v1_definition_manifest_to_v2(def).map(V2RegistryManifest::Definition)
+        }
+    }
+}
+
+impl TryFrom<V1RegistryManifest> for V2RegistryManifest {
+    type Error = Error;
+
+    fn try_from(m: V1RegistryManifest) -> Result<Self, Self::Error> {
+        v1_manifest_to_v2(m)
     }
 }
 
@@ -2040,5 +2176,77 @@ stability: stable
         assert_eq!(v2_entity_association_to_v1(v2_tree.clone()), v1_tree);
         assert_eq!(V2Assoc::from(v1_tree.clone()), v2_tree);
         assert_eq!(V1Assoc::from(v2_tree.clone()), v1_tree);
+    }
+
+    #[test]
+    fn test_manifest_conversions() {
+        use crate::v2::manifest::PublicationRegistryManifest as V2PublicationRegistryManifest;
+
+        let v1_dep = V1Dependency {
+            schema_url: "https://example.com/dep/1.0.0".try_into().unwrap(),
+            registry_path: None,
+        };
+        let v2_dep: V2Dependency = v1_dep.clone().into();
+        assert_eq!(v2_dep.schema_url.as_str(), "https://example.com/dep/1.0.0");
+        let v1_dep_back: V1Dependency = v2_dep.into();
+        assert_eq!(v1_dep_back.schema_url, v1_dep.schema_url);
+
+        let v1_def = V1DefinitionRegistryManifest {
+            schema_url: "https://example.com/schemas/1.0.0".try_into().unwrap(),
+            description: Some("test registry".to_owned()),
+            dependencies: vec![v1_dep],
+            stability: V1Stability::Stable,
+            deserialization_warnings: vec![],
+        };
+        let v2_def = V2DefinitionRegistryManifest::try_from(v1_def.clone()).unwrap();
+        assert_eq!(
+            v2_def.file_format,
+            crate::v2::manifest::DEFINITION_MANIFEST_FILE_FORMAT
+        );
+        assert_eq!(
+            v2_def.schema_url.as_str(),
+            "https://example.com/schemas/1.0.0"
+        );
+        assert_eq!(v2_def.stability, V2Stability::Stable);
+        assert_eq!(v2_def.dependencies.len(), 1);
+
+        let v1_def_back = V1DefinitionRegistryManifest::from(v2_def.clone());
+        assert_eq!(v1_def_back.schema_url, v1_def.schema_url);
+        assert_eq!(v1_def_back.stability, v1_def.stability);
+        assert_eq!(v1_def_back.description, v1_def.description);
+
+        // RegistryManifest conversion
+        let v1_manifest = V1RegistryManifest::Definition(v1_def);
+        let v2_manifest = V2RegistryManifest::try_from(v1_manifest.clone()).unwrap();
+        assert!(matches!(v2_manifest, V2RegistryManifest::Definition(_)));
+        let v1_manifest_back = V1RegistryManifest::from(v2_manifest);
+        assert_eq!(v1_manifest_back.schema_url(), v1_manifest.schema_url());
+
+        // Publication manifest conversion to v1 definition
+        let v2_pub = V2PublicationRegistryManifest {
+            file_format: "manifest/2.0".to_owned(),
+            schema_url: "https://example.com/pub/1.0.0".try_into().unwrap(),
+            description: None,
+            dependencies: vec![],
+            stability: V2Stability::Stable,
+            resolved_registry_uri: "https://example.com/resolved.yaml".to_owned(),
+            deserialization_warnings: vec![],
+        };
+        let v1_from_pub = V1RegistryManifest::from(V2RegistryManifest::Publication(v2_pub));
+        assert_eq!(
+            v1_from_pub.schema_url().as_str(),
+            "https://example.com/pub/1.0.0"
+        );
+
+        // Deprecated stability conversion error
+        #[allow(deprecated)]
+        let v1_deprecated_def = V1DefinitionRegistryManifest {
+            schema_url: "https://example.com/schemas/1.0.0".try_into().unwrap(),
+            description: None,
+            dependencies: vec![],
+            stability: V1Stability::Deprecated,
+            deserialization_warnings: vec![],
+        };
+        assert!(V2DefinitionRegistryManifest::try_from(v1_deprecated_def).is_err());
     }
 }

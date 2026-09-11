@@ -27,6 +27,7 @@ pub mod attribute_group;
 pub mod entity;
 pub mod entity_association;
 pub mod event;
+pub mod manifest;
 pub mod metric;
 pub mod signal_id;
 pub mod signal_requirement_level;
