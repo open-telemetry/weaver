@@ -1,0 +1,6 @@
+file_format: definition/2
+entity_refinements:
+  - id: tiny.legacy.refined
+    ref: tiny.legacy
+    stability: development
+    brief: Refinement of an entity that has no identity attributes.

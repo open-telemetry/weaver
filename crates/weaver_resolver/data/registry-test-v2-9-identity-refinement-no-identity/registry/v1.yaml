@@ -1,0 +1,13 @@
+file_format: definition/1
+groups:
+  - id: entity.tiny.legacy
+    type: entity
+    name: tiny.legacy
+    stability: development
+    brief: A v1 entity with no identifying attributes.
+    attributes:
+      - id: tiny.color
+        type: string
+        stability: development
+        brief: A color.
+        examples: ['red']
