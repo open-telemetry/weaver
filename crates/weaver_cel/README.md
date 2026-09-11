@@ -37,7 +37,7 @@ struct Span {
 impl Bindings for Span {
     fn bind(&self, referenced: &Referenced, context: &mut Context<'_>) {
         if referenced.wants("name") {
-            context.add_variable_from_value("name", self.name.clone());
+            context.add_variable_from_value("name", self.name.as_str());
         }
         if referenced.wants("attributes") {
             context.add_variable_from_value("attributes", self.attributes.clone());
