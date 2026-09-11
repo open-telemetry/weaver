@@ -91,3 +91,61 @@ pub struct SpanRefinement {
     #[serde(flatten)]
     pub span: Span,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use minijinja::Environment;
+    use weaver_semconv::v2::span::{SpanName, SpanNameTemplate};
+
+    #[test]
+    fn test_forge_span_name_templates_jinja_rendering() {
+        let span = Span {
+            r#type: "http.client".into(),
+            kind: SpanKindSpec::Client,
+            name: SpanName {
+                templates: vec![
+                    SpanNameTemplate::parse("{http.request.method} {url.template}").unwrap(),
+                    SpanNameTemplate::parse("{http.request.method} {server.address}:{server.port}")
+                        .unwrap(),
+                    SpanNameTemplate::parse("{http.request.method}").unwrap(),
+                    SpanNameTemplate::parse("HTTP").unwrap(),
+                ],
+                note: None,
+            },
+            attributes: vec![],
+            entity_associations: vec![],
+            requirement_level: None,
+            common: Default::default(),
+            provenance: Default::default(),
+        };
+
+        let jinja_template = r#"
+{%- for t in span.name.templates %}
+{%- if t.attributes %}
+{% if loop.first %}if{% else %}elif{% endif %} {% for attr in t.attributes %}"{{ attr }}" in attrs{% if not loop.last %} and {% endif %}{% endfor %}:
+    return f"{% for p in t.parts %}{% if p.type == 'literal' %}{{ p.value }}{% else %}{attrs['{{ p.attribute }}']}{% endif %}{% endfor %}"
+{%- else %}
+else:
+    return "{{ t.pattern }}"
+{%- endif %}
+{%- endfor %}
+"#;
+
+        let mut env = Environment::new();
+        env.add_template("span_name.py.j2", jinja_template).unwrap();
+        let tmpl = env.get_template("span_name.py.j2").unwrap();
+
+        let rendered = tmpl.render(minijinja::context! { span => span }).unwrap();
+        let expected = r#"if "http.request.method" in attrs and "url.template" in attrs:
+    return f"{attrs['http.request.method']} {attrs['url.template']}"
+elif "http.request.method" in attrs and "server.address" in attrs and "server.port" in attrs:
+    return f"{attrs['http.request.method']} {attrs['server.address']}:{attrs['server.port']}"
+elif "http.request.method" in attrs:
+    return f"{attrs['http.request.method']}"
+else:
+    return "HTTP""#;
+
+        assert_eq!(rendered.trim(), expected.trim());
+    }
+}

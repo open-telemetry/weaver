@@ -2,6 +2,7 @@
 
 //! The new way we want to define spans going forward.
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 
@@ -56,14 +57,296 @@ pub struct SpanGroupRef {
     pub ref_group: String,
 }
 
-/// Specification of the span name.
+/// A parsed component of a span name template: either a literal string or an attribute reference.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Eq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum TemplatePart {
+    /// A literal string component.
+    Literal {
+        /// The literal string content.
+        value: String,
+    },
+    /// An attribute reference component.
+    Attribute {
+        /// The attribute key.
+        attribute: String,
+    },
+}
+
+/// A parsed span name template pattern.
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct SpanNameTemplate {
+    /// The original pattern string, e.g. "{http.request.method} {url.template}".
+    pub pattern: String,
+    /// The list of attribute keys required by this template.
+    pub attributes: Vec<String>,
+    /// The parsed components of the template.
+    pub parts: Vec<TemplatePart>,
+}
+
+impl SpanNameTemplate {
+    /// Parses a template pattern string into a `SpanNameTemplate`.
+    ///
+    /// Placeholders are delimited by `{` and `}` and contain the attribute key.
+    /// Text outside braces is treated as literal delimiters.
+    pub fn parse(pattern: &str) -> Result<Self, String> {
+        if pattern.trim().is_empty() {
+            return Err("Span name template pattern cannot be empty".to_owned());
+        }
+
+        let mut parts = Vec::new();
+        let mut attributes = Vec::new();
+        let mut chars = pattern.chars().peekable();
+        let mut current_literal = String::new();
+
+        while let Some(c) = chars.next() {
+            if c == '{' {
+                let mut attr = String::new();
+                let mut closed = false;
+                for inner in chars.by_ref() {
+                    if inner == '}' {
+                        closed = true;
+                        break;
+                    }
+                    if inner == '{' {
+                        return Err(format!("Nested '{{' in template: `{pattern}`"));
+                    }
+                    attr.push(inner);
+                }
+                if !closed {
+                    return Err(format!("Unclosed '{{' in template: `{pattern}`"));
+                }
+                if attr.is_empty()
+                    || attr.contains(char::is_whitespace)
+                    || !attr
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_')
+                {
+                    return Err(format!(
+                        "Invalid attribute placeholder `{attr}` in template: `{pattern}`"
+                    ));
+                }
+                if !current_literal.is_empty() {
+                    parts.push(TemplatePart::Literal {
+                        value: std::mem::take(&mut current_literal),
+                    });
+                }
+                if !attributes.iter().any(|a| a == &attr) {
+                    attributes.push(attr.to_owned());
+                }
+                parts.push(TemplatePart::Attribute {
+                    attribute: attr.to_owned(),
+                });
+            } else if c == '}' {
+                return Err(format!("Unmatched '}}' in template: `{pattern}`"));
+            } else {
+                current_literal.push(c);
+            }
+        }
+
+        if !current_literal.is_empty() {
+            parts.push(TemplatePart::Literal {
+                value: current_literal,
+            });
+        }
+
+        Ok(Self {
+            pattern: pattern.to_owned(),
+            attributes,
+            parts,
+        })
+    }
+
+    /// Renders the template given an attribute value lookup function.
+    /// Returns `None` if any required attribute is missing or empty.
+    pub fn render<'a, F>(&self, mut get_attr: F) -> Option<String>
+    where
+        F: FnMut(&str) -> Option<&'a str>,
+    {
+        let mut result = String::new();
+        for part in &self.parts {
+            match part {
+                TemplatePart::Literal { value } => result.push_str(value),
+                TemplatePart::Attribute { attribute } => {
+                    let val = get_attr(attribute)?;
+                    if val.is_empty() {
+                        return None;
+                    }
+                    result.push_str(val);
+                }
+            }
+        }
+        Some(result)
+    }
+}
+
+impl Display for SpanNameTemplate {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.pattern)
+    }
+}
+
+impl TryFrom<String> for SpanNameTemplate {
+    type Error = String;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::parse(&s)
+    }
+}
+
+impl TryFrom<&str> for SpanNameTemplate {
+    type Error = String;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Self::parse(s)
+    }
+}
+
+impl<'de> Deserialize<'de> for SpanNameTemplate {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct SpanNameTemplateVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for SpanNameTemplateVisitor {
+            type Value = SpanNameTemplate;
+
+            fn expecting(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("a span name template string or object")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                SpanNameTemplate::parse(value).map_err(serde::de::Error::custom)
+            }
+
+            fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+            where
+                M: serde::de::MapAccess<'de>,
+            {
+                let mut pattern: Option<String> = None;
+                let mut attributes: Option<Vec<String>> = None;
+                let mut parts: Option<Vec<TemplatePart>> = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "pattern" => pattern = Some(map.next_value()?),
+                        "attributes" => attributes = Some(map.next_value()?),
+                        "parts" => parts = Some(map.next_value()?),
+                        unknown => {
+                            return Err(serde::de::Error::unknown_field(
+                                unknown,
+                                &["pattern", "attributes", "parts"],
+                            ));
+                        }
+                    }
+                }
+
+                let pattern: String =
+                    pattern.ok_or_else(|| serde::de::Error::missing_field("pattern"))?;
+                let parsed = SpanNameTemplate::parse(&pattern).map_err(serde::de::Error::custom)?;
+                if let Some(attrs) = attributes {
+                    if attrs != parsed.attributes {
+                        return Err(serde::de::Error::custom(
+                            "provided 'attributes' does not match attributes extracted from 'pattern'",
+                        ));
+                    }
+                }
+                if let Some(p) = parts {
+                    if p != parsed.parts {
+                        return Err(serde::de::Error::custom(
+                            "provided 'parts' does not match parts extracted from 'pattern'",
+                        ));
+                    }
+                }
+                Ok(parsed)
+            }
+        }
+
+        deserializer.deserialize_any(SpanNameTemplateVisitor)
+    }
+}
+
+impl JsonSchema for SpanNameTemplate {
+    fn schema_name() -> Cow<'static, str> {
+        "SpanNameTemplate".into()
+    }
+
+    fn schema_id() -> Cow<'static, str> {
+        concat!(module_path!(), "::SpanNameTemplate").into()
+    }
+
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        let part_schema = generator.subschema_for::<TemplatePart>();
+        schemars::json_schema!({
+            "oneOf": [
+                { "type": "string" },
+                {
+                    "type": "object",
+                    "properties": {
+                        "pattern": { "type": "string" },
+                        "attributes": {
+                            "type": "array",
+                            "items": { "type": "string" }
+                        },
+                        "parts": {
+                            "type": "array",
+                            "items": part_schema
+                        }
+                    },
+                    "required": ["pattern"],
+                    "additionalProperties": false
+                }
+            ]
+        })
+    }
+}
+
+/// Specification of the span name.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub struct SpanName {
-    /// Required description of how a span name should be created.
-    pub note: String,
+    /// Ordered list of templates used to construct the span name.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub templates: Vec<SpanNameTemplate>,
+    /// Description of how a span name should be created.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+}
+
+impl SpanName {
+    /// Evaluates the span name against an attribute lookup function.
+    /// Iterates through `templates` in order, returning the first match.
+    #[must_use]
+    pub fn evaluate<'a, F>(&self, mut get_attr: F) -> Option<String>
+    where
+        F: FnMut(&str) -> Option<&'a str>,
+    {
+        for template in &self.templates {
+            if let Some(rendered) = template.render(&mut get_attr) {
+                return Some(rendered);
+            }
+        }
+        None
+    }
+
+    /// Evaluates the span name against an attribute lookup function, falling back
+    /// to `default_name` (e.g. the span's type or operation name) if no template matches.
+    #[must_use]
+    pub fn evaluate_or_default<'a, F>(&self, default_name: &str, get_attr: F) -> String
+    where
+        F: FnMut(&str) -> Option<&'a str>,
+    {
+        self.evaluate(get_attr)
+            .unwrap_or_else(|| default_name.to_owned())
+    }
 }
 
 /// A refinement of an Attribute for a span.
@@ -246,5 +529,190 @@ mod tests {
         assert_eq!(attrs[0].base.r#ref, "http.status");
         assert_eq!(attrs[0].sampling_relevant, Some(true));
         assert_eq!(groups[0], "http.shared");
+    }
+
+    #[test]
+    fn test_span_name_template_parsing() {
+        let t = SpanNameTemplate::parse("{http.request.method} {url.template}").unwrap();
+        assert_eq!(t.pattern, "{http.request.method} {url.template}");
+        assert_eq!(t.attributes, vec!["http.request.method", "url.template"]);
+        assert_eq!(
+            t.parts,
+            vec![
+                TemplatePart::Attribute {
+                    attribute: "http.request.method".to_owned()
+                },
+                TemplatePart::Literal {
+                    value: " ".to_owned()
+                },
+                TemplatePart::Attribute {
+                    attribute: "url.template".to_owned()
+                },
+            ]
+        );
+
+        let literal_only = SpanNameTemplate::parse("HTTP").unwrap();
+        assert!(literal_only.attributes.is_empty());
+        assert_eq!(
+            literal_only.parts,
+            vec![TemplatePart::Literal {
+                value: "HTTP".to_owned()
+            }]
+        );
+
+        assert!(SpanNameTemplate::parse("").is_err());
+        assert!(SpanNameTemplate::parse("   ").is_err());
+        assert!(SpanNameTemplate::parse("{unclosed").is_err());
+        assert!(SpanNameTemplate::parse("{}").is_err());
+        assert!(SpanNameTemplate::parse("{   }").is_err());
+        assert!(SpanNameTemplate::parse("{a b}").is_err());
+        assert!(SpanNameTemplate::parse("{ a }").is_err());
+        assert!(SpanNameTemplate::parse("{invalid!attr}").is_err());
+        assert!(SpanNameTemplate::parse("stray}brace").is_err());
+        assert!(SpanNameTemplate::parse("{nested{brace}}").is_err());
+
+        // Consecutive placeholders
+        let consecutive = SpanNameTemplate::parse("{a}{b}").unwrap();
+        assert_eq!(consecutive.attributes, vec!["a", "b"]);
+        assert_eq!(consecutive.parts.len(), 2);
+    }
+
+    #[test]
+    fn test_span_name_template_rendering() {
+        let t = SpanNameTemplate::parse("{method} {url.template}").unwrap();
+
+        // All present and valid
+        let rendered = t.render(|key| match key {
+            "method" => Some("GET"),
+            "url.template" => Some("/users/{id}"),
+            _ => None,
+        });
+        assert_eq!(rendered.as_deref(), Some("GET /users/{id}"));
+
+        // Missing attribute
+        let rendered = t.render(|key| match key {
+            "method" => Some("GET"),
+            _ => None,
+        });
+        assert_eq!(rendered, None);
+
+        // Empty value is rejected
+        let rendered = t.render(|key| match key {
+            "method" => Some(""),
+            "url.template" => Some("/users/{id}"),
+            _ => None,
+        });
+        assert_eq!(rendered, None);
+    }
+
+    #[test]
+    fn test_span_name_evaluation() {
+        let span_name = SpanName {
+            templates: vec![
+                SpanNameTemplate::parse("{http.request.method} {url.template}").unwrap(),
+                SpanNameTemplate::parse("{http.request.method} {server.address}:{server.port}")
+                    .unwrap(),
+                SpanNameTemplate::parse("{http.request.method} {server.address}").unwrap(),
+                SpanNameTemplate::parse("{http.request.method}").unwrap(),
+                SpanNameTemplate::parse("HTTP").unwrap(),
+            ],
+            note: None,
+        };
+
+        // First template matches
+        let name = span_name.evaluate(|key| match key {
+            "http.request.method" => Some("GET"),
+            "url.template" => Some("/users/{id}"),
+            _ => None,
+        });
+        assert_eq!(name.as_deref(), Some("GET /users/{id}"));
+
+        // First template fails, second matches
+        let name = span_name.evaluate(|key| match key {
+            "http.request.method" => Some("POST"),
+            "server.address" => Some("example.com"),
+            "server.port" => Some("8080"),
+            _ => None,
+        });
+        assert_eq!(name.as_deref(), Some("POST example.com:8080"));
+
+        // Only method matches
+        let name = span_name.evaluate(|key| match key {
+            "http.request.method" => Some("DELETE"),
+            _ => None,
+        });
+        assert_eq!(name.as_deref(), Some("DELETE"));
+
+        // _OTHER for enum http.request.method causes method templates to fail, matches literal "HTTP" template
+        let name = span_name.evaluate(|key| match key {
+            "http.request.method" => Some("_OTHER").filter(|v| *v != "_OTHER"),
+            "url.template" => Some("/users/{id}"),
+            _ => None,
+        });
+        assert_eq!(name.as_deref(), Some("HTTP"));
+
+        // Non-enum attribute with value "_OTHER" is preserved
+        let custom_span = SpanName {
+            templates: vec![SpanNameTemplate::parse("{url.template}").unwrap()],
+            note: None,
+        };
+        let name = custom_span.evaluate(|key| match key {
+            "url.template" => Some("_OTHER"),
+            _ => None,
+        });
+        assert_eq!(name.as_deref(), Some("_OTHER"));
+
+        // Completely empty attributes matches literal "HTTP" template
+        let name = span_name.evaluate(|_| None);
+        assert_eq!(name.as_deref(), Some("HTTP"));
+    }
+
+    #[test]
+    fn test_span_name_deserialization() {
+        let yaml = r#"
+templates:
+  - "{http.request.method} {url.template}"
+  - "{http.request.method}"
+  - "HTTP"
+note: "test note"
+"#;
+        let parsed: SpanName = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(parsed.templates.len(), 3);
+        assert_eq!(
+            parsed.templates[0].pattern,
+            "{http.request.method} {url.template}"
+        );
+        assert_eq!(parsed.templates[2].pattern, "HTTP");
+        assert_eq!(parsed.note.as_deref(), Some("test note"));
+
+        // Backwards compatibility: note only
+        let yaml_note_only = "note: free form note\n";
+        let parsed_note: SpanName = serde_yaml::from_str(yaml_note_only).unwrap();
+        assert!(parsed_note.templates.is_empty());
+        assert_eq!(parsed_note.note.as_deref(), Some("free form note"));
+
+        // Roundtrip serialization: templates serialize as objects with pattern, attributes, parts
+        let serialized = serde_yaml::to_string(&parsed).unwrap();
+        let roundtrip: SpanName = serde_yaml::from_str(&serialized).unwrap();
+        assert_eq!(roundtrip, parsed);
+
+        // JSON roundtrip
+        let json_serialized = serde_json::to_string(&parsed).unwrap();
+        let json_roundtrip: SpanName = serde_json::from_str(&json_serialized).unwrap();
+        assert_eq!(json_roundtrip, parsed);
+
+        // Unknown fields rejected
+        let invalid_yaml = r#"
+pattern: "HTTP"
+unknown_key: "val"
+"#;
+        assert!(serde_yaml::from_str::<SpanNameTemplate>(invalid_yaml).is_err());
+
+        // Inconsistent attributes rejected
+        let inconsistent_yaml = r#"
+pattern: "{a}"
+attributes: ["b"]
+"#;
+        assert!(serde_yaml::from_str::<SpanNameTemplate>(inconsistent_yaml).is_err());
     }
 }

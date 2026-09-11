@@ -327,7 +327,16 @@ pub fn v2_span_kind_to_v1(k: V2SpanKindSpec) -> V1SpanKindSpec {
 /// Converts a V2 span name to V1.
 #[must_use]
 pub fn v2_span_name_to_v1(s: crate::v2::span::SpanName) -> V1SpanName {
-    V1SpanName { note: s.note }
+    let note = match &s.note {
+        Some(note) if !note.trim().is_empty() => note.clone(),
+        _ if !s.templates.is_empty() => {
+            let parts: Vec<String> = s.templates.iter().map(|t| t.pattern.clone()).collect();
+            parts.join(", ")
+        }
+        Some(note) => note.clone(),
+        None => String::new(),
+    };
+    V1SpanName { note }
 }
 
 /// Converts a V2 metric into a V1 GroupSpec.
@@ -433,9 +442,7 @@ pub(crate) fn v2_span_to_v1(span: Span) -> V1GroupSpec {
         entity_associations: span.entity_associations,
         visibility: None,
         is_v2: true,
-        span_name: Some(V1SpanName {
-            note: span.name.note,
-        }),
+        span_name: Some(span.name),
         requirement_level: span.requirement_level,
     }
 }
@@ -471,7 +478,7 @@ pub(crate) fn v2_span_refinement_to_v1(r: SpanRefinement) -> V1GroupSpec {
         entity_associations: r.entity_associations,
         visibility: None,
         is_v2: true,
-        span_name: r.name.map(|n| V1SpanName { note: n.note }),
+        span_name: r.name,
         requirement_level: None,
     }
 }
@@ -941,7 +948,14 @@ pub fn v1_span_kind_to_v2(k: V1SpanKindSpec) -> V2SpanKindSpec {
 /// Converts V1 span name to V2.
 #[must_use]
 pub fn v1_span_name_to_v2(s: V1SpanName) -> crate::v2::span::SpanName {
-    crate::v2::span::SpanName { note: s.note }
+    crate::v2::span::SpanName {
+        templates: vec![],
+        note: if s.note.is_empty() {
+            None
+        } else {
+            Some(s.note)
+        },
+    }
 }
 
 #[cfg(test)]
@@ -949,10 +963,9 @@ mod tests {
     use super::*;
     use crate::deprecated::Deprecated;
     use crate::stability::Stability;
-    use crate::v1::group::SpanName as V1SpanName;
     use crate::v2::attribute::GroupRef;
     use crate::v2::signal_id::SignalId;
-    use crate::v2::span::{SpanGroupRef, SpanName};
+    use crate::v2::span::{SpanGroupRef, SpanName, SpanNameTemplate};
     use crate::v2::{CommonFields, GroupWildcard as V2GroupWildcard};
     use crate::YamlValue;
     use std::collections::BTreeMap;
@@ -1269,7 +1282,8 @@ mod tests {
     #[test]
     fn test_span_name_conversions() {
         let v2_span_name = SpanName {
-            note: "HTTP {method}".to_owned(),
+            templates: Vec::new(),
+            note: Some("HTTP {method}".to_owned()),
         };
         let v1_span_name = v2_span_name_to_v1(v2_span_name.clone());
         assert_eq!(v1_span_name.note, "HTTP {method}");
@@ -1494,7 +1508,8 @@ attributes:
             r#type: SignalId::from("http.client"),
             kind: V2SpanKindSpec::Client,
             name: SpanName {
-                note: "HTTP {http.request.method}".to_owned(),
+                note: Some("HTTP {http.request.method}".to_owned()),
+                ..Default::default()
             },
             common: CommonFields {
                 brief: "Client HTTP span".to_owned(),
@@ -1524,8 +1539,9 @@ attributes:
         assert_eq!(v1_group.span_kind, Some(V1SpanKindSpec::Client));
         assert_eq!(
             v1_group.span_name,
-            Some(V1SpanName {
-                note: "HTTP {http.request.method}".to_owned()
+            Some(SpanName {
+                note: Some("HTTP {http.request.method}".to_owned()),
+                ..Default::default()
             })
         );
         assert_eq!(v1_group.attributes.len(), 1);
@@ -1538,7 +1554,8 @@ attributes:
             id: SignalId::from("http.client.refined"),
             r#ref: SignalId::from("http.client"),
             name: Some(SpanName {
-                note: "Overridden name".to_owned(),
+                note: Some("Overridden name".to_owned()),
+                ..Default::default()
             }),
             brief: Some("Refined span brief".to_owned()),
             note: Some("Refined span note".to_owned()),
@@ -1555,11 +1572,37 @@ attributes:
         assert_eq!(v1_group.extends, Some("span.http.client".to_owned()));
         assert_eq!(
             v1_group.span_name,
-            Some(V1SpanName {
-                note: "Overridden name".to_owned()
+            Some(SpanName {
+                note: Some("Overridden name".to_owned()),
+                ..Default::default()
             })
         );
         assert!(v1_group.is_v2);
+    }
+
+    #[test]
+    fn test_v2_span_name_to_v1_synthesizes_note_from_templates() {
+        let v2_name = SpanName {
+            templates: vec![
+                SpanNameTemplate::parse("{http.request.method} {url.template}").unwrap(),
+                SpanNameTemplate::parse("{http.request.method}").unwrap(),
+                SpanNameTemplate::parse("HTTP").unwrap(),
+            ],
+            note: None,
+        };
+
+        let v1_name = v2_span_name_to_v1(v2_name);
+        assert_eq!(
+            v1_name.note,
+            "{http.request.method} {url.template}, {http.request.method}, HTTP"
+        );
+
+        let v2_roundtrip = v1_span_name_to_v2(v1_name);
+        assert_eq!(
+            v2_roundtrip.note.as_deref(),
+            Some("{http.request.method} {url.template}, {http.request.method}, HTTP")
+        );
+        assert!(v2_roundtrip.templates.is_empty());
     }
 
     #[test]

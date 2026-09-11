@@ -691,7 +691,8 @@ mod tests {
                     r#type: "http.client".to_owned().into(),
                     kind: SpanKindSpec::Client,
                     name: SpanName {
-                        note: "HTTP client span".to_owned(),
+                        note: Some("HTTP client span".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![],
                     entity_associations: vec![],

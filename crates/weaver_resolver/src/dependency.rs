@@ -61,7 +61,7 @@ pub(crate) struct GroupSummary {
     pub span_kind: Option<SpanKindSpec>,
     /// The v2 span name specification, inherited by refinements that do not
     /// override it.
-    pub span_name: Option<weaver_semconv::v1::group::SpanName>,
+    pub span_name: Option<weaver_semconv::v2::span::SpanName>,
     /// The attributes from this group before being completely resolved to a catalog.
     pub attributes: Vec<UnresolvedAttribute>,
     /// The annotations of the group.
@@ -544,7 +544,7 @@ impl GroupRefinementLookup for V2Schema {
                 attributes,
             );
             summary.span_kind = Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
-            summary.span_name = Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
+            summary.span_name = Some(s.name.clone());
             return Some(summary);
         }
         None
@@ -747,7 +747,8 @@ pub(crate) mod tests {
                     r#type: "span.d".to_owned().into(),
                     kind: weaver_semconv::v2::span::SpanKindSpec::Client,
                     name: weaver_semconv::v2::span::SpanName {
-                        note: "test".to_owned(),
+                        templates: Vec::new(),
+                        note: Some("test".to_owned()),
                     },
                     attributes: vec![],
                     entity_associations: vec![],
@@ -852,8 +853,9 @@ pub(crate) mod tests {
         // not override it inherit the dependency's definition.
         assert_eq!(
             span_summary.span_name,
-            Some(weaver_semconv::v1::group::SpanName {
-                note: "test".to_owned(),
+            Some(weaver_semconv::v2::span::SpanName {
+                templates: Vec::new(),
+                note: Some("test".to_owned()),
             })
         );
 

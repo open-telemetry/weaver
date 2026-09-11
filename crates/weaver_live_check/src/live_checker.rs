@@ -1111,7 +1111,8 @@ mod tests {
                         r#type: "custom.comprehensive.internal".to_owned().into(),
                         kind: V2SpanKindSpec::Internal,
                         name: SpanName {
-                            note: "custom.comprehensive.internal".to_owned(),
+                            note: Some("custom.comprehensive.internal".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![SpanAttribute {
                             base: custom_string_attr.clone(),

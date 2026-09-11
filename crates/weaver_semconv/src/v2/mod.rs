@@ -283,6 +283,24 @@ impl SemConvSpecV2 {
         }
         for s in &self.spans {
             check(s.requirement_level.is_none(), format!("span.{}", s.r#type));
+            if s.name.templates.is_empty() && s.name.note.is_none() {
+                fatal_errors.push(Error::InvalidGroup {
+                    path_or_url: provenance.to_owned(),
+                    group_id: format!("span.{}", s.r#type),
+                    error: "Span must specify `templates` or a `note` for its name".to_owned(),
+                });
+            }
+        }
+        for r in &self.span_refinements {
+            if let Some(name) = &r.name {
+                if name.templates.is_empty() && name.note.is_none() {
+                    fatal_errors.push(Error::InvalidGroup {
+                        path_or_url: provenance.to_owned(),
+                        group_id: r.id.to_string(),
+                        error: "Span refinement must specify `templates` or a `note` when overriding name".to_owned(),
+                    });
+                }
+            }
         }
         for e in &self.events {
             check(e.requirement_level.is_none(), format!("event.{}", e.name));
@@ -471,7 +489,8 @@ mod tests {
                 r#type: "http.server".into(),
                 kind: span::SpanKindSpec::Server,
                 name: span::SpanName {
-                    note: "HTTP GET".to_owned(),
+                    note: Some("HTTP GET".to_owned()),
+                    ..Default::default()
                 },
                 attributes: vec![],
                 entity_associations: vec![],
@@ -735,6 +754,39 @@ mod tests {
             events: vec![],
             metrics: vec![],
             spans: vec![],
+            attribute_groups: vec![],
+            entity_refinements: vec![],
+            event_refinements: vec![],
+            metric_refinements: vec![],
+            span_refinements: vec![],
+            imports: None,
+        };
+
+        let result = spec.validate("test_prov");
+        assert!(matches!(result, WResult::FatalErr(_)));
+    }
+
+    #[test]
+    fn test_validate_span_missing_templates_and_note() {
+        use crate::v2::span::{Span, SpanKindSpec, SpanName};
+
+        let spec = SemConvSpecV2 {
+            attributes: vec![],
+            entities: vec![],
+            events: vec![],
+            metrics: vec![],
+            spans: vec![Span {
+                r#type: "test.span".into(),
+                kind: SpanKindSpec::Internal,
+                name: SpanName {
+                    templates: vec![],
+                    note: None,
+                },
+                attributes: vec![],
+                entity_associations: vec![],
+                requirement_level: None,
+                common: Default::default(),
+            }],
             attribute_groups: vec![],
             entity_refinements: vec![],
             event_refinements: vec![],

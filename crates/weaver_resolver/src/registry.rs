@@ -229,6 +229,7 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
     );
     check_root_attribute_id_duplicates(&result, &attr_name_index, &mut errors);
     check_v2_signal_id_collisions(&result, &mut errors);
+    check_span_name_attributes(&result, &attr_name_index, &mut errors);
 
     WResult::OkWithNFEs(result, errors)
 }
@@ -269,6 +270,52 @@ fn check_v2_signal_id_collisions(registry: &Registry, errors: &mut Vec<Error>) {
                 .unique()
                 .collect(),
         });
+    }
+}
+
+/// Checks that every attribute referenced in a span's name templates is present
+/// on the span itself (either declared directly or inherited).
+fn check_span_name_attributes(
+    registry: &Registry,
+    attr_name_index: &[String],
+    errors: &mut Vec<Error>,
+) {
+    for group in registry.groups.iter() {
+        if group.r#type != GroupType::Span {
+            continue;
+        }
+
+        let Some(span_name) = &group.span_name else {
+            continue;
+        };
+
+        if span_name.templates.is_empty() {
+            continue;
+        }
+
+        // Collect all attribute names present on this span
+        let span_attr_names: HashSet<&str> = group
+            .attributes
+            .iter()
+            .filter_map(|attr_ref| attr_name_index.get(attr_ref.0 as usize).map(String::as_str))
+            .collect();
+
+        let mut missing_attrs = HashSet::new();
+        for template in &span_name.templates {
+            for attr in &template.attributes {
+                if !span_attr_names.contains(attr.as_str()) {
+                    let _ = missing_attrs.insert(attr.as_str());
+                }
+            }
+        }
+
+        for attr in missing_attrs {
+            errors.push(Error::SpanNameAttributeNotOnSpan {
+                span_id: group.id.clone(),
+                attribute_key: attr.to_owned(),
+                provenance: group.provenance().map(Box::new),
+            });
+        }
     }
 }
 
@@ -2282,6 +2329,70 @@ groups:
             other @ AttributeSpec::Id { .. } => {
                 panic!("expected a Ref attribute, got {other:?}")
             }
+        }
+    }
+
+    #[test]
+    fn test_check_span_name_attributes_reports_missing_attribute() {
+        use crate::registry::check_span_name_attributes;
+        use crate::Error as ResolverError;
+        use std::collections::BTreeMap;
+        use weaver_resolved_schema::v1::attribute::AttributeRef;
+        use weaver_semconv::v2::span::{SpanName, SpanNameTemplate};
+
+        let attr_name_index = vec!["http.request.method".to_owned()];
+        let group = Group {
+            id: "span.http.client".to_owned(),
+            r#type: GroupType::Span,
+            brief: "".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: None,
+            deprecated: None,
+            attributes: vec![AttributeRef(0)], // only http.request.method
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            name: None,
+            lineage: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: true,
+            span_name: Some(SpanName {
+                templates: vec![
+                    SpanNameTemplate::parse("{http.request.method} {url.template}").unwrap(),
+                ],
+                note: None,
+            }),
+            requirement_level: None,
+        };
+
+        let registry = Registry {
+            registry_url: "test".to_owned(),
+            groups: vec![group],
+            entity_association_origins: BTreeMap::new(),
+        };
+
+        let mut errors = vec![];
+        check_span_name_attributes(&registry, &attr_name_index, &mut errors);
+
+        assert_eq!(errors.len(), 1);
+        match &errors[0] {
+            ResolverError::SpanNameAttributeNotOnSpan {
+                span_id,
+                attribute_key,
+                ..
+            } => {
+                assert_eq!(span_id, "span.http.client");
+                assert_eq!(attribute_key, "url.template");
+            }
+            other => panic!("expected SpanNameAttributeNotOnSpan, got {other:?}"),
         }
     }
 }

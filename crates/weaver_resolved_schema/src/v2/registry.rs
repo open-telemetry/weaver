@@ -300,7 +300,8 @@ mod test {
                 r#type: "test.span".to_owned().into(),
                 kind: SpanKindSpec::Client,
                 name: SpanName {
-                    note: "test".to_owned(),
+                    note: Some("test".to_owned()),
+                    ..Default::default()
                 },
                 attributes: vec![],
                 entity_associations: vec![],
