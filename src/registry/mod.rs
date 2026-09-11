@@ -95,6 +95,7 @@ pub struct RegistryCommand {
 /// Sub-commands to manage a `registry`.
 #[derive(Debug, Subcommand)]
 #[clap(verbatim_doc_comment)]
+#[allow(clippy::large_enum_variant)]
 pub enum RegistrySubCommand {
     /// Validates a semantic convention registry.
     ///

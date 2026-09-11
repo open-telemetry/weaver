@@ -124,7 +124,7 @@ As mentioned, a list of `PolicyFinding` is returned in the report for each sampl
 
 ### Custom advisors
 
-Use the `--advice-policies` command line option to provide a path to a directory containing Rego policies with the `live_check_advice` package name. Here's a very simple example that rejects any attribute name containing the string "test":
+Use the `--advice-policies` command line option to provide a path to a directory or virtual directory (such as a Git repository or archive) containing Rego policies with the `live_check_advice` package name. Here's a very simple example that rejects any attribute name containing the string "test":
 
 ```rego
 package live_check_advice

@@ -32,7 +32,6 @@
 //!
 //! - `source`: Can be a local path (`/path/to/dir`, `./archive.zip`) or a URL (`https://...`).
 //! - `@refspec`: (Optional) For Git repositories, specifies a tag, branch, or commit hash.
-//!   *(Note: Currently, fetching specific refspecs is not fully implemented)*.
 //! - `[sub_folder]`: (Optional) Specifies a directory *within* the source (archive or Git repo)
 //!   that should become the root of the virtual directory.
 //!
@@ -321,10 +320,11 @@ static REGISTRY_REGEX: Lazy<Regex> = Lazy::new(|| {
 ///
 /// Paths may optionally specify:
 /// - A sub-folder within the archive or repository via `[sub_folder]`
-/// - [Not Yet Implemented] A specific Git refspec (branch, tag, or commit) via `@refspec`
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+/// - A specific Git refspec (branch, tag, or commit) via `@refspec`
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(try_from = "String")]
 #[serde(into = "String")]
+#[schemars(with = "String")]
 pub enum VirtualDirectoryPath {
     /// A virtual directory representing a local folder.
     LocalFolder {
@@ -600,8 +600,23 @@ enum CheckoutError {
     #[error(transparent)]
     WriteIndex(#[from] gix::index::file::write::Error),
 }
-
 impl VirtualDirectory {
+    /// Resolve an optional [`VirtualDirectoryPath`] with no HTTP credentials configured.
+    pub fn try_from_opt(vdir_path: Option<&VirtualDirectoryPath>) -> Result<Option<Self>, Error> {
+        Self::try_from_opt_with_auth(vdir_path, &HttpAuthResolver::empty())
+    }
+
+    /// Resolve an optional [`VirtualDirectoryPath`], using `auth` to look up Bearer
+    /// credentials for any remote HTTP fetches.
+    pub fn try_from_opt_with_auth(
+        vdir_path: Option<&VirtualDirectoryPath>,
+        auth: &HttpAuthResolver,
+    ) -> Result<Option<Self>, Error> {
+        vdir_path
+            .map(|p| Self::try_new_with_auth(p, auth))
+            .transpose()
+    }
+
     /// Resolve a [`VirtualDirectoryPath`] with no HTTP credentials configured.
     /// For remote paths behind private registries, use [`Self::try_new_with_auth`].
     pub fn try_new(vdir_path: &VirtualDirectoryPath) -> Result<Self, Error> {
@@ -1102,6 +1117,18 @@ impl VirtualDirectory {
     #[must_use]
     pub fn path(&self) -> &Path {
         self.path.as_path()
+    }
+
+    /// Returns the local filesystem path as a `PathBuf`.
+    #[must_use]
+    pub fn path_buf(&self) -> PathBuf {
+        self.path.clone()
+    }
+
+    /// Returns the local filesystem path as a string slice (or empty string if invalid UTF-8).
+    #[must_use]
+    pub fn path_str(&self) -> &str {
+        self.path.to_str().unwrap_or_default()
     }
 
     /// Returns the original string representation that was used to create this `VirtualDirectory`.
