@@ -109,10 +109,10 @@ pub(crate) fn command(
         JsonSchemaType::Diff => schema_for!(weaver_version::schema_changes::SchemaChanges),
         JsonSchemaType::DiffV2 => schema_for!(weaver_version::v2::SchemaChanges),
         JsonSchemaType::DefinitionManifestV2 => {
-            schema_for!(weaver_semconv::manifest::DefinitionRegistryManifest)
+            schema_for!(weaver_semconv::v2::manifest::DefinitionRegistryManifest)
         }
         JsonSchemaType::PublicationManifestV2 => {
-            schema_for!(weaver_semconv::manifest::PublicationRegistryManifest)
+            schema_for!(weaver_semconv::v2::manifest::PublicationRegistryManifest)
         }
         JsonSchemaType::PolicyFinding => schema_for!(weaver_checker::PolicyFinding),
         JsonSchemaType::WeaverConfig => schema_for!(WeaverConfigSchema),
