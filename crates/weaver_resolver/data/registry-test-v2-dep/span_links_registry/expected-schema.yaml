@@ -1,0 +1,146 @@
+file_format: resolved/2.0
+schema_url: https://links-consumer.example.com/schemas/1.0.0
+attribute_catalog:
+- key: linkserver.job.id
+  type: string
+  examples:
+  - job-42
+  brief: The id of the job.
+  stability: stable
+  provenance:
+    source: 0
+registry:
+  attributes: []
+  attribute_groups: []
+  spans:
+  - type: linkserver.process
+    kind: consumer
+    name:
+      note: Process span name.
+    links:
+    - ref: linkserver.produce
+      requirement_level: recommended
+      brief: One link per processed message.
+      attributes:
+      - base: 0
+        requirement_level: recommended
+      provenance:
+        source: 0
+    brief: A process span.
+    stability: stable
+    provenance:
+      source: 0
+  - type: linkserver.produce
+    kind: producer
+    name:
+      note: Produce span name.
+    brief: A produce span.
+    stability: stable
+    provenance:
+      source: 0
+  - type: consumer.batch
+    kind: internal
+    name:
+      note: Batch span name.
+    brief: A local batch span.
+    stability: stable
+  - type: consumer.op
+    kind: consumer
+    name:
+      note: Op span name.
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    links:
+    - ref: consumer.batch
+      requirement_level: required
+      brief: The batch this op belongs to.
+    - ref: linkserver.produce
+      requirement_level: recommended
+      attributes:
+      - base: 0
+        requirement_level: required
+    brief: A local op span with links.
+    stability: stable
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans:
+  - id: linkserver.process
+    type: linkserver.process
+    kind: consumer
+    name:
+      note: Process span name.
+    links:
+    - ref: linkserver.produce
+      requirement_level: recommended
+      brief: One link per processed message.
+      attributes:
+      - base: 0
+        requirement_level: recommended
+      provenance:
+        source: 0
+    brief: A process span.
+    stability: stable
+    provenance:
+      source: 0
+  - id: linkserver.produce
+    type: linkserver.produce
+    kind: producer
+    name:
+      note: Produce span name.
+    brief: A produce span.
+    stability: stable
+    provenance:
+      source: 0
+  - id: refined.op
+    type: consumer.op
+    kind: consumer
+    name:
+      note: Op span name.
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    links:
+    - ref: consumer.batch
+      requirement_level: required
+      brief: The batch this op belongs to.
+    - ref: linkserver.produce
+      requirement_level: recommended
+      attributes:
+      - base: 0
+        requirement_level: required
+    brief: Refined op span.
+    stability: stable
+  - id: consumer.batch
+    type: consumer.batch
+    kind: internal
+    name:
+      note: Batch span name.
+    brief: A local batch span.
+    stability: stable
+  - id: consumer.op
+    type: consumer.op
+    kind: consumer
+    name:
+      note: Op span name.
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    links:
+    - ref: consumer.batch
+      requirement_level: required
+      brief: The batch this op belongs to.
+    - ref: linkserver.produce
+      requirement_level: recommended
+      attributes:
+      - base: 0
+        requirement_level: required
+    brief: A local op span with links.
+    stability: stable
+  metrics: []
+  events: []
+  entities: []
+dependencies:
+- https://linkserver.example.com/schemas/1.0.0
