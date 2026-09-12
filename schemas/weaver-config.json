@@ -309,7 +309,8 @@
           "type": "string",
           "default": "live_check_templates"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "mcp": {
       "description": "Expose a semantic convention registry over the Model Context Protocol (MCP).",
@@ -718,7 +719,8 @@
           "type": "boolean",
           "default": false
         }
-      }
+      },
+      "additionalProperties": false
     },
     "LiveCheckOtlpConfig": {
       "description": "OTLP listener settings for live-check.",
@@ -752,7 +754,8 @@
           "default": 10,
           "minimum": 0
         }
-      }
+      },
+      "additionalProperties": false
     },
     "MatcherConfig": {
       "description": "A rule that gives a sample a registry signal, extra attribute groups, or\nboth, when its name alone does not identify it.\n\nThe rule applies to a sample of kind `sample_type` when `when` is true.\n`signal` replaces the signal the sample is otherwise checked against. The\nattribute groups are checked in addition to the signal. Every name is\nlooked up in the registry at startup.",
@@ -797,6 +800,7 @@
           ]
         }
       },
+      "additionalProperties": false,
       "required": [
         "id",
         "sample_type"

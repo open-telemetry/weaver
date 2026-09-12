@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
   - Statistics count the samples each matcher matched and errored on. A matcher that matched nothing is reported as a warning.
   - Added `-D`/`--param` and `--params` to pass parameters to the output template. The ansi format reads `show_finding_id`, which labels a finding with its id instead of its level.
   - Added [Matchers](crates/weaver_live_check/docs/matchers.md), a guide with a worked example for each sample type. Corrected the config section in the live-check and config READMEs from `[live_check]` to `[live-check]`. The underscore form was silently ignored.
+- Config sections are checked when they are read. A command section in `.weaver.toml` that does not deserialize, or an unknown key under `[live-check]`, now stops the run instead of being ignored. ([#1721](https://github.com/open-telemetry/weaver/pull/1721) by @jerbly)
 
 # [0.26.1] - 2026-09-02
 

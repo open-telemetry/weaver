@@ -74,7 +74,7 @@ impl FromStr for FailOnLevel {
 
 /// Validate live telemetry against a semantic convention registry.
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 #[schemars(inline)]
 pub struct LiveCheckConfig {
     /// Filters control which findings are dropped. A filter without `signal_type`
@@ -177,7 +177,7 @@ impl Default for LiveCheckConfig {
 
 /// OTLP listener settings for live-check.
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct LiveCheckOtlpConfig {
     /// Address used by the gRPC OTLP listener.
     pub grpc_address: String,
@@ -202,7 +202,7 @@ impl Default for LiveCheckOtlpConfig {
 
 /// OTLP log emission settings for live-check.
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct LiveCheckEmitConfig {
     /// Enable OTLP log emission for live-check policy findings.
     pub otlp_logs: bool,
@@ -314,6 +314,7 @@ impl fmt::Display for MatcherSampleType {
 /// attribute groups are checked in addition to the signal. Every name is
 /// looked up in the registry at startup.
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct MatcherConfig {
     /// The name used for this matcher in findings, statistics and coverage.
     pub id: String,
@@ -459,6 +460,33 @@ sample_type = "span"
         )
         .expect_err("it should not deserialize");
         assert!(error.contains("id"), "{error}");
+    }
+
+    /// A misspelled matcher key is an error, not a matcher that adds nothing.
+    #[test]
+    fn an_unknown_matcher_key_is_rejected() {
+        let error = parse_live_check_section(
+            r#"
+[["live-check".matchers]]
+id = "test"
+sample_type = "span"
+attribute_group = ["myapp.common"]
+"#,
+        )
+        .expect_err("it should not deserialize");
+        assert!(error.contains("attribute_group"), "{error}");
+    }
+
+    #[test]
+    fn an_unknown_live_check_key_is_rejected() {
+        let error = parse_live_check_section(
+            r#"
+[live-check]
+search_all_attribute = true
+"#,
+        )
+        .expect_err("it should not deserialize");
+        assert!(error.contains("search_all_attribute"), "{error}");
     }
 
     /// An invalid matcher is an error. It must not make the section fall back
