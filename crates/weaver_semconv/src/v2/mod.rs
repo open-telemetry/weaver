@@ -798,4 +798,31 @@ mod tests {
         let result = spec.validate("test_prov");
         assert!(matches!(result, WResult::FatalErr(_)));
     }
+
+    #[test]
+    fn test_validate_span_refinement_missing_templates_and_note() {
+        use crate::v2::span::SpanName;
+
+        let spec = SemConvSpecV2 {
+            span_refinements: vec![SpanRefinement {
+                id: "test.refinement".into(),
+                r#ref: "test.span".into(),
+                name: Some(SpanName {
+                    templates: vec![],
+                    note: None,
+                }),
+                attributes: vec![],
+                entity_associations: vec![],
+                brief: None,
+                note: None,
+                stability: None,
+                deprecated: None,
+                annotations: Default::default(),
+            }],
+            ..SemConvSpecV2::new(vec![], vec![], vec![], vec![], vec![])
+        };
+
+        let result = spec.validate("test_prov");
+        assert!(matches!(result, WResult::FatalErr(_)));
+    }
 }

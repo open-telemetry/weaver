@@ -535,6 +535,7 @@ mod tests {
     fn test_span_name_template_parsing() {
         let t = SpanNameTemplate::parse("{http.request.method} {url.template}").unwrap();
         assert_eq!(t.pattern, "{http.request.method} {url.template}");
+        assert_eq!(t.to_string(), "{http.request.method} {url.template}");
         assert_eq!(t.attributes, vec!["http.request.method", "url.template"]);
         assert_eq!(
             t.parts,
@@ -575,6 +576,15 @@ mod tests {
         let consecutive = SpanNameTemplate::parse("{a}{b}").unwrap();
         assert_eq!(consecutive.attributes, vec!["a", "b"]);
         assert_eq!(consecutive.parts.len(), 2);
+
+        assert_eq!(
+            SpanNameTemplate::try_from("{a}".to_owned()).unwrap(),
+            SpanNameTemplate::parse("{a}").unwrap()
+        );
+        assert_eq!(
+            SpanNameTemplate::try_from("{a}").unwrap(),
+            SpanNameTemplate::parse("{a}").unwrap()
+        );
     }
 
     #[test]
@@ -665,6 +675,20 @@ mod tests {
         // Completely empty attributes matches literal "HTTP" template
         let name = span_name.evaluate(|_| None);
         assert_eq!(name.as_deref(), Some("HTTP"));
+
+        let span_name_without_fallback = SpanName {
+            templates: vec![SpanNameTemplate::parse("{method}").unwrap()],
+            note: None,
+        };
+        assert_eq!(span_name_without_fallback.evaluate(|_| None), None);
+        assert_eq!(
+            span_name_without_fallback.evaluate_or_default("default", |_| None),
+            "default"
+        );
+        assert_eq!(
+            span_name_without_fallback.evaluate_or_default("default", |_| Some("GET")),
+            "GET"
+        );
     }
 
     #[test]
@@ -714,5 +738,29 @@ pattern: "{a}"
 attributes: ["b"]
 "#;
         assert!(serde_yaml::from_str::<SpanNameTemplate>(inconsistent_yaml).is_err());
+
+        let inconsistent_parts = r#"
+pattern: "{a}"
+parts:
+  - type: literal
+    value: "a"
+"#;
+        assert!(serde_yaml::from_str::<SpanNameTemplate>(inconsistent_parts).is_err());
+
+        let complete_object = r#"
+pattern: "{a}"
+attributes: ["a"]
+parts:
+  - type: attribute
+    attribute: "a"
+"#;
+        assert!(serde_yaml::from_str::<SpanNameTemplate>(complete_object).is_ok());
+        assert!(serde_yaml::from_str::<SpanNameTemplate>("{}").is_err());
+        assert!(serde_yaml::from_str::<SpanNameTemplate>("pattern: ''").is_err());
+
+        let invalid_type = serde_json::from_str::<SpanNameTemplate>("42").unwrap_err();
+        assert!(invalid_type
+            .to_string()
+            .contains("a span name template string or object"));
     }
 }
