@@ -96,7 +96,7 @@ pub(crate) fn command(
     cfg: Option<&ProjectWeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     info!(
         "Generating artifacts for the registry `{}`",
         cmd_config.registry.registry

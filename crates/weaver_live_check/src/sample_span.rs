@@ -9,17 +9,18 @@ use serde::{Deserialize, Serialize};
 use weaver_semconv::v1::group::SpanKindSpec;
 
 use crate::{
-    live_checker::LiveChecker, sample_attribute::SampleAttribute,
-    sample_instrumentation_scope::SampleInstrumentationScope, sample_resource::SampleResource,
-    Advisable, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
-    VersionedSignal,
+    advice::add_entity_association_findings, live_checker::LiveChecker, matcher::SampleMatch,
+    sample_attribute::SampleAttribute, sample_instrumentation_scope::SampleInstrumentationScope,
+    sample_resource::SampleResource, Advisable, Error, LiveCheckResult, LiveCheckRunner,
+    LiveCheckStatistics, Sample, SampleRef,
 };
 
 /// The status code of the span
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum StatusCode {
     /// The status is unset
+    #[default]
     Unset,
     /// The status is ok
     Ok,
@@ -28,7 +29,7 @@ pub enum StatusCode {
 }
 
 /// The status code and message of the span
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Status {
     /// The status code
     pub code: StatusCode,
@@ -97,21 +98,61 @@ impl LiveCheckRunner for SampleSpan {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        _parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
-        self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
-        self.span_events.run_live_check(
+        // A span has no parent sample, so it always matches on its own.
+        let sample_match = Rc::new(live_checker.match_for(self, None));
+        live_checker.record_match(&sample_match);
+        let mut result = self.run_advisors(
             live_checker,
             stats,
-            parent_group.clone(),
+            Some(Rc::clone(&sample_match)),
             parent_signal,
         )?;
+        add_entity_association_findings(
+            sample_match.signal.as_deref(),
+            &SampleRef::Span(self),
+            &mut result,
+            live_checker,
+            parent_signal,
+        );
+        sample_match.add_findings(
+            &SampleRef::Span(self),
+            &self.attributes,
+            &mut result,
+            live_checker,
+            parent_signal,
+        );
+        self.live_check_result = Some(result);
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
+        self.attributes.run_live_check(
+            live_checker,
+            stats,
+            Some(Rc::clone(&sample_match)),
+            parent_signal,
+        )?;
+        // A span event and a span link match on their own, so they do not get
+        // the span's match. They do get its resource and scope, which only the
+        // span holds.
+        let resource = self.resource.clone();
+        let instrumentation_scope = self.instrumentation_scope.clone();
+        for span_event in &mut self.span_events {
+            span_event.resource.clone_from(&resource);
+            span_event
+                .instrumentation_scope
+                .clone_from(&instrumentation_scope);
+        }
+        for span_link in &mut self.span_links {
+            span_link.resource.clone_from(&resource);
+            span_link
+                .instrumentation_scope
+                .clone_from(&instrumentation_scope);
+        }
+        self.span_events
+            .run_live_check(live_checker, stats, None, parent_signal)?;
         self.span_links
-            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
+            .run_live_check(live_checker, stats, None, parent_signal)?;
         Ok(())
     }
 }
@@ -129,6 +170,12 @@ pub struct SampleSpanEvent {
     /// Event timestamp from the OTLP span in RFC3339 format.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timestamp: Option<String>,
+    /// Resource of the span this event belongs to (not serialized)
+    #[serde(skip)]
+    pub resource: Option<Rc<SampleResource>>,
+    /// Instrumentation scope of the span this event belongs to (not serialized)
+    #[serde(skip)]
+    pub instrumentation_scope: Option<Rc<SampleInstrumentationScope>>,
 }
 
 impl Advisable for SampleSpanEvent {
@@ -146,14 +193,28 @@ impl LiveCheckRunner for SampleSpanEvent {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        _parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
+        let sample_match = Rc::new(live_checker.match_for(self, None));
+        live_checker.record_match(&sample_match);
+        let mut result = self.run_advisors(
+            live_checker,
+            stats,
+            Some(Rc::clone(&sample_match)),
+            parent_signal,
+        )?;
+        sample_match.add_findings(
+            &SampleRef::SpanEvent(self),
+            &self.attributes,
+            &mut result,
+            live_checker,
+            parent_signal,
+        );
+        self.live_check_result = Some(result);
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
-        Ok(())
+            .run_live_check(live_checker, stats, Some(sample_match), parent_signal)
     }
 }
 
@@ -171,6 +232,12 @@ pub struct SampleSpanLink {
     /// Linked span ID from the OTLP span.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub span_id: Option<String>,
+    /// Resource of the span this link belongs to (not serialized)
+    #[serde(skip)]
+    pub resource: Option<Rc<SampleResource>>,
+    /// Instrumentation scope of the span this link belongs to (not serialized)
+    #[serde(skip)]
+    pub instrumentation_scope: Option<Rc<SampleInstrumentationScope>>,
 }
 
 impl Advisable for SampleSpanLink {
@@ -188,13 +255,27 @@ impl LiveCheckRunner for SampleSpanLink {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        _parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
+        let sample_match = Rc::new(live_checker.match_for(self, None));
+        live_checker.record_match(&sample_match);
+        let mut result = self.run_advisors(
+            live_checker,
+            stats,
+            Some(Rc::clone(&sample_match)),
+            parent_signal,
+        )?;
+        sample_match.add_findings(
+            &SampleRef::SpanLink(self),
+            &self.attributes,
+            &mut result,
+            live_checker,
+            parent_signal,
+        );
+        self.live_check_result = Some(result);
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
-        Ok(())
+            .run_live_check(live_checker, stats, Some(sample_match), parent_signal)
     }
 }

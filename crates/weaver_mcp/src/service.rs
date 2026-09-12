@@ -80,6 +80,13 @@ impl WeaverMcpService {
     fn create_live_checker(&self) -> Result<LiveChecker, String> {
         let mut live_checker =
             LiveChecker::new(Arc::clone(&self.versioned_registry), default_advisors());
+        // The tool checks a bare attribute name. On a v2 registry, that needs a
+        // search of the whole registry.
+        if live_checker.is_v2() {
+            live_checker
+                .search_all_attributes()
+                .map_err(|error| error.to_string())?;
+        }
 
         // Add RegoAdvisor for policy-based advice
         let rego_advisor = RegoAdvisor::new(

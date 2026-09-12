@@ -1,0 +1,9 @@
+# `registry_path` is resolved against the process working directory, which for
+# this crate's tests is `crates/weaver_live_check`.
+name: acme-matchers
+description: Exhaustive matcher fixture for live-check end-to-end tests.
+schema_url: https://acme.example.com/matchers/1.0.0
+dependencies:
+  - name: acme-shared
+    schema_url: https://acme.example.com/shared/1.0.0
+    registry_path: data/model/matchers_dep

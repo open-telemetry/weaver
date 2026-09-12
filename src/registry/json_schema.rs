@@ -15,6 +15,7 @@ use weaver_config::{
     AuthEntry, DiagnosticsConfig, LiveCheckConfig, PolicyConfig, RegistryConfig, ResolveConfig,
     TemplateConfig, WeaverConfig,
 };
+use weaver_forge::config::Params;
 use weaver_forge::v1::registry::ResolvedRegistry;
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_semconv::semconv::SemConvSpecV1;
@@ -122,8 +123,9 @@ pub(crate) fn command(
         info!("Writing JSON schema to `{}`", p.display());
     }
     let target = OutputTarget::from_optional_file(args.output.as_ref());
-    let mut output = OutputProcessor::new("json", "json_schema", None, None, target)
-        .map_err(DiagnosticMessages::from)?;
+    let mut output =
+        OutputProcessor::new("json", "json_schema", None, None, target, Params::default())
+            .map_err(DiagnosticMessages::from)?;
     output
         .generate(&json_schema)
         .map_err(DiagnosticMessages::from)?;

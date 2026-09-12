@@ -186,6 +186,8 @@ impl OtlpIterator {
                             }
                             for event in span.events {
                                 let mut sample_event = SampleSpanEvent {
+                                    resource: None,
+                                    instrumentation_scope: None,
                                     name: event.name,
                                     attributes: Vec::new(),
                                     live_check_result: None,
@@ -200,6 +202,8 @@ impl OtlpIterator {
                             }
                             for link in span.links {
                                 let mut sample_link = SampleSpanLink {
+                                    resource: None,
+                                    instrumentation_scope: None,
                                     attributes: Vec::new(),
                                     live_check_result: None,
                                     trace_id: non_empty(trace_id_hex(&link.trace_id)),

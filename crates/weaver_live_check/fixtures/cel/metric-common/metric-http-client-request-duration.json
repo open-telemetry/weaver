@@ -1,0 +1,14 @@
+{
+  "name": "http.client.request.duration",
+  "instrument": "histogram",
+  "unit": "s",
+  "data_points": [
+    {
+      "attributes": [
+        { "name": "http.request.method", "value": "GET" }
+      ],
+      "value": 0.09
+    }
+  ],
+  "live_check_result": null
+}

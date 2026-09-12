@@ -56,7 +56,11 @@ pub trait CliOverrides {
     const SUBCOMMAND: &'static str;
 
     /// Extract the relevant section from a loaded `WeaverConfig`.
-    fn extract_config(weaver_config: &WeaverConfig) -> Self::Config;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the section is present but does not deserialize.
+    fn extract_config(weaver_config: &WeaverConfig) -> Result<Self::Config, crate::ConfigError>;
 
     /// Apply CLI arg overrides onto the config. Only `Some` values overwrite.
     fn apply_overrides(&self, config: &mut Self::Config);

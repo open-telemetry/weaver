@@ -70,7 +70,7 @@ pub(crate) fn command(
     cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     let output = cmd_config.config.output;
     if std::env::args()
         .any(|a| a == "--resolved-schema-uri" || a.starts_with("--resolved-schema-uri="))

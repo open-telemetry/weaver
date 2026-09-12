@@ -1,0 +1,12 @@
+{
+  "name": "checkout payment",
+  "kind": "internal",
+  "status": { "code": "error", "message": "card declined" },
+  "attributes": [
+    { "name": "myapp.checkout.id", "value": "3f9a1c" },
+    { "name": "error.type", "value": "card_declined" }
+  ],
+  "span_events": [],
+  "span_links": [],
+  "live_check_result": null
+}

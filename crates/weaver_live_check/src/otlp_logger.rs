@@ -915,6 +915,8 @@ mod tests {
         );
 
         let event_sample = SampleSpanEvent {
+            resource: None,
+            instrumentation_scope: None,
             name: "test".to_owned(),
             attributes: vec![],
             live_check_result: None,
@@ -926,6 +928,8 @@ mod tests {
         );
 
         let link_sample = SampleSpanLink {
+            resource: None,
+            instrumentation_scope: None,
             attributes: vec![],
             live_check_result: None,
             trace_id: None,

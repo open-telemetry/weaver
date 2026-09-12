@@ -1,0 +1,7 @@
+{
+  "attributes": [
+    { "name": "service.name", "value": "myapp.checkout" },
+    { "name": "service.version", "value": "1.4.0" }
+  ],
+  "live_check_result": null
+}

@@ -62,7 +62,7 @@ pub(crate) fn command(
     cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     info!("Loading semantic convention registry for MCP server");
 
     let mut diag_msgs = DiagnosticMessages::empty();

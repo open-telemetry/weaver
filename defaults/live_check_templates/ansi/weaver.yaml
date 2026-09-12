@@ -3,6 +3,11 @@ whitespace_control:
   trim_blocks: true
   lstrip_blocks: true
 
+params:
+  # Label each finding with its id instead of its level. The color still
+  # comes from the level. Override with `--param show_finding_id=true`.
+  show_finding_id: false
+
 templates:
   - template: live_check.txt.j2
     filter: .
