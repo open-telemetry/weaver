@@ -161,10 +161,11 @@ When `templates` are not specified on a span, code generation cannot infer how t
 ### 4. Live-Check Validation (Planned)
 
 In `weaver_live_check` (planned for follow-up PR), validating incoming spans against the formal specification:
-1. Find the first template in `templates` where all attributes are present on the sample span (and not equal to `_OTHER` for enum attributes).
-2. Format that template with the sample's attribute values -> `expected_name`.
-3. If a template matched: verify `sample.name == expected_name`.
-4. If mismatched, emit an advisory with actual vs expected span name.
+
+1. Evaluate templates in their declared order.
+2. Select the first template whose referenced attributes are present and non-empty on the sample span (and not equal to `_OTHER` for enum attributes). This template is authoritative; later templates are not considered.
+3. Format the selected template with the sample's attribute values -> `expected_name`.
+4. Verify `sample.name == expected_name`; if mismatched, emit an advisory with the actual and expected span names.
 
 ### 5. Validation Policies
 
