@@ -315,7 +315,11 @@ pub(crate) fn command(
             .map_err(DiagnosticMessages::from_error)?;
 
     let policy_path = advice_policies_dir.as_ref().map(VirtualDirectory::path_buf);
-    let data_pattern = advice_data_dir.as_ref().map(|v| v.path_str().to_owned());
+    let data_pattern = advice_data_dir
+        .as_ref()
+        .map(|v| v.path_str().map(ToOwned::to_owned))
+        .transpose()
+        .map_err(DiagnosticMessages::from_error)?;
 
     let rego_advisor = RegoAdvisor::new(
         &live_checker,

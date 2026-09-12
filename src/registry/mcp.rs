@@ -98,7 +98,11 @@ pub(crate) fn command(
 
     let mcp_config = weaver_mcp::McpConfig {
         advice_policies: advice_policies_dir.as_ref().map(VirtualDirectory::path_buf),
-        advice_data: advice_data_dir.as_ref().map(|v| v.path_str().to_owned()),
+        advice_data: advice_data_dir
+            .as_ref()
+            .map(|v| v.path_str().map(ToOwned::to_owned))
+            .transpose()
+            .map_err(DiagnosticMessages::from_error)?,
         advice_preprocessor: cmd_config.config.advice_preprocessor,
         namespace_separator: cmd_config.config.namespace_separator,
     };

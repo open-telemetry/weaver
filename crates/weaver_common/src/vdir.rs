@@ -1125,10 +1125,18 @@ impl VirtualDirectory {
         self.path.clone()
     }
 
-    /// Returns the local filesystem path as a string slice (or empty string if invalid UTF-8).
-    #[must_use]
-    pub fn path_str(&self) -> &str {
-        self.path.to_str().unwrap_or_default()
+    /// Returns the local filesystem path as a string slice.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidVirtualDirectory`] if the path is not valid UTF-8.
+    pub fn path_str(&self) -> Result<&str, Error> {
+        self.path
+            .to_str()
+            .ok_or_else(|| Error::InvalidVirtualDirectory {
+                path: self.vdir_path.clone(),
+                error: "resolved path is not valid UTF-8".to_owned(),
+            })
     }
 
     /// Returns the original string representation that was used to create this `VirtualDirectory`.
@@ -1175,8 +1183,44 @@ impl VirtualDirectory {
 mod tests {
     use crate::test::ServeStaticFiles;
     use crate::vdir::{VirtualDirectory, VirtualDirectoryPath};
-    use crate::Error::GitError;
-    use std::path::Path;
+    use crate::Error::{GitError, InvalidVirtualDirectory};
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn test_optional_virtual_directory() {
+        assert!(VirtualDirectory::try_from_opt(None).unwrap().is_none());
+
+        let vdir_path = VirtualDirectoryPath::LocalFolder {
+            path: "path/to/registry".to_owned(),
+        };
+        let vdir = VirtualDirectory::try_from_opt(Some(&vdir_path))
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(vdir.path(), Path::new("path/to/registry"));
+        assert_eq!(vdir.path_buf(), PathBuf::from("path/to/registry"));
+        assert_eq!(vdir.path_str().unwrap(), "path/to/registry");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_non_utf8_virtual_directory_path() {
+        use std::ffi::OsString;
+        use std::os::unix::ffi::OsStringExt;
+        use std::sync::Arc;
+
+        let vdir = VirtualDirectory {
+            vdir_path: "invalid-path".to_owned(),
+            path: PathBuf::from(OsString::from_vec(vec![0xff])),
+            tmp_dir: Arc::new(None),
+        };
+
+        assert!(matches!(
+            vdir.path_str(),
+            Err(InvalidVirtualDirectory { path, error })
+                if path == "invalid-path" && error == "resolved path is not valid UTF-8"
+        ));
+    }
 
     #[test]
     fn test_virtual_directory_path() {
