@@ -1,5 +1,5 @@
-# The v1 mirror of `data/model/matchers`, holding the same attribute and signal
-# names so the same telemetry can be checked against both.
+# The v1 mirror of `data/model/matchers`. It holds the same attribute and
+# signal names, so the same telemetry can be checked against both.
 groups:
   - id: registry.acme
     type: attribute_group

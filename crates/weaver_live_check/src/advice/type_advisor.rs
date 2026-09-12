@@ -457,7 +457,7 @@ pub(crate) fn add_entity_association_findings(
         .resource()
         .map(|resource| resource.attributes.as_slice())
         .unwrap_or(&[]);
-    // A v1 group and a v2 signal hold the same expression in two shapes.
+    // A v1 group and a v2 signal store the same expression in different shapes.
     let findings = match signal {
         Some(VersionedSignal::Group(group)) => check_entity_associations(
             &group.entity_associations,

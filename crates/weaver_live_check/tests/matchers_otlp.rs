@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! End-to-end matcher coverage.
+//! End-to-end tests for matchers.
 //!
-//! Emits telemetry with the OpenTelemetry SDK into a `weaver registry
-//! live-check` child process reading OTLP, and asserts the matcher features
-//! from the report the child returns on `POST /stop`.
+//! Each test emits telemetry with the OpenTelemetry SDK to a `weaver registry
+//! live-check` child process that reads OTLP. The child returns its report on
+//! `POST /stop`, and the test asserts on that report.
 //!
-//! The fixture registry is `data/model/matchers`, which depends on
-//! `data/model/matchers_dep`, and the matchers are `data/matchers/livecheck.toml`.
+//! The fixture registry is `data/model/matchers`. It depends on
+//! `data/model/matchers_dep`. The matchers are in `data/matchers/livecheck.toml`.
 //!
 //! To read the report on a terminal instead, start a receiver from this
-//! directory, because the fixture's dependency path is relative to the working
+//! directory. The fixture's dependency path is relative to the working
 //! directory:
 //!
 //! ```text
@@ -21,15 +21,15 @@
 //!   --inactivity-timeout 300
 //! ```
 //!
-//! The timeout matters: the receiver stops after 10 seconds of quiet by
-//! default, which is not long enough to start the emitter by hand.
+//! The timeout matters. By default the receiver stops after 10 seconds without
+//! input, which is not long enough to start the emitter by hand.
 //!
-//! Add `--search-all-attributes` to resolve `acme.tenant.id`, and
-//! `acme.tenant.tag.region` through the template the dependency declares.
-//! Without it both report `missing_attribute`, because the catalog holds this
-//! registry's attributes alone.
+//! Add `--search-all-attributes` to resolve `acme.tenant.id` and
+//! `acme.tenant.tag.region`. The dependency declares both, the second through
+//! a template. Without the flag, both report `missing_attribute`, because the
+//! catalog holds only this registry's attributes.
 //!
-//! then send it this telemetry, and stop it to print the report:
+//! Then send the telemetry and stop the receiver to print the report:
 //!
 //! ```text
 //! cargo nextest run -p weaver_live_check emit_to_a_running_live_check \
@@ -80,8 +80,9 @@ async fn matchers_check_telemetry_from_the_sdk() {
     the_statistics_count_every_finding(&report, &findings);
 }
 
-/// A matcher's `signal` renames what a metric or log is counted under, so the
-/// registry signal takes the coverage and the wire name is not a stranger.
+/// A matcher's `signal` decides which registry signal a metric or log counts
+/// toward. The registry signal takes the coverage, and the name on the wire is
+/// not reported as unknown.
 fn the_coverage_credits_the_signal_the_match_resolved(report: &Value) {
     let statistics = &report["statistics"];
     for (seen, unseen, signal, wire_name) in [
@@ -111,7 +112,7 @@ fn the_coverage_credits_the_signal_the_match_resolved(report: &Value) {
     }
 }
 
-/// The per-attribute advisors read the definition the match resolved, and the
+/// The attribute advisors read the definition that the match resolved. The
 /// requirement levels come from the signal the matcher chose.
 fn the_advisors_run_on_the_matched_definitions(findings: &[&Value]) {
     for (id, key) in [
@@ -128,7 +129,7 @@ fn the_advisors_run_on_the_matched_definitions(findings: &[&Value]) {
             "acme.checkout.error.code",
         ),
     ] {
-        // Panics when the finding is not there, which is the assertion.
+        // A missing finding makes this panic. That panic is the assertion.
         let _ = finding_for(findings, id, key);
     }
 }
@@ -159,7 +160,7 @@ fn the_entity_associations_are_checked_against_the_resource(findings: &[&Value])
         assert_eq!(finding["signal_name"], "acme.cart.items");
     }
 
-    // A span checks its associations too, against the same resource.
+    // A span also checks its entity associations against the same resource.
     let on_a_span = finding_for(
         findings,
         "entity_required_attribute_not_present",
@@ -217,14 +218,15 @@ fn a_matcher_signal_drives_the_metric_checks(findings: &[&Value]) {
         assert_eq!(found.len(), 1, "got: {found:?}");
         assert_eq!(found[0]["signal_name"], "acme.checkout.attempts");
     }
-    // Only the natural signal declares the coupon, so this is unexpected
-    // against the one the matcher named instead.
+    // Only the natural signal declares the coupon. The matcher named a
+    // different signal, so the coupon is unexpected there.
     let coupon = finding_for(findings, "unexpected_attribute", "acme.checkout.coupon");
     assert_eq!(coupon["signal_name"], "acme.checkout.attempts");
 }
 
-/// A finding a match raises is added after the advisors have run, so it is the
-/// one a sample type can leave out of the statistics.
+/// A match raises its findings after the advisors run. A sample type can
+/// forget to count those findings, so this compares the statistics with every
+/// finding in the report.
 fn the_statistics_count_every_finding(report: &Value, findings: &[&Value]) {
     let mut counted = BTreeMap::new();
     for finding in findings {
@@ -350,20 +352,21 @@ fn the_findings_name_the_telemetry_that_caused_them(findings: &[&Value]) {
 
 fn the_definition_used_comes_from_the_signal_then_the_first_group(report: &Value) {
     let checkout = span(report, "checkout");
-    // The span refines it, and the catalog definition says `catalog`.
+    // The span refines this attribute. The catalog definition is annotated
+    // `catalog`, so `span` shows the refinement won.
     assert_eq!(
         annotation_source(checkout, "acme.checkout.stage"),
         Some("span")
     );
-    // Both attribute groups declare it, and the matcher lists `acme.session`
-    // first.
+    // Both attribute groups declare this attribute. The matcher lists
+    // `acme.session` first, so its definition wins.
     assert_eq!(
         annotation_source(checkout, "acme.session.id"),
         Some("group-session")
     );
 
-    // The metric declares no annotation, so it keeps the catalog's, not the
-    // span's.
+    // The metric declares no annotation of its own, so the catalog's applies,
+    // not the span's.
     let metric = report["samples"]
         .as_array()
         .expect("the report lists the samples")
@@ -389,8 +392,8 @@ fn a_scope_takes_attribute_groups(report: &Value) {
         Some("group-customer")
     );
 
-    // The group gives the scope an expected set, so an attribute outside it is
-    // unexpected.
+    // The group gives the scope an expected set of attributes. An attribute
+    // outside that set is unexpected.
     let mut findings = Vec::new();
     for scope in &scopes {
         collect_findings(scope, &mut findings);
@@ -421,7 +424,7 @@ fn every_sample_records_its_match(report: &Value) {
     assert!(unmatched["signal"].is_null(), "got: {unmatched}");
     assert!(unmatched["attribute_groups"].is_null(), "got: {unmatched}");
 
-    // The first matcher to set a signal wins; the later one is a conflict.
+    // The first matcher to set a signal wins. The later one is a conflict.
     let conflicted = &span(report, "cart")["live_check_result"]["match_info"];
     assert_eq!(conflicted["signal_matcher"], "acme.cart.by-attribute");
     let ignored: Vec<&str> = conflicted["entries"]
@@ -433,7 +436,8 @@ fn every_sample_records_its_match(report: &Value) {
         .collect();
     assert_eq!(ignored, ["acme.cart.conflict"]);
 
-    // The signal a matcher named, not the one the metric's own name gives.
+    // This is the signal the matcher named, not the one the metric's own name
+    // resolves to.
     let renamed = &report["samples"]
         .as_array()
         .expect("the report lists the samples")
@@ -444,8 +448,8 @@ fn every_sample_records_its_match(report: &Value) {
     assert_eq!(renamed["signal"], "acme.checkout.duration");
     assert_eq!(renamed["signal_matcher"], "acme.metric.mismatched");
 
-    // A span event resolves a signal only through a matcher, so one no matcher
-    // claimed expects a signal it does not have.
+    // A span event resolves a signal only through a matcher. No matcher claimed
+    // this one, so it expects a signal and has none.
     let note = &span(report, "checkout")["span_events"]
         .as_array()
         .expect("the span events")
@@ -455,7 +459,8 @@ fn every_sample_records_its_match(report: &Value) {
     assert_eq!(note["signal_expected"], true);
     assert_eq!(note["unmatched"], true);
 
-    // A log with no event name is not a typed signal, so having none is no gap.
+    // A log with no event name is not a typed signal, so it is not expected to
+    // have one.
     let untyped = log_match_info(report, "");
     assert_eq!(untyped["signal_expected"], false);
     assert_eq!(untyped["unmatched"], true);
@@ -479,8 +484,9 @@ fn log_match_info<'a>(report: &'a Value, event_name: &str) -> &'a Value {
 
 fn span_events_and_links_match_on_their_own(report: &Value) {
     let checkout = span(report, "checkout");
-    // The span resolves these two from its own refinement and from
-    // `acme.session`, so neither source comes from the span's match.
+    // The span itself resolves these two attributes from its own refinement and
+    // from `acme.session`. The event and link resolve them from their own
+    // matches, so the sources differ.
     assert_eq!(
         annotation_source(&checkout["span_events"][0], "acme.checkout.stage"),
         Some("group-step")
@@ -520,7 +526,8 @@ async fn searching_all_attributes_names_the_registry_that_defines_one() {
     );
 
     // `acme.scope.acme` names no attribute groups, so the scope has no expected
-    // set: falling through to the dependency is what makes this unexpected.
+    // set. These attributes resolve only through the dependency, which is what
+    // makes them unexpected.
     let mut on_the_scope: Vec<&str> = unexpected
         .iter()
         .filter(|finding| {
@@ -542,8 +549,8 @@ async fn searching_all_attributes_names_the_registry_that_defines_one() {
     // The second extends a template the dependency declares.
     assert_eq!(on_the_scope, ["acme.tenant.id", "acme.tenant.tag.region"]);
 
-    // Resolving it through the template is what puts it on that list, rather
-    // than reporting it as missing.
+    // The template resolves `acme.tenant.tag.region`, which is why it is in
+    // that list and not reported as missing.
     let all = findings(&report);
     let _ = finding_for(&all, "template_attribute", "acme.tenant.tag.region");
     let missing: Vec<&str> = with_id(&all, "missing_attribute")
@@ -558,8 +565,8 @@ async fn searching_all_attributes_names_the_registry_that_defines_one() {
     }
 }
 
-/// Without `--search-all-attributes` the dependency's template is out of
-/// reach, so the key it declares has nothing to resolve against.
+/// Without `--search-all-attributes`, the dependency's template is not
+/// searched, so the key it declares has nothing to resolve to.
 #[tokio::test(flavor = "multi_thread")]
 #[cfg_attr(tarpaulin, ignore)]
 async fn a_template_in_a_dependency_needs_search_all_attributes() {
@@ -568,8 +575,8 @@ async fn a_template_in_a_dependency_needs_search_all_attributes() {
     let _ = finding_for(&all, "missing_attribute", "acme.tenant.tag.region");
 }
 
-/// Emits the same telemetry into a live-check started by hand, for reading the
-/// report on a terminal. See this file's module docs for the two commands.
+/// Emits the same telemetry to a live-check started by hand, so the report can
+/// be read on a terminal. The module docs give the two commands.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs a live-check receiver started by hand"]
 async fn emit_to_a_running_live_check() {

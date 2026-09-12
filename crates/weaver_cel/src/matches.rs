@@ -4,13 +4,13 @@
 
 use cel::common::ast::{Expr, IdedExpr, LiteralValue};
 
-/// The name a CEL expression calls it by.
+/// The name of the function in a CEL expression.
 const MATCHES: &str = "matches";
 
 /// The literal patterns an expression passes to `matches`.
 ///
-/// A pattern built at run time is not visible here, so it stays a runtime
-/// error.
+/// A pattern that the expression builds at run time is not visible here. An
+/// invalid one stays a runtime error.
 pub(crate) fn literal_patterns(expression: &IdedExpr) -> Vec<&str> {
     let mut patterns = Vec::new();
     collect(expression, &mut patterns);

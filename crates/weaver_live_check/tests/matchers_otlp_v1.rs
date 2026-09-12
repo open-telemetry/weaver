@@ -3,8 +3,8 @@
 //! The v1 mirror of `matchers_otlp`.
 //!
 //! Sends the same telemetry to a v1 registry with the same attribute and signal
-//! names, and asserts v1 checks every attribute against the registry as a whole
-//! and gains none of the matcher behaviour.
+//! names. Asserts that v1 checks every attribute against the whole registry and
+//! that matchers have no effect on it.
 //!
 //! To read the report on a terminal instead, start a receiver from this
 //! directory:
@@ -16,8 +16,8 @@
 //!   --inactivity-timeout 300
 //! ```
 //!
-//! then send it the same telemetry the v2 test emits, and stop it to print the
-//! report:
+//! Then send the same telemetry the v2 test emits, and stop the receiver to
+//! print the report:
 //!
 //! ```text
 //! cargo nextest run -p weaver_live_check emit_to_a_running_live_check \
@@ -74,11 +74,11 @@ fn the_attribute_advisors_run_on_every_sample(findings: &[&Value]) {
         ("missing_attribute", "acme.tenant.id"),
         ("missing_attribute", "telemetry.sdk.language"),
     ] {
-        // Panics when the finding is not there, which is the assertion.
+        // A missing finding makes this panic. That panic is the assertion.
         let _ = finding_for(findings, id, key);
     }
 
-    // Declared by the registry, so checked and clean.
+    // The registry declares this attribute, so it is checked and has no findings.
     let missing: Vec<&str> = with_id(findings, "missing_attribute")
         .iter()
         .filter_map(|finding| finding["context"]["attribute_key"].as_str())
@@ -88,7 +88,7 @@ fn the_attribute_advisors_run_on_every_sample(findings: &[&Value]) {
     }
 }
 
-/// A metric and a log reach their signal by name, as on v2.
+/// A metric and a log resolve their signal by name, as in v2.
 fn the_signal_lookups_are_by_name(findings: &[&Value]) {
     let mut missing_metrics: Vec<&str> = with_id(findings, "missing_metric")
         .iter()
@@ -156,7 +156,7 @@ fn no_v2_matcher_behaviour_appears(report: &Value, findings: &[&Value]) {
         .expect("the statistics list the matchers");
     assert!(matchers.is_empty(), "got: {matchers:?}");
 
-    // A v1 registry takes no matchers, so no sample has a match.
+    // A v1 registry accepts no matchers, so no sample has a match.
     let mut samples = 0;
     for sample in report["samples"]
         .as_array()

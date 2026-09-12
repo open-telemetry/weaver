@@ -65,13 +65,13 @@ impl LiveCheckRunner for SampleLog {
         } else {
             live_checker.find_event(&self.event_name)
         };
-        // The match comes before the advisors, so a matcher's `signal` is what
-        // the attributes are checked against.
+        // The match runs before the advisors, so they check the attributes
+        // against the matcher's `signal`.
         let sample_match = live_checker.match_for(self, natural);
         live_checker.record_match(&sample_match);
         let semconv_event = sample_match.signal.clone();
-        // Coverage is credited to the signal the match resolved, which a
-        // matcher can rename, except for a v1 group whose id is not the
+        // Coverage counts against the signal the match resolved, which a
+        // matcher can change. A v1 group is the exception: its id is not the
         // event name.
         let coverage_name = match semconv_event.as_deref() {
             Some(VersionedSignal::Event(event)) => event.name.to_string(),

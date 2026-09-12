@@ -141,9 +141,9 @@ impl ForgeResolvedRegistry {
         })
     }
 
-    /// Every registry this one depends on, breadth first over
-    /// `dependency_graph`. A registry the graph does not reach comes last, in
-    /// keyed order.
+    /// Every registry this one depends on, nearest first. The order is a
+    /// breadth-first walk of `dependency_graph`. A registry the graph does not
+    /// reach comes last, in key order.
     #[must_use]
     pub fn dependencies_nearest_first(&self) -> Vec<(&SchemaUrl, &ForgeDependency)> {
         let mut ordered = Vec::with_capacity(self.dependencies.len());
@@ -1917,7 +1917,7 @@ mod tests {
             .collect()
     }
 
-    /// `fork` declares middle before branch, and both reach leaf.
+    /// The `fork` fixture declares middle before branch, and both depend on leaf.
     #[test]
     fn dependencies_nearest_first_walks_the_graph_by_distance() {
         let mut resolver =

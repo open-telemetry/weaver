@@ -1,5 +1,5 @@
-# A resource has no name and no signal, so this can only add an attribute
-# group.
+# A resource has no name and no signal, so the matcher can only add an
+# attribute group.
 [[live-check.matchers]]
 id = "myapp.resource"
 sample_type = "resource"

@@ -178,7 +178,7 @@ impl LiveCheckRunner for SampleAttribute {
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
-        // v1 searches the whole registry; v2 only when asked.
+        // A v1 registry is always searched in full. A v2 registry only when asked.
         let search_registry = live_checker.is_searching_all_attributes() || !live_checker.is_v2();
         // A signal's or group's copy of an attribute holds its refinements.
         let semconv_attribute = parent

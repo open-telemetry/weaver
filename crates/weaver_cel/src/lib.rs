@@ -2,9 +2,9 @@
 
 //! CEL expressions for weaver.
 //!
-//! Compilation, inspection and evaluation only: no telemetry types and no
-//! weaver dependencies. The crate that owns the samples implements
-//! [`Bindings`].
+//! This crate compiles, inspects and evaluates expressions. It has no
+//! telemetry types and no weaver dependencies. The crate that owns the
+//! samples implements [`Bindings`].
 
 mod bindings;
 mod expression;
@@ -14,13 +14,14 @@ mod matches;
 pub use bindings::Bindings;
 pub use expression::{Expression, Referenced, Scope};
 
-/// Re-exported so implementors of [`Bindings`] need no direct `cel` dependency.
+/// Re-exported so that implementors of [`Bindings`] do not need a direct `cel`
+/// dependency.
 pub use cel::{Context, Value};
 
 /// Errors from compiling or running an expression.
 ///
-/// Each variant carries the expression source text; the caller adds its
-/// origin.
+/// Each variant carries the source text of the expression. The caller adds
+/// where the expression came from.
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
 pub enum Error {
@@ -53,12 +54,12 @@ pub enum Error {
         error: String,
     },
 
-    /// The expression returned something other than a bool.
+    /// The expression returned a value that is not a bool.
     #[error("The expression `{expression}` returned {value_type}, not a bool")]
     NotBoolean {
         /// Source text of the expression.
         expression: String,
-        /// Type the expression returned.
+        /// The type the expression returned.
         value_type: String,
     },
 }

@@ -6,14 +6,14 @@ All notable changes to this project will be documented in this file.
 
 - Live-check reports now retain OTLP context on their samples, including span and log trace IDs, timestamps, span-event and link context, and metric data-point timing. OTLP finding logs are correlated with their source spans. ([#1749](https://github.com/open-telemetry/weaver/pull/1749) by @clarsen)
 - Live-check matchers ([#1721](https://github.com/open-telemetry/weaver/pull/1721) by @jerbly)
-  - Added `[[live-check.matchers]]`, which picks the v2 signal and attribute groups a sample is checked against with a CEL expression. v2 registries only.
-  - A matcher's `attribute_groups` says which attributes are permitted on a sample: their definitions are used for the attribute checks, but one missing from the sample is not reported. Name a group in the new `strict_attribute_groups` to enforce its requirement levels; a signal's own attributes are always enforced.
-  - New findings: `kind_mismatch` and `unexpected_attribute`. A v2 metric or log raises `unexpected_attribute` against its natural signal or against the matcher's where one sets `signal`.
-  - By default a v2 registry compares an attribute with the signal and attribute groups its match holds. However, when `search_all_attributes` is used, it searches the whole registry and its dependencies. v1 is unchanged.
-  - Every sample's result holds a `match_info` giving the signal, the attribute groups and what each matcher that applied contributed.
-  - Statistics count what each matcher matched and errored on, and a matcher that matched nothing is reported as a warning.
-  - Added `-D`/`--param` and `--params` to pass parameters to the output template. The ansi format reads `show_finding_id`, which labels a finding with its id rather than its level.
-  - Added [Matchers](crates/weaver_live_check/docs/matchers.md), a guide with a worked example for each sample type, and corrected the config sections in the live-check and config READMEs from `[live_check]` to `[live-check]` — the underscore form was silently ignored.
+  - Added `[[live-check.matchers]]`. A matcher uses a CEL expression to select samples, and names the v2 signal and attribute groups they are checked against. v2 registries only.
+  - A matcher's `attribute_groups` lists the attribute groups allowed on a sample. Their definitions are used for the attribute checks, but an attribute missing from the sample is not reported. To enforce a group's requirement levels, name it in the new `strict_attribute_groups`. A signal's own attributes are always enforced.
+  - New findings: `kind_mismatch` and `unexpected_attribute`. A v2 metric or log raises `unexpected_attribute` against the signal its name resolves to, or against the matcher's signal when a matcher sets `signal`.
+  - By default, a v2 registry compares an attribute with the signal and attribute groups of its match. With `search_all_attributes`, it also searches the whole registry and its dependencies. v1 is unchanged.
+  - Every sample's result holds a `match_info` with the signal, the attribute groups, and what each applied matcher contributed.
+  - Statistics count the samples each matcher matched and errored on. A matcher that matched nothing is reported as a warning.
+  - Added `-D`/`--param` and `--params` to pass parameters to the output template. The ansi format reads `show_finding_id`, which labels a finding with its id instead of its level.
+  - Added [Matchers](crates/weaver_live_check/docs/matchers.md), a guide with a worked example for each sample type. Corrected the config section in the live-check and config READMEs from `[live_check]` to `[live-check]`. The underscore form was silently ignored.
 
 # [0.26.1] - 2026-09-02
 

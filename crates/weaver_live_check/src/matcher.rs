@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Matchers from the live-check config, compiled and checked at startup.
+//! Matchers from the live-check config. They are compiled and resolved at
+//! startup, then applied to each sample.
 
 use std::rc::Rc;
 
@@ -93,7 +94,7 @@ pub struct Matcher {
 pub struct Matchers {
     matchers: Vec<Matcher>,
     /// For each sample type, the variables its matchers read. A sample binds
-    /// these once and every matcher of that type evaluates against them.
+    /// these once, and every matcher of that type evaluates against them.
     referenced: HashMap<SampleType, Referenced>,
 }
 
@@ -101,9 +102,9 @@ impl Matchers {
     /// Compiles the matchers and resolves the names they use against the
     /// registry.
     ///
-    /// Each `when` is compiled and checked to only read variables its sample
-    /// type has. Each `signal` and attribute group is looked up in the
-    /// registry, so matching a sample needs no further lookups.
+    /// Each `when` is compiled and checked to read only variables that its
+    /// sample type has. Each `signal` and attribute group is looked up in the
+    /// registry once, so matching a sample needs no more lookups.
     ///
     /// # Errors
     ///
@@ -168,13 +169,13 @@ impl Matchers {
 
     /// Decides which signal and attribute groups to check a sample against.
     ///
-    /// `natural` is the signal the sample's own name resolves to, if any. The
-    /// first applicable matcher that names a `signal` replaces it. A later one
-    /// is recorded in [`SampleMatch::conflicts`] and otherwise ignored.
+    /// `natural` is the signal that the sample's own name resolves to, if any.
+    /// The first applied matcher that names a `signal` replaces it. A later
+    /// one is recorded in [`SampleMatch::conflicts`] and otherwise ignored.
     ///
-    /// Attribute groups are collected from every applicable matcher in
-    /// declaration order. A group named more than once is kept once, and it
-    /// is strict if any matcher named it as strict.
+    /// Attribute groups are collected from every applied matcher in
+    /// declaration order. A group named more than once is kept once. It is
+    /// strict if any matcher named it as strict.
     pub fn match_for(
         &self,
         sample: &dyn Matchable,
@@ -226,7 +227,7 @@ impl Matchers {
         sample_match
     }
 
-    /// Describes a match by name, for the sample's result.
+    /// Describes a match by name, for the sample's `match_info`.
     #[must_use]
     pub fn match_info(&self, sample_match: &SampleMatch, signal_expected: bool) -> MatchInfo {
         MatchInfo {
@@ -309,7 +310,7 @@ impl Matcher {
         Ok(())
     }
 
-    /// Every attribute group the matcher names, with whether it is strict.
+    /// Every attribute group the matcher names, and whether it is strict.
     /// Strict groups come first.
     fn named_attribute_groups(&self) -> impl Iterator<Item = (&String, bool)> {
         self.strict_attribute_groups
@@ -318,8 +319,8 @@ impl Matcher {
             .chain(self.attribute_groups.iter().map(|id| (id, false)))
     }
 
-    /// Looks up `signal` in the registry. `None` when the matcher names no
-    /// signal.
+    /// Looks up `signal` in the registry. Returns `None` when the matcher
+    /// names no signal.
     fn resolve_signal(
         &self,
         live_checker: &LiveChecker,
@@ -346,7 +347,7 @@ impl Matcher {
     /// Whether the `when` expression is true for this sample.
     ///
     /// A `when` that fails to evaluate does not match. The error is returned
-    /// so the caller can record it.
+    /// so that the caller can record it.
     fn applies_to(&self, scope: &Scope) -> Result<bool, weaver_cel::Error> {
         let Some(when) = &self.when else {
             return Ok(true);
@@ -368,8 +369,8 @@ impl Matcher {
         self.matched
     }
 
-    /// How many samples had a `when` that failed, with the first error
-    /// message. `None` when none failed.
+    /// How many samples had a `when` that failed, and the first error
+    /// message. Returns `None` when none failed.
     #[must_use]
     pub fn errors(&self) -> Option<(u64, &str)> {
         let message = self.first_error.as_deref()?;
@@ -377,7 +378,7 @@ impl Matcher {
     }
 }
 
-/// An attribute group a match holds, and whether its requirement levels are
+/// An attribute group in a match, and whether its requirement levels are
 /// enforced.
 #[derive(Debug, Clone)]
 pub struct MatchedGroup {
@@ -387,7 +388,7 @@ pub struct MatchedGroup {
     pub strict: bool,
 }
 
-/// What a sample matched: the signal and attribute groups it is checked
+/// What a sample matched: the signal and attribute groups to check it
 /// against, and the matchers that chose them.
 #[derive(Debug, Default)]
 pub struct SampleMatch {
@@ -397,18 +398,18 @@ pub struct SampleMatch {
     /// The attribute groups added to the match, in priority order.
     pub attribute_groups: Vec<MatchedGroup>,
 
-    /// The matcher that set `signal`. `None` when `signal` is the natural
-    /// match.
+    /// The matcher that set `signal`. `None` when the sample's own name
+    /// resolved it.
     pub signal_matcher: Option<String>,
 
-    /// Matchers whose `signal` was ignored because `signal_matcher` came first.
+    /// Matchers whose `signal` was ignored because `signal_matcher` set it first.
     pub conflicts: Vec<String>,
 
     /// The matchers that applied, as indices into the configured matchers.
     pub applied: Vec<usize>,
 
-    /// The matchers whose `when` errored on this sample, as indices into the
-    /// configured matchers, with the message.
+    /// The matchers whose `when` failed on this sample, as indices into the
+    /// configured matchers, with the error message.
     pub errors: Vec<(usize, String)>,
 
     /// Whether any matcher targets this sample's type.
@@ -416,19 +417,19 @@ pub struct SampleMatch {
 }
 
 impl SampleMatch {
-    /// Whether a matcher targets this sample's type and none claimed it.
+    /// Whether a matcher targets this sample's type and none applied.
     ///
-    /// A sample type no matcher is written for is never unmatched.
+    /// A sample type that no matcher targets is never unmatched.
     #[must_use]
     pub fn is_unmatched(&self) -> bool {
         self.targeted && self.applied.is_empty() && self.signal.is_none()
     }
 
-    /// The definition this match holds for an attribute, from the signal or
-    /// one of the attribute groups.
+    /// The definition of an attribute in this match, from the signal or one
+    /// of the attribute groups.
     ///
-    /// An exact key wins over a template, the signal over the groups, and an
-    /// earlier group over a later one.
+    /// An exact key wins over a template. The signal wins over the groups. An
+    /// earlier group wins over a later one.
     #[must_use]
     pub fn find_attribute(
         &self,
@@ -461,11 +462,11 @@ impl SampleMatch {
         self.find_attribute(live_checker, key).is_some()
     }
 
-    /// Whether the match can say which attributes belong on the sample.
+    /// Whether the match knows which attributes belong on the sample.
     ///
-    /// A v2 signal can, whether a matcher or the sample's own name reached it.
-    /// A v1 group cannot: its attributes are checked one key at a time against
-    /// the whole registry.
+    /// A v2 signal does, whether a matcher or the sample's own name resolved
+    /// it. A v1 group does not. Its attributes are checked one key at a time
+    /// against the whole registry.
     fn holds_attribute_definitions(&self) -> bool {
         !self.attribute_groups.is_empty()
             || matches!(
@@ -478,9 +479,9 @@ impl SampleMatch {
             )
     }
 
-    /// Adds the findings this match raises to a sample's result.
+    /// Adds the findings from this match to a sample's result.
     ///
-    /// `unmatched_sample` is only raised for a sample type some matcher
+    /// `unmatched_sample` is raised only for a sample type that some matcher
     /// targets. See [`SampleMatch::is_unmatched`].
     pub fn add_findings(
         &self,
@@ -494,10 +495,10 @@ impl SampleMatch {
         self.set_match_info(sample_ref, result, live_checker);
     }
 
-    /// Adds the findings this match raises about a set of attributes.
+    /// Adds the findings from this match about a set of attributes.
     ///
-    /// A metric's attributes are on its data points, so it calls this once per
-    /// point.
+    /// A metric's attributes are on its data points, so a metric calls this
+    /// once per point.
     pub fn add_attribute_findings(
         &self,
         sample_ref: &SampleRef<'_>,
@@ -513,14 +514,14 @@ impl SampleMatch {
                 if self.expects(live_checker, &attribute.name) {
                     continue;
                 }
-                // The base definition names the schema to reference or import
-                // the attribute from.
+                // The base definition names the schema that the attribute can
+                // be referenced or imported from.
                 let found = live_checker
                     .find_base_attribute(&attribute.name)
                     .or_else(|| live_checker.find_base_template(&attribute.name));
-                // Falling through to a dependency's definition is itself
-                // unexpected, so it is reported even for a match that names no
-                // expected set of its own.
+                // An attribute that only a dependency declares is unexpected
+                // by itself. It is reported even when the match has no set of
+                // expected attributes.
                 let only_a_dependency_declares_it = found.is_some_and(|base| !base.declared_here);
                 if !holds_definitions && !only_a_dependency_declares_it {
                     continue;
@@ -555,9 +556,9 @@ impl SampleMatch {
                 result.add_advice(finding, live_checker.finding_modifier.as_ref(), sample_ref);
             }
         }
-        // The type advisor checks the signal's own attributes, so a group's
-        // copy of a key the signal or an earlier group declares is skipped
-        // here: first mention wins, as in `find_attribute`.
+        // The type advisor checks the signal's own attributes. So a group's
+        // copy of a key that the signal or an earlier group declares is
+        // skipped here. The first mention wins, as in `find_attribute`.
         let mut checked: HashSet<&str> = HashSet::new();
         for matched in self
             .attribute_groups
@@ -579,8 +580,8 @@ impl SampleMatch {
 
     /// Whether the matched signal declares this exact key.
     ///
-    /// A template the signal declares does not count: an exact key wins over
-    /// a template, so the group's copy is the one that applies.
+    /// A template that the signal declares does not count. An exact key wins
+    /// over a template, so the group's copy is the one that applies.
     fn signal_declares(&self, live_checker: &LiveChecker, key: &str) -> bool {
         self.signal
             .as_deref()
@@ -590,7 +591,7 @@ impl SampleMatch {
 
     /// Records what this match compared the sample with.
     ///
-    /// A v1 registry takes no matchers, so it reports nothing here.
+    /// A v1 registry has no matchers, so it records nothing.
     pub fn set_match_info(
         &self,
         sample_ref: &SampleRef<'_>,
@@ -633,7 +634,7 @@ pub struct MatchInfo {
     /// The signal, by span type, metric name, event name or v1 group id.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signal: Option<String>,
-    /// The matcher whose `signal` won, absent when the sample's own name
+    /// The matcher whose `signal` won. Absent when the sample's own name
     /// resolved it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signal_matcher: Option<String>,
@@ -643,13 +644,13 @@ pub struct MatchInfo {
     /// The attribute groups whose requirement levels are enforced.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub strict_attribute_groups: Vec<String>,
-    /// What each matcher that applied contributed, in declaration order.
+    /// What each applied matcher contributed, in declaration order.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub entries: Vec<MatchEntry>,
-    /// Whether a matcher targets this sample's type and none claimed it.
+    /// Whether a matcher targets this sample's type and none applied.
     pub unmatched: bool,
-    /// Whether this sample type resolves a signal at all, so that having none
-    /// is a gap rather than the shape of the sample.
+    /// Whether this sample type can resolve a signal. When it can, a missing
+    /// signal is a gap. When it cannot, a missing signal is normal.
     pub signal_expected: bool,
 }
 
@@ -675,8 +676,8 @@ pub enum SignalKind {
 }
 
 impl SignalKind {
-    /// What a matcher of this sample type may name in `signal`, or `None` when
-    /// `signal` is not allowed.
+    /// What a matcher of this sample type can name in `signal`. Returns
+    /// `None` when `signal` is not allowed.
     #[must_use]
     pub fn for_sample_type(sample_type: SampleType) -> Option<Self> {
         match sample_type {
@@ -687,7 +688,7 @@ impl SignalKind {
         }
     }
 
-    /// How the kind reads in an error message.
+    /// The words for this kind in an error message.
     fn described(self) -> &'static str {
         match self {
             Self::SpanType => "a span type",
@@ -697,7 +698,8 @@ impl SignalKind {
     }
 }
 
-/// Compiles one `when` and checks the variables it reads.
+/// Compiles one `when` and checks that its sample type has every variable
+/// it reads.
 fn compile_when(config: &MatcherConfig, when: &str) -> Result<Expression, Error> {
     let expression =
         Expression::compile(when).map_err(|error| Error::InvalidMatcherExpression {
@@ -799,8 +801,8 @@ mod tests {
         )
     }
 
-    /// The fixture registry, with the span declaring `attributes` and the
-    /// advisors in `advisors`.
+    /// The fixture registry, with `attributes` on the span and `advisors` as
+    /// the advisors.
     fn v2_live_checker_with(
         attributes: Vec<SpanAttribute>,
         advisors: Vec<Box<dyn Advisor>>,
@@ -808,8 +810,8 @@ mod tests {
         v2_live_checker_full(Vec::new(), attributes, Vec::new(), advisors)
     }
 
-    /// The attributes on the fixture span sample, so a test that is not
-    /// about `unexpected_attribute` does not raise it.
+    /// The attributes on the fixture span sample. A test that is not about
+    /// `unexpected_attribute` declares these so that it does not raise it.
     fn sample_span_attributes() -> Vec<SpanAttribute> {
         vec![
             span_attribute(
@@ -823,8 +825,8 @@ mod tests {
         ]
     }
 
-    /// The fixture registry, with `catalog` as the registry attributes and the
-    /// span declaring `attributes`.
+    /// The fixture registry, with `catalog` as the registry attributes and
+    /// `attributes` on the span.
     fn v2_live_checker_full(
         catalog: Vec<V2Attribute>,
         attributes: Vec<SpanAttribute>,
@@ -832,9 +834,9 @@ mod tests {
         advisors: Vec<Box<dyn Advisor>>,
     ) -> LiveChecker {
         let mut registry = registry();
-        // Neither `Attribute` nor `SpanAttribute` can be deserialized: both
-        // combine `deny_unknown_fields` with `flatten`, which serde does not
-        // support.
+        // Neither `Attribute` nor `SpanAttribute` can be deserialized. Both
+        // combine `deny_unknown_fields` with `flatten`, and serde does not
+        // support that combination.
         registry.registry.attributes = catalog;
         if let Some(span) = registry.registry.spans.first_mut() {
             span.attributes = attributes;
@@ -1023,7 +1025,7 @@ when = 'temperature > 3'
         );
     }
 
-    /// A resource has neither variable, unlike every signal sample.
+    /// A resource has neither variable. Every signal sample has both.
     #[test]
     fn resource_and_instrumentation_scope_are_rejected_on_a_resource() {
         for when in [
@@ -1154,7 +1156,7 @@ signal = "myapp.absent"
         assert_eq!(expected, "a span type");
     }
 
-    /// A span type is not an event name, so the kind of lookup matters.
+    /// A span type is not an event name, so the kind of `signal` matters.
     #[test]
     fn a_signal_of_the_wrong_kind_is_rejected() {
         let error = check(
@@ -1190,7 +1192,7 @@ attribute_groups = ["myapp.common", "myapp.absent"]
         );
     }
 
-    /// A resource, scope, span link and profile have no signal to name.
+    /// A resource, a scope, a span link and a profile have no signal to name.
     #[test]
     fn a_signal_on_a_sample_type_without_one_is_rejected() {
         for sample_type in ["resource", "instrumentation_scope", "span_link", "profile"] {
@@ -1230,7 +1232,7 @@ sample_type = "span"
         );
     }
 
-    /// Without matchers a v1 registry is untouched.
+    /// Without matchers, a v1 registry is accepted.
     #[test]
     fn no_matchers_passes_against_a_v1_registry() {
         let matchers = Matchers::compile(&[], &v1_live_checker()).expect("nothing to check");
@@ -1265,7 +1267,7 @@ sample_type = "span"
             matchers.match_for(sample, None)
         }
 
-        /// A live checker holding the matchers, as the sample path uses it.
+        /// A live checker that holds the matchers, as the sample path uses it.
         fn checker_with(toml_str: &str) -> LiveChecker {
             let mut live_checker = v2_live_checker();
             live_checker
@@ -1274,7 +1276,7 @@ sample_type = "span"
             live_checker
         }
 
-        /// Compares a sample and records the errors, as the sample path does.
+        /// Matches a sample and records the result, as the sample path does.
         fn compare_and_record(live_checker: &mut LiveChecker, sample: &SampleSpan) -> SampleMatch {
             let sample_match = live_checker.match_for(sample, None);
             live_checker.record_match(&sample_match);
@@ -1420,7 +1422,7 @@ attribute_groups = ["myapp.common"]
             assert!(sample_match.attribute_groups.is_empty());
         }
 
-        /// A guarded expression the lint passes can still error on a sample.
+        /// An expression that passes the lint can still fail on a sample.
         #[test]
         fn a_when_that_errors_does_not_match_and_is_counted() {
             let mut live_checker = checker_with(ERRORING);
@@ -1463,7 +1465,7 @@ attribute_groups = ["myapp.common"]
             assert_eq!(only_matcher(&live_checker).matched(), 0);
         }
 
-        /// A `when` that errors is not a match.
+        /// A `when` that fails is not a match.
         #[test]
         fn a_matcher_that_only_errors_counts_no_matches() {
             let mut live_checker = checker_with(ERRORING);
@@ -1493,7 +1495,7 @@ attribute_groups = ["myapp.common"]
             assert!(stats.matchers[0].first_error.is_none());
         }
 
-        /// The match a config produces for a span sample.
+        /// The `match_info` that a config produces for a span sample.
         fn match_info(toml_str: &str, sample: &SampleSpan) -> MatchInfo {
             let mut live_checker = v2_live_checker_with(sample_span_attributes(), Vec::new());
             live_checker
@@ -1518,7 +1520,7 @@ when = 'name == "no-such-span"'
             assert!(info.entries.is_empty());
         }
 
-        /// A span reaches no signal by name, so it has nothing to check against.
+        /// A span resolves no signal by name, so it has nothing to check against.
         #[test]
         fn no_matchers_raises_no_unmatched_sample() {
             let live_checker = v2_live_checker();
@@ -1537,7 +1539,7 @@ when = 'name == "no-such-span"'
             assert!(result.all_advice.is_empty());
         }
 
-        /// The event a log's name resolves to declares what belongs on it.
+        /// The event that a log's name resolves to declares which attributes belong on it.
         #[test]
         fn a_natural_event_match_still_raises_unexpected_attribute() {
             let live_checker = v2_live_checker();
@@ -1678,7 +1680,7 @@ signal = "myapp.checkout"
             assert!(ids.is_empty(), "{ids:?}");
         }
 
-        /// The fixture span signal is `internal`.
+        /// The fixture span signal has kind `internal`.
         #[test]
         fn a_span_kind_that_differs_from_the_signal_is_reported() {
             let mut span = checkout_span();
@@ -1725,7 +1727,7 @@ signal = "myapp.checkout"
                 .collect()
         }
 
-        /// The base definition stays stable, so only the refinement can raise this.
+        /// The base definition is stable, so only the refinement can raise this.
         #[test]
         fn a_refined_stability_is_reported_while_the_base_is_stable() {
             let ids = check_attributes(
@@ -1744,7 +1746,7 @@ signal = "myapp.checkout"
             assert_eq!(ids, ["not_stable"]);
         }
 
-        /// The catalog holds it, but only the signal's own copy is compared.
+        /// The catalog declares the key, but only the signal's own attributes are compared.
         #[test]
         fn an_attribute_the_signal_does_not_declare_is_missing() {
             let ids = check_attributes(
@@ -1892,7 +1894,7 @@ signal = "myapp.checkout"
                 .collect()
         }
 
-        /// Reported once, as `find_attribute` resolves it once.
+        /// Reported once, because `find_attribute` resolves the key once.
         #[test]
         fn the_signal_wins_over_a_group_that_declares_the_same_key() {
             let mut live_checker = v2_live_checker_full(
@@ -2002,8 +2004,8 @@ attribute_groups = ["myapp.common"]
             assert!(ids.is_empty(), "{ids:?}");
         }
 
-        /// An attribute only a dependency declares is checked against that
-        /// definition, not just named.
+        /// An attribute that only a dependency declares is checked against that
+        /// definition, not only named in a finding.
         #[test]
         fn a_dependency_definition_is_used_for_the_checks() {
             let mut dependency = dependency_registry();
@@ -2057,7 +2059,7 @@ attribute_groups = ["myapp.common"]
                 .collect()
         }
 
-        /// Two registries declaring the same key are both named.
+        /// When two registries declare the same key, both are named.
         #[test]
         fn every_schema_that_declares_the_attribute_is_named() {
             let mut dependency = dependency_registry();
@@ -2076,7 +2078,7 @@ attribute_groups = ["myapp.common"]
             );
         }
 
-        /// This registry's own definition wins over a dependency's.
+        /// The definition in this registry wins over one in a dependency.
         #[test]
         fn a_base_definition_in_this_registry_is_found_too() {
             let mut live_checker = v2_live_checker_with_dependency(dependency_registry());
@@ -2109,7 +2111,7 @@ attribute_groups = ["myapp.common"]
             assert_eq!(ids, ["unexpected_attribute"]);
         }
 
-        /// A key extending a dependency's template resolves to it.
+        /// A key that extends a template from a dependency resolves to that template.
         #[test]
         fn a_template_in_a_dependency_declares_a_key_that_extends_it() {
             let mut dependency = dependency_registry();
@@ -2136,7 +2138,7 @@ attribute_groups = ["myapp.common"]
             assert_eq!(ids, ["template_attribute", "not_stable"]);
         }
 
-        /// The longest template an extending key matches wins.
+        /// When a key matches several templates, the longest template wins.
         #[test]
         fn the_longest_base_template_that_the_key_extends_wins() {
             let mut dependency = dependency_registry();
@@ -2154,7 +2156,7 @@ attribute_groups = ["myapp.common"]
             assert_eq!(found.attribute.name(), "myapp.checkout.");
         }
 
-        /// A key extending a template this registry declares is not a dependency's.
+        /// A key that extends a template of this registry does not come from a dependency.
         #[test]
         fn a_key_extending_a_template_declared_here_is_not_from_a_dependency() {
             let mut dependency = dependency_registry();
@@ -2171,8 +2173,8 @@ attribute_groups = ["myapp.common"]
                 .find_base_template("myapp.checkout.stage")
                 .expect("this registry declares the template it extends");
             assert!(found.declared_here);
-            // No matcher, so the span holds no attribute definitions of its
-            // own and only a dependency's definition would be reported.
+            // There is no matcher, so the span has no attribute definitions of
+            // its own. Only an attribute from a dependency would be reported.
             let ids = check_findings(&mut live_checker);
             assert!(ids.is_empty(), "got: {ids:?}");
         }
@@ -2188,8 +2190,8 @@ attribute_groups = ["myapp.common"]
                 .is_none());
         }
 
-        /// A v1 group has no attribute list to compare with, so v1 keeps
-        /// checking each attribute against the whole registry.
+        /// A v1 group has no attribute list to compare with, so v1 checks each
+        /// attribute against the whole registry.
         #[test]
         fn a_v1_signal_raises_no_unexpected_attribute() {
             let live_checker = v1_live_checker();
@@ -2211,8 +2213,8 @@ attribute_groups = ["myapp.common"]
             assert!(result.all_advice.is_empty());
         }
 
-        /// An unmatched sample has no signal to resolve against, so without
-        /// the base definitions nothing declares its attributes.
+        /// An unmatched sample has no signal. Without the base definitions,
+        /// nothing declares its attributes.
         #[test]
         fn an_unmatched_span_still_checks_its_attributes() {
             let ids = unmatched_attribute_findings(false);
@@ -2265,7 +2267,7 @@ when = 'name == "no-such-span"'
                 .collect()
         }
 
-        /// An unmatched sample has nothing to be unexpected against.
+        /// An unmatched sample has no expected set, so nothing is unexpected.
         #[test]
         fn an_unmatched_span_raises_no_unexpected_attribute() {
             let mut live_checker =

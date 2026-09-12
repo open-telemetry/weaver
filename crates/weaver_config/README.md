@@ -112,7 +112,7 @@ Aliases `[resolve.overrides]` and `[resolve.dependency_overrides]` are also supp
 
 ### `WeaverConfig`
 
-The top-level config type. Typed fields cover the cross-cutting sections (`registry`, `policy`, `diagnostics`, `resolve`, `template`, `auth`). Per-command sections are stored as a raw `toml::Table` via `#[serde(flatten)]` and deserialized on demand by `command_config<C>(section)`.
+The top-level config type. Typed fields hold the cross-cutting sections (`registry`, `policy`, `diagnostics`, `resolve`, `template`, `auth`). Per-command sections are kept as a raw `toml::Table` through `#[serde(flatten)]`. `command_config<C>(section)` deserializes one when a command asks for it.
 
 ### `CliOverrides` trait
 

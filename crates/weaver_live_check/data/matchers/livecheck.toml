@@ -1,6 +1,7 @@
 #:schema ../../../../schemas/weaver-config.json
-# Matcher configuration for the `matchers_otlp` end-to-end test. Every matcher
-# here is asserted on, either by its match count or by the findings it causes.
+# Matcher configuration for the `matchers_otlp` end-to-end test. The test
+# asserts on every matcher here, by its match count or by the findings it
+# causes.
 
 # Spans
 
@@ -21,7 +22,7 @@ signal = "acme.checkout"
 id = "acme.span.on-error"
 sample_type = "span"
 when = 'status.code == "error"'
-# The one strict matcher here; the rest leave their groups permitted.
+# The only strict matcher here. The others leave their groups permitted.
 strict_attribute_groups = ["acme.customer"]
 
 [["live-check".matchers]]
@@ -126,14 +127,15 @@ id = "acme.scope.acme"
 sample_type = "instrumentation_scope"
 when = 'name.startsWith("acme.")'
 
-# An instrumentation scope cannot name a signal, but takes attribute groups.
+# An instrumentation scope cannot name a signal, but it can take attribute
+# groups.
 [["live-check".matchers]]
 id = "acme.scope.checkout"
 sample_type = "instrumentation_scope"
 when = 'name == "acme.checkout"'
 attribute_groups = ["acme.customer"]
 
-# Names a signal the sample's own name does not resolve to.
+# Names a signal that differs from the one the sample's own name resolves to.
 [["live-check".matchers]]
 id = "acme.metric.renamed"
 sample_type = "metric"

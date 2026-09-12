@@ -164,7 +164,7 @@ pub enum ConfigError {
     /// A command section is present but does not deserialize.
     #[error("Invalid `{section}` section in the config: {reason}")]
     Section {
-        /// The command section, e.g. `live-check`.
+        /// The command section, for example `live-check`.
         section: String,
         /// The error message.
         reason: String,

@@ -10,15 +10,16 @@ use cel::{Context, Env, Program, Value};
 use crate::matches::literal_patterns;
 use crate::{free_variables::free_variables, Bindings, Error};
 
-/// The CEL standard environment, built once because `Context::default`
-/// rebuilds the whole function table.
+/// The CEL standard environment. It is built once, because `Context::default`
+/// builds the whole function table on every call.
 static STDLIB: OnceLock<Arc<Env>> = OnceLock::new();
 
 fn stdlib() -> Arc<Env> {
     Arc::clone(STDLIB.get_or_init(|| Arc::new(Env::stdlib())))
 }
 
-/// Variables bound once, for evaluating several expressions against one sample.
+/// Variables bound once, so that several expressions can be evaluated against
+/// one sample.
 pub struct Scope {
     context: Context<'static>,
 }
@@ -33,7 +34,7 @@ impl Scope {
     }
 }
 
-/// A compiled expression. Compiled once, evaluated per sample.
+/// A compiled expression. It is compiled once and evaluated once per sample.
 #[derive(Debug)]
 pub struct Expression {
     source: String,
@@ -48,8 +49,8 @@ impl Expression {
             expression: source.to_owned(),
             error: error.to_string(),
         })?;
-        // The interpreter only compiles a pattern when it runs, so check the
-        // literal ones now. The compiled regex itself is not kept.
+        // The interpreter compiles a pattern only when it runs. Check the
+        // literal patterns now instead. The compiled regex is not kept.
         for pattern in literal_patterns(program.expression()) {
             if let Err(error) = regex::Regex::new(pattern) {
                 return Err(Error::BadPattern {
@@ -83,18 +84,18 @@ impl Expression {
 
     /// Evaluates the expression against a set of bindings.
     ///
-    /// Reading an absent map key or an unbound variable is an error, not
-    /// false.
+    /// A read of a map key that is absent, or of a variable that is not
+    /// bound, is an error. It does not evaluate to false.
     pub fn evaluate(&self, bindings: &dyn Bindings) -> Result<bool, Error> {
         self.evaluate_in(&Scope::new(&self.referenced, bindings))
     }
 
-    /// Evaluates the expression against variables a scope already bound.
+    /// Evaluates the expression against variables that a scope has bound.
     ///
     /// # Errors
     ///
-    /// Returns an error when the expression fails to evaluate, or returns a
-    /// value that is not a bool.
+    /// Returns an error when the expression fails to evaluate, or when it
+    /// returns a value that is not a bool.
     pub fn evaluate_in(&self, scope: &Scope) -> Result<bool, Error> {
         let value = self
             .program
@@ -113,14 +114,15 @@ impl Expression {
     }
 }
 
-/// The variables an expression reads, collected when it is compiled.
+/// The variables an expression reads. They are collected when the expression
+/// is compiled.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Referenced {
     variables: BTreeSet<String>,
 }
 
 impl Referenced {
-    /// The variables read by any of these expressions.
+    /// The variables that any of these expressions read.
     #[must_use]
     pub fn union<'a>(expressions: impl Iterator<Item = &'a Expression>) -> Self {
         Self {
@@ -149,7 +151,8 @@ mod tests {
     use super::*;
     use crate::Scope;
 
-    /// A stand-in sample: a name, some attributes, and a record of what was bound.
+    /// A test sample: a name, some attributes, and a record of which variables
+    /// were bound.
     struct TestBindings {
         name: &'static str,
         attributes: Vec<(&'static str, &'static str)>,
@@ -205,13 +208,14 @@ mod tests {
 
     #[test]
     fn a_literal_pattern_that_is_not_a_valid_regex_is_rejected_at_compile_time() {
-        // A lookbehind, which the `regex` crate does not support.
+        // The `regex` crate does not support a lookbehind.
         let error = Expression::compile(r#"name.matches("^(?<=cart)payment$")"#)
             .expect_err("it does not compile");
         assert!(matches!(error, Error::BadPattern { .. }), "{error}");
     }
 
-    /// A pattern built at run time is not visible when compiling.
+    /// A pattern that the expression builds at run time is not visible at
+    /// compile time.
     #[test]
     fn a_computed_pattern_still_errors_at_evaluation() {
         let error = evaluate(r#"name.matches("^(?<=" + "cart)payment$")"#).expect_err("it errors");
@@ -238,7 +242,7 @@ mod tests {
         );
     }
 
-    /// Error absorption in `&&` is commutative.
+    /// The guard works on either side of the `&&`.
     #[test]
     fn the_guard_works_from_either_side() {
         assert!(
@@ -247,7 +251,7 @@ mod tests {
         );
     }
 
-    /// Absorption only applies while the other side is false.
+    /// The error is only ignored when the other side is false.
     #[test]
     fn a_guard_on_another_key_still_errors() {
         let error =
@@ -256,7 +260,7 @@ mod tests {
         assert!(matches!(error, Error::EvalFailed { .. }), "{error}");
     }
 
-    /// An unbound variable errors in the same way as an absent key.
+    /// A variable that is not bound errors in the same way as an absent key.
     #[test]
     fn an_unbound_variable_errors() {
         let error = evaluate(r#"unit == "s""#).expect_err("it errors");

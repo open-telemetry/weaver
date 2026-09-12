@@ -100,7 +100,7 @@ impl LiveCheckRunner for SampleSpan {
         _parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        // Nothing nests a span, so it always matches on its own.
+        // A span has no parent sample, so it always matches on its own.
         let sample_match = Rc::new(live_checker.match_for(self, None));
         live_checker.record_match(&sample_match);
         let mut result = self.run_advisors(
@@ -131,9 +131,9 @@ impl LiveCheckRunner for SampleSpan {
             Some(Rc::clone(&sample_match)),
             parent_signal,
         )?;
-        // A span event and a span link match on their own, so the span's match
-        // is not passed down. Only the span holds the resource and scope they
-        // read.
+        // A span event and a span link match on their own, so they do not get
+        // the span's match. They do get its resource and scope, which only the
+        // span holds.
         let resource = self.resource.clone();
         let instrumentation_scope = self.instrumentation_scope.clone();
         for span_event in &mut self.span_events {

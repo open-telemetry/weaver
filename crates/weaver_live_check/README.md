@@ -81,9 +81,9 @@ Options for OTLP ingest:
 
 ## Matchers
 
-Before a sample can be checked it has to be paired with a signal in the registry. A metric has its name and an event has its `event_name`, so those resolve themselves. A span name is free-form and a resource is a bare list of attributes, so nothing in them says which definition they were meant to be.
+Before live-check can check a sample, it has to pair the sample with a signal in the registry. A metric has its name and an event has its `event_name`, so those resolve themselves. A span name is free-form and a resource is a bare set of attributes, so nothing in them says which definition they belong to.
 
-A matcher supplies that missing identifier. You describe a signature your telemetry sets, and name the signal, or the attribute groups, that a matching sample should be compared with:
+A matcher supplies that missing identifier. You describe a signature that your telemetry has, and you name the signal, or the attribute groups, to compare a matching sample with:
 
 ```toml
 [[live-check.matchers]]
@@ -94,11 +94,11 @@ signal = "myapp.checkout"
 attribute_groups = ["myapp.common"]
 ```
 
-`when` is a [CEL](https://cel.dev) expression, compiled and linted at startup. A matcher never changes the checks themselves, only what a sample is compared with. v2 registries only.
+`when` is a [CEL](https://cel.dev) expression. Live-check compiles and lints it at startup. A matcher never changes the checks themselves. It only decides what a sample is compared with. Matchers need a v2 registry.
 
-`attribute_groups` says which attributes are _permitted_ on the sample: they are checked against their definitions, but nothing is reported for one missing from the sample. Use `strict_attribute_groups` for a group whose requirement levels should be enforced.
+`attribute_groups` names the attributes that are _permitted_ on the sample. They are checked against their definitions, but an attribute missing from the sample is not reported. Use `strict_attribute_groups` for a group whose requirement levels must be enforced.
 
-See [Matchers](docs/matchers.md) for the guide: worked examples for each sample type, the expression variables, resolution order and diagnostics.
+See [Matchers](docs/matchers.md) for the guide: worked examples for each sample type, the expression variables, the resolution order and the diagnostics.
 
 ## Advisors
 
@@ -246,7 +246,7 @@ otlp_logs_stdout = false
 
 Every key is optional: omit anything you want to leave at its default (or set on the CLI).
 
-`search_all_attributes` and the `[[live-check.matchers]]` array also live in this section. See [Matchers](docs/matchers.md).
+`search_all_attributes` and the `[[live-check.matchers]]` array also go in this section. See [Matchers](docs/matchers.md).
 
 ### Finding filters
 

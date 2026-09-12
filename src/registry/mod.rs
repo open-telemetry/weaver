@@ -73,7 +73,7 @@ pub enum Error {
     #[error("Failed to write output file `{path}`: {error}")]
     OutputWrite { path: PathBuf, error: String },
 
-    /// A matcher's `when` errored while running.
+    /// A matcher's `when` failed to evaluate on at least one sample.
     #[error("Matcher `{id}` errored on {count} sample(s). First error: {error}")]
     #[diagnostic(severity(warning))]
     MatcherFailedAtRuntime {

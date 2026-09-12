@@ -271,7 +271,7 @@
           "default": "otlp"
         },
         "matchers": {
-          "description": "Rules that assign a registry signal, additional attribute groups, or\nboth, to samples that cannot be identified by name alone. Evaluated in\nthe order they are declared.",
+          "description": "Rules that give a sample a registry signal, extra attribute groups, or\nboth, when its name alone does not identify it. Live-check evaluates\nthem in the order they are declared.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/MatcherConfig"
@@ -300,7 +300,7 @@
           "default": null
         },
         "search_all_attributes": {
-          "description": "Search the base attribute definitions of the registry and its\ndependencies for an attribute that is on neither the matched signal nor\nits attribute groups. An `unexpected_attribute` finding for one found\nthis way names every schema url that declares it. Without this, the\nattributes of a sample that matched no matcher are not checked at all.",
+          "description": "Also search the base attribute definitions of the registry and its\ndependencies for an attribute that is not on the matched signal or its\nattribute groups. When an attribute is found this way, its\n`unexpected_attribute` finding names every schema url that declares\nit. Without this setting, the attributes of a sample that matched no\nmatcher are not checked.",
           "type": "boolean",
           "default": false
         },
@@ -755,11 +755,11 @@
       }
     },
     "MatcherConfig": {
-      "description": "A rule that assigns a registry signal, additional attribute groups, or\nboth, to samples that cannot be identified by name alone.\n\nThe rule applies to a sample of kind `sample_type` when `when` evaluates to\ntrue. `signal` replaces the signal the sample would otherwise be checked\nagainst; the attribute groups are checked in addition to it. All are looked\nup in the registry at startup.",
+      "description": "A rule that gives a sample a registry signal, extra attribute groups, or\nboth, when its name alone does not identify it.\n\nThe rule applies to a sample of kind `sample_type` when `when` is true.\n`signal` replaces the signal the sample is otherwise checked against. The\nattribute groups are checked in addition to the signal. Every name is\nlooked up in the registry at startup.",
       "type": "object",
       "properties": {
         "attribute_groups": {
-          "description": "Registry attribute groups permitted on the sample, in priority order,\nwithout enforcing their requirement levels.",
+          "description": "Registry attribute groups whose attributes are allowed on the sample,\nin priority order. Their requirement levels are not enforced.",
           "type": "array",
           "default": [],
           "items": {
@@ -767,7 +767,7 @@
           }
         },
         "id": {
-          "description": "Identifies the matcher in findings, statistics and coverage.",
+          "description": "The name used for this matcher in findings, statistics and coverage.",
           "type": "string"
         },
         "sample_type": {
@@ -790,7 +790,7 @@
           }
         },
         "when": {
-          "description": "A CEL expression that must evaluate to true for the matcher to apply.\nWhen unset, the matcher applies to every sample of its `sample_type`.",
+          "description": "A CEL expression. The matcher applies when it is true. When unset, the\nmatcher applies to every sample of its `sample_type`.",
           "type": [
             "string",
             "null"

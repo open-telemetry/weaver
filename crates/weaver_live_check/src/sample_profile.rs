@@ -127,7 +127,7 @@ mod tests {
     }
 
     /// The OpenTelemetry SDKs cannot emit profiles yet, so this is the only
-    /// coverage of a profile matcher.
+    /// test of a profile matcher.
     #[test]
     fn a_profile_matcher_matches_a_profile() {
         let mut profile = make_profile();

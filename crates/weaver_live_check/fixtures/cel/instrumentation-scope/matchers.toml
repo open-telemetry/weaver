@@ -1,4 +1,4 @@
-# A scope has a name, so no signature is needed.
+# A scope has a name, so the `when` can use it directly.
 [[live-check.matchers]]
 id = "myapp.scope"
 sample_type = "instrumentation_scope"

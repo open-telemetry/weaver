@@ -1,5 +1,5 @@
-# No `when`, so this applies to every log. Logs have no signal, so it can
-# only add an attribute group.
+# No `when`, so this applies to every log. A log has no signal, so the
+# matcher can only add an attribute group.
 [[live-check.matchers]]
 id = "myapp.common.log"
 sample_type = "log"

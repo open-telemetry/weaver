@@ -206,8 +206,8 @@ when = '"myapp.checkout.id" in attributes'"#,
     assert_eq!(exit_code(&out), 0, "got: {}", combined(&out));
 }
 
-/// A literal `matches` pattern that is not a valid regex stops the run, rather
-/// than erroring on every sample.
+/// A literal `matches` pattern that is not a valid regex stops the run at
+/// startup, instead of erroring on every sample.
 #[test]
 fn a_matcher_with_an_invalid_regex_fails_startup() {
     let (out, _dir) = run_with_matcher(
@@ -239,7 +239,7 @@ signal = "myapp.absent""#,
     );
 }
 
-/// Matchers need a v2 registry, and v1 behaviour is unchanged without them.
+/// Matchers need a v2 registry. Without matchers, v1 behavior is unchanged.
 #[test]
 fn a_matcher_against_a_v1_registry_fails_startup() {
     let (out, _dir) = run_with_matcher_on(
@@ -289,7 +289,7 @@ fn run_with_matcher_on_input(matcher: &str, input: &str) -> (Output, tempfile::T
     (out, dir)
 }
 
-/// A span that matches no matcher says so, showing a gap in the matchers.
+/// A span that no matcher claims is reported, which shows a gap in the matchers.
 #[test]
 fn a_span_that_matches_no_matcher_says_nothing_applied() {
     let (out, _dir) = run_with_matcher_on_spans(
@@ -301,7 +301,7 @@ when = 'name == "no-such-span"'"#,
     assert!(output.contains("\"unmatched\": true"), "got: {output}");
 }
 
-/// Without matchers the report is what it always was.
+/// Without matchers, the report is unchanged.
 #[test]
 fn no_matchers_reports_no_match_problem() {
     let out = Command::cargo_bin("weaver")
@@ -320,7 +320,7 @@ fn no_matchers_reports_no_match_problem() {
     assert!(!output.contains("\"unmatched\": true"), "got: {output}");
 }
 
-/// A matcher that applies to no sample is reported, so dead config shows.
+/// A matcher that applies to no sample is reported, so unused config is visible.
 #[test]
 fn a_matcher_that_applies_to_nothing_warns() {
     let (out, _dir) = run_with_matcher_on_spans(
@@ -373,8 +373,8 @@ when = 'instrumentation_scope.name == "nope"'"#,
     assert!(output.contains("\"unmatched\": true"), "got: {output}");
 }
 
-/// An absent key is a CEL error, not `false`, so a `when` indexing an optional
-/// attribute matches some samples and errors on others.
+/// In CEL, an absent key is an error, not `false`. A `when` that indexes an
+/// optional attribute matches some samples and errors on others.
 #[test]
 fn a_matcher_that_both_matches_and_errors_reports_only_the_error_count() {
     let (out, _dir) = run_with_matcher_on_input(
@@ -395,8 +395,8 @@ when = 'attributes["myapp.checkout.id"] == "abc"'"#,
     assert!(!output.contains("applied to no samples"), "got: {output}");
 }
 
-/// Renders the ansi template, which `run_live_check_on` mutes, with the colour
-/// escapes removed so a label can be matched.
+/// Renders the ansi template, which `run_live_check_on` mutes, and removes the
+/// color escapes so a label can be matched.
 fn run_ansi(extra_args: &[&str]) -> String {
     let mut cmd = Command::cargo_bin("weaver").expect("weaver binary not found");
     let out = cmd
@@ -412,7 +412,7 @@ fn run_ansi(extra_args: &[&str]) -> String {
     strip_ansi(&combined(&out))
 }
 
-/// The text with the colour escapes removed.
+/// The text with the color escapes removed.
 fn strip_ansi(text: &str) -> String {
     let mut plain = String::with_capacity(text.len());
     let mut chars = text.chars();

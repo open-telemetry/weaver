@@ -263,7 +263,8 @@ fn bind_attributes(
     }
 }
 
-/// Binds an optional field, an absent one as `Value::Null` so `!= null` can guard it.
+/// Binds an optional field. An absent field is bound as `Value::Null`, so an
+/// expression can guard it with `!= null`.
 fn bind_optional(name: &str, value: Option<impl Into<Value>>, context: &mut Context<'_>) {
     context.add_variable_from_value(name, value.map_or(Value::Null, Into::into));
 }
@@ -303,7 +304,7 @@ fn bind_signal_context(
     }
 }
 
-/// The attributes every data point of a metric holds the same value for.
+/// The attributes that have the same value on every data point of a metric.
 fn agreed_attribute_map(metric: &SampleMetric) -> HashMap<String, Value> {
     let mut agreed: HashMap<String, Value> = HashMap::new();
     let mut disputed: Vec<String> = Vec::new();
@@ -484,8 +485,8 @@ mod tests {
             );
         }
 
-        /// A `when` of `"error.type" in attributes` would be circular, so the
-        /// condition needs the status.
+        /// A `when` of `"error.type" in attributes` is circular. It is true only
+        /// when the attribute is present, so the condition must use the status.
         #[test]
         fn the_error_type_condition_can_be_expressed() {
             let condition = r#"status.code == "error""#;

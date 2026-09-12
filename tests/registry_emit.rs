@@ -133,8 +133,8 @@ fn run_emit_with_live_check_test(use_v2: bool) {
         .expect("Failed to get registry_coverage as f64");
 
     // The emitted traces, metrics, and logs each add one instrumentation-scope
-    // carrier. v2 compares an attribute with its signal alone, v1 with the
-    // whole registry, so v2 finds far more missing.
+    // carrier. v2 compares an attribute with its signal alone, and v1 with the
+    // whole registry, so v2 reports many more attributes as missing.
     let (no_advice, advisories) = if use_v2 { (37, 39) } else { (62, 14) };
     assert_eq!(no_advice_count, no_advice);
     assert_eq!(total_advisories, advisories);

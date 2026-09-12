@@ -524,7 +524,7 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 
   Possible values: `true`, `false`
 
-* `--search-all-attributes <SEARCH_ALL_ATTRIBUTES>` — Search the base attribute definitions of the registry and its dependencies for an attribute that is on neither the matched signal nor its attribute groups. [default: false]
+* `--search-all-attributes <SEARCH_ALL_ATTRIBUTES>` — Also search the base attribute definitions of the registry and its dependencies for an attribute that is not on the matched signal or its attribute groups. [default: false]
 
   Possible values: `true`, `false`
 

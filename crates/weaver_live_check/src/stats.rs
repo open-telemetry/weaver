@@ -54,11 +54,11 @@ pub struct CumulativeStatistics {
 pub struct MatcherStatistics {
     /// The matcher `id` from the config
     pub id: String,
-    /// The number of samples the matcher applied to
+    /// How many samples the matcher applied to
     pub matched: u64,
-    /// The number of samples whose `when` errored
+    /// How many samples had a `when` that failed to evaluate
     pub errors: u64,
-    /// The message from the first sample whose `when` errored
+    /// The error message from the first `when` failure
     pub first_error: Option<String>,
 }
 
@@ -233,8 +233,8 @@ impl CumulativeStatistics {
         self.max_level().is_some_and(|level| level >= threshold)
     }
 
-    /// Finalize the statistics by calculating registry coverage and
-    /// collecting what each matcher did
+    /// Finalize the statistics: calculate registry coverage and collect what
+    /// each matcher did
     pub(crate) fn finalize(&mut self, matchers: &Matchers) {
         self.matchers = matchers
             .iter()

@@ -357,14 +357,14 @@ impl LiveCheckRunner for SampleMetric {
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
-        // The match comes before the advisors, so a matcher's `signal` is what
-        // the instrument, unit and attributes are checked against.
+        // The match runs before the advisors, so they check the instrument,
+        // unit and attributes against the matcher's `signal`.
         let natural = live_checker.find_metric(&self.name);
         let sample_match = live_checker.match_for(self, natural);
         live_checker.record_match(&sample_match);
         let semconv_metric = sample_match.signal.clone();
-        // Coverage is credited to the signal the match resolved, which a
-        // matcher can rename, except for a v1 group whose id is not the
+        // Coverage counts against the signal the match resolved, which a
+        // matcher can change. A v1 group is the exception: its id is not the
         // metric name.
         let coverage_name = match semconv_metric.as_deref() {
             Some(VersionedSignal::Metric(metric)) => metric.name.to_string(),
@@ -408,8 +408,8 @@ impl LiveCheckRunner for SampleMetric {
             parent_signal,
         );
 
-        // A metric's attributes are on its data points, which check them
-        // against this match.
+        // A metric's attributes are on its data points. Each data point checks
+        // them against this match.
         sample_match.set_match_info(&SampleRef::Metric(self), &mut result, live_checker);
         let semconv_metric = Some(Rc::new(sample_match));
 

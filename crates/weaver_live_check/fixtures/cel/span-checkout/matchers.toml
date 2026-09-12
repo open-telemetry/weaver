@@ -1,4 +1,4 @@
-# Matched on a signature: the id is present and the stage is one of three
+# Matches on a signature: the id is present and the stage is one of three
 # known values.
 [[live-check.matchers]]
 id = "myapp.checkout"

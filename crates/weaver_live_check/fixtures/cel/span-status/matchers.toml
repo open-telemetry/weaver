@@ -1,5 +1,5 @@
-# `error.type` is conditionally required when an error has occurred. A span's
-# outcome is in its status, not in an attribute.
+# `error.type` is conditionally required when an error occurred. A span
+# records its outcome in its status, not in an attribute.
 [[live-check.matchers]]
 id = "myapp.checkout.failed"
 sample_type = "span"

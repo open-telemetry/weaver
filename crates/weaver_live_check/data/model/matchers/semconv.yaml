@@ -226,8 +226,8 @@ metrics:
     attributes:
       - ref: acme.checkout.stage
         requirement_level: recommended
-      # Only this metric declares it, so a sample setting it is unexpected
-      # against the signal `acme.metric.mismatched` names instead.
+      # Only this metric declares the coupon. A sample that sets it is
+      # unexpected against the signal `acme.metric.mismatched` names instead.
       - ref: acme.checkout.coupon
         requirement_level: recommended
 
@@ -243,7 +243,7 @@ events:
       - ref: acme.checkout.id
         requirement_level: required
 
-  # No entity associations, so naming it adds no entity findings.
+  # No entity associations, so a matcher that names it adds no entity findings.
   - name: acme.checkout.abandoned
     brief: A checkout was abandoned.
     stability: stable

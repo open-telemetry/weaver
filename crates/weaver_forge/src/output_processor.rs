@@ -148,7 +148,7 @@ impl OutputProcessor {
     /// * `embedded_templates` - Embedded template directory (required only for template formats)
     /// * `templates_path` - Path to override templates (required only for template formats)
     /// * `output` - Where to write output
-    /// * `params` - Reach a template as the `params` global; ignored by a builtin format
+    /// * `params` - Values a template reads as the `params` global. A builtin format ignores them.
     pub fn new(
         format: &str,
         prefix: &str,

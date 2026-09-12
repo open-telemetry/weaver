@@ -4,8 +4,8 @@ whitespace_control:
   lstrip_blocks: true
 
 params:
-  # Label a finding with its id rather than its level. The colour still comes
-  # from the level. Override with `--param show_finding_id=true`.
+  # Label each finding with its id instead of its level. The color still
+  # comes from the level. Override with `--param show_finding_id=true`.
   show_finding_id: false
 
 templates:

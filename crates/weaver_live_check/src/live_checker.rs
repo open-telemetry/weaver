@@ -285,9 +285,10 @@ impl LiveChecker {
     ///
     /// # Errors
     ///
-    /// Returns an error when a matcher does not compile, reads a variable its
-    /// sample type does not have, or names something that is not in the
-    /// registry. Matchers need a v2 registry.
+    /// Returns an error when a matcher does not compile, when its `when` reads
+    /// a variable its sample type does not have, or when it names a signal or
+    /// attribute group that is not in the registry. Matchers need a v2
+    /// registry.
     pub fn set_matchers(&mut self, configs: &[MatcherConfig]) -> Result<(), Error> {
         self.matchers = Matchers::compile(configs, self)?;
         Ok(())
@@ -315,7 +316,7 @@ impl LiveChecker {
         }
     }
 
-    /// Counts a match against the matchers that produced it
+    /// Adds a match to the counts of the matchers that produced it
     pub fn record_match(&mut self, sample_match: &SampleMatch) {
         self.matchers.record_match(sample_match);
     }
@@ -353,10 +354,10 @@ impl LiveChecker {
         self.semconv_events.get(name).map(Rc::clone)
     }
 
-    /// Find a v2 signal's own copy of an attribute, which holds its
-    /// refinements
+    /// Find an attribute as a v2 signal declares it, with its refinements
     ///
-    /// `None` for a v1 group, and for an attribute the signal does not declare.
+    /// Returns `None` for a v1 group, and for an attribute the signal does not
+    /// declare.
     #[must_use]
     pub fn find_refined_attribute(
         &self,
@@ -418,8 +419,9 @@ impl LiveChecker {
             return Err(Error::SearchAllAttributesRequiresV2Registry);
         };
         self.searching_all_attributes = true;
-        // This registry first, then nearest first, so a definition here wins over
-        // a dependency's and a direct dependency's over a transitive one's.
+        // Search this registry first, then the nearest dependencies. A definition
+        // here wins over one in a dependency, and a direct dependency wins over a
+        // transitive one.
         let sources = std::iter::once((&registry.schema_url, &registry.registry)).chain(
             registry
                 .dependencies_nearest_first()
@@ -452,8 +454,8 @@ impl LiveChecker {
         Ok(())
     }
 
-    /// Find a base template attribute of this registry or a dependency that
-    /// `key` extends, the longest first
+    /// Find the longest base template attribute that `key` extends, in this
+    /// registry or a dependency
     ///
     /// Always `None` unless `search_all_attributes` was called.
     #[must_use]
@@ -3881,8 +3883,8 @@ mod tests {
         // End to end: the default jq preprocessor hands the entity view to a
         // policy, which reads an annotation from the definition of an entity that
         // a dependency holds, and checks the resource against it. Nothing in the
-        // input holds that definition. This registry defines a rival `host`, so
-        // the leaf's provenance is what decides which annotation applies.
+        // input holds that definition. This registry also defines `host`, so the
+        // provenance of the leaf decides which annotation applies.
         const DEP_URL: &str = "https://example.com/base/1.0.0";
         let dependency = v2_dependency(
             vec![annotated(

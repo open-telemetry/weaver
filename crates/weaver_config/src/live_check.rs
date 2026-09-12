@@ -90,9 +90,9 @@ pub struct LiveCheckConfig {
     #[serde(default)]
     pub finding_level_overrides: Vec<FindingLevelOverride>,
 
-    /// Rules that assign a registry signal, additional attribute groups, or
-    /// both, to samples that cannot be identified by name alone. Evaluated in
-    /// the order they are declared.
+    /// Rules that give a sample a registry signal, extra attribute groups, or
+    /// both, when its name alone does not identify it. Live-check evaluates
+    /// them in the order they are declared.
     #[serde(default)]
     pub matchers: Vec<MatcherConfig>,
 
@@ -116,11 +116,12 @@ pub struct LiveCheckConfig {
     /// Disable statistics accumulation. Useful for long-running live-check sessions.
     pub no_stats: bool,
 
-    /// Search the base attribute definitions of the registry and its
-    /// dependencies for an attribute that is on neither the matched signal nor
-    /// its attribute groups. An `unexpected_attribute` finding for one found
-    /// this way names every schema url that declares it. Without this, the
-    /// attributes of a sample that matched no matcher are not checked at all.
+    /// Also search the base attribute definitions of the registry and its
+    /// dependencies for an attribute that is not on the matched signal or its
+    /// attribute groups. When an attribute is found this way, its
+    /// `unexpected_attribute` finding names every schema url that declares
+    /// it. Without this setting, the attributes of a sample that matched no
+    /// matcher are not checked.
     pub search_all_attributes: bool,
 
     /// Severity threshold that causes a non-zero exit code. Findings at this
@@ -305,31 +306,31 @@ impl fmt::Display for MatcherSampleType {
     }
 }
 
-/// A rule that assigns a registry signal, additional attribute groups, or
-/// both, to samples that cannot be identified by name alone.
+/// A rule that gives a sample a registry signal, extra attribute groups, or
+/// both, when its name alone does not identify it.
 ///
-/// The rule applies to a sample of kind `sample_type` when `when` evaluates to
-/// true. `signal` replaces the signal the sample would otherwise be checked
-/// against; the attribute groups are checked in addition to it. All are looked
-/// up in the registry at startup.
+/// The rule applies to a sample of kind `sample_type` when `when` is true.
+/// `signal` replaces the signal the sample is otherwise checked against. The
+/// attribute groups are checked in addition to the signal. Every name is
+/// looked up in the registry at startup.
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
 pub struct MatcherConfig {
-    /// Identifies the matcher in findings, statistics and coverage.
+    /// The name used for this matcher in findings, statistics and coverage.
     pub id: String,
 
     /// The kind of sample this matcher applies to.
     pub sample_type: MatcherSampleType,
 
-    /// A CEL expression that must evaluate to true for the matcher to apply.
-    /// When unset, the matcher applies to every sample of its `sample_type`.
+    /// A CEL expression. The matcher applies when it is true. When unset, the
+    /// matcher applies to every sample of its `sample_type`.
     pub when: Option<String>,
 
     /// The registry signal the sample is checked against. When unset, the
     /// sample is checked against the signal its name resolves to.
     pub signal: Option<String>,
 
-    /// Registry attribute groups permitted on the sample, in priority order,
-    /// without enforcing their requirement levels.
+    /// Registry attribute groups whose attributes are allowed on the sample,
+    /// in priority order. Their requirement levels are not enforced.
     #[serde(default)]
     pub attribute_groups: Vec<String>,
 
@@ -384,7 +385,8 @@ attribute_groups = ["myapp.common"]
         assert_eq!(checkout.signal.as_deref(), Some("myapp.checkout"));
         assert_eq!(checkout.attribute_groups, ["myapp.common"]);
 
-        // No `when` and no `signal`: applies to every log, adds an attribute group.
+        // With no `when` and no `signal`, the matcher applies to every log and
+        // adds an attribute group.
         let log = &lc.matchers[1];
         assert_eq!(log.sample_type, MatcherSampleType::Log);
         assert!(log.when.is_none());
@@ -425,7 +427,8 @@ sample_type = "{sample_type}"
         }
     }
 
-    /// Deserializes the `live-check` section, reporting the error.
+    /// Deserializes the `live-check` section and returns the error message
+    /// when that fails.
     fn parse_live_check_section(toml_str: &str) -> Result<LiveCheckConfig, String> {
         let config: WeaverConfig = toml::from_str(toml_str).expect("Failed to parse TOML");
         config
@@ -458,7 +461,8 @@ sample_type = "span"
         assert!(error.contains("id"), "{error}");
     }
 
-    /// A bad matcher must not discard the rest of the section.
+    /// An invalid matcher is an error. It must not make the section fall back
+    /// to its defaults.
     #[test]
     fn a_bad_matcher_does_not_fall_back_to_the_default_section() {
         let toml = r#"

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! The OTLP harness the matcher end-to-end tests share: the live-check child
-//! process, the telemetry sent to it, and accessors for the report.
+//! The OTLP harness shared by the matcher end-to-end tests. It starts the
+//! live-check child process, sends telemetry to it, and reads the report.
 
 // Each test binary compiles the whole module and uses part of it.
 #![allow(dead_code)]
@@ -36,7 +36,7 @@ pub const CHECKOUT_SCOPE: &str = "acme.checkout";
 /// The scope a matcher selects on.
 const CART_SCOPE: &str = "acme.cart";
 
-/// Kills the child on drop, so a panic does not orphan it.
+/// Kills the child process on drop, so a failed test does not leave it running.
 struct ChildGuard(Option<Child>);
 
 impl Drop for ChildGuard {
@@ -85,7 +85,7 @@ pub async fn run(registry: &str, extra_args: &[&str]) -> Value {
 
     wait_for_health(admin_port);
     emit_telemetry(&format!("http://localhost:{grpc_port}")).await;
-    // The exports are acknowledged; give the receiver time to check them.
+    // The exports are acknowledged. Give the receiver time to check them.
     sleep(Duration::from_secs(1));
 
     let body = reqwest::Client::new()
@@ -110,8 +110,8 @@ pub async fn run(registry: &str, extra_args: &[&str]) -> Value {
         .unwrap_or_else(|error| panic!("report is not JSON: {error}\n{body}"))
 }
 
-/// The resource every provider uses. `acme.tenant.id` is defined only in the
-/// dependency registry, which is what `--search-all-attributes` is shown by.
+/// The resource every provider uses. Only the dependency registry defines
+/// `acme.tenant.id`, so this attribute shows what `--search-all-attributes` does.
 fn resource() -> Resource {
     Resource::builder()
         .with_service_name("acme-checkout")
@@ -119,7 +119,7 @@ fn resource() -> Resource {
         .build()
 }
 
-/// Emits every signal the matchers are written against, then flushes.
+/// Emits every signal the matchers target, then flushes.
 pub async fn emit_telemetry(endpoint: &str) {
     let tracer_provider = SdkTracerProvider::builder()
         .with_resource(resource())
@@ -147,14 +147,14 @@ pub async fn emit_telemetry(endpoint: &str) {
             PeriodicReader::builder(
                 opentelemetry_otlp::MetricExporter::builder()
                     .with_tonic()
-                    // Delta, so shutting the provider down does not export the
-                    // same points a second time.
+                    // Delta temporality, so shutdown of the provider does not
+                    // export the same points a second time.
                     .with_temporality(Temporality::Delta)
                     .with_endpoint(endpoint)
                     .build()
                     .expect("metric exporter"),
             )
-            // Longer than the test, so force_flush is the only export.
+            // Longer than the test runs, so force_flush is the only export.
             .with_interval(Duration::from_secs(600))
             .build(),
         )
@@ -164,8 +164,8 @@ pub async fn emit_telemetry(endpoint: &str) {
     emit_logs(&logger_provider);
     emit_metrics(&meter_provider);
 
-    // The batch processors export on their own threads; force_flush blocks, so
-    // yield first and let a batch go before waiting on one.
+    // The batch processors export on their own threads and force_flush blocks.
+    // Yield first so a batch can start before this thread waits on one.
     tokio::time::sleep(Duration::from_millis(500)).await;
     tracer_provider.force_flush().expect("flush spans");
     logger_provider.force_flush().expect("flush logs");
@@ -183,9 +183,9 @@ fn emit_spans(provider: &SdkTracerProvider) {
             .build(),
     );
 
-    // Matched by `acme.checkout.by-name`. `acme.stray.field` is defined
-    // nowhere and `acme.tenant.id` only in the dependency, so both are
-    // unexpected on the signal and its groups.
+    // Matched by `acme.checkout.by-name`. Nothing defines `acme.stray.field`,
+    // and only the dependency defines `acme.tenant.id`. Both are unexpected on
+    // the signal and its groups.
     let mut span = checkout
         .span_builder("checkout")
         .with_kind(SpanKind::Server)
@@ -215,14 +215,14 @@ fn emit_spans(provider: &SdkTracerProvider) {
         "acme.checkout.step",
         vec![KeyValue::new("acme.checkout.stage", "cart")],
     );
-    // Matched by nothing, and a span event resolves no signal by name.
+    // Matched by nothing. A span event does not resolve a signal by name.
     span.add_event("acme.checkout.note", Vec::new());
     span.set_status(Status::Ok);
     span.end();
 
     // Matched by `acme.checkout.legacy` and `acme.span.on-error`. The registry
-    // span is a server span, requires `acme.checkout.id` and recommends
-    // `acme.checkout.stage`, and this sets neither.
+    // span is a server span. It requires `acme.checkout.id` and recommends
+    // `acme.checkout.stage`. This span sets neither.
     let mut span = checkout
         .span_builder("checkout-legacy")
         .with_kind(SpanKind::Client)
@@ -239,9 +239,9 @@ fn emit_spans(provider: &SdkTracerProvider) {
 
     // Matched by `acme.cart.by-attribute`, `acme.cart.conflict`,
     // `acme.span.by-scope` and `acme.span.by-resource`. The scope sets two
-    // attributes only the dependency defines, one of them by extending a
-    // template, and `acme.scope.acme` names no attribute groups, so the scope
-    // has no expected set of its own.
+    // attributes that only the dependency defines, one through a template.
+    // `acme.scope.acme` names no attribute groups, so the scope has no expected
+    // set of its own.
     let cart = provider.tracer_with_scope(
         InstrumentationScope::builder(CART_SCOPE)
             .with_attributes([
@@ -277,14 +277,14 @@ fn emit_logs(provider: &SdkLoggerProvider) {
     record.add_attribute(Key::from("acme.session.id"), AnyValue::from("s-9"));
     logger.emit(record);
 
-    // No event name, so not a typed signal and no matcher targets it.
+    // No event name, so this is not a typed signal, and no matcher targets it.
     let mut record = logger.create_log_record();
     record.set_severity_number(Severity::Info);
     record.set_severity_text("INFO");
     record.set_body(AnyValue::from("no event name"));
     logger.emit(record);
 
-    // Not in the registry; `acme.log.renamed` names its signal.
+    // Not in the registry. `acme.log.renamed` names its signal.
     let mut record = logger.create_log_record();
     record.set_event_name("acme.checkout.dropped");
     record.set_severity_number(Severity::Info);
@@ -314,7 +314,7 @@ fn emit_metrics(provider: &SdkMeterProvider) {
             ],
         );
     // `acme.metric.mismatched` names `acme.checkout.duration`, a histogram in
-    // seconds, and the stage is not one of the variants that signal allows.
+    // seconds. The stage is not one of the values that signal allows.
     meter
         .u64_counter("acme.checkout.attempts")
         .with_unit("{attempt}")
@@ -326,13 +326,13 @@ fn emit_metrics(provider: &SdkMeterProvider) {
                 KeyValue::new("acme.checkout.coupon", "SAVE10"),
             ],
         );
-    // In neither the registry nor a matcher.
+    // Neither the registry nor a matcher knows this metric.
     meter
         .u64_counter("acme.unknown.total")
         .with_unit("{thing}")
         .build()
         .add(1, &[]);
-    // Not in the registry; `acme.metric.renamed` names its signal.
+    // Not in the registry. `acme.metric.renamed` names its signal.
     meter
         .u64_counter("acme.legacy.checkout.attempts")
         .with_unit("{attempt}")
@@ -350,8 +350,8 @@ pub fn span<'a>(report: &'a Value, name: &str) -> &'a Value {
         .unwrap_or_else(|| panic!("no span sample named `{name}`"))
 }
 
-/// The `acme.source` annotation the policy reported for one of a sample's
-/// attributes, which names the definition the checker resolved.
+/// The `acme.source` annotation the policy reported for one attribute of a
+/// sample. It names the definition the checker resolved.
 pub fn annotation_source<'a>(sample: &'a Value, key: &str) -> Option<&'a str> {
     sample["attributes"]
         .as_array()?

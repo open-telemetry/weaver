@@ -34,7 +34,7 @@ use weaver_semconv::{
     v1::{attribute::AttributeType, group::InstrumentSpec},
 };
 
-/// Serializes an enum value to its serde name, e.g. `internal`.
+/// Serializes an enum value to its serde name, for example `internal`.
 pub(crate) fn enum_name<T: Serialize>(value: &T) -> String {
     match serde_json::to_value(value) {
         Ok(JsonValue::String(name)) => name,
@@ -200,8 +200,8 @@ pub enum VersionedSignal {
 }
 
 impl VersionedSignal {
-    /// The name the signal is known by: a span type, a metric or event name,
-    /// or a v1 group id
+    /// The name of the signal: a span type, a metric or event name, or a v1
+    /// group id
     #[must_use]
     pub fn name(&self) -> &str {
         match self {
@@ -323,7 +323,7 @@ pub enum Error {
     /// Matchers are configured against a v1 registry.
     #[error("Matchers require a v2 registry. Matcher `{id}` cannot be used with the registry under check.")]
     MatchersRequireV2Registry {
-        /// The first matcher id declared.
+        /// The id of the first matcher declared.
         id: String,
     },
 
@@ -349,7 +349,7 @@ pub enum Error {
         id: String,
         /// The signal the matcher names.
         signal: String,
-        /// What the signal has to be, e.g. `a span type`.
+        /// The kind of name the signal must be, for example `a span type`.
         expected: String,
     },
 
@@ -371,7 +371,7 @@ pub enum Error {
         variable: String,
         /// The sample type the matcher applies to.
         sample_type: String,
-        /// The variables the sample type does have.
+        /// The variables the sample type has.
         available: String,
     },
 }
@@ -465,8 +465,8 @@ impl SampleRef<'_> {
         }
     }
 
-    /// Whether this sample resolves a registry signal, so that having none is a
-    /// gap. A log with no `event_name` is not a typed signal.
+    /// Whether this sample is expected to resolve a registry signal. When it
+    /// is, no signal is a gap. A log with no `event_name` is not expected to.
     #[must_use]
     pub fn expects_signal(&self) -> bool {
         match self {
@@ -726,8 +726,8 @@ pub trait Advisable {
 
     /// Run advisors on this entity
     ///
-    /// The result is not recorded in the statistics: a caller may add its own
-    /// findings to it, so it records the finished result itself.
+    /// The result is not added to the statistics here. The caller can add its
+    /// own findings first, so it adds the finished result itself.
     fn run_advisors(
         &mut self,
         live_checker: &mut LiveChecker,
