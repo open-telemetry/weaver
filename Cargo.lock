@@ -6350,15 +6350,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "weaver_cel"
-version = "0.26.1"
-dependencies = [
- "cel",
- "regex",
- "thiserror 2.0.20",
-]
-
-[[package]]
 name = "weaver_checker"
 version = "0.26.1"
 dependencies = [
@@ -6521,6 +6512,7 @@ name = "weaver_live_check"
 version = "0.26.1"
 dependencies = [
  "assert_cmd",
+ "cel",
  "globset",
  "log",
  "miette",
@@ -6540,7 +6532,6 @@ dependencies = [
  "tokio",
  "toml",
  "ureq",
- "weaver_cel",
  "weaver_checker",
  "weaver_common",
  "weaver_config",

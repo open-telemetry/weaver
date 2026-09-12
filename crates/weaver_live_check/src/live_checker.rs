@@ -10,7 +10,7 @@ use std::sync::Arc;
 use weaver_semconv::v1::{attribute::AttributeType, group::GroupType};
 use weaver_semconv::v2::attribute::AttributeType as V2AttributeType;
 
-use crate::matcher::Matchable;
+use crate::cel::Matchable;
 use crate::{
     advice::Advisor,
     finding_modifier::FindingModifier,
@@ -285,10 +285,9 @@ impl LiveChecker {
     ///
     /// # Errors
     ///
-    /// Returns an error when a matcher does not compile, when its `when` reads
-    /// a variable its sample type does not have, or when it names a signal or
-    /// attribute group that is not in the registry. Matchers need a v2
-    /// registry.
+    /// Returns an error when a matcher does not compile, or when it names a
+    /// signal or attribute group that is not in the registry. Matchers need
+    /// a v2 registry.
     pub fn set_matchers(&mut self, configs: &[MatcherConfig]) -> Result<(), Error> {
         self.matchers = Matchers::compile(configs, self)?;
         Ok(())

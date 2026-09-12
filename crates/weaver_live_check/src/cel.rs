@@ -2,17 +2,18 @@
 
 //! Binds live-check samples to CEL variables.
 //!
-//! Each sample type has its own set of variables, and only the ones an
-//! expression reads are bound.
+//! Each sample type has its own set of variables. They are added to a
+//! [`Context`] through the `cel` crate's serde support, so a field is bound
+//! in its serde form: an enum as its variant name, an `Option` as the value
+//! or `null`.
 
 use std::collections::HashMap;
 
+use cel::{Context, ExecutionError, Program, SerializationError, Value};
+use serde::Serialize;
 use serde_json::Value as JsonValue;
-use weaver_cel::{Bindings, Context, Referenced, Value};
 
 use crate::{
-    enum_name,
-    matcher::Matchable,
     sample_attribute::SampleAttribute,
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_log::SampleLog,
@@ -23,223 +24,59 @@ use crate::{
     SampleType,
 };
 
-/// The `resource` variable, available on every signal sample.
-const RESOURCE: &str = "resource";
-/// The `instrumentation_scope` variable, available on every signal sample.
-const INSTRUMENTATION_SCOPE: &str = "instrumentation_scope";
+/// A sample the matchers can select.
+pub trait Matchable {
+    /// The kind of sample, which decides which matchers apply to it.
+    fn sample_type(&self) -> SampleType;
 
-/// The variables an expression can read for a sample type.
+    /// Adds the sample's variables to a CEL context.
+    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError>;
+}
+
+/// Runs a compiled `when` against a context.
 ///
-/// An empty slice means no matcher can target that sample type.
-#[must_use]
-pub fn variables(sample_type: SampleType) -> &'static [&'static str] {
-    match sample_type {
-        SampleType::Span => &[
-            "name",
-            "kind",
-            "status",
-            "attributes",
-            RESOURCE,
-            INSTRUMENTATION_SCOPE,
-        ],
-        SampleType::SpanEvent => &["name", "attributes", RESOURCE, INSTRUMENTATION_SCOPE],
-        SampleType::SpanLink => &["attributes", RESOURCE, INSTRUMENTATION_SCOPE],
-        SampleType::Log => &[
-            "event_name",
-            "severity_text",
-            "severity_number",
-            "body",
-            "attributes",
-            RESOURCE,
-            INSTRUMENTATION_SCOPE,
-        ],
-        SampleType::Metric => &[
-            "name",
-            "unit",
-            "instrument",
-            "attributes",
-            RESOURCE,
-            INSTRUMENTATION_SCOPE,
-        ],
-        SampleType::Profile => &["attributes", RESOURCE, INSTRUMENTATION_SCOPE],
-        SampleType::Resource => &["attributes"],
-        SampleType::InstrumentationScope => &["name", "version", "schema_url", "attributes"],
-        SampleType::Attribute
-        | SampleType::NumberDataPoint
-        | SampleType::HistogramDataPoint
-        | SampleType::ExponentialHistogramDataPoint
-        | SampleType::Exemplar => &[],
+/// # Errors
+///
+/// Returns the interpreter's error, or an `UnexpectedType` error when the
+/// expression returns a value that is not a bool.
+pub(crate) fn execute(program: &Program, context: &Context<'_>) -> Result<bool, ExecutionError> {
+    match program.execute(context)? {
+        Value::Bool(result) => Ok(result),
+        other => Err(ExecutionError::UnexpectedType {
+            got: other.type_of().to_string(),
+            want: "bool".to_owned(),
+        }),
     }
 }
 
-/// Implements [`Matchable`] for sample types that implement [`Bindings`].
-macro_rules! matchable {
-    ($($sample:ty => $sample_type:ident),* $(,)?) => {
-        $(impl Matchable for $sample {
-            fn sample_type(&self) -> SampleType {
-                SampleType::$sample_type
-            }
-        })*
-    };
+/// The map behind `attributes["key"]`.
+type AttributeMap<'a> = HashMap<&'a str, &'a Option<JsonValue>>;
+
+/// The `resource` variable.
+#[derive(Serialize)]
+struct ResourceVariable<'a> {
+    attributes: AttributeMap<'a>,
 }
 
-matchable! {
-    SampleSpan => Span,
-    SampleSpanEvent => SpanEvent,
-    SampleSpanLink => SpanLink,
-    SampleLog => Log,
-    SampleMetric => Metric,
-    SampleResource => Resource,
-    SampleInstrumentationScope => InstrumentationScope,
-    SampleProfile => Profile,
+/// The `instrumentation_scope` variable.
+#[derive(Serialize)]
+struct ScopeVariable<'a> {
+    name: &'a str,
+    version: &'a str,
+    schema_url: &'a str,
+    attributes: AttributeMap<'a>,
 }
 
-impl Bindings for SampleSpan {
-    fn bind(&self, referenced: &Referenced, context: &mut Context<'_>) {
-        if referenced.wants("name") {
-            context.add_variable_from_value("name", self.name.as_str());
-        }
-        if referenced.wants("kind") {
-            context.add_variable_from_value("kind", enum_name(&self.kind));
-        }
-        if referenced.wants("status") {
-            // OTLP treats a missing status as unset.
-            let (code, message) = match &self.status {
-                Some(status) => (enum_name(&status.code), status.message.as_str()),
-                None => ("unset".to_owned(), ""),
-            };
-            context.add_variable_from_value(
-                "status",
-                HashMap::from([
-                    ("code".to_owned(), Value::from(code)),
-                    ("message".to_owned(), Value::from(message)),
-                ]),
-            );
-        }
-        bind_attributes(&self.attributes, referenced, context);
-        bind_signal_context(
-            self.resource.as_deref(),
-            self.instrumentation_scope.as_deref(),
-            referenced,
-            context,
-        );
-    }
+fn attribute_map<'a>(attributes: impl Iterator<Item = &'a SampleAttribute>) -> AttributeMap<'a> {
+    attributes
+        .map(|attribute| (attribute.name.as_str(), &attribute.value))
+        .collect()
 }
 
-impl Bindings for SampleSpanEvent {
-    fn bind(&self, referenced: &Referenced, context: &mut Context<'_>) {
-        if referenced.wants("name") {
-            context.add_variable_from_value("name", self.name.as_str());
-        }
-        bind_attributes(&self.attributes, referenced, context);
-        bind_signal_context(
-            self.resource.as_deref(),
-            self.instrumentation_scope.as_deref(),
-            referenced,
-            context,
-        );
-    }
-}
-
-impl Bindings for SampleSpanLink {
-    fn bind(&self, referenced: &Referenced, context: &mut Context<'_>) {
-        bind_attributes(&self.attributes, referenced, context);
-        bind_signal_context(
-            self.resource.as_deref(),
-            self.instrumentation_scope.as_deref(),
-            referenced,
-            context,
-        );
-    }
-}
-
-impl Bindings for SampleLog {
-    fn bind(&self, referenced: &Referenced, context: &mut Context<'_>) {
-        if referenced.wants("event_name") {
-            context.add_variable_from_value("event_name", self.event_name.as_str());
-        }
-        if referenced.wants("severity_text") {
-            bind_optional("severity_text", self.severity_text.as_deref(), context);
-        }
-        if referenced.wants("severity_number") {
-            bind_optional(
-                "severity_number",
-                self.severity_number.map(i64::from),
-                context,
-            );
-        }
-        if referenced.wants("body") {
-            bind_optional("body", self.body.as_deref(), context);
-        }
-        bind_attributes(&self.attributes, referenced, context);
-        bind_signal_context(
-            self.resource.as_deref(),
-            self.instrumentation_scope.as_deref(),
-            referenced,
-            context,
-        );
-    }
-}
-
-impl Bindings for SampleMetric {
-    fn bind(&self, referenced: &Referenced, context: &mut Context<'_>) {
-        if referenced.wants("name") {
-            context.add_variable_from_value("name", self.name.as_str());
-        }
-        if referenced.wants("unit") {
-            context.add_variable_from_value("unit", self.unit.as_str());
-        }
-        if referenced.wants("instrument") {
-            context.add_variable_from_value("instrument", enum_name(&self.instrument));
-        }
-        if referenced.wants("attributes") {
-            context.add_variable_from_value("attributes", agreed_attribute_map(self));
-        }
-        bind_signal_context(
-            self.resource.as_deref(),
-            self.instrumentation_scope.as_deref(),
-            referenced,
-            context,
-        );
-    }
-}
-
-impl Bindings for SampleResource {
-    fn bind(&self, referenced: &Referenced, context: &mut Context<'_>) {
-        bind_attributes(&self.attributes, referenced, context);
-    }
-}
-
-impl Bindings for SampleInstrumentationScope {
-    fn bind(&self, referenced: &Referenced, context: &mut Context<'_>) {
-        if referenced.wants("name") {
-            context.add_variable_from_value("name", self.name.as_str());
-        }
-        if referenced.wants("version") {
-            context.add_variable_from_value("version", self.version.as_str());
-        }
-        if referenced.wants("schema_url") {
-            context.add_variable_from_value("schema_url", self.schema_url.as_str());
-        }
-        bind_attributes(&self.attributes, referenced, context);
-    }
-}
-
-impl Bindings for SampleProfile {
-    fn bind(&self, referenced: &Referenced, context: &mut Context<'_>) {
-        bind_attributes(&self.attributes, referenced, context);
-        bind_signal_context(
-            self.resource.as_deref(),
-            self.instrumentation_scope.as_deref(),
-            referenced,
-            context,
-        );
-    }
-}
-
-/// All attributes from all data points of a metric.
-fn data_point_attributes(metric: &SampleMetric) -> Box<dyn Iterator<Item = &SampleAttribute> + '_> {
-    match &metric.data_points {
+/// The attributes every data point of a metric agrees on. A key the points
+/// hold different values for is left out.
+fn agreed_attributes(metric: &SampleMetric) -> AttributeMap<'_> {
+    let attributes: Box<dyn Iterator<Item = &SampleAttribute>> = match &metric.data_points {
         Some(DataPoints::Number(points)) => {
             Box::new(points.iter().flat_map(|point| point.attributes.iter()))
         }
@@ -250,114 +87,174 @@ fn data_point_attributes(metric: &SampleMetric) -> Box<dyn Iterator<Item = &Samp
             Box::new(points.iter().flat_map(|point| point.attributes.iter()))
         }
         None => Box::new(std::iter::empty()),
-    }
-}
-
-fn bind_attributes(
-    attributes: &[SampleAttribute],
-    referenced: &Referenced,
-    context: &mut Context<'_>,
-) {
-    if referenced.wants("attributes") {
-        context.add_variable_from_value("attributes", attribute_map(attributes.iter()));
-    }
-}
-
-/// Binds an optional field. An absent field is bound as `Value::Null`, so an
-/// expression can guard it with `!= null`.
-fn bind_optional(name: &str, value: Option<impl Into<Value>>, context: &mut Context<'_>) {
-    context.add_variable_from_value(name, value.map_or(Value::Null, Into::into));
-}
-
-/// Binds `resource` and `instrumentation_scope`.
-fn bind_signal_context(
-    resource: Option<&SampleResource>,
-    scope: Option<&SampleInstrumentationScope>,
-    referenced: &Referenced,
-    context: &mut Context<'_>,
-) {
-    if referenced.wants(RESOURCE) {
-        let value = resource.map(|resource| {
-            HashMap::from([(
-                "attributes".to_owned(),
-                Value::from(attribute_map(resource.attributes.iter())),
-            )])
-        });
-        bind_optional(RESOURCE, value, context);
-    }
-    if referenced.wants(INSTRUMENTATION_SCOPE) {
-        let value = scope.map(|scope| {
-            HashMap::from([
-                ("name".to_owned(), Value::from(scope.name.as_str())),
-                ("version".to_owned(), Value::from(scope.version.as_str())),
-                (
-                    "schema_url".to_owned(),
-                    Value::from(scope.schema_url.as_str()),
-                ),
-                (
-                    "attributes".to_owned(),
-                    Value::from(attribute_map(scope.attributes.iter())),
-                ),
-            ])
-        });
-        bind_optional(INSTRUMENTATION_SCOPE, value, context);
-    }
-}
-
-/// The attributes that have the same value on every data point of a metric.
-fn agreed_attribute_map(metric: &SampleMetric) -> HashMap<String, Value> {
-    let mut agreed: HashMap<String, Value> = HashMap::new();
-    let mut disputed: Vec<String> = Vec::new();
-    for attribute in data_point_attributes(metric) {
-        let value = attribute.value.as_ref().map_or(Value::Null, json_to_cel);
-        match agreed.get(&attribute.name) {
-            Some(held) if *held == value => {}
-            Some(_) => disputed.push(attribute.name.clone()),
-            None => {
-                let _ = agreed.insert(attribute.name.clone(), value);
+    };
+    let mut agreed = AttributeMap::new();
+    let mut disputed = Vec::new();
+    for attribute in attributes {
+        if let Some(held) = agreed.insert(attribute.name.as_str(), &attribute.value) {
+            if *held != attribute.value {
+                disputed.push(attribute.name.as_str());
             }
         }
     }
     for name in disputed {
-        let _ = agreed.remove(&name);
+        let _ = agreed.remove(name);
     }
     agreed
 }
 
-/// Builds the map for `attributes["key"]`.
-fn attribute_map<'a>(
-    attributes: impl Iterator<Item = &'a SampleAttribute>,
-) -> HashMap<String, Value> {
-    attributes
-        .map(|attribute| {
-            let value = attribute.value.as_ref().map_or(Value::Null, json_to_cel);
-            (attribute.name.clone(), value)
-        })
-        .collect()
+/// Binds `resource` and `instrumentation_scope`. Either is `null` when the
+/// sample did not arrive with it.
+fn bind_signal_context(
+    resource: Option<&SampleResource>,
+    scope: Option<&SampleInstrumentationScope>,
+    context: &mut Context<'_>,
+) -> Result<(), SerializationError> {
+    context.add_variable(
+        "resource",
+        resource.map(|resource| ResourceVariable {
+            attributes: attribute_map(resource.attributes.iter()),
+        }),
+    )?;
+    context.add_variable(
+        "instrumentation_scope",
+        scope.map(|scope| ScopeVariable {
+            name: &scope.name,
+            version: &scope.version,
+            schema_url: &scope.schema_url,
+            attributes: attribute_map(scope.attributes.iter()),
+        }),
+    )
 }
 
-fn json_to_cel(value: &JsonValue) -> Value {
-    match value {
-        JsonValue::Null => Value::Null,
-        JsonValue::Bool(v) => Value::Bool(*v),
-        JsonValue::Number(v) => v
-            .as_i64()
-            .map_or_else(|| Value::Float(v.as_f64().unwrap_or_default()), Value::Int),
-        JsonValue::String(v) => Value::String(v.clone().into()),
-        JsonValue::Array(v) => Value::List(v.iter().map(json_to_cel).collect::<Vec<_>>().into()),
-        JsonValue::Object(v) => Value::from(
-            v.iter()
-                .map(|(key, value)| (key.clone(), json_to_cel(value)))
-                .collect::<HashMap<_, _>>(),
-        ),
+impl Matchable for SampleSpan {
+    fn sample_type(&self) -> SampleType {
+        SampleType::Span
+    }
+
+    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+        context.add_variable("name", &self.name)?;
+        context.add_variable("kind", &self.kind)?;
+        // OTLP treats a missing status as unset.
+        context.add_variable("status", self.status.clone().unwrap_or_default())?;
+        context.add_variable("attributes", attribute_map(self.attributes.iter()))?;
+        bind_signal_context(
+            self.resource.as_deref(),
+            self.instrumentation_scope.as_deref(),
+            context,
+        )
+    }
+}
+
+impl Matchable for SampleSpanEvent {
+    fn sample_type(&self) -> SampleType {
+        SampleType::SpanEvent
+    }
+
+    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+        context.add_variable("name", &self.name)?;
+        context.add_variable("attributes", attribute_map(self.attributes.iter()))?;
+        bind_signal_context(
+            self.resource.as_deref(),
+            self.instrumentation_scope.as_deref(),
+            context,
+        )
+    }
+}
+
+impl Matchable for SampleSpanLink {
+    fn sample_type(&self) -> SampleType {
+        SampleType::SpanLink
+    }
+
+    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+        context.add_variable("attributes", attribute_map(self.attributes.iter()))?;
+        bind_signal_context(
+            self.resource.as_deref(),
+            self.instrumentation_scope.as_deref(),
+            context,
+        )
+    }
+}
+
+impl Matchable for SampleLog {
+    fn sample_type(&self) -> SampleType {
+        SampleType::Log
+    }
+
+    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+        context.add_variable("event_name", &self.event_name)?;
+        context.add_variable("severity_text", &self.severity_text)?;
+        context.add_variable("severity_number", self.severity_number)?;
+        context.add_variable("body", &self.body)?;
+        context.add_variable("attributes", attribute_map(self.attributes.iter()))?;
+        bind_signal_context(
+            self.resource.as_deref(),
+            self.instrumentation_scope.as_deref(),
+            context,
+        )
+    }
+}
+
+impl Matchable for SampleMetric {
+    fn sample_type(&self) -> SampleType {
+        SampleType::Metric
+    }
+
+    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+        context.add_variable("name", &self.name)?;
+        context.add_variable("unit", &self.unit)?;
+        context.add_variable("instrument", &self.instrument)?;
+        context.add_variable("attributes", agreed_attributes(self))?;
+        bind_signal_context(
+            self.resource.as_deref(),
+            self.instrumentation_scope.as_deref(),
+            context,
+        )
+    }
+}
+
+impl Matchable for SampleResource {
+    fn sample_type(&self) -> SampleType {
+        SampleType::Resource
+    }
+
+    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+        context.add_variable("attributes", attribute_map(self.attributes.iter()))
+    }
+}
+
+impl Matchable for SampleInstrumentationScope {
+    fn sample_type(&self) -> SampleType {
+        SampleType::InstrumentationScope
+    }
+
+    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+        context.add_variable("name", &self.name)?;
+        context.add_variable("version", &self.version)?;
+        context.add_variable("schema_url", &self.schema_url)?;
+        context.add_variable("attributes", attribute_map(self.attributes.iter()))
+    }
+}
+
+impl Matchable for SampleProfile {
+    fn sample_type(&self) -> SampleType {
+        SampleType::Profile
+    }
+
+    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+        context.add_variable("attributes", attribute_map(self.attributes.iter()))?;
+        bind_signal_context(
+            self.resource.as_deref(),
+            self.instrumentation_scope.as_deref(),
+            context,
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
     use std::rc::Rc;
-
-    use weaver_cel::{Error, Expression};
 
     use super::*;
     use crate::matcher::{fixture, Matchers};
@@ -370,25 +267,30 @@ mod tests {
             .expect("the fixture matchers compile")
     }
 
+    /// Binds a sample and runs a compiled expression against it.
+    fn run(program: &Program, sample: &dyn Matchable) -> Result<bool, ExecutionError> {
+        let mut context = Context::default();
+        sample.bind(&mut context).expect("the sample binds");
+        execute(program, &context)
+    }
+
     /// Evaluates the `when` of a fixture against a sample.
-    fn matches(toml_str: &str, sample: &dyn Bindings) -> Result<bool, Error> {
+    fn matches(toml_str: &str, sample: &dyn Matchable) -> Result<bool, ExecutionError> {
         let matchers = compile(toml_str);
         let matcher = matchers.iter().next().expect("there is one matcher");
         // A fixture with no `when` matches every sample of the type.
         matcher
             .when
             .as_ref()
-            .map_or(Ok(true), |when| when.evaluate(sample))
+            .map_or(Ok(true), |when| run(when, sample))
     }
 
     fn parse<T: serde::de::DeserializeOwned>(json: &str) -> T {
         serde_json::from_str(json).expect("the fixture sample parses")
     }
 
-    fn evaluate(when: &str, sample: &dyn Bindings) -> Result<bool, Error> {
-        Expression::compile(when)
-            .expect("it compiles")
-            .evaluate(sample)
+    fn evaluate(when: &str, sample: &dyn Matchable) -> Result<bool, ExecutionError> {
+        run(&Program::compile(when).expect("it compiles"), sample)
     }
 
     /// A span matched on a signature of attributes.
@@ -396,6 +298,12 @@ mod tests {
         use super::*;
 
         const MATCHERS: &str = include_str!("../fixtures/cel/span-checkout/matchers.toml");
+
+        fn payment_span() -> SampleSpan {
+            parse(include_str!(
+                "../fixtures/cel/span-checkout/span-checkout-payment.json"
+            ))
+        }
 
         #[test]
         fn config_is_read_from_toml() {
@@ -409,16 +317,13 @@ mod tests {
                 .when
                 .as_ref()
                 .expect("it has a when")
-                .referenced()
-                .wants("attributes"));
+                .references()
+                .has_variable("attributes"));
         }
 
         #[test]
         fn signature_present_and_stage_expected() {
-            let span: SampleSpan = parse(include_str!(
-                "../fixtures/cel/span-checkout/span-checkout-payment.json"
-            ));
-            assert!(matches(MATCHERS, &span).expect("it evaluates"));
+            assert!(matches(MATCHERS, &payment_span()).expect("it evaluates"));
         }
 
         /// The name is not part of the signature.
@@ -440,10 +345,39 @@ mod tests {
 
         #[test]
         fn the_span_kind_is_the_serde_name() {
-            let span: SampleSpan = parse(include_str!(
-                "../fixtures/cel/span-checkout/span-checkout-payment.json"
-            ));
-            assert!(evaluate(r#"kind == "internal""#, &span).expect("it evaluates"));
+            assert!(evaluate(r#"kind == "internal""#, &payment_span()).expect("it evaluates"));
+        }
+
+        #[test]
+        fn an_expression_that_is_not_a_bool_is_rejected() {
+            let error = evaluate(r#"attributes["myapp.checkout.stage"]"#, &payment_span())
+                .expect_err("not a bool");
+            assert!(
+                matches!(error, ExecutionError::UnexpectedType { .. }),
+                "{error}"
+            );
+        }
+
+        /// A variable the sample type does not have errors on every sample.
+        #[test]
+        fn an_unbound_variable_errors() {
+            let error = evaluate(r#"unit == "s""#, &payment_span()).expect_err("it errors");
+            assert!(
+                matches!(error, ExecutionError::UndeclaredReference(_)),
+                "{error}"
+            );
+        }
+
+        /// The guard works on either side of the `&&`.
+        #[test]
+        fn a_guarded_read_of_an_absent_key_is_false_from_either_side() {
+            let span = payment_span();
+            for when in [
+                r#""absent" in attributes && attributes["absent"] == "x""#,
+                r#"attributes["absent"] == "x" && "absent" in attributes"#,
+            ] {
+                assert!(!evaluate(when, &span).expect("it evaluates"), "{when}");
+            }
         }
     }
 
@@ -475,6 +409,7 @@ mod tests {
                 "../fixtures/cel/span-status/span-no-status.json"
             ));
             assert!(!matches(MATCHERS, &sample).expect("it evaluates"));
+            assert!(evaluate(r#"status.code == "unset""#, &sample).expect("it evaluates"));
         }
 
         #[test]
@@ -534,8 +469,7 @@ mod tests {
         fn an_unguarded_read_of_an_absent_optional_field_errors() {
             let log = log_without_optional_fields();
             for when in ["severity_number < 10", r#"body.contains("x")"#] {
-                let error = evaluate(when, &log).expect_err("it errors");
-                assert!(matches!(error, Error::EvalFailed { .. }), "{when}: {error}");
+                let _ = evaluate(when, &log).expect_err("it errors");
             }
         }
 
@@ -644,7 +578,7 @@ mod tests {
                 &metric,
             )
             .expect_err("reading it errors");
-            assert!(matches!(error, Error::EvalFailed { .. }), "{error}");
+            assert!(matches!(error, ExecutionError::NoSuchKey(_)), "{error}");
         }
 
         #[test]
@@ -778,9 +712,7 @@ mod tests {
         #[test]
         fn an_unguarded_read_of_an_absent_scope_errors() {
             let span = span_from_scope(None);
-            let error =
-                evaluate(r#"instrumentation_scope.name == "x""#, &span).expect_err("it errors");
-            assert!(matches!(error, Error::EvalFailed { .. }), "{error}");
+            let _ = evaluate(r#"instrumentation_scope.name == "x""#, &span).expect_err("it errors");
         }
 
         #[test]
@@ -797,11 +729,5 @@ mod tests {
             let when = r#"resource != null && "service.name" in resource.attributes"#;
             assert!(!evaluate(when, &span).expect("it evaluates"));
         }
-    }
-
-    #[test]
-    fn a_sample_type_a_matcher_cannot_target_has_no_variables() {
-        assert!(variables(SampleType::NumberDataPoint).is_empty());
-        assert!(variables(SampleType::Attribute).is_empty());
     }
 }

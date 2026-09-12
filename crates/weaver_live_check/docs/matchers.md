@@ -449,9 +449,7 @@ Without the guard, the matcher errors on every sample that lacks the key and app
 
 ```text
 Matcher coverage
-  - match.checkout: 0 sample(s), 1 error(s): The expression
-    `attributes["myapp.checkout.stage"] == "payment"` failed to evaluate:
-    No such key: myapp.checkout.stage
+  - match.checkout: 0 sample(s), 1 error(s): No such key: myapp.checkout.stage
 ```
 
 and two warnings land in the diagnostic report at the end of the run:
@@ -517,11 +515,11 @@ Every problem with a matcher is reported, either at startup or in the matcher co
 | What happened                                                  | When you hear about it                      |
 | -------------------------------------------------------------- | ------------------------------------------- |
 | The expression does not parse                                  | Startup, run stops                          |
-| The expression reads a variable that sample type does not have | Startup, run stops                          |
-| A literal `matches` pattern is not a valid regex               | Startup, run stops                          |
 | `signal` or an attribute group name is not in the registry     | Startup, run stops                          |
 | A matcher is configured against a v1 registry                  | Startup, run stops                          |
 | The expression errors while running, e.g. an unguarded read    | Warning, with a count and the first message |
+| The expression reads a variable that sample type does not have | Warning, with a count and the first message |
+| A `matches` pattern is not a valid regex                       | Warning, with a count and the first message |
 | A matcher applied to no samples                                | Warning                                     |
 
 The coverage block lists how many samples each matcher applied to, so you can see which ones are useful:

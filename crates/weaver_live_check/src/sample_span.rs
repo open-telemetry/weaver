@@ -16,10 +16,11 @@ use crate::{
 };
 
 /// The status code of the span
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum StatusCode {
     /// The status is unset
+    #[default]
     Unset,
     /// The status is ok
     Ok,
@@ -28,7 +29,7 @@ pub enum StatusCode {
 }
 
 /// The status code and message of the span
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Status {
     /// The status code
     pub code: StatusCode,

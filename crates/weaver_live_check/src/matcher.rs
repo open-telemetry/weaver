@@ -3,11 +3,10 @@
 //! Matchers from the live-check config. They are compiled and resolved at
 //! startup, then applied to each sample.
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
-use std::collections::{HashMap, HashSet};
-
-use weaver_cel::{Bindings, Expression, Referenced, Scope};
+use cel::{Context, ExecutionError, Program};
 use weaver_config::live_check::{MatcherConfig, MatcherSampleType};
 use weaver_forge::v2::attribute_group::AttributeGroup;
 
@@ -17,7 +16,7 @@ use crate::{
         type_advisor::{check_attributes, CheckableAttribute},
         FindingBuilder,
     },
-    cel::variables,
+    cel::{execute, Matchable},
     generated::attributes::FindingId,
     live_checker::LiveChecker,
     sample_attribute::SampleAttribute,
@@ -44,12 +43,6 @@ impl From<MatcherSampleType> for SampleType {
     }
 }
 
-/// A sample the matchers can select.
-pub trait Matchable: Bindings {
-    /// The kind of sample, which decides which matchers apply to it.
-    fn sample_type(&self) -> SampleType;
-}
-
 /// One matcher from the config, compiled and resolved against the registry.
 #[derive(Debug)]
 pub struct Matcher {
@@ -61,7 +54,7 @@ pub struct Matcher {
 
     /// The compiled `when` expression. `None` means the matcher applies to
     /// every sample of its type.
-    pub when: Option<Expression>,
+    pub when: Option<Program>,
 
     /// The name of the registry signal to check the sample against.
     pub signal: Option<String>,
@@ -93,26 +86,22 @@ pub struct Matcher {
 #[derive(Debug, Default)]
 pub struct Matchers {
     matchers: Vec<Matcher>,
-    /// For each sample type, the variables its matchers read. A sample binds
-    /// these once, and every matcher of that type evaluates against them.
-    referenced: HashMap<SampleType, Referenced>,
 }
 
 impl Matchers {
     /// Compiles the matchers and resolves the names they use against the
     /// registry.
     ///
-    /// Each `when` is compiled and checked to read only variables that its
-    /// sample type has. Each `signal` and attribute group is looked up in the
-    /// registry once, so matching a sample needs no more lookups.
+    /// Each `when` is compiled once. Each `signal` and attribute group is
+    /// looked up in the registry once, so matching a sample needs no more
+    /// lookups.
     ///
     /// # Errors
     ///
     /// Returns the first of these problems found: a repeated `id`, a `when`
-    /// that does not compile, a `when` that reads a variable its sample type
-    /// does not have, a v1 registry with any matcher, a `signal` on a sample
-    /// type that has none, or a `signal` or attribute group that is not in
-    /// the registry.
+    /// that does not compile, a v1 registry with any matcher, a `signal` on a
+    /// sample type that has none, or a `signal` or attribute group that is
+    /// not in the registry.
     pub fn compile(configs: &[MatcherConfig], live_checker: &LiveChecker) -> Result<Self, Error> {
         let mut matchers: Vec<Matcher> = Vec::with_capacity(configs.len());
         for config in configs {
@@ -124,7 +113,12 @@ impl Matchers {
             let when = config
                 .when
                 .as_deref()
-                .map(|when| compile_when(config, when))
+                .map(|when| {
+                    Program::compile(when).map_err(|error| Error::InvalidMatcherExpression {
+                        id: config.id.clone(),
+                        error: error.to_string(),
+                    })
+                })
                 .transpose()?;
             matchers.push(Matcher {
                 id: config.id.clone(),
@@ -150,21 +144,15 @@ impl Matchers {
         for matcher in &mut matchers {
             matcher.resolve(live_checker)?;
         }
-        let mut referenced: HashMap<SampleType, Referenced> = HashMap::new();
-        for matcher in &matchers {
-            let _ = referenced.entry(matcher.sample_type).or_insert_with(|| {
-                Referenced::union(
-                    matchers
-                        .iter()
-                        .filter(|other| other.sample_type == matcher.sample_type)
-                        .filter_map(|other| other.when.as_ref()),
-                )
-            });
-        }
-        Ok(Self {
-            matchers,
-            referenced,
-        })
+        Ok(Self { matchers })
+    }
+
+    /// The matchers that target a sample type, with their positions.
+    fn targeting(&self, sample_type: SampleType) -> impl Iterator<Item = (usize, &Matcher)> {
+        self.matchers
+            .iter()
+            .enumerate()
+            .filter(move |(_, matcher)| matcher.sample_type == sample_type)
     }
 
     /// Decides which signal and attribute groups to check a sample against.
@@ -185,18 +173,20 @@ impl Matchers {
             signal: natural,
             ..SampleMatch::default()
         };
-        let sample_type = sample.sample_type();
-        // No matcher targets this sample type.
-        let Some(referenced) = self.referenced.get(&sample_type) else {
+        let mut targeted = self.targeting(sample.sample_type()).peekable();
+        if targeted.peek().is_none() {
             return sample_match;
-        };
-        let scope = Scope::new(referenced, sample);
-        for (index, matcher) in self.matchers.iter().enumerate() {
-            if matcher.sample_type != sample_type {
-                continue;
-            }
-            sample_match.targeted = true;
-            match matcher.applies_to(&scope) {
+        }
+        sample_match.targeted = true;
+        let mut context = Context::default();
+        if let Err(error) = sample.bind(&mut context) {
+            sample_match.errors = targeted
+                .map(|(index, _)| (index, error.to_string()))
+                .collect();
+            return sample_match;
+        }
+        for (index, matcher) in targeted {
+            match matcher.applies_to(&context) {
                 Ok(true) => {}
                 Ok(false) => continue,
                 Err(error) => {
@@ -348,11 +338,10 @@ impl Matcher {
     ///
     /// A `when` that fails to evaluate does not match. The error is returned
     /// so that the caller can record it.
-    fn applies_to(&self, scope: &Scope) -> Result<bool, weaver_cel::Error> {
-        let Some(when) = &self.when else {
-            return Ok(true);
-        };
-        when.evaluate_in(scope)
+    fn applies_to(&self, context: &Context<'_>) -> Result<bool, ExecutionError> {
+        self.when
+            .as_ref()
+            .map_or(Ok(true), |when| execute(when, context))
     }
 
     /// Records one `when` failure, keeping the first message.
@@ -698,28 +687,6 @@ impl SignalKind {
     }
 }
 
-/// Compiles one `when` and checks that its sample type has every variable
-/// it reads.
-fn compile_when(config: &MatcherConfig, when: &str) -> Result<Expression, Error> {
-    let expression =
-        Expression::compile(when).map_err(|error| Error::InvalidMatcherExpression {
-            id: config.id.clone(),
-            error: error.to_string(),
-        })?;
-    let available = variables(config.sample_type.into());
-    for variable in expression.referenced().variables() {
-        if !available.contains(&variable) {
-            return Err(Error::UnknownMatcherVariable {
-                id: config.id.clone(),
-                variable: variable.to_owned(),
-                sample_type: config.sample_type.to_string(),
-                available: available.join(", "),
-            });
-        }
-    }
-    Ok(expression)
-}
-
 #[cfg(test)]
 pub(crate) mod fixture {
     use std::sync::Arc;
@@ -916,7 +883,7 @@ mod tests {
     }
 
     #[test]
-    fn the_fixture_matchers_compile_and_pass_the_lint() {
+    fn the_fixture_matchers_compile() {
         for toml_str in FIXTURES {
             let matchers = compile(toml_str).expect("the fixture matchers compile");
             assert!(!matchers.is_empty());
@@ -980,72 +947,6 @@ when = 'attributes['
             matches!(&error, Error::InvalidMatcherExpression { id, .. } if id == "myapp.broken"),
             "{error}"
         );
-    }
-
-    #[test]
-    fn a_variable_from_another_sample_type_is_rejected() {
-        let error = compile(
-            r#"
-[[live-check.matchers]]
-id = "myapp.wrong.type"
-sample_type = "span"
-when = 'unit == "s"'
-"#,
-        )
-        .expect_err("the lint rejects it");
-        let Error::UnknownMatcherVariable {
-            id,
-            variable,
-            sample_type,
-            available,
-        } = &error
-        else {
-            panic!("wrong variant: {error}");
-        };
-        assert_eq!(id, "myapp.wrong.type");
-        assert_eq!(variable, "unit");
-        assert_eq!(sample_type, "span");
-        assert!(available.contains("status"), "{available}");
-    }
-
-    #[test]
-    fn a_variable_no_sample_type_has_is_rejected() {
-        let error = compile(
-            r#"
-[[live-check.matchers]]
-id = "myapp.invented"
-sample_type = "metric"
-when = 'temperature > 3'
-"#,
-        )
-        .expect_err("the lint rejects it");
-        assert!(
-            matches!(&error, Error::UnknownMatcherVariable { variable, .. } if variable == "temperature"),
-            "{error}"
-        );
-    }
-
-    /// A resource has neither variable. Every signal sample has both.
-    #[test]
-    fn resource_and_instrumentation_scope_are_rejected_on_a_resource() {
-        for when in [
-            r#"resource.attributes["service.name"] == "x""#,
-            r#"instrumentation_scope.name == "x""#,
-        ] {
-            let error = compile(&format!(
-                r#"
-[[live-check.matchers]]
-id = "myapp.resource"
-sample_type = "resource"
-when = '{when}'
-"#
-            ))
-            .expect_err("the lint rejects it");
-            assert!(
-                matches!(error, Error::UnknownMatcherVariable { .. }),
-                "{error}"
-            );
-        }
     }
 
     #[test]
@@ -1422,7 +1323,7 @@ attribute_groups = ["myapp.common"]
             assert!(sample_match.attribute_groups.is_empty());
         }
 
-        /// An expression that passes the lint can still fail on a sample.
+        /// An expression that compiles can still fail on a sample.
         #[test]
         fn a_when_that_errors_does_not_match_and_is_counted() {
             let mut live_checker = checker_with(ERRORING);
@@ -1433,7 +1334,7 @@ attribute_groups = ["myapp.common"]
 
             let (count, message) = recorded(&live_checker).expect("it errored");
             assert_eq!(count, 1);
-            assert!(message.contains("instrumentation_scope"), "{message}");
+            assert!(!message.is_empty());
         }
 
         #[test]
@@ -2322,25 +2223,6 @@ when = 'name == "no-such-span"'
                     .and_then(|result| result.match_info.as_ref())
                     .is_some_and(|info| info.unmatched),
                 "the span records that nothing matched it"
-            );
-        }
-    }
-
-    #[test]
-    fn every_matcher_sample_type_maps_to_a_sample_type_with_variables() {
-        for sample_type in [
-            MatcherSampleType::Span,
-            MatcherSampleType::SpanEvent,
-            MatcherSampleType::SpanLink,
-            MatcherSampleType::Log,
-            MatcherSampleType::Metric,
-            MatcherSampleType::Resource,
-            MatcherSampleType::InstrumentationScope,
-            MatcherSampleType::Profile,
-        ] {
-            assert!(
-                !variables(sample_type.into()).is_empty(),
-                "{sample_type} has no variables"
             );
         }
     }

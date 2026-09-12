@@ -94,7 +94,7 @@ signal = "myapp.checkout"
 attribute_groups = ["myapp.common"]
 ```
 
-`when` is a [CEL](https://cel.dev) expression. Live-check compiles and lints it at startup. A matcher never changes the checks themselves. It only decides what a sample is compared with. Matchers need a v2 registry.
+`when` is a [CEL](https://cel.dev) expression. Live-check compiles it at startup. A matcher never changes the checks themselves. It only decides what a sample is compared with. Matchers need a v2 registry.
 
 `attribute_groups` names the attributes that are _permitted_ on the sample. They are checked against their definitions, but an attribute missing from the sample is not reported. Use `strict_attribute_groups` for a group whose requirement levels must be enforced.
 

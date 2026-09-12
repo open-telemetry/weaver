@@ -361,19 +361,6 @@ pub enum Error {
         /// The attribute group the matcher names.
         attribute_group: String,
     },
-
-    /// A matcher's `when` reads a variable its sample type does not have.
-    #[error("Matcher `{id}` reads `{variable}`, which a `{sample_type}` sample does not have. Available: {available}")]
-    UnknownMatcherVariable {
-        /// The matcher id.
-        id: String,
-        /// The variable the expression reads.
-        variable: String,
-        /// The sample type the matcher applies to.
-        sample_type: String,
-        /// The variables the sample type has.
-        available: String,
-    },
 }
 
 impl From<Error> for DiagnosticMessages {

@@ -177,20 +177,23 @@ when = 'attributes['"#,
     assert!(output.contains("myapp.broken"), "got: {output}");
 }
 
-/// A `when` reading a variable its sample type does not have stops the run.
+/// A `when` that compiles but would fail on a sample, such as one that reads
+/// a variable its sample type does not have, or has a pattern that is not a
+/// valid regex, is not a startup error. It is reported per sample.
 #[test]
-fn a_matcher_reading_an_unknown_variable_fails_startup() {
-    let (out, _dir) = run_with_matcher(
-        r#"id = "myapp.wrong.type"
+fn a_matcher_that_would_fail_on_a_sample_does_not_fail_startup() {
+    for when in [r#"unit == "s""#, r#"name.matches("^(?<=cart)payment$")"#] {
+        let (out, _dir) = run_with_matcher_on(
+            REGISTRY,
+            &["--v2", "--fail-on", "none"],
+            &format!(
+                r#"id = "myapp.checkout"
 sample_type = "span"
-when = 'unit == "s"'"#,
-    );
-    assert_ne!(exit_code(&out), 0);
-    let output = combined(&out);
-    assert!(
-        output.contains("myapp.wrong.type") && output.contains("unit"),
-        "got: {output}"
-    );
+when = '{when}'"#
+            ),
+        );
+        assert_eq!(exit_code(&out), 0, "{when}: {}", combined(&out));
+    }
 }
 
 /// A matcher that compiles and resolves lets the run finish.
@@ -204,23 +207,6 @@ sample_type = "span"
 when = '"myapp.checkout.id" in attributes'"#,
     );
     assert_eq!(exit_code(&out), 0, "got: {}", combined(&out));
-}
-
-/// A literal `matches` pattern that is not a valid regex stops the run at
-/// startup, instead of erroring on every sample.
-#[test]
-fn a_matcher_with_an_invalid_regex_fails_startup() {
-    let (out, _dir) = run_with_matcher(
-        r#"id = "myapp.checkout"
-sample_type = "span"
-when = 'name.matches("^(?<=cart)payment$")'"#,
-    );
-    assert_ne!(exit_code(&out), 0);
-    let output = combined(&out);
-    assert!(
-        output.contains("myapp.checkout") && output.contains("pattern"),
-        "got: {output}"
-    );
 }
 
 /// A `signal` that is not in the registry stops the run.
