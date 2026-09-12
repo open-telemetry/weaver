@@ -58,6 +58,12 @@ pub struct SampleNumberDataPoint {
     pub exemplars: Vec<SampleExemplar>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
+    /// Start timestamp from the OTLP data point in RFC3339 format.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_time: Option<String>,
+    /// End timestamp from the OTLP data point in RFC3339 format.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub end_time: Option<String>,
 }
 
 impl Advisable for SampleNumberDataPoint {
@@ -118,6 +124,12 @@ pub struct SampleHistogramDataPoint {
     pub exemplars: Vec<SampleExemplar>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
+    /// Start timestamp from the OTLP data point in RFC3339 format.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_time: Option<String>,
+    /// End timestamp from the OTLP data point in RFC3339 format.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub end_time: Option<String>,
 }
 
 impl Advisable for SampleHistogramDataPoint {
@@ -193,6 +205,12 @@ pub struct SampleExponentialHistogramDataPoint {
     pub exemplars: Vec<SampleExemplar>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
+    /// Start timestamp from the OTLP data point in RFC3339 format.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_time: Option<String>,
+    /// End timestamp from the OTLP data point in RFC3339 format.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub end_time: Option<String>,
 }
 
 impl Advisable for SampleExponentialHistogramDataPoint {

@@ -221,8 +221,8 @@ fn generate_report(
         }
     } else {
         let report = LiveCheckReport {
-            statistics: stats,
             samples,
+            statistics: stats,
         };
         output.generate(&report)
     }
@@ -451,8 +451,8 @@ pub(crate) fn command(
                 lines.join("\n")
             } else {
                 let report = LiveCheckReport {
-                    statistics: stats,
                     samples,
+                    statistics: stats,
                 };
                 output
                     .generate_to_string(&report)
