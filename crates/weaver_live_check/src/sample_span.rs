@@ -62,6 +62,24 @@ pub struct SampleSpan {
     /// Reference to the parent resource (not serialized)
     #[serde(skip)]
     pub resource: Option<Rc<SampleResource>>,
+    /// Trace ID from the OTLP span.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trace_id: Option<String>,
+    /// Span ID from the OTLP span.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub span_id: Option<String>,
+    /// Parent span ID from the OTLP span.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_span_id: Option<String>,
+    /// W3C tracestate from the OTLP span.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trace_state: Option<String>,
+    /// Start timestamp from the OTLP span in RFC3339 format.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_time: Option<String>,
+    /// End timestamp from the OTLP span in RFC3339 format.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub end_time: Option<String>,
 }
 
 impl Advisable for SampleSpan {
@@ -108,6 +126,9 @@ pub struct SampleSpanEvent {
     pub attributes: Vec<SampleAttribute>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
+    /// Event timestamp from the OTLP span in RFC3339 format.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timestamp: Option<String>,
 }
 
 impl Advisable for SampleSpanEvent {
@@ -144,6 +165,12 @@ pub struct SampleSpanLink {
     pub attributes: Vec<SampleAttribute>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
+    /// Linked trace ID from the OTLP span.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trace_id: Option<String>,
+    /// Linked span ID from the OTLP span.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub span_id: Option<String>,
 }
 
 impl Advisable for SampleSpanLink {

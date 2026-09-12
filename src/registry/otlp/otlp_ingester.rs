@@ -14,9 +14,10 @@ use weaver_live_check::{
 
 use super::{
     conversion::{
-        otlp_instrumentation_scope_to_sample, otlp_log_record_to_sample_log, otlp_metric_to_sample,
-        otlp_profile_to_sample, sample_attribute_from_key_value, span_kind_from_otlp_kind,
-        status_from_otlp_status,
+        non_empty, optional_unix_nanos_to_utc, otlp_instrumentation_scope_to_sample,
+        otlp_log_record_to_sample_log, otlp_metric_to_sample, otlp_profile_to_sample,
+        sample_attribute_from_key_value, span_id_hex, span_kind_from_otlp_kind,
+        status_from_otlp_status, trace_id_hex,
     },
     listen_otlp_requests, OtlpRequest, ShutdownCoordinator,
 };
@@ -171,6 +172,12 @@ impl OtlpIterator {
                                 instrumentation_scope: instrumentation_scope.clone(),
                                 live_check_result: None,
                                 resource: rc_resource.clone(),
+                                trace_id: non_empty(trace_id_hex(&span.trace_id)),
+                                span_id: non_empty(span_id_hex(&span.span_id)),
+                                parent_span_id: non_empty(span_id_hex(&span.parent_span_id)),
+                                trace_state: non_empty(span.trace_state.clone()),
+                                start_time: optional_unix_nanos_to_utc(span.start_time_unix_nano),
+                                end_time: optional_unix_nanos_to_utc(span.end_time_unix_nano),
                             };
                             for attribute in span.attributes {
                                 sample_span
@@ -182,6 +189,7 @@ impl OtlpIterator {
                                     name: event.name,
                                     attributes: Vec::new(),
                                     live_check_result: None,
+                                    timestamp: optional_unix_nanos_to_utc(event.time_unix_nano),
                                 };
                                 for attribute in event.attributes {
                                     sample_event
@@ -194,6 +202,8 @@ impl OtlpIterator {
                                 let mut sample_link = SampleSpanLink {
                                     attributes: Vec::new(),
                                     live_check_result: None,
+                                    trace_id: non_empty(trace_id_hex(&link.trace_id)),
+                                    span_id: non_empty(span_id_hex(&link.span_id)),
                                 };
                                 for attribute in link.attributes {
                                     sample_link
@@ -335,10 +345,14 @@ mod tests {
         },
         common::v1::{any_value, AnyValue, InstrumentationScope, KeyValue},
         logs::v1::{LogRecord, ResourceLogs, ScopeLogs},
-        metrics::v1::{Metric, ResourceMetrics, ScopeMetrics},
+        metrics::v1::{
+            metric::Data as MetricData, Gauge, Metric, NumberDataPoint, ResourceMetrics,
+            ScopeMetrics,
+        },
         resource::v1::Resource,
-        trace::v1::{ResourceSpans, ScopeSpans, Span},
+        trace::v1::{span::Event, span::Link, ResourceSpans, ScopeSpans, Span},
     };
+    use weaver_live_check::{DisabledStatistics, LiveCheckReport, LiveCheckStatistics};
 
     fn string_attribute(name: &str, value: &str) -> KeyValue {
         KeyValue {
@@ -644,5 +658,284 @@ mod tests {
                 .name,
             "scope.environment"
         );
+    }
+
+    #[test]
+    fn captured_telemetry_report_orders_distinct_resource_scope_groups_before_spans() {
+        let request = OtlpRequest::Traces(ExportTraceServiceRequest {
+            resource_spans: vec![
+                ResourceSpans {
+                    resource: Some(Resource {
+                        attributes: vec![string_attribute("service.name", "checkout")],
+                        ..Default::default()
+                    }),
+                    scope_spans: vec![ScopeSpans {
+                        scope: Some(scope("checkout-library")),
+                        spans: vec![Span {
+                            name: "checkout-operation".to_owned(),
+                            trace_id: vec![0u8; 15].into_iter().chain([1]).collect(),
+                            span_id: vec![0u8; 7].into_iter().chain([1]).collect(),
+                            ..Default::default()
+                        }],
+                        schema_url: "https://example.test/checkout".to_owned(),
+                    }],
+                    ..Default::default()
+                },
+                ResourceSpans {
+                    resource: Some(Resource {
+                        attributes: vec![string_attribute("service.name", "payment")],
+                        ..Default::default()
+                    }),
+                    scope_spans: vec![ScopeSpans {
+                        scope: Some(scope("payment-library")),
+                        spans: vec![Span {
+                            name: "payment-operation".to_owned(),
+                            trace_id: vec![0u8; 15].into_iter().chain([2]).collect(),
+                            span_id: vec![0u8; 7].into_iter().chain([2]).collect(),
+                            ..Default::default()
+                        }],
+                        schema_url: "https://example.test/payment".to_owned(),
+                    }],
+                    ..Default::default()
+                },
+            ],
+        });
+
+        let report = LiveCheckReport {
+            samples: collect(vec![request]),
+            statistics: LiveCheckStatistics::Disabled(DisabledStatistics),
+        };
+        let json = serde_json::to_value(report).expect("report serializes");
+        let samples = json["samples"].as_array().expect("samples array");
+
+        assert_eq!(samples.len(), 6);
+        assert_eq!(samples[0]["resource"]["attributes"][0]["value"], "checkout");
+        assert_eq!(
+            samples[1]["instrumentation_scope"]["name"],
+            "checkout-library"
+        );
+        assert_eq!(samples[2]["span"]["name"], "checkout-operation");
+        assert_eq!(
+            samples[2]["span"]["trace_id"],
+            "00000000000000000000000000000001"
+        );
+        assert_eq!(samples[3]["resource"]["attributes"][0]["value"], "payment");
+        assert_eq!(
+            samples[4]["instrumentation_scope"]["name"],
+            "payment-library"
+        );
+        assert_eq!(samples[5]["span"]["name"], "payment-operation");
+        assert_eq!(
+            samples[5]["span"]["trace_id"],
+            "00000000000000000000000000000002"
+        );
+    }
+
+    fn resource_scoped_trace_request(span: Span) -> OtlpRequest {
+        OtlpRequest::Traces(ExportTraceServiceRequest {
+            resource_spans: vec![ResourceSpans {
+                resource: Some(Resource {
+                    attributes: vec![string_attribute("service.name", "checkout")],
+                    ..Default::default()
+                }),
+                scope_spans: vec![ScopeSpans {
+                    scope: Some(scope("trace-library")),
+                    spans: vec![span],
+                    schema_url: "https://example.test/trace".to_owned(),
+                }],
+                ..Default::default()
+            }],
+        })
+    }
+
+    fn find_span(samples: &[Sample]) -> &SampleSpan {
+        samples
+            .iter()
+            .find_map(|sample| match sample {
+                Sample::Span(span) => Some(span),
+                _ => None,
+            })
+            .expect("span sample")
+    }
+
+    #[test]
+    fn telemetry_context_is_populated_by_default() {
+        let span = Span {
+            name: "operation".to_owned(),
+            trace_id: vec![0u8; 15].into_iter().chain([1]).collect(),
+            span_id: vec![0u8; 7].into_iter().chain([1]).collect(),
+            start_time_unix_nano: 1_000,
+            end_time_unix_nano: 2_000,
+            events: vec![Event {
+                time_unix_nano: 1_500,
+                name: "event".to_owned(),
+                ..Default::default()
+            }],
+            links: vec![Link {
+                trace_id: vec![0u8; 15].into_iter().chain([2]).collect(),
+                span_id: vec![0u8; 7].into_iter().chain([2]).collect(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let samples = collect(vec![resource_scoped_trace_request(span)]);
+        let span = find_span(&samples);
+        assert!(span.trace_id.is_some());
+        assert!(span.span_events[0].timestamp.is_some());
+        assert!(span.span_links[0].trace_id.is_some());
+    }
+
+    #[test]
+    fn telemetry_context_includes_span_identity_timing_and_provenance() {
+        let span = Span {
+            name: "operation".to_owned(),
+            trace_id: vec![0u8; 15].into_iter().chain([1]).collect(),
+            span_id: vec![0u8; 7].into_iter().chain([1]).collect(),
+            parent_span_id: vec![0u8; 7].into_iter().chain([2]).collect(),
+            trace_state: "vendor=value".to_owned(),
+            start_time_unix_nano: 1_000,
+            end_time_unix_nano: 2_000,
+            ..Default::default()
+        };
+        let samples = collect(vec![resource_scoped_trace_request(span)]);
+        let span = find_span(&samples);
+        assert_eq!(
+            span.trace_id.as_deref(),
+            Some("00000000000000000000000000000001")
+        );
+        assert_eq!(span.span_id.as_deref(), Some("0000000000000001"));
+        assert_eq!(span.parent_span_id.as_deref(), Some("0000000000000002"));
+        assert_eq!(span.trace_state.as_deref(), Some("vendor=value"));
+        assert!(span.start_time.is_some());
+        assert!(span.end_time.is_some());
+    }
+
+    #[test]
+    fn telemetry_context_omits_invalid_all_zero_span_ids() {
+        let span = Span {
+            name: "operation".to_owned(),
+            trace_id: vec![0; 16],
+            span_id: vec![0; 8],
+            ..Default::default()
+        };
+
+        let samples = collect(vec![resource_scoped_trace_request(span)]);
+        let span = find_span(&samples);
+
+        assert_eq!(span.trace_id, None);
+        assert_eq!(span.span_id, None);
+    }
+
+    #[test]
+    fn telemetry_context_includes_span_event_and_link_fields() {
+        let span = Span {
+            name: "operation".to_owned(),
+            events: vec![Event {
+                time_unix_nano: 1_500,
+                name: "event".to_owned(),
+                ..Default::default()
+            }],
+            links: vec![Link {
+                trace_id: vec![0u8; 15].into_iter().chain([2]).collect(),
+                span_id: vec![0u8; 7].into_iter().chain([2]).collect(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let samples = collect(vec![resource_scoped_trace_request(span)]);
+        let span = find_span(&samples);
+
+        // A span event carries one timestamp, not identity/resource/scope.
+        assert!(span.span_events[0].timestamp.is_some());
+
+        // A span link carries the *linked* span's identity, nothing else.
+        assert_eq!(
+            span.span_links[0].trace_id.as_deref(),
+            Some("00000000000000000000000000000002")
+        );
+        assert_eq!(
+            span.span_links[0].span_id.as_deref(),
+            Some("0000000000000002")
+        );
+    }
+
+    #[test]
+    fn telemetry_context_includes_log_fields() {
+        let request = OtlpRequest::Logs(ExportLogsServiceRequest {
+            resource_logs: vec![ResourceLogs {
+                resource: Some(Resource {
+                    attributes: vec![string_attribute("service.name", "checkout")],
+                    ..Default::default()
+                }),
+                scope_logs: vec![ScopeLogs {
+                    scope: Some(scope("log-library")),
+                    log_records: vec![LogRecord {
+                        event_name: "widget.created".to_owned(),
+                        time_unix_nano: 1_000,
+                        trace_id: vec![0u8; 15].into_iter().chain([1]).collect(),
+                        span_id: vec![0u8; 7].into_iter().chain([2]).collect(),
+                        ..Default::default()
+                    }],
+                    schema_url: "https://example.test/log".to_owned(),
+                }],
+                ..Default::default()
+            }],
+        });
+
+        let samples = collect(vec![request]);
+        let log = samples
+            .iter()
+            .find_map(|sample| match sample {
+                Sample::Log(log) => Some(log),
+                _ => None,
+            })
+            .expect("log sample");
+        assert!(log.timestamp.is_some());
+        assert_eq!(
+            log.trace_id.as_deref(),
+            Some("00000000000000000000000000000001")
+        );
+        assert_eq!(log.span_id.as_deref(), Some("0000000000000002"));
+    }
+
+    #[test]
+    fn telemetry_context_treats_zero_start_time_as_absent_on_a_data_point() {
+        // A data point's start_time_unix_nano is legitimately 0 for some
+        // metric types — that must not render as the 1970 epoch.
+        let request = OtlpRequest::Metrics(ExportMetricsServiceRequest {
+            resource_metrics: vec![ResourceMetrics {
+                scope_metrics: vec![ScopeMetrics {
+                    metrics: vec![Metric {
+                        name: "widgets.count".to_owned(),
+                        data: Some(MetricData::Gauge(Gauge {
+                            data_points: vec![NumberDataPoint {
+                                start_time_unix_nano: 0,
+                                time_unix_nano: 2_000,
+                                ..Default::default()
+                            }],
+                        })),
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }],
+        });
+
+        let samples = collect(vec![request]);
+        let metric = samples
+            .iter()
+            .find_map(|sample| match sample {
+                Sample::Metric(metric) => Some(metric),
+                _ => None,
+            })
+            .expect("metric sample");
+        let weaver_live_check::sample_metric::DataPoints::Number(points) =
+            metric.data_points.as_ref().expect("data points")
+        else {
+            panic!("expected number data points");
+        };
+        assert_eq!(points[0].start_time, None);
+        assert!(points[0].end_time.is_some());
     }
 }
