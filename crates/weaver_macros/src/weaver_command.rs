@@ -654,7 +654,9 @@ fn gen_cli_overrides_impl(
             type Config = #config_ty;
             const SUBCOMMAND: &'static str = #section_lit;
 
-            fn extract_config(wc: &::weaver_config::WeaverConfig) -> #config_ty {
+            fn extract_config(
+                wc: &::weaver_config::WeaverConfig,
+            ) -> ::std::result::Result<#config_ty, ::weaver_config::ConfigError> {
                 wc.command_config(#section_lit)
             }
 
