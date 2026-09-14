@@ -741,11 +741,11 @@ mod tests {
     use weaver_forge::v2::provenance::Provenance;
     use weaver_forge::v2::registry::ForgeDependency;
     use weaver_forge::v2::span::SpanAttribute;
-    use weaver_semconv::v2::stability::Stability;
     use weaver_semconv::v2::attribute::{
         AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
         TemplateTypeSpec,
     };
+    use weaver_semconv::v2::stability::Stability;
     use weaver_semconv::v2::CommonFields;
 
     use crate::advice::{Advisor, TypeAdvisor};
