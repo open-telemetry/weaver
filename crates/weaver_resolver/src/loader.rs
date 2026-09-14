@@ -487,7 +487,7 @@ fn load_definition_repository(
     let result = walkdir::WalkDir::new(local_path.clone())
         .follow_links(follow_symlinks)
         .into_iter()
-        .filter_entry(|e| !is_hidden(e))
+        .filter_entry(|e| e.depth() == 0 || !is_hidden(e))
         .par_bridge()
         .flat_map(|entry| {
             match entry {
@@ -636,6 +636,34 @@ mod tests {
             } else {
                 panic!("Failed to load unresolved registry dependency")
             }
+        } else {
+            panic!("Failed to load unresolved registry")
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_load_registry_from_dot_prefixed_root() -> Result<(), Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/.dot-rooted-registry".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut diag_msgs = DiagnosticMessages::empty();
+        let loaded = load_semconv_repository(
+            registry_repo,
+            false,
+            &weaver_common::http_auth::HttpAuthResolver::empty(),
+        )
+        .capture_non_fatal_errors(&mut diag_msgs)?;
+        if let LoadedSemconvRegistry::Unresolved { specs, imports, .. } = loaded {
+            assert!(
+                !specs.is_empty(),
+                "expected at least one spec loaded from a dot-rooted registry, got 0"
+            );
+            assert!(
+                !imports.is_empty(),
+                "expected imports loaded from a dot-rooted registry, got 0"
+            );
         } else {
             panic!("Failed to load unresolved registry")
         }
