@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: top
 description: >
   This registry is `top_reexport` plus a direct dependency on `base`. That one

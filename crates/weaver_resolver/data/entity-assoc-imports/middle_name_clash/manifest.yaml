@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: middle_name_clash
 description: >
   A metric is named `host`, and an association names `host`. A signal of another

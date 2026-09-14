@@ -17,7 +17,7 @@ pub enum Error {
     /// There was an issue resolving definition schema.
     #[error(transparent)]
     #[diagnostic(transparent)]
-    FailToResolveDefinition(#[from] weaver_semconv::Error),
+    FailToResolveDefinition(weaver_semconv::Error),
 
     /// Failed to access a virtual directory path.
     #[error(transparent)]
@@ -413,6 +413,15 @@ impl Error {
                 }
             }
             _ => log_error(self),
+        }
+    }
+}
+
+impl From<weaver_semconv::Error> for Error {
+    fn from(e: weaver_semconv::Error) -> Self {
+        match e {
+            weaver_semconv::Error::FailToResolveSchemaUrl {} => Error::FailToResolveSchemaUrl {},
+            other => Error::FailToResolveDefinition(other),
         }
     }
 }

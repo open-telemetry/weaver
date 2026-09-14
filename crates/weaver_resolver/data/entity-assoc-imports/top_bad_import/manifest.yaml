@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: top
 description: >
   This registry imports an entity that no declared dependency offers.

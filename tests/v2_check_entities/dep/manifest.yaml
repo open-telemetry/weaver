@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: entities_dep
 description: >
   A dependency that defines a stable `service` entity and a `host` entity that

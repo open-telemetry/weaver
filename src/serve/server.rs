@@ -21,7 +21,8 @@ use weaver_forge::v2::{
     attribute::Attribute, entity::Entity, event::Event, metric::Metric,
     registry::ForgeResolvedRegistry, span::Span,
 };
-use weaver_semconv::stability::Stability;
+use weaver_semconv::deprecated::Deprecated;
+use weaver_semconv::v2::stability::Stability;
 
 use super::handlers;
 use super::types::SearchResponse;
@@ -115,6 +116,7 @@ impl From<serde_json::Error> for Error {
             Event,
             Entity,
             Stability,
+            Deprecated,
         )
     ),
     tags(
