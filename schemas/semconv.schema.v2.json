@@ -1378,6 +1378,13 @@
           "description": "Specifies the kind of the span.\nNote: only valid if type is span",
           "$ref": "#/$defs/SpanKindSpec"
         },
+        "links": {
+          "description": "Declares links from this span to other spans.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpanLink"
+          }
+        },
         "name": {
           "description": "The name pattern for the span.",
           "$ref": "#/$defs/SpanName"
@@ -1536,6 +1543,52 @@
         }
       ]
     },
+    "SpanLink": {
+      "description": "Declares a link from this span to another span.\n\nSpan links model relations that do not fit the parent/child tree,\nfor example a batch consumer span that links to the creation\ncontext of each message it processes.",
+      "type": "object",
+      "properties": {
+        "attributes": {
+          "description": "List of attributes expected on the link itself.\nAttribute-group references are not supported on links; each entry\nis a single attribute reference.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpanAttributeRef"
+          }
+        },
+        "brief": {
+          "description": "Refines the brief description of the link.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "note": {
+          "description": "Refines the more elaborate description of the link.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ref": {
+          "description": "The span type this link points to.",
+          "$ref": "#/$defs/SignalId"
+        },
+        "requirement_level": {
+          "description": "The requirement level of the link. Uses the attribute requirement\nlevels (\"required\", \"conditionally_required\", \"recommended\",\n\"opt_in\") because a link, unlike a signal, can be required.\nDefaults to 'recommended' when omitted.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RequirementLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "ref"
+      ]
+    },
     "SpanName": {
       "description": "Specification of the span name.",
       "type": "object",
@@ -1551,7 +1604,7 @@
       ]
     },
     "SpanRefinement": {
-      "description": "A refinement of an existing span.",
+      "description": "A refinement of an existing span.\n\nA refinement inherits the base span's links during resolution.\nA refinement cannot declare, replace, or extend links yet.",
       "type": "object",
       "properties": {
         "annotations": {

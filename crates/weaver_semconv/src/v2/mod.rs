@@ -475,6 +475,7 @@ mod tests {
                 },
                 attributes: vec![],
                 entity_associations: vec![],
+                links: vec![],
                 requirement_level: None,
                 common: CommonFields {
                     brief: "HTTP server span".to_owned(),
