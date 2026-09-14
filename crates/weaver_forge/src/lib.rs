@@ -1355,6 +1355,53 @@ mod tests {
     }
 
     #[test]
+    fn test_when_with_modules_preserves_boolean_contract_and_errors() {
+        let (mut engine, _) = prepare_test_readonly("test", Params::default(), true);
+        let dir = tempfile::tempdir().unwrap();
+        let module = dir.path().join("conditions.jq");
+        fs::write(
+            &module,
+            "def condition: .enabled; def broken: error(\"condition failed\");",
+        )
+        .unwrap();
+        engine.target_config.jq_modules = Some(vec![module]);
+        let mut template = TemplateConfig {
+            template: Glob::new("converter.md").unwrap(),
+            filter: ".".to_owned(),
+            application_mode: ApplicationMode::Single,
+            params: None,
+            file_name: None,
+            auto_escape: AutoEscapeMode::None,
+            when: Some("condition".to_owned()),
+        };
+        for enabled in [true, false, true] {
+            assert_eq!(
+                engine
+                    .evaluate_when(
+                        &template,
+                        &serde_json::json!({"enabled": enabled}),
+                        &BTreeMap::new()
+                    )
+                    .unwrap(),
+                enabled
+            );
+        }
+        for expression in ["empty", "true, false", "42", "null"] {
+            template.when = Some(expression.to_owned());
+            assert!(matches!(
+                engine.evaluate_when(&template, &serde_json::json!({}), &BTreeMap::new()),
+                Err(Error::WhenClauseNotBoolean { .. })
+            ));
+        }
+        template.when = Some("broken".to_owned());
+        assert!(engine
+            .evaluate_when(&template, &serde_json::json!({}), &BTreeMap::new())
+            .unwrap_err()
+            .to_string()
+            .contains("condition failed"));
+    }
+
+    #[test]
     fn test_evaluate_when() {
         use std::collections::BTreeMap;
 

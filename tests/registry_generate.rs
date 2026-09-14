@@ -307,6 +307,7 @@ fn test_generate_reports_invalid_jq_module_source() {
         .arg("-t")
         .arg(".")
         .arg("--skip-policies")
+        .args(["--diagnostic-format", "json", "--diagnostic-stdout", "true"])
         .arg("tgt")
         .arg("../out")
         .timeout(std::time::Duration::from_secs(60))
@@ -314,9 +315,13 @@ fn test_generate_reports_invalid_jq_module_source() {
         .expect("failed to execute process");
 
     assert!(!output.status.success());
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("broken.jq:1:13"), "stderr: {stderr}");
-    assert!(stderr.contains("undefined filter"), "stderr: {stderr}");
+    let diagnostics: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("Expected JSON diagnostics");
+    let message = diagnostics[0]["diagnostic"]["message"]
+        .as_str()
+        .expect("Expected diagnostic message");
+    assert!(message.contains("broken.jq:1:13"), "message: {message}");
+    assert!(message.contains("undefined filter"), "message: {message}");
 }
 
 /// End-to-end check that a template `when` clause (a JQ expression over the

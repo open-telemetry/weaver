@@ -75,19 +75,36 @@ pub fn execute_jq_with_modules(
         log::debug!("Executing JQ filter: {filter_expr} with params {params:#?}");
     }
 
+    // Canonical module paths are never empty, so the filter has a distinct identity.
+    let main_path = PathBuf::new();
     let loader = Loader::new(
         jaq_core::defs()
             .chain(jaq_std::defs())
             .chain(jaq_json::defs())
             .chain(semconv_prelude()),
     )
-    .with_read(read_module);
+    .with_read(|import: Import<'_, &str, PathBuf>| {
+        if modules.is_empty() {
+            return Err("module loading not supported".to_owned());
+        }
+        if import.parent == &main_path {
+            if let Some(module) = import
+                .path
+                .strip_prefix("__weaver_configured_module_")
+                .and_then(|index| index.parse::<usize>().ok())
+                .and_then(|index| modules.get(index))
+            {
+                return read_module_path(module_base.join(module));
+            }
+            return read_module_path(module_base.join(import.path));
+        }
+        read_module(import)
+    });
     let program_code = if modules.is_empty() {
         Cow::Borrowed(filter_expr)
     } else {
-        Cow::Owned(module_includes(filter_expr, modules)?)
+        Cow::Owned(module_includes(filter_expr, modules.len()))
     };
-    let main_path = module_base.join(".weaver-jq-entrypoint.jq");
     let prelude_lines = modules.len();
     let arena = Arena::default();
     let program: File<&str, JqFileType> = File {
@@ -99,10 +116,7 @@ pub fn execute_jq_with_modules(
     let modules = loader
         .load(&arena, program)
         .map_err(|errs| load_errors(errs, &main_path, prelude_lines))
-        .map_err(|details| Error::FilterError {
-            filter: filter_expr.to_owned(),
-            details,
-        })?;
+        .map_err(|details| filter_error(filter_expr, details))?;
 
     let (names, values) = prepare_jq_context(params)?;
     let funs = jaq_core::funs()
@@ -116,10 +130,7 @@ pub fn execute_jq_with_modules(
         .with_funs(funs.map(|x| x))
         .compile(modules)
         .map_err(|errs| compile_errors(errs, &main_path, prelude_lines))
-        .map_err(|details| Error::FilterError {
-            filter: filter_expr.to_owned(),
-            details,
-        })?;
+        .map_err(|details| filter_error(filter_expr, details))?;
 
     let ctx = Ctx::<data::JustLut<Val>>::new(&filter.lut, Vars::new(values));
 
@@ -144,7 +155,6 @@ pub fn execute_jq_with_modules(
                 .into_iter()
                 .map(|e| FilterErrorDetail {
                     error: format!("{e}"),
-                    file: None,
                     source: None,
                 })
                 .collect(),
@@ -168,22 +178,16 @@ pub fn execute_jq_with_modules(
     Ok(serde_json::Value::Array(values))
 }
 
-fn module_includes(filter_expr: &str, modules: &[PathBuf]) -> Result<String, Error> {
-    modules
-        .iter()
-        .map(|module| -> Result<_, Error> {
-            let module = serde_json::to_string(&module.to_string_lossy()).map_err(|e| {
-                Error::InternalError(format!("failed to serialize JQ module path: {e}"))
-            })?;
-            Ok(format!("include {module};\n"))
-        })
-        .chain(std::iter::once(Ok(filter_expr.to_owned())))
+fn module_includes(filter_expr: &str, count: usize) -> String {
+    (0..count)
+        .map(|index| format!("include \"__weaver_configured_module_{index}\";\n"))
+        .chain(std::iter::once(filter_expr.to_owned()))
         .collect()
 }
 
 fn read_module(import: Import<'_, &str, PathBuf>) -> Result<File<String, PathBuf>, String> {
     let requested_path = Path::new(import.path);
-    let mut path = if requested_path.is_absolute() {
+    let path = if requested_path.is_absolute() {
         requested_path.to_path_buf()
     } else {
         import
@@ -192,16 +196,21 @@ fn read_module(import: Import<'_, &str, PathBuf>) -> Result<File<String, PathBuf
             .unwrap_or_else(|| Path::new("."))
             .join(requested_path)
     };
+    read_module_path(path)
+}
+
+fn read_module_path(mut path: PathBuf) -> Result<File<String, PathBuf>, String> {
     _ = path.set_extension("jq");
     let path = path
         .canonicalize()
-        .map_err(|_| "file not found".to_owned())?;
-    let code = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        .map_err(|error| format!("{}: {error}", path.display()))?;
+    let code =
+        std::fs::read_to_string(&path).map_err(|error| format!("{}: {error}", path.display()))?;
     Ok(File { code, path })
 }
 
 // JAQ errors must be parsed and synthesized.  All of this code is adapted from `jaq/src/main.rs`.
-use crate::error::{FilterErrorDetail, Location, Source};
+use crate::error::{FilterErrorDetail, Location, ModuleFilterErrorDetail, Source};
 
 fn get_source(whole: &str, part: &str) -> Option<Source> {
     let whole_start = whole.as_ptr() as usize;
@@ -251,18 +260,38 @@ fn get_source(whole: &str, part: &str) -> Option<Source> {
     }
 }
 
+fn filter_error(filter: &str, details: Vec<ModuleFilterErrorDetail>) -> Error {
+    if details.iter().any(|detail| detail.file.is_some()) {
+        Error::ModuleFilterError {
+            filter: filter.to_owned(),
+            details,
+        }
+    } else {
+        Error::FilterError {
+            filter: filter.to_owned(),
+            details: details
+                .into_iter()
+                .map(|detail| FilterErrorDetail {
+                    error: detail.error,
+                    source: detail.source,
+                })
+                .collect(),
+        }
+    }
+}
+
 /// Turns loading errors from jaq into structured details.
 fn load_errors(
     errs: load::Errors<&str, JqFileType>,
     main_path: &Path,
     prelude_lines: usize,
-) -> Vec<FilterErrorDetail> {
+) -> Vec<ModuleFilterErrorDetail> {
     use load::Error;
     errs.into_iter()
         .flat_map(|(file, err)| {
             let code = file.code;
             let path = file.path;
-            let result: Vec<FilterErrorDetail> = match err {
+            let result: Vec<ModuleFilterErrorDetail> = match err {
                 Error::Io(errs) => errs.into_iter().map(report_io).collect(),
                 Error::Lex(errs) => errs
                     .into_iter()
@@ -283,7 +312,7 @@ fn compile_errors(
     errs: jaq_core::compile::Errors<&str, JqFileType>,
     main_path: &Path,
     prelude_lines: usize,
-) -> Vec<FilterErrorDetail> {
+) -> Vec<ModuleFilterErrorDetail> {
     errs.into_iter()
         .flat_map(|(file, errs)| {
             let code = file.code;
@@ -295,9 +324,13 @@ fn compile_errors(
 }
 
 /// Turns IO errors from JQ into structured details.
-fn report_io((path, error): (&str, String)) -> FilterErrorDetail {
-    FilterErrorDetail {
-        error: format!("could not load file {path}: {error}"),
+fn report_io((path, error): (&str, String)) -> ModuleFilterErrorDetail {
+    ModuleFilterErrorDetail {
+        error: if path.starts_with("__weaver_configured_module_") {
+            format!("could not load configured module: {error}")
+        } else {
+            format!("could not load file {path}: {error}")
+        },
         file: None,
         source: None,
     }
@@ -310,8 +343,8 @@ fn report_lex(
     prelude_lines: usize,
     code: &str,
     (expected, span): load::lex::Error<&str>,
-) -> FilterErrorDetail {
-    FilterErrorDetail {
+) -> ModuleFilterErrorDetail {
+    ModuleFilterErrorDetail {
         error: format!("expected {}", expected.as_str()),
         file: (path != main_path).then(|| path.to_path_buf()),
         source: source_with_original_filter_lines(code, span, path == main_path, prelude_lines),
@@ -325,8 +358,8 @@ fn report_parse(
     prelude_lines: usize,
     code: &str,
     (expected, span): load::parse::Error<&str>,
-) -> FilterErrorDetail {
-    FilterErrorDetail {
+) -> ModuleFilterErrorDetail {
+    ModuleFilterErrorDetail {
         error: format!("expected {}", expected.as_str()),
         file: (path != main_path).then(|| path.to_path_buf()),
         source: source_with_original_filter_lines(code, span, path == main_path, prelude_lines),
@@ -340,7 +373,7 @@ fn report_compile(
     prelude_lines: usize,
     code: &str,
     (found, undefined): jaq_core::compile::Error<&str>,
-) -> FilterErrorDetail {
+) -> ModuleFilterErrorDetail {
     use jaq_core::compile::Undefined::Filter;
     let wnoa = |exp, got| format!("wrong number of arguments (expected {exp}, found {got})");
     let msg = match (found, undefined) {
@@ -348,7 +381,7 @@ fn report_compile(
         ("foreach", Filter(arity)) => wnoa("2 or 3", arity),
         (_, undefined) => format!("undefined {}", undefined.as_str()),
     };
-    FilterErrorDetail {
+    ModuleFilterErrorDetail {
         error: msg,
         file: (path != main_path).then(|| path.to_path_buf()),
         source: source_with_original_filter_lines(code, found, path == main_path, prelude_lines),
@@ -523,7 +556,7 @@ mod tests {
         )
         .expect_err("Missing module should fail");
 
-        assert!(format!("{error}").contains("could not load file missing.jq: file not found"));
+        assert!(format!("{error}").contains("missing.jq"));
     }
 
     #[test]
@@ -541,8 +574,8 @@ mod tests {
         )
         .expect_err("Invalid module should fail");
 
-        let Error::FilterError { details, .. } = error else {
-            panic!("Expected a filter error");
+        let Error::ModuleFilterError { details, .. } = error else {
+            panic!("Expected a module filter error");
         };
         assert!(details[0].error.contains("expected closing parenthesis"));
         assert_eq!(
@@ -573,7 +606,6 @@ mod tests {
         let Error::FilterError { details, .. } = error else {
             panic!("Expected a filter error");
         };
-        assert!(details[0].file.is_none());
         assert_eq!(
             details[0].source.as_ref().map(|source| source.start.line),
             Some(1)

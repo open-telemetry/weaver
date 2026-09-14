@@ -36,6 +36,25 @@ pub struct Source {
 pub struct FilterErrorDetail {
     /// The detailed string reason for failure.
     pub error: String,
+    /// The span data marking the failed position.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<Source>,
+}
+
+impl std::fmt::Display for FilterErrorDetail {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.source {
+            Some(src) => write!(f, "{}:{}: {}", src.start.line, src.start.col, self.error),
+            None => write!(f, "{}", self.error),
+        }
+    }
+}
+
+/// A JQ module diagnostic with an optional source file.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct ModuleFilterErrorDetail {
+    /// The detailed string reason for failure.
+    pub error: String,
     /// Source file containing the error, when known.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file: Option<PathBuf>,
@@ -44,7 +63,7 @@ pub struct FilterErrorDetail {
     pub source: Option<Source>,
 }
 
-impl std::fmt::Display for FilterErrorDetail {
+impl std::fmt::Display for ModuleFilterErrorDetail {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match (&self.file, &self.source) {
             (Some(file), Some(src)) => write!(
@@ -63,7 +82,7 @@ impl std::fmt::Display for FilterErrorDetail {
 }
 
 // A helper for `thiserror` to format the vector of details
-fn format_details(details: &[FilterErrorDetail]) -> String {
+fn format_details(details: &[impl std::fmt::Display]) -> String {
     details
         .iter()
         .map(|d| d.to_string())
@@ -237,6 +256,15 @@ pub enum Error {
         filter: String,
         /// Structured syntax errors
         details: Vec<FilterErrorDetail>,
+    },
+
+    /// A filter failed while loading or compiling a configured JQ module.
+    #[error("Filter '{filter}' failed: {}", format_details(.details))]
+    ModuleFilterError {
+        /// Filter that caused the error.
+        filter: String,
+        /// Diagnostics with module source locations.
+        details: Vec<ModuleFilterErrorDetail>,
     },
 
     /// A template's `when` clause did not evaluate to a single boolean.
