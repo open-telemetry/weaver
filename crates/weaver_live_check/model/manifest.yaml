@@ -1,4 +1,3 @@
-file_format: definition_manifest/2.0
 description: Weaver Live Check Semantic Conventions
 schema_url: https://github.com/open-telemetry/weaver/crates/weaver_live_check/model/0.1.0
 dependencies:
