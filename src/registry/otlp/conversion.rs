@@ -126,7 +126,7 @@ pub fn status_from_otlp_status(
     None
 }
 
-/// Converts an OTLP metric to a SampleMetric
+/// Converts an OTLP metric to a SampleMetric.
 pub fn otlp_metric_to_sample(otlp_metric: Metric) -> SampleMetric {
     SampleMetric {
         name: otlp_metric.name,
@@ -181,6 +181,19 @@ fn otlp_data_to_data_points(data: &Option<Data>) -> Option<DataPoints> {
     }
 }
 
+/// Builds the raw-context (start/end time only; resource and scope are
+/// filled in by the caller, which holds them as `Rc`s shared across every
+/// data point in the same metric) for one metric data point.
+fn otlp_data_point_times(
+    start_time_unix_nano: u64,
+    time_unix_nano: u64,
+) -> (Option<String>, Option<String>) {
+    (
+        optional_unix_nanos_to_utc(start_time_unix_nano),
+        optional_unix_nanos_to_utc(time_unix_nano),
+    )
+}
+
 /// Converts an OTLP Exemplar to a SampleExemplar
 fn otlp_exemplar_to_sample_exemplar(
     exemplar: &super::grpc_stubs::proto::metrics::v1::Exemplar,
@@ -209,6 +222,15 @@ fn otlp_exemplar_to_sample_exemplar(
     }
 }
 
+/// `""` is how every ID conversion below signals an absent or malformed input.
+pub(crate) fn non_empty(s: String) -> Option<String> {
+    if s.is_empty() {
+        None
+    } else {
+        Some(s)
+    }
+}
+
 /// Converts a Unix timestamp in nanoseconds to a UTC string
 fn unix_nanos_to_utc(time_unix_nano: u64) -> String {
     if let Ok(nanos) = time_unix_nano.try_into() {
@@ -218,9 +240,22 @@ fn unix_nanos_to_utc(time_unix_nano: u64) -> String {
     }
 }
 
+/// Same conversion as `unix_nanos_to_utc`, but for a field that is legitimately
+/// unset at zero (a metric data point's `start_time_unix_nano`, for
+/// instance) rather than always populated the way a span's timestamps are.
+/// `unix_nanos_to_utc(0)` would otherwise render as the 1970 epoch instead
+/// of being absent.
+pub(crate) fn optional_unix_nanos_to_utc(time_unix_nano: u64) -> Option<String> {
+    if time_unix_nano == 0 {
+        None
+    } else {
+        non_empty(unix_nanos_to_utc(time_unix_nano))
+    }
+}
+
 /// Converts a span ID (8 bytes) to a hex string
-fn span_id_hex(span_id: &[u8]) -> String {
-    if span_id.len() == 8 {
+pub(super) fn span_id_hex(span_id: &[u8]) -> String {
+    if span_id.len() == 8 && span_id.iter().any(|byte| *byte != 0) {
         format!(
             "{:016x}",
             u64::from_be_bytes(span_id[0..8].try_into().unwrap_or([0; 8]))
@@ -231,8 +266,8 @@ fn span_id_hex(span_id: &[u8]) -> String {
 }
 
 /// Converts a trace ID (16 bytes) to a hex string
-fn trace_id_hex(trace_id: &[u8]) -> String {
-    if trace_id.len() == 16 {
+pub(super) fn trace_id_hex(trace_id: &[u8]) -> String {
+    if trace_id.len() == 16 && trace_id.iter().any(|byte| *byte != 0) {
         format!(
             "{:032x}",
             u128::from_be_bytes(trace_id[0..16].try_into().unwrap_or([0; 16]))
@@ -248,6 +283,8 @@ fn otlp_exponential_histogram_data_points(
 ) -> DataPoints {
     let mut data_points = Vec::new();
     for point in otlp {
+        let (start_time, end_time) =
+            otlp_data_point_times(point.start_time_unix_nano, point.time_unix_nano);
         let positive = point.positive.as_ref().map(|buckets| {
             weaver_live_check::sample_metric::SampleExponentialHistogramBuckets {
                 offset: buckets.offset,
@@ -287,6 +324,8 @@ fn otlp_exponential_histogram_data_points(
                 zero_threshold: point.zero_threshold,
                 exemplars,
                 live_check_result: None,
+                start_time,
+                end_time,
             };
         data_points.push(live_check_point);
     }
@@ -297,6 +336,8 @@ fn otlp_exponential_histogram_data_points(
 fn otlp_histogram_data_points(otlp: &Vec<HistogramDataPoint>) -> DataPoints {
     let mut data_points = Vec::new();
     for point in otlp {
+        let (start_time, end_time) =
+            otlp_data_point_times(point.start_time_unix_nano, point.time_unix_nano);
         let exemplars = point
             .exemplars
             .iter()
@@ -318,6 +359,8 @@ fn otlp_histogram_data_points(otlp: &Vec<HistogramDataPoint>) -> DataPoints {
             flags: point.flags,
             exemplars,
             live_check_result: None,
+            start_time,
+            end_time,
         };
         data_points.push(live_check_point);
     }
@@ -328,6 +371,8 @@ fn otlp_histogram_data_points(otlp: &Vec<HistogramDataPoint>) -> DataPoints {
 fn otlp_number_data_points(otlp: &Vec<NumberDataPoint>) -> DataPoints {
     let mut data_points = Vec::new();
     for point in otlp {
+        let (start_time, end_time) =
+            otlp_data_point_times(point.start_time_unix_nano, point.time_unix_nano);
         let exemplars = point
             .exemplars
             .iter()
@@ -354,6 +399,8 @@ fn otlp_number_data_points(otlp: &Vec<NumberDataPoint>) -> DataPoints {
             flags: point.flags,
             exemplars,
             live_check_result: None,
+            start_time,
+            end_time,
         };
         data_points.push(live_check_point);
     }
@@ -405,7 +452,7 @@ pub fn otlp_profile_to_sample(
     }
 }
 
-/// Converts an OTLP LogRecord to a SampleLog
+/// Converts an OTLP LogRecord to a SampleLog.
 pub fn otlp_log_record_to_sample_log(log_record: &LogRecord) -> SampleLog {
     SampleLog {
         event_name: log_record.event_name.clone(),
@@ -439,5 +486,7 @@ pub fn otlp_log_record_to_sample_log(log_record: &LogRecord) -> SampleLog {
         instrumentation_scope: None,
         live_check_result: None,
         resource: None,
+        timestamp: optional_unix_nanos_to_utc(log_record.time_unix_nano)
+            .or_else(|| optional_unix_nanos_to_utc(log_record.observed_time_unix_nano)),
     }
 }

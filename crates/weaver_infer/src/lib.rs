@@ -985,6 +985,12 @@ mod tests {
             instrumentation_scope: None,
             live_check_result: None,
             resource: None,
+            trace_id: None,
+            span_id: None,
+            parent_span_id: None,
+            trace_state: None,
+            start_time: None,
+            end_time: None,
         };
 
         acc.add_span(span);
@@ -1007,6 +1013,8 @@ mod tests {
             status: None,
             attributes: vec![],
             span_events: vec![SampleSpanEvent {
+                resource: None,
+                instrumentation_scope: None,
                 name: "exception".to_owned(),
                 attributes: vec![SampleAttribute {
                     name: "exception.type".to_owned(),
@@ -1015,11 +1023,18 @@ mod tests {
                     live_check_result: None,
                 }],
                 live_check_result: None,
+                timestamp: None,
             }],
             span_links: vec![],
             instrumentation_scope: None,
             live_check_result: None,
             resource: None,
+            trace_id: None,
+            span_id: None,
+            parent_span_id: None,
+            trace_state: None,
+            start_time: None,
+            end_time: None,
         };
 
         acc.add_span(span);
@@ -1098,6 +1113,12 @@ mod tests {
             instrumentation_scope: None,
             live_check_result: None,
             resource: None,
+            trace_id: None,
+            span_id: None,
+            parent_span_id: None,
+            trace_state: None,
+            start_time: None,
+            end_time: None,
         }));
         acc.add_sample(Sample::Metric(SampleMetric {
             name: "requests.total".to_owned(),
@@ -1119,15 +1140,23 @@ mod tests {
             instrumentation_scope: None,
             live_check_result: None,
             resource: None,
+            timestamp: None,
         }));
         acc.add_sample(Sample::SpanEvent(SampleSpanEvent {
+            resource: None,
+            instrumentation_scope: None,
             name: "ignored".to_owned(),
             attributes: vec![],
             live_check_result: None,
+            timestamp: None,
         }));
         acc.add_sample(Sample::SpanLink(SampleSpanLink {
+            resource: None,
+            instrumentation_scope: None,
             attributes: vec![],
             live_check_result: None,
+            trace_id: None,
+            span_id: None,
         }));
 
         assert_eq!(acc.stats(), (2, 1, 1, 1));
@@ -1175,6 +1204,8 @@ mod tests {
                 flags: 0,
                 exemplars: vec![],
                 live_check_result: None,
+                start_time: None,
+                end_time: None,
             }])),
             instrumentation_scope: None,
             live_check_result: None,
@@ -1200,6 +1231,8 @@ mod tests {
                 flags: 0,
                 exemplars: vec![],
                 live_check_result: None,
+                start_time: None,
+                end_time: None,
             }])),
             instrumentation_scope: None,
             live_check_result: None,
@@ -1229,6 +1262,8 @@ mod tests {
                     zero_threshold: 0.0,
                     exemplars: vec![],
                     live_check_result: None,
+                    start_time: None,
+                    end_time: None,
                 },
             ])),
             instrumentation_scope: None,
@@ -1305,6 +1340,12 @@ mod tests {
             instrumentation_scope: None,
             live_check_result: None,
             resource: None,
+            trace_id: None,
+            span_id: None,
+            parent_span_id: None,
+            trace_state: None,
+            start_time: None,
+            end_time: None,
         });
 
         let registry = acc.to_semconv_spec();
@@ -1403,6 +1444,8 @@ mod tests {
             status: None,
             attributes: vec![],
             span_events: vec![SampleSpanEvent {
+                resource: None,
+                instrumentation_scope: None,
                 name: "exception".to_owned(),
                 attributes: vec![
                     SampleAttribute {
@@ -1419,11 +1462,18 @@ mod tests {
                     },
                 ],
                 live_check_result: None,
+                timestamp: None,
             }],
             span_links: vec![],
             instrumentation_scope: None,
             live_check_result: None,
             resource: None,
+            trace_id: None,
+            span_id: None,
+            parent_span_id: None,
+            trace_state: None,
+            start_time: None,
+            end_time: None,
         });
 
         let registry = acc.to_semconv_spec();
@@ -1536,6 +1586,8 @@ mod tests {
             status: None,
             attributes: vec![],
             span_events: vec![SampleSpanEvent {
+                resource: None,
+                instrumentation_scope: None,
                 name: "exception".to_owned(),
                 attributes: vec![SampleAttribute {
                     name: "span.attr".to_owned(),
@@ -1544,11 +1596,18 @@ mod tests {
                     live_check_result: None,
                 }],
                 live_check_result: None,
+                timestamp: None,
             }],
             span_links: vec![],
             instrumentation_scope: None,
             live_check_result: None,
             resource: None,
+            trace_id: None,
+            span_id: None,
+            parent_span_id: None,
+            trace_state: None,
+            start_time: None,
+            end_time: None,
         });
 
         let registry = acc.to_semconv_spec();
