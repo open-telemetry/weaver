@@ -9,6 +9,7 @@ use clap::Args;
 use log::info;
 use miette::Diagnostic;
 use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
+use weaver_forge::config::Params;
 use weaver_forge::{OutputProcessor, OutputTarget};
 
 use crate::registry::{PolicyArgs, RegistryArgs};
@@ -96,8 +97,15 @@ pub(crate) fn command(
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
     let target = OutputTarget::from_optional_file(args.output.as_ref());
-    let mut output = OutputProcessor::new(&args.format, "resolved_registry", None, None, target)
-        .map_err(DiagnosticMessages::from)?;
+    let mut output = OutputProcessor::new(
+        &args.format,
+        "resolved_registry",
+        None,
+        None,
+        target,
+        Params::default(),
+    )
+    .map_err(DiagnosticMessages::from)?;
 
     resolved.check_after_resolution_policy(&mut diag_msgs)?;
     match &resolved {
