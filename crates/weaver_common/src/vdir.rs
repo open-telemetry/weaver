@@ -2159,6 +2159,65 @@ mod tests {
             key.starts_with("semantic-conventions-v1.41.0-"),
             "unexpected key: {key}"
         );
+
+        // A refspec holding path separators stays a single path segment.
+        let nested = git_cache_key(url, "refs/heads/my branch");
+        assert!(
+            !nested.contains('/') && !nested.contains(std::path::MAIN_SEPARATOR),
+            "key must not contain a path separator: {nested}"
+        );
+        assert!(nested.starts_with("semantic-conventions-refs_heads_my_branch-"));
+        assert_ne!(nested, git_cache_key(url, "refs/heads/my-branch"));
+    }
+
+    #[test]
+    fn test_resolve_git_sub_folder() {
+        let base = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(base.path().join("model")).unwrap();
+
+        assert_eq!(
+            VirtualDirectory::resolve_git_sub_folder(base.path(), &None, "url").unwrap(),
+            base.path()
+        );
+        assert_eq!(
+            VirtualDirectory::resolve_git_sub_folder(base.path(), &Some("model".to_owned()), "url")
+                .unwrap(),
+            base.path().join("model")
+        );
+
+        let missing = VirtualDirectory::resolve_git_sub_folder(
+            base.path(),
+            &Some("nope".to_owned()),
+            "https://example.com/repo.git",
+        );
+        assert!(
+            matches!(&missing, Err(GitError { repo_url, .. }) if repo_url == "https://example.com/repo.git"),
+            "expected GitError, got {missing:?}"
+        );
+    }
+
+    #[test]
+    fn test_git_cache_population_fails_when_root_is_not_a_directory() {
+        use crate::Error::CacheDirNotCreated;
+
+        let cache = tempfile::tempdir().unwrap();
+        // `<cache>/git` is where entries live; a regular file there makes the
+        // cache unusable, and that must surface rather than be ignored.
+        std::fs::write(cache.path().join("git"), "not a directory").unwrap();
+
+        let result = VirtualDirectory::try_from_git_url_cached(
+            "https://example.com/repo.git",
+            &Some("model".to_owned()),
+            "v1.0.0",
+            "vdir".to_owned(),
+            cache.path(),
+            false, // offline
+            false, // refresh
+        );
+        assert!(
+            matches!(result, Err(CacheDirNotCreated { .. })),
+            "expected CacheDirNotCreated, got {result:?}"
+        );
     }
 
     #[test]
