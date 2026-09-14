@@ -52,14 +52,13 @@ impl Display for Stability {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_deserialize_stability() {
-        #[allow(deprecated)]
         let deprecated: Stability = serde_json::from_str("\"deprecated\"").unwrap();
-        #[allow(deprecated)]
         assert_eq!(deprecated, Stability::Deprecated);
 
         let stable: Stability = serde_json::from_str("\"stable\"").unwrap();
@@ -88,7 +87,6 @@ mod tests {
         assert_eq!(Stability::Alpha.to_string(), "alpha");
         assert_eq!(Stability::Beta.to_string(), "beta");
         assert_eq!(Stability::ReleaseCandidate.to_string(), "release_candidate");
-        #[allow(deprecated)]
         assert_eq!(Stability::Deprecated.to_string(), "deprecated");
     }
 }
