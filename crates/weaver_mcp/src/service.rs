@@ -249,6 +249,8 @@ pub struct SearchParams {
     search_type: SearchTypeParam,
     /// Filter by stability level (development = experimental).
     stability: Option<StabilityParam>,
+    /// Filter by deprecation status: true = only deprecated, false = exclude deprecated, omit = all.
+    deprecated: Option<bool>,
     /// Maximum results to return (1-100, default 20).
     #[serde(default = "default_limit")]
     limit: usize,
@@ -396,7 +398,7 @@ impl WeaverMcpService {
             params.query.as_deref(),
             search_type,
             stability,
-            false, // hide_deprecated: not exposed via the MCP search tool
+            params.deprecated,
             limit,
             0, // offset
         );
@@ -746,6 +748,7 @@ mod tests {
             query: Some("http".to_owned()),
             search_type: SearchTypeParam::All,
             stability: None,
+            deprecated: None,
             limit: 20,
         };
 
@@ -766,6 +769,7 @@ mod tests {
             query: None,
             search_type: SearchTypeParam::All,
             stability: None,
+            deprecated: None,
             limit: 100,
         };
 
@@ -784,6 +788,7 @@ mod tests {
             query: None,
             search_type: SearchTypeParam::All,
             stability: None,
+            deprecated: None,
             limit: 200, // MCP should clamp this to 100
         };
 

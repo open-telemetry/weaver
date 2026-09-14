@@ -41,28 +41,61 @@ test('searching and clicking a result opens a detail page', async ({ page }) => 
   ).toBeVisible()
 })
 
-test('deprecated items are hidden by default and revealed by the eye toggle', async ({
+test('deprecated items are hidden by default and controlled by hide/show/only buttons', async ({
   page,
 }) => {
   await page.goto('/search')
   await expect(page.locator('a.card').first()).toBeVisible()
 
+  // Verify the stability dropdown does not include Deprecated.
+  const stabilitySelect = page.locator('select').nth(1)
+  await expect(stabilitySelect.locator('option[value="deprecated"]')).toHaveCount(0)
+
   const deprecatedCard = page.locator('a[href="/attribute/render.attr.deprecated_renamed"]')
+  const nonDeprecatedCard = page.locator('a[href="/attribute/render.attr.string_single_example"]')
   await expect(deprecatedCard).toHaveCount(0)
+  await expect(nonDeprecatedCard).toBeVisible()
 
   const showButton = page.getByRole('button', { name: 'Show deprecated items' })
   const hideButton = page.getByRole('button', { name: 'Hide deprecated items' })
+  const onlyButton = page.getByRole('button', { name: 'Only deprecated items' })
   await expect(hideButton).toHaveAttribute('aria-pressed', 'true')
 
+  // Show deprecated items: both deprecated and non-deprecated items appear.
   await showButton.click()
   await expect(deprecatedCard).toBeVisible()
+  await expect(nonDeprecatedCard).toBeVisible()
   await expect(hideButton).toHaveAttribute('aria-pressed', 'false')
+  await expect(showButton).toHaveAttribute('aria-pressed', 'true')
   await expect(page).toHaveURL(/deprecated=show/)
 
+  // Verify both stability badge (Stable) and Deprecated badge appear on the search card.
+  await expect(deprecatedCard.locator('.badge', { hasText: 'Stable' })).toBeVisible()
+  await expect(deprecatedCard.locator('.badge', { hasText: 'Deprecated' })).toBeVisible()
+
+  // Only deprecated items: only deprecated items appear.
+  await onlyButton.click()
+  await expect(deprecatedCard).toBeVisible()
+  await expect(nonDeprecatedCard).toHaveCount(0)
+  await expect(onlyButton).toHaveAttribute('aria-pressed', 'true')
+  await expect(page).toHaveURL(/deprecated=only/)
+
+  // Combine Stability filter (Development) with Only deprecated items:
+  // only render.attr.deprecated_obsoleted (Development + Deprecated) should appear.
+  await stabilitySelect.selectOption('development')
+  const obsoletedCard = page.locator('a[href="/attribute/render.attr.deprecated_obsoleted"]')
+  await expect(obsoletedCard).toBeVisible()
+  await expect(deprecatedCard).toHaveCount(0)
+  await expect(obsoletedCard.locator('.badge', { hasText: 'Development' })).toBeVisible()
+  await expect(obsoletedCard.locator('.badge', { hasText: 'Deprecated' })).toBeVisible()
+
+  // Reset stability filter and click Hide deprecated items.
+  await stabilitySelect.selectOption('')
   await hideButton.click()
   await expect(deprecatedCard).toHaveCount(0)
+  await expect(nonDeprecatedCard).toBeVisible()
   await expect(hideButton).toHaveAttribute('aria-pressed', 'true')
-  await expect(page).not.toHaveURL(/deprecated=show/)
+  await expect(page).not.toHaveURL(/deprecated=/)
 })
 
 test('stats page shows counts and links into filtered search', async ({ page }) => {

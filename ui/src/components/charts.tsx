@@ -75,7 +75,6 @@ const STABILITY_LABELS: Record<string, string> = {
   development: 'Development',
   alpha: 'Alpha',
   beta: 'Beta',
-  deprecated: 'Deprecated',
 }
 
 export function stabilityLabel(key: string): string {
