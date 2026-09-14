@@ -1094,7 +1094,8 @@ mod tests {
                     r#type: SignalId::from("db.client".to_owned()),
                     kind: SpanKindSpec::Client,
                     name: SpanName {
-                        note: "A database client span.".to_owned(),
+                        note: Some("A database client span.".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![],
                     entity_associations: vec![],
@@ -1665,7 +1666,8 @@ mod tests {
                     r#type: SignalId::from("db.client".to_owned()),
                     kind: SpanKindSpec::Client,
                     name: SpanName {
-                        note: "A database client span.".to_owned(),
+                        note: Some("A database client span.".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![],
                     entity_associations: vec![
