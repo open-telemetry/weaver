@@ -349,4 +349,33 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_v2_entity_refinement_without_identity() {
+        let registry_cmd = RegistryCommand {
+            command: RegistrySubCommand::Check(RegistryCheckArgs {
+                registry: RegistryArgs {
+                    registry: Some(VirtualDirectoryPath::LocalFolder {
+                        path: "crates/weaver_resolver/data/registry-test-v2-9-identity-refinement-no-identity/registry".to_owned(),
+                    }),
+                    v2: Some(true),
+                    ..Default::default()
+                },
+                baseline_registry: None,
+                policy: PolicyArgs {
+                    ..Default::default()
+                },
+                diagnostic: Default::default(),
+            }),
+        };
+        let cmd_result = semconv_registry(&registry_cmd, None, &HttpAuthResolver::empty());
+        assert!(cmd_result.command_result.is_err());
+        if let Err(diag_msgs) = cmd_result.command_result {
+            let messages = format!("{diag_msgs:?}");
+            assert!(
+                messages.contains("Entity refinement `tiny.legacy.refined` cannot refine `entity.tiny.legacy`: `entity.tiny.legacy` does not declare any `identity` attributes and is not valid under the v2 schema"),
+                "expected refinement without identity error, got: {messages}"
+            );
+        }
+    }
 }
