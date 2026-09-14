@@ -129,6 +129,9 @@ mod tests {
             future: false,
             allow_git_credentials: false,
             config: None,
+            registry_cache_dir: None,
+            registry_cache_offline: false,
+            registry_cache_refresh: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Emit(RegistryEmitArgs {
                     registry: RegistryArgs {
