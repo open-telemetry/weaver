@@ -169,6 +169,11 @@ fn run_command(cli: &Cli) -> ExitDirectives {
     if cli.allow_git_credentials {
         weaver_common::vdir::enable_git_credentials();
     }
+    weaver_common::vdir::configure_git_cache(
+        cli.registry_cache_dir.clone(),
+        cli.registry_cache_offline,
+        cli.registry_cache_refresh,
+    );
     // Load `.weaver.toml` (global `--config` overrides cwd discovery) and
     // build the HTTP auth resolver once for the whole invocation.
     let weaver_config = match resolve_weaver_config(cli.config.as_deref()) {
