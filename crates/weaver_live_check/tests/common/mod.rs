@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! The OTLP harness shared by the matcher end-to-end tests. It starts the
-//! live-check child process, sends telemetry to it, and reads the report.
+//! The OTLP harness shared by the end-to-end tests. It starts the live-check
+//! child process, sends telemetry to it, stops it, reads the report, and shuts
+//! it down.
 
 // Each test binary compiles the whole module and uses part of it.
 #![allow(dead_code)]
@@ -37,7 +38,7 @@ pub const CHECKOUT_SCOPE: &str = "acme.checkout";
 const CART_SCOPE: &str = "acme.cart";
 
 /// Kills the child process on drop, so a failed test does not leave it running.
-struct ChildGuard(Option<Child>);
+pub struct ChildGuard(pub Option<Child>);
 
 impl Drop for ChildGuard {
     fn drop(&mut self) {
@@ -48,8 +49,42 @@ impl Drop for ChildGuard {
     }
 }
 
+impl ChildGuard {
+    /// Takes the child out, so it is no longer killed on drop.
+    pub fn take(&mut self) -> Child {
+        self.0.take().expect("child already taken")
+    }
+}
+
+/// Starts `weaver registry live-check` reading OTLP on `grpc_port`, serving its
+/// JSON report on the admin port.
+pub fn start_live_check(
+    registry: &str,
+    grpc_port: u16,
+    admin_port: u16,
+    extra_args: &[&str],
+) -> ChildGuard {
+    #[allow(deprecated)] // cargo_bin() is the only cross-crate way to find the binary
+    let weaver = assert_cmd::cargo::cargo_bin("weaver");
+    ChildGuard(Some(
+        StdCommand::new(weaver)
+            .args(["registry", "live-check", "-r", registry])
+            .args(["--input-source", "otlp", "--format", "json"])
+            .args(["--output", "http"])
+            .args(["--otlp-grpc-port", &grpc_port.to_string()])
+            .args(["--admin-port", &admin_port.to_string()])
+            // Ignored with --output http. Short on purpose: if it were honoured
+            // the run would stop before the telemetry arrives and the report
+            // would be empty.
+            .args(["--inactivity-timeout", "1"])
+            .args(extra_args)
+            .spawn()
+            .expect("failed to start weaver live-check"),
+    ))
+}
+
 /// Polls `/health` until the child answers.
-fn wait_for_health(port: u16) {
+pub fn wait_for_health(port: u16) {
     let url = format!("http://127.0.0.1:{port}/health");
     for _ in 0..60 {
         if let Ok(response) = ureq::get(&url).call() {
@@ -62,52 +97,68 @@ fn wait_for_health(port: u16) {
     panic!("live-check never became healthy on port {port}");
 }
 
+/// `POST /stop`: the run ends and the report is ready once this returns.
+pub fn stop(admin_port: u16) {
+    let response = ureq::post(format!("http://127.0.0.1:{admin_port}/stop"))
+        .send_empty()
+        .expect("POST /stop failed");
+    assert_eq!(
+        response.status(),
+        200,
+        "POST /stop returned an error status"
+    );
+}
+
+/// `GET /report`, parsed as JSON.
+pub fn report(admin_port: u16) -> Value {
+    let body = ureq::get(format!("http://127.0.0.1:{admin_port}/report"))
+        .call()
+        .expect("GET /report failed")
+        .into_body()
+        .read_to_string()
+        .expect("failed to read the /report body");
+    serde_json::from_str(&body)
+        .unwrap_or_else(|error| panic!("report is not JSON: {error}\n{body}"))
+}
+
+/// `POST /shutdown`, then waits for the child to exit.
+pub fn shutdown(mut guard: ChildGuard, admin_port: u16) {
+    let response = ureq::post(format!("http://127.0.0.1:{admin_port}/shutdown"))
+        .send_empty()
+        .expect("POST /shutdown failed");
+    assert_eq!(
+        response.status(),
+        200,
+        "POST /shutdown returned an error status"
+    );
+    let _ = guard
+        .take()
+        .wait()
+        .expect("failed to wait for live-check to exit");
+}
+
 /// Runs the whole cycle and returns the report the child produces.
 pub async fn run(registry: &str, extra_args: &[&str]) -> Value {
     let grpc_port = reserve_test_port();
     let admin_port = reserve_test_port();
-
-    #[allow(deprecated)] // cargo_bin() is the only cross-crate way to find the binary
-    let weaver = assert_cmd::cargo::cargo_bin("weaver");
-    let mut guard = ChildGuard(Some(
-        StdCommand::new(weaver)
-            .args(["registry", "live-check", "-r", registry])
-            .args(["--advice-policies", ADVICE])
-            .args(["--input-source", "otlp", "--format", "json"])
-            .args(["--output", "http", "--fail-on", "none"])
-            .args(["--otlp-grpc-port", &grpc_port.to_string()])
-            .args(["--admin-port", &admin_port.to_string()])
-            .args(["--inactivity-timeout", "30"])
-            .args(extra_args)
-            .spawn()
-            .expect("failed to start weaver live-check"),
-    ));
+    let guard = start_live_check(
+        registry,
+        grpc_port,
+        admin_port,
+        &[
+            &["--advice-policies", ADVICE, "--fail-on", "none"],
+            extra_args,
+        ]
+        .concat(),
+    );
 
     wait_for_health(admin_port);
     emit_telemetry(&format!("http://localhost:{grpc_port}")).await;
-    // The exports are acknowledged. Give the receiver time to check them.
-    sleep(Duration::from_secs(1));
 
-    let body = reqwest::Client::new()
-        .post(format!("http://127.0.0.1:{admin_port}/stop"))
-        .send()
-        .await
-        .expect("POST /stop failed")
-        .error_for_status()
-        .expect("POST /stop returned an error status")
-        .text()
-        .await
-        .expect("failed to read the /stop body");
-
-    let _ = guard
-        .0
-        .as_mut()
-        .expect("child is running")
-        .wait()
-        .expect("failed to wait for live-check to exit");
-
-    serde_json::from_str(&body)
-        .unwrap_or_else(|error| panic!("report is not JSON: {error}\n{body}"))
+    stop(admin_port);
+    let report = report(admin_port);
+    shutdown(guard, admin_port);
+    report
 }
 
 /// The resource every provider uses. Only the dependency registry defines

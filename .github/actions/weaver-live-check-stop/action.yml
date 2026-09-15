@@ -1,8 +1,8 @@
 name: 'Weaver Live Check (stop)'
 description: >-
   Stop a previously-started `weaver registry live-check` listener, fetch
-  its JSON report, render a step summary, and (by default) fail the job
-  on semantic-convention findings. Does more than just stop — also
+  its JSON report, shut it down, render a step summary, and (by default)
+  fail the job on semantic-convention findings. Does more than just stop — also
   collects, summarizes, and grades the report. Pair with
   `weaver-live-check-start`. Linux runners only (v1).
 author: 'OpenTelemetry'
@@ -117,11 +117,26 @@ runs:
 
         REPORT="$STATE_DIR/live_check.json"
 
-        # Tell weaver to stop accepting and return the in-memory report.
-        # `--output=http` (set by the start action) makes the body of the
-        # admin /stop response the JSON report itself.
+        # Stop receiving. `/stop` returns once the report is ready. `--output=http`
+        # (set by the start action) serves the report on GET /report until
+        # POST /shutdown ends the process.
+        #
+        # Weaver before the /report endpoint returned the report as the /stop
+        # body and exited on its own. To work with either, keep the /stop body
+        # and use it when /report is not there.
+        ADMIN="http://127.0.0.1:${ADMIN_PORT}"
+        STOP_BODY="$STATE_DIR/stop.out"
         echo "Stopping weaver listener (admin :${ADMIN_PORT})..."
-        if ! curl -fsS -X POST "http://127.0.0.1:${ADMIN_PORT}/stop" -o "$REPORT"; then
+        if curl -fsS -X POST "$ADMIN/stop" -o "$STOP_BODY"; then
+          if curl -fsS "$ADMIN/report" -o "$REPORT"; then
+            echo "Report fetched from GET /report"
+            curl -fsS -X POST "$ADMIN/shutdown" -o /dev/null \
+              || echo "::warning::admin POST /shutdown failed; waiting for weaver to exit"
+          else
+            echo "GET /report unavailable; using the /stop body as the report"
+            mv "$STOP_BODY" "$REPORT"
+          fi
+        else
           echo "::warning::admin POST /stop failed; falling back to graceful kill"
           kill "$WEAVER_PID" 2>/dev/null || true
         fi

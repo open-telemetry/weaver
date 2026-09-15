@@ -38,8 +38,9 @@ use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_config::WeaverCommand;
 
+use super::otlp::admin::Report;
 use super::otlp::otlp_ingester::OtlpIngester;
-use super::otlp::ShutdownCoordinator;
+use super::otlp::ListenerHandle;
 
 /// Embedded default live check templates
 pub(crate) static DEFAULT_LIVE_CHECK_TEMPLATES: Dir<'_> =
@@ -157,7 +158,8 @@ pub struct RegistryLiveCheckArgs {
     fail_on: Option<FailOnLevel>,
 
     /// Path to save generated artifacts. Use "none" to suppress output,
-    /// "http" to send as the /stop response.
+    /// "http" to serve the report at GET /report on the admin port until POST /shutdown
+    /// (the inactivity timeout is then ignored).
     #[arg(short, long)]
     #[config]
     output: Option<PathBuf>,
@@ -167,7 +169,7 @@ pub struct RegistryLiveCheckArgs {
     #[config(path = "otlp.grpc_address")]
     otlp_grpc_address: Option<String>,
 
-    /// Port used by the gRPC OTLP listener.
+    /// Port used by the gRPC OTLP listener. 0 picks a free port.
     #[clap(long)]
     #[config(path = "otlp.grpc_port")]
     otlp_grpc_port: Option<u16>,
@@ -187,7 +189,7 @@ pub struct RegistryLiveCheckArgs {
     #[config(path = "emit.otlp_logs_stdout")]
     otlp_logs_stdout: Option<bool>,
 
-    /// Port used by the HTTP admin port (endpoints: /stop).
+    /// Port used by the HTTP admin port (endpoints: /health, /stop, /report, /shutdown).
     #[clap(long)]
     #[config(path = "otlp.admin_port")]
     admin_port: Option<u16>,
@@ -339,7 +341,7 @@ pub(crate) fn command(
     live_checker.add_advisor(Box::new(rego_advisor));
 
     // Prepare the ingester
-    let mut shutdown_coordinator: Option<ShutdownCoordinator> = None;
+    let mut listener: Option<ListenerHandle> = None;
     let ingester = match (&input_source, &input_format) {
         (InputSource::File(path), InputFormat::Text) => TextFileIngester::new(path).ingest()?,
 
@@ -350,17 +352,28 @@ pub(crate) fn command(
         (InputSource::Stdin, InputFormat::Json) => JsonStdinIngester::new().ingest()?,
 
         (InputSource::Otlp, _) => {
+            // With --output http the client owns the run: it stops it with
+            // POST /stop and ends the process with POST /shutdown. A quiet
+            // period must not end the run first.
+            let inactivity_timeout = if is_http_output {
+                if config.otlp.inactivity_timeout != 0 {
+                    log_warn(
+                        "--inactivity-timeout is ignored with --output http; \
+                         the run stops on POST /stop",
+                    );
+                }
+                0
+            } else {
+                config.otlp.inactivity_timeout
+            };
             let otlp = OtlpIngester {
                 otlp_grpc_address: config.otlp.grpc_address.clone(),
                 otlp_grpc_port: config.otlp.grpc_port,
                 admin_port: config.otlp.admin_port,
-                inactivity_timeout: config.otlp.inactivity_timeout,
+                inactivity_timeout,
             };
-            let (iter, coordinator) = otlp.ingest_otlp()?;
-            if is_http_output {
-                coordinator.set_expect_report(true);
-            }
-            shutdown_coordinator = Some(coordinator);
+            let (iter, handle) = otlp.ingest_otlp()?;
+            listener = Some(handle);
             iter
         }
     };
@@ -446,58 +459,55 @@ pub(crate) fn command(
     }
 
     if is_http_output {
-        let admin_waiting = shutdown_coordinator
-            .as_ref()
-            .is_some_and(ShutdownCoordinator::is_report_pending);
-
-        if admin_waiting {
-            // Format report and send through admin channel
-            let content_type = output.content_type().to_owned();
-            let body = if output.is_line_oriented() {
-                // For line-oriented formats (jsonl), build the body line by line
-                let mut lines = Vec::new();
-                for sample in &samples {
+        let content_type = output.content_type().to_owned();
+        let body = if output.is_line_oriented() {
+            // For line-oriented formats (jsonl), build the body line by line
+            let mut lines = Vec::new();
+            for sample in &samples {
+                lines.push(
+                    output
+                        .generate_to_string(sample)
+                        .map_err(DiagnosticMessages::from)?,
+                );
+            }
+            match &stats {
+                LiveCheckStatistics::Cumulative(_) => {
                     lines.push(
                         output
-                            .generate_to_string(sample)
+                            .generate_to_string(&stats)
                             .map_err(DiagnosticMessages::from)?,
                     );
                 }
-                match &stats {
-                    LiveCheckStatistics::Cumulative(_) => {
-                        lines.push(
-                            output
-                                .generate_to_string(&stats)
-                                .map_err(DiagnosticMessages::from)?,
-                        );
-                    }
-                    LiveCheckStatistics::Disabled(_) => {}
-                }
-                lines.join("\n")
-            } else {
-                let report = LiveCheckReport {
-                    samples,
-                    statistics: stats,
-                };
-                output
-                    .generate_to_string(&report)
-                    .map_err(DiagnosticMessages::from)?
-            };
-            if let Some(coordinator) = shutdown_coordinator.take() {
-                coordinator.deliver_report(content_type, body);
-                // Don't let the process exit until the admin server has
-                // actually finished writing the /stop response.
-                coordinator.wait_for_admin_shutdown();
+                LiveCheckStatistics::Disabled(_) => {}
             }
+            lines.join("\n")
         } else {
-            // No HTTP client waiting (SIGINT/inactivity stop), fall back to stdout
-            generate_report(&mut output, samples, stats).map_err(DiagnosticMessages::from)?;
+            let report = LiveCheckReport {
+                samples,
+                statistics: stats,
+            };
+            output
+                .generate_to_string(&report)
+                .map_err(DiagnosticMessages::from)?
+        };
+        // Serve the report at GET /report until POST /shutdown or a signal ends
+        // the process. Reading it is the client's job.
+        if let Some(handle) = listener.take() {
+            handle.serve_report(Report {
+                content_type,
+                body: body.into(),
+            });
         }
     } else if report_mode {
         generate_report(&mut output, samples, stats).map_err(DiagnosticMessages::from)?;
     } else {
         // Stats only (streaming mode finished)
         output.generate(&stats).map_err(DiagnosticMessages::from)?;
+    }
+
+    // The report is out. A waiting /stop returns and the listener ends.
+    if let Some(handle) = listener {
+        handle.finish();
     }
 
     for matcher in live_checker.matchers().iter() {

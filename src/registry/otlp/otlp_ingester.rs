@@ -9,7 +9,7 @@ use weaver_common::log_info;
 use weaver_live_check::{
     sample_resource::SampleResource,
     sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink},
-    Error, Ingester, Sample,
+    Error, Sample,
 };
 
 use super::{
@@ -19,18 +19,18 @@ use super::{
         sample_attribute_from_key_value, span_id_hex, span_kind_from_otlp_kind,
         status_from_otlp_status, trace_id_hex,
     },
-    listen_otlp_requests, OtlpRequest, ShutdownCoordinator,
+    listen_otlp_requests, ListenerHandle, OtlpRequest,
 };
 
 /// An ingester for OTLP data
 pub struct OtlpIngester {
     /// The address of the OTLP gRPC server
     pub otlp_grpc_address: String,
-    /// The port of the OTLP gRPC server
+    /// The port of the OTLP gRPC server. `0` picks a free port.
     pub otlp_grpc_port: u16,
     /// The port of the admin server
     pub admin_port: u16,
-    /// The inactivity timeout
+    /// Seconds without an export before the listener stops. `0` never stops.
     pub inactivity_timeout: u64,
 }
 
@@ -288,15 +288,10 @@ impl Iterator for OtlpIterator {
 }
 
 impl OtlpIngester {
-    /// Ingest OTLP data and return both the sample iterator and the shutdown coordinator.
-    ///
-    /// The `ShutdownCoordinator` can be used to send a formatted report back through
-    /// the `/stop` HTTP endpoint when `--output http` is used, and to wait for the
-    /// admin server to finish delivering that response before exiting.
-    pub fn ingest_otlp(
-        &self,
-    ) -> Result<(Box<dyn Iterator<Item = Sample>>, ShutdownCoordinator), Error> {
-        let (otlp_requests, coordinator) = listen_otlp_requests(
+    /// Starts the listener and returns the sample iterator, which ends when the
+    /// run stops, and the handle that publishes the outcome of the run.
+    pub fn ingest_otlp(&self) -> Result<(Box<dyn Iterator<Item = Sample>>, ListenerHandle), Error> {
+        let listener = listen_otlp_requests(
             self.otlp_grpc_address.as_str(),
             self.otlp_grpc_port,
             self.admin_port,
@@ -306,15 +301,23 @@ impl OtlpIngester {
             error: format!("Failed to listen to OTLP requests: {e}"),
         })?;
 
-        log_info("To stop the OTLP receiver:");
+        log_info(format!(
+            "OTLP gRPC listener started on {}",
+            listener.grpc_addr
+        ));
+        info!("To stop the OTLP receiver:");
         info!("  - press CTRL+C,");
         info!(
             "  - send a SIGHUP signal to the weaver process or run this command kill -SIGHUP {}",
             std::process::id()
         );
         info!(
-            "  - or send a POST request to the /stop endpoint via the following command curl -X POST http://localhost:{}/stop.",
-            self.admin_port
+            "  - or send a POST request to the /stop endpoint via the following command curl -X POST http://{}/stop.",
+            listener.admin_addr
+        );
+        info!(
+            "With --output http, GET http://{0}/report returns the report and POST http://{0}/shutdown ends the process.",
+            listener.admin_addr
         );
         if self.inactivity_timeout == 0 {
             info!("The OTLP receiver will run indefinitely until stopped manually.");
@@ -326,16 +329,9 @@ impl OtlpIngester {
         };
 
         Ok((
-            Box::new(OtlpIterator::new(Box::new(otlp_requests))),
-            coordinator,
+            Box::new(OtlpIterator::new(Box::new(listener.requests))),
+            listener.handle,
         ))
-    }
-}
-
-impl Ingester for OtlpIngester {
-    fn ingest(&self) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
-        let (iterator, _coordinator) = self.ingest_otlp()?;
-        Ok(iterator)
     }
 }
 

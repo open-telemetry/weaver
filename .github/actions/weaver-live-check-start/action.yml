@@ -42,10 +42,12 @@ inputs:
     default: '4320'
   inactivity-timeout:
     description: >-
-      Seconds the listener will stay idle (no telemetry) before exiting on
-      its own. A safety net; the stop action normally stops it sooner.
+      Deprecated. Weaver ignores the inactivity timeout with `--output http`,
+      which this action always uses: only the stop action ends the run.
+      Kept for older weaver releases, where a non-zero value made a quiet
+      stretch in your tests end the run early. `0` disables it there too.
     required: false
-    default: '120'
+    default: '0'
   diagnostic-format:
     description: >-
       Format passed to `weaver registry live-check --diagnostic-format`.
@@ -106,13 +108,17 @@ runs:
       run: |
         set -euo pipefail
         is_pos_int() { [[ "$1" =~ ^[1-9][0-9]*$ ]]; }
-        for var in INPUT_OTLP_PORT INPUT_ADMIN_PORT INPUT_INACTIVITY_TIMEOUT INPUT_STARTUP_TIMEOUT; do
+        for var in INPUT_OTLP_PORT INPUT_ADMIN_PORT INPUT_STARTUP_TIMEOUT; do
           val="${!var}"
           if ! is_pos_int "$val"; then
             echo "::error::input ${var,,} must be a positive integer, got '$val'" >&2
             exit 1
           fi
         done
+        if ! [[ "$INPUT_INACTIVITY_TIMEOUT" =~ ^(0|[1-9][0-9]*)$ ]]; then
+          echo "::error::input inactivity-timeout must be a non-negative integer, got '$INPUT_INACTIVITY_TIMEOUT'" >&2
+          exit 1
+        fi
         if [ "$INPUT_OTLP_PORT" = "$INPUT_ADMIN_PORT" ]; then
           echo "::error::otlp-grpc-port and admin-port must differ (both $INPUT_OTLP_PORT)" >&2
           exit 1

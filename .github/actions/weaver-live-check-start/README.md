@@ -48,8 +48,8 @@ jobs:
 | `registry` | yes | — | Semantic conventions registry to validate against. Any value `weaver registry live-check --registry` accepts. Pin to a released tag for reproducibility. |
 | `config` | no | — | Optional `.weaver.toml` config path, passed to `weaver registry live-check --config`. Useful for `[[live-check.finding_filters]]` (drop noisy attributes), `advice_policies`, etc. |
 | `otlp-grpc-port` | no | `4317` | Port the weaver OTLP/gRPC listener binds to (loopback only). |
-| `admin-port` | no | `4320` | Port for weaver admin endpoints (`/health`, `/stop`). |
-| `inactivity-timeout` | no | `120` | Seconds the listener stays idle before exiting on its own (safety net). |
+| `admin-port` | no | `4320` | Port for weaver admin endpoints (`/health`, `/stop`, `/report`, `/shutdown`). |
+| `inactivity-timeout` | no | `0` | Deprecated. Current weaver ignores it with `--output http`; only the stop action ends the run. On older releases a non-zero value stopped a quiet run early. |
 | `startup-timeout` | no | `120` | Seconds to wait for `/health` to come up. |
 | `diagnostic-format` | no | `gh_workflow_command` | Format passed to weaver's `--diagnostic-format`. |
 | `state-dir` | no | `$RUNNER_TEMP/weaver-live-check` | Override if you need multiple instances in the same job (and also override ports). |
@@ -73,7 +73,7 @@ needing to re-pass it.
 - Validates ports and timeouts are positive integers, and that the OTLP
   and admin ports differ.
 - Starts `weaver registry live-check` in the background with `--output=http`
-  so the report can later be retrieved via the admin `POST /stop`
-  response body (no on-disk JSON to coordinate).
+  so the report is served by the admin `GET /report` endpoint once the stop
+  action has called `POST /stop`, and the process ends on `POST /shutdown`.
 - Polls the admin `/health` endpoint until ready, or fails fast if weaver
   exits before becoming ready.

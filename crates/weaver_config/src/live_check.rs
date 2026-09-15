@@ -130,7 +130,7 @@ pub struct LiveCheckConfig {
 
     /// Path to the directory where the generated artifacts will be saved.
     /// `none` disables all template output rendering.
-    /// `http` sends the report as the response to the `/stop` request on the admin port.
+    /// `http` serves the report at `GET /report` on the admin port until `POST /shutdown`.
     pub output: Option<PathBuf>,
 
     /// Advice policies directory. Overrides the built-in default policies.
@@ -181,9 +181,9 @@ impl Default for LiveCheckConfig {
 pub struct LiveCheckOtlpConfig {
     /// Address used by the gRPC OTLP listener.
     pub grpc_address: String,
-    /// Port used by the gRPC OTLP listener.
+    /// Port used by the gRPC OTLP listener. `0` picks a free port.
     pub grpc_port: u16,
-    /// Port used by the HTTP admin port (endpoints: `/stop`, `/health`).
+    /// Port used by the HTTP admin port (endpoints: `/health`, `/stop`, `/report`, `/shutdown`).
     pub admin_port: u16,
     /// Max inactivity time in seconds before stopping the listener.
     pub inactivity_timeout: u64,

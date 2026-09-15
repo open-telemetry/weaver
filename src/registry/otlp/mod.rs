@@ -1,159 +1,52 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! A basic OTLP receiver integrated into Weaver.
+//!
+//! One axum app carries both the OTLP/gRPC services ([`receiver`]) and the
+//! live-check admin API ([`admin`]). It runs on one background thread with one
+//! runtime, and stops on a signal, on inactivity, on `POST /stop`, or when the
+//! checker is done.
 
+pub mod admin;
 pub mod conversion;
 pub mod otlp_ingester;
+pub mod receiver;
 
-use axum::extract::State;
-use axum::http::{header, StatusCode};
-use axum::response::IntoResponse;
-use axum::routing::{get, post};
-use axum::{Json, Router};
-use grpc_stubs::proto::collector::logs::v1::logs_service_server::{LogsService, LogsServiceServer};
-use grpc_stubs::proto::collector::logs::v1::{ExportLogsServiceRequest, ExportLogsServiceResponse};
-use grpc_stubs::proto::collector::metrics::v1::metrics_service_server::{
-    MetricsService, MetricsServiceServer,
-};
-use grpc_stubs::proto::collector::metrics::v1::{
-    ExportMetricsServiceRequest, ExportMetricsServiceResponse,
-};
-use grpc_stubs::proto::collector::profiles::v1development::profiles_service_server::{
-    ProfilesService, ProfilesServiceServer,
-};
-use grpc_stubs::proto::collector::profiles::v1development::{
-    ExportProfilesServiceRequest, ExportProfilesServiceResponse,
-};
-use grpc_stubs::proto::collector::trace::v1::trace_service_server::{
-    TraceService, TraceServiceServer,
-};
-use grpc_stubs::proto::collector::trace::v1::{
-    ExportTraceServiceRequest, ExportTraceServiceResponse,
-};
+use std::fmt::{Display, Formatter};
+use std::future::IntoFuture;
+use std::net::{AddrParseError, SocketAddr};
+use std::sync::Arc;
+use std::thread::JoinHandle;
+use std::time::Duration;
+
+use admin::{AppState, Report};
+use axum::Router;
+use grpc_stubs::proto::collector::logs::v1::ExportLogsServiceRequest;
+use grpc_stubs::proto::collector::metrics::v1::ExportMetricsServiceRequest;
+use grpc_stubs::proto::collector::profiles::v1development::ExportProfilesServiceRequest;
+use grpc_stubs::proto::collector::trace::v1::ExportTraceServiceRequest;
 use log::warn;
 use miette::Diagnostic;
+use receiver::OtlpReceiver;
 use serde::Serialize;
-use std::fmt::{Display, Formatter};
-use std::net::{AddrParseError, SocketAddr};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
-use tokio::sync::{mpsc, oneshot, watch};
+use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 use tokio::time::sleep;
-use tonic::codegen::tokio_stream::wrappers::TcpListenerStream;
-use tonic::transport::Server;
-use tonic::{Request, Response, Status};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 
-/// How long `/stop` waits for the report, and how long the admin server's
-/// graceful shutdown gets to finish delivering it (see
-/// [`ShutdownCoordinator::wait_for_admin_shutdown`]).
-const ADMIN_REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
+/// Exports queued ahead of the checker before exporters have to wait.
+const CHANNEL_CAPACITY: usize = 100;
 
-/// A poisoned lock means one of the threads responsible for reporting
-/// status on shutdown has crashed. We kill the process here too, because
-/// we're not sure whether our memory is still safe to use.
-const LOCK_POISONED_MSG: &str = "one of the threads responsible for reporting status on \
-     shutdown has crashed; killing the process because we're not sure whether our memory is \
-     still safe to use";
-
-/// Coordinates delivering the live-check report to a waiting `/stop`
-/// request and confirming the admin server has finished writing it before
-/// the process exits. All locking lives here; call sites only use these
-/// methods.
-#[derive(Clone)]
-pub struct ShutdownCoordinator {
-    /// `true` when `--output http` is set: `/stop` waits for and returns
-    /// the report instead of responding immediately.
-    expect_report: Arc<AtomicBool>,
-    /// `None` when no `/stop` request is currently waiting; `.take()` in
-    /// `deliver_report` ensures a report is only ever delivered once.
-    report_slot: Arc<Mutex<Option<oneshot::Sender<(String, String)>>>>,
-    /// Tells axum's `with_graceful_shutdown` to start draining.
-    admin_shutdown_trigger_slot: Arc<Mutex<Option<oneshot::Sender<()>>>>,
-    /// Both halves of the admin-done signal, produced together in `new`
-    /// and held behind one lock. Kept as independent `Option`s rather than
-    /// `Option<(Sender, Receiver)>` because each half is consumed
-    /// independently — by a different thread, at a different time.
-    admin_done: Arc<Mutex<(Option<oneshot::Sender<()>>, Option<oneshot::Receiver<()>>)>>,
-}
-
-impl ShutdownCoordinator {
-    /// Returns the coordinator plus the shutdown-trigger receiver, which
-    /// the admin server wires into axum's `with_graceful_shutdown`.
-    fn new() -> (Self, oneshot::Receiver<()>) {
-        let (shutdown_tx, shutdown_rx) = oneshot::channel();
-        let (admin_done_tx, admin_done_rx) = oneshot::channel();
-        let coordinator = Self {
-            expect_report: Arc::new(AtomicBool::new(false)),
-            report_slot: Arc::new(Mutex::new(None)),
-            admin_shutdown_trigger_slot: Arc::new(Mutex::new(Some(shutdown_tx))),
-            admin_done: Arc::new(Mutex::new((Some(admin_done_tx), Some(admin_done_rx)))),
-        };
-        (coordinator, shutdown_rx)
-    }
-
-    /// Set when `--output http` is in effect. Pairs with the `Acquire` load
-    /// in `expects_report` so `/stop` can never observe a stale `false`.
-    pub fn set_expect_report(&self, expect: bool) {
-        self.expect_report.store(expect, Ordering::Release);
-    }
-
-    pub fn expects_report(&self) -> bool {
-        self.expect_report.load(Ordering::Acquire)
-    }
-
-    /// Registers a slot for the report and returns the receiver to await.
-    fn begin_report_wait(&self) -> oneshot::Receiver<(String, String)> {
-        let (tx, rx) = oneshot::channel();
-        *self.report_slot.lock().expect(LOCK_POISONED_MSG) = Some(tx);
-        rx
-    }
-
-    /// True while an HTTP client is registered and waiting for a report.
-    pub fn is_report_pending(&self) -> bool {
-        self.report_slot.lock().expect(LOCK_POISONED_MSG).is_some()
-    }
-
-    /// Hands the report to a waiting `/stop` request, if any.
-    pub fn deliver_report(&self, content_type: String, body: String) {
-        let sender = self.report_slot.lock().expect(LOCK_POISONED_MSG).take();
-        if let Some(sender) = sender {
-            let _ = sender.send((content_type, body));
-        }
-    }
-
-    /// Starts the admin server's graceful shutdown.
-    fn trigger_admin_shutdown(&self) {
-        let tx = self
-            .admin_shutdown_trigger_slot
-            .lock()
-            .expect(LOCK_POISONED_MSG)
-            .take();
-        if let Some(tx) = tx {
-            let _ = tx.send(());
-        }
-    }
-
-    /// Called once the admin server's graceful shutdown has finished.
-    fn signal_admin_shutdown_complete(&self) {
-        let tx = self.admin_done.lock().expect(LOCK_POISONED_MSG).0.take();
-        if let Some(tx) = tx {
-            let _ = tx.send(());
-        }
-    }
-
-    /// Blocks until the admin server confirms its graceful shutdown has
-    /// finished, so the process doesn't exit mid-write. No-op if already
-    /// consumed.
-    pub fn wait_for_admin_shutdown(&self) {
-        let rx = self.admin_done.lock().expect(LOCK_POISONED_MSG).1.take();
-        if let Some(rx) = rx {
-            let _ = rx.blocking_recv();
-        }
-    }
+/// A bound socket and whether it carries the admin API.
+struct BoundListener {
+    listener: std::net::TcpListener,
+    /// Shut down gracefully, so the in-flight `/shutdown` response completes.
+    /// There is no deadline: the client asked for the exit, so anything else it
+    /// left in flight is its own to finish. The gRPC listener just stops; after
+    /// a stop it has nothing left to deliver, and SDKs keep idle HTTP/2
+    /// connections open, which a graceful shutdown would wait for.
+    serves_admin: bool,
 }
 
 /// Expose the OTLP gRPC services.
@@ -252,17 +145,13 @@ pub mod grpc_stubs {
     }
 }
 
-/// Errors emitted by the `otlp-receiver` sub-commands
+/// Errors emitted by the OTLP receiver.
 #[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
 #[non_exhaustive]
 pub enum Error {
     /// An OTLP error occurred.
     #[error("The following OTLP error occurred: {error}")]
     OtlpError { error: String },
-
-    /// An HTTP error occurred on the admin port.
-    #[error("The following HTTP error occurred: {error}")]
-    HttpAdminError { error: String },
 }
 
 impl From<Error> for DiagnosticMessages {
@@ -271,7 +160,7 @@ impl From<Error> for DiagnosticMessages {
     }
 }
 
-// Enum to represent received OTLP requests.
+/// A received OTLP export, or the event that ends a run.
 #[derive(Debug)]
 pub enum OtlpRequest {
     Logs(ExportLogsServiceRequest),
@@ -283,14 +172,14 @@ pub enum OtlpRequest {
     Stop(StopSignal),
 }
 
-/// Enum to represent stop signals.
+/// Why a run stopped.
 #[derive(Debug)]
 pub enum StopSignal {
     /// CTRL+C
     Sigint,
     /// SIGHUP
     Sighup,
-    /// HTTP POST to /stop
+    /// HTTP POST to /stop or /shutdown
     AdminStop,
     /// Inactivity timeout
     Inactivity,
@@ -307,443 +196,288 @@ impl Display for StopSignal {
     }
 }
 
-/// Start an OTLP receiver listening to a specific address and port, and return
-/// an iterator of received OTLP requests and a shutdown coordinator. The admin
-/// server is bound to the same address as the OTLP listener.
+/// A running listener.
+pub struct OtlpListener {
+    /// The exports, ending with the `Stop` or `Error` that ended the run.
+    pub requests: SyncReceiver,
+    /// Where the gRPC services listen. Tells the real port when `0` was asked for.
+    pub grpc_addr: SocketAddr,
+    /// Where the admin API listens. Tells the real port when `0` was asked for.
+    pub admin_addr: SocketAddr,
+    /// Publishes the outcome of the run and ends the listener.
+    pub handle: ListenerHandle,
+}
+
+/// The checker's side of the listener: says how the run ended, then waits for
+/// the listener thread to finish.
+pub struct ListenerHandle {
+    state: Arc<AppState>,
+    thread: Option<JoinHandle<()>>,
+}
+
+impl ListenerHandle {
+    /// The run is over and its report went to stdout or a directory. A waiting
+    /// `/stop` returns, the listeners drain, and this returns once the thread ends.
+    pub fn finish(mut self) {
+        self.state.stopped(None);
+        self.state.request_shutdown();
+        self.join();
+    }
+
+    /// The run is over and its report is served on `/report` until `/shutdown`
+    /// or a signal ends the listener. Whether anyone reads it is the client's
+    /// business; it asked for the report over HTTP.
+    pub fn serve_report(mut self, report: Report) {
+        self.state.stopped(Some(report));
+        self.join();
+    }
+
+    fn join(&mut self) {
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
+    }
+}
+
+impl Drop for ListenerHandle {
+    /// A handle dropped without `finish` or `serve_report` still ends the listener.
+    fn drop(&mut self) {
+        self.state.request_shutdown();
+        self.join();
+    }
+}
+
+/// The blocking side of the export channel.
 ///
-/// The `ShutdownCoordinator` sends the report back through `/stop`, and lets
-/// the caller wait for the admin server to finish delivering it before exiting.
+/// Once it yields the `Stop` or `Error` that ends a run it closes the channel,
+/// so any export still arriving is refused at once instead of waiting on a
+/// queue nobody reads.
+pub struct SyncReceiver {
+    receiver: mpsc::Receiver<OtlpRequest>,
+}
+
+impl Iterator for SyncReceiver {
+    type Item = OtlpRequest;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let request = self.receiver.blocking_recv()?;
+        if matches!(request, OtlpRequest::Stop(_) | OtlpRequest::Error(_)) {
+            self.receiver.close();
+        }
+        Some(request)
+    }
+}
+
+/// Starts the OTLP/gRPC services and the admin API and returns the exports as
+/// an iterator.
 ///
-/// This function guarantees that the OTLP server is started and ready when the
-/// result is Ok(iterator).
+/// Both ports bind to `grpc_address` and must differ. Port `0` picks a free
+/// port for either; read them from [`OtlpListener::grpc_addr`] and
+/// [`OtlpListener::admin_addr`]. The sockets are bound before this returns, so
+/// exporters can connect at once. An `inactivity_timeout` of zero never stops
+/// the run on its own.
 pub fn listen_otlp_requests(
-    grpc_addr: &str,
+    grpc_address: &str,
     grpc_port: u16,
     admin_port: u16,
     inactivity_timeout: Duration,
-) -> Result<(impl Iterator<Item = OtlpRequest>, ShutdownCoordinator), Error> {
-    let parse_addr = |port: u16| -> Result<SocketAddr, Error> {
-        format!("{grpc_addr}:{port}")
+) -> Result<OtlpListener, Error> {
+    let parse = |port: u16| -> Result<SocketAddr, Error> {
+        format!("{grpc_address}:{port}")
             .parse()
-            .map_err(|e: AddrParseError| Error::OtlpError {
-                error: e.to_string(),
-            })
+            .map_err(|e: AddrParseError| otlp_error(e))
     };
-    let addr = parse_addr(grpc_port)?;
-    let admin_addr = parse_addr(admin_port)?;
+    let grpc_addr = parse(grpc_port)?;
+    let admin_addr = parse(admin_port)?;
+    if grpc_port != 0 && grpc_addr == admin_addr {
+        return Err(otlp_error(format!(
+            "the OTLP gRPC port and the admin port must differ; both are {grpc_port}"
+        )));
+    }
 
-    let listener = std::net::TcpListener::bind(addr).map_err(|e| Error::OtlpError {
-        error: e.to_string(),
-    })?;
-    listener
-        .set_nonblocking(true)
-        .map_err(|e| Error::OtlpError {
-            error: e.to_string(),
-        })?;
+    let (exports, requests) = mpsc::channel(CHANNEL_CAPACITY);
+    let state = Arc::new(AppState::new(exports));
+    let router = OtlpReceiver::new(state.clone())
+        .grpc_router()
+        .merge(admin::router(state.clone()));
 
-    let (tx, rx) = mpsc::channel(100);
-    let stop_tx = tx.clone();
-    // Create a watch channel for the last activity timestamp
-    let (activity_tx, activity_rx) = watch::channel(Instant::now());
-    let (coordinator, admin_shutdown_rx) = ShutdownCoordinator::new();
-    let logs_service = LogsServiceImpl {
-        tx: tx.clone(),
-        activity_tx: activity_tx.clone(),
+    let bind = |addr: SocketAddr, serves_admin: bool| -> Result<BoundListener, Error> {
+        let listener = std::net::TcpListener::bind(addr).map_err(otlp_error)?;
+        listener.set_nonblocking(true).map_err(otlp_error)?;
+        Ok(BoundListener {
+            listener,
+            serves_admin,
+        })
     };
-    let metrics_service = MetricsServiceImpl {
-        tx: tx.clone(),
-        activity_tx: activity_tx.clone(),
-    };
-    let trace_service = TraceServiceImpl {
-        tx: tx.clone(),
-        activity_tx: activity_tx.clone(),
-    };
-    let profiles_service = ProfilesServiceImpl {
-        tx: tx.clone(),
-        activity_tx: activity_tx.clone(),
-    };
+    let grpc = bind(grpc_addr, false)?;
+    let admin = bind(admin_addr, true)?;
+    let grpc_addr = grpc.listener.local_addr().map_err(otlp_error)?;
+    let admin_addr = admin.listener.local_addr().map_err(otlp_error)?;
+    let listeners = vec![grpc, admin];
 
-    let (ready_tx, ready_rx) = oneshot::channel();
+    // Built here so a failure is an error, not a panic on the thread.
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(otlp_error)?;
+    let thread_state = state.clone();
+    let thread = std::thread::Builder::new()
+        .name("otlp-listener".to_owned())
+        .spawn(move || {
+            runtime.block_on(serve_all(
+                listeners,
+                router,
+                thread_state,
+                inactivity_timeout,
+            ));
+        })
+        .map_err(otlp_error)?;
 
-    // Start an OS thread and run a single threaded Tokio runtime inside.
-    // The async OTLP receiver sends the received OTLP messages to the Tokio channel.
-    let coordinator_clone = coordinator.clone();
-    let _ = std::thread::spawn(move || {
-        // Start a current threaded Tokio runtime
-        tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .expect("Failed to build Tokio Runtime")
-            .block_on(async {
-                let mut tasks = JoinSet::new();
-
-                // Spawn tasks to handle different stop signals
-                spawn_stop_signal_handlers(stop_tx.clone(), &mut tasks);
-                spawn_http_admin_handler(
-                    stop_tx.clone(),
-                    admin_addr,
-                    coordinator_clone,
-                    admin_shutdown_rx,
-                    &mut tasks,
-                )
-                .await;
-                // Only spawn the inactivity monitor if the timeout is greater than zero
-                if inactivity_timeout.as_secs() > 0 {
-                    spawn_inactivity_monitor(
-                        stop_tx.clone(),
-                        activity_rx,
-                        inactivity_timeout,
-                        &mut tasks,
-                    );
-                }
-
-                let tokio_listener = TcpListener::from_std(listener)
-                    .expect("Failed to convert std listener to tokio listener");
-                let inbound = TcpListenerStream::new(tokio_listener);
-
-                // Serve the OTLP services
-                let server_future = Server::builder()
-                    .add_service(LogsServiceServer::new(logs_service))
-                    .add_service(MetricsServiceServer::new(metrics_service))
-                    .add_service(TraceServiceServer::new(trace_service))
-                    .add_service(ProfilesServiceServer::new(profiles_service))
-                    .serve_with_incoming(inbound);
-
-                ready_tx
-                    .send(())
-                    .expect("Failed to signal that the server is ready");
-
-                let result = server_future.await;
-                if let Err(e) = result {
-                    let _ = tx
-                        .send(OtlpRequest::Error(Error::OtlpError {
-                            error: format!("The OTLP listener encountered an error: {e}"),
-                        }))
-                        .await;
-                }
-
-                let _ = tasks.join_all().await;
-            });
-    });
-
-    // Wait until the server is ready
-    ready_rx.blocking_recv().map_err(|e| Error::OtlpError {
-        error: format!("OTLP server dropped before signaling readiness (error: {e})"),
-    })?;
-
-    Ok((SyncReceiver { receiver: rx }, coordinator))
+    Ok(OtlpListener {
+        requests: SyncReceiver { receiver: requests },
+        grpc_addr,
+        admin_addr,
+        handle: ListenerHandle {
+            state,
+            thread: Some(thread),
+        },
+    })
 }
 
-/// Spawn tasks to handle CTRL+C and SIGHUP signals.
-///
-/// Note: All the tasks created in this function are recorded into a
-/// JoinSet. `JoinSet::spawn` returns a `AbortHandle` that we can
-/// ignore as we don't need to abort these tasks.
-fn spawn_stop_signal_handlers(stop_tx: mpsc::Sender<OtlpRequest>, tasks: &mut JoinSet<()>) {
-    // Handle CTRL+C
-    let ctrl_c_tx = stop_tx.clone();
+/// Serves the router on every listener until shutdown is requested, then lets
+/// the admin side finish what is in flight.
+async fn serve_all(
+    listeners: Vec<BoundListener>,
+    router: Router,
+    state: Arc<AppState>,
+    inactivity_timeout: Duration,
+) {
+    let mut tasks = JoinSet::new();
+    spawn_stop_signal_handlers(state.clone(), &mut tasks);
+    if !inactivity_timeout.is_zero() {
+        spawn_inactivity_monitor(state.clone(), inactivity_timeout, &mut tasks);
+    }
+
+    let mut servers = JoinSet::new();
+    for bound in listeners {
+        let listener = match TcpListener::from_std(bound.listener) {
+            Ok(listener) => listener,
+            Err(e) => {
+                report_error(&state, format!("The OTLP listener failed to start: {e}")).await;
+                return;
+            }
+        };
+        let mut shutdown = state.shutdown.subscribe();
+        let serve = axum::serve(listener, router.clone());
+        if bound.serves_admin {
+            let _ = servers.spawn(
+                serve
+                    .with_graceful_shutdown(async move {
+                        let _ = shutdown.wait_for(|stop| *stop).await;
+                    })
+                    .into_future(),
+            );
+        } else {
+            // Stop accepting at once. Open connections end with the runtime.
+            let _ = servers.spawn(async move {
+                tokio::select! {
+                    result = serve.into_future() => result,
+                    _ = shutdown.wait_for(|stop| *stop) => Ok(()),
+                }
+            });
+        }
+    }
+
+    while let Some(result) = servers.join_next().await {
+        if let Ok(Err(e)) = result {
+            report_error(
+                &state,
+                format!("The OTLP listener encountered an error: {e}"),
+            )
+            .await;
+        }
+    }
+    tasks.abort_all();
+}
+
+async fn report_error(state: &AppState, error: String) {
+    let _ = state
+        .exports
+        .send(OtlpRequest::Error(Error::OtlpError { error }))
+        .await;
+}
+
+/// A signal stops the run; once stopped, a signal ends the process.
+async fn on_signal(state: &AppState, signal: StopSignal) -> bool {
+    if state.is_receiving() {
+        let _ = state.exports.send(OtlpRequest::Stop(signal)).await;
+        true
+    } else {
+        state.request_shutdown();
+        false
+    }
+}
+
+fn spawn_stop_signal_handlers(state: Arc<AppState>, tasks: &mut JoinSet<()>) {
+    let ctrl_c_state = state.clone();
     let _ = tasks.spawn(async move {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("Failed to listen for CTRL+C");
-        let _ = ctrl_c_tx
-            .send(OtlpRequest::Stop(StopSignal::Sigint))
-            .await
-            .ok();
+        loop {
+            if let Err(e) = tokio::signal::ctrl_c().await {
+                warn!("Failed to listen for CTRL+C: {e}");
+                return;
+            }
+            if !on_signal(&ctrl_c_state, StopSignal::Sigint).await {
+                return;
+            }
+        }
     });
 
-    // Handle SIGHUP
     #[cfg(unix)]
     {
-        let sighup_tx = stop_tx;
         let _ = tasks.spawn(async move {
-            let mut sighup = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup())
-                .expect("Failed to create SIGHUP signal handler");
-
-            let _ = sighup.recv().await;
-            let _ = sighup_tx
-                .send(OtlpRequest::Stop(StopSignal::Sighup))
-                .await
-                .ok();
+            let mut sighup =
+                match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup()) {
+                    Ok(sighup) => sighup,
+                    Err(e) => {
+                        warn!("Failed to listen for SIGHUP: {e}");
+                        return;
+                    }
+                };
+            while sighup.recv().await.is_some() {
+                if !on_signal(&state, StopSignal::Sighup).await {
+                    return;
+                }
+            }
         });
     }
 }
 
-/// Shared state for the admin HTTP handler.
-#[derive(Clone)]
-struct AdminState {
-    stop_tx: mpsc::Sender<OtlpRequest>,
-    coordinator: ShutdownCoordinator,
-}
-
-/// GET /health — returns a simple JSON status.
-async fn health_handler() -> impl IntoResponse {
-    Json(serde_json::json!({"status": "ready"}))
-}
-
-/// POST /stop — sends a stop signal. If `--output=http` was set, waits for
-/// the report and returns it as the response body; otherwise returns 200
-/// immediately.
-async fn stop_handler(State(state): State<AdminState>) -> impl IntoResponse {
-    if state.coordinator.expects_report() {
-        let rx = state.coordinator.begin_report_wait();
-
-        let _ = state
-            .stop_tx
-            .send(OtlpRequest::Stop(StopSignal::AdminStop))
-            .await;
-
-        let response = match tokio::time::timeout(ADMIN_REQUEST_TIMEOUT, rx).await {
-            Ok(Ok((content_type, body))) => {
-                (StatusCode::OK, [(header::CONTENT_TYPE, content_type)], body).into_response()
-            }
-            Ok(Err(_)) => {
-                // Channel dropped — report generation failed
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(serde_json::json!({"error": "Report generation failed"})),
-                )
-                    .into_response()
-            }
-            Err(_) => {
-                // Timeout
-                (
-                    StatusCode::GATEWAY_TIMEOUT,
-                    Json(serde_json::json!({"error": "Timed out waiting for report"})),
-                )
-                    .into_response()
-            }
-        };
-
-        state.coordinator.trigger_admin_shutdown();
-
-        response
-    } else {
-        let _ = state
-            .stop_tx
-            .send(OtlpRequest::Stop(StopSignal::AdminStop))
-            .await;
-
-        state.coordinator.trigger_admin_shutdown();
-
-        StatusCode::OK.into_response()
-    }
-}
-
-/// Spawn a minimal HTTP server that handles admin endpoints (/health, /stop).
-///
-/// Note: All the tasks created in this function are recorded into a
-/// JoinSet. `JoinSet::spawn` returns a `AbortHandle` that we can
-/// ignore as we don't need to abort these tasks.
-async fn spawn_http_admin_handler(
-    stop_tx: mpsc::Sender<OtlpRequest>,
-    addr: SocketAddr,
-    coordinator: ShutdownCoordinator,
-    admin_shutdown_rx: oneshot::Receiver<()>,
-    tasks: &mut JoinSet<()>,
-) {
-    match TcpListener::bind(addr).await {
-        Ok(listener) => {
-            let state = AdminState {
-                stop_tx,
-                coordinator: coordinator.clone(),
-            };
-
-            let app = Router::new()
-                .route("/health", get(health_handler))
-                .route("/stop", post(stop_handler))
-                .with_state(state);
-
-            let _ = tasks.spawn(async move {
-                // ADMIN_REQUEST_TIMEOUT bounds only the graceful-shutdown drain
-                // (after the stop signal), not the server's whole lifetime.
-                // Wrapping the entire `serve` in the timeout would tear the admin
-                // server (and `/stop`) down that long after startup, so a `/stop`
-                // sent later in a long-running live-check could never stop it.
-                let (drain_started_tx, drain_started_rx) = oneshot::channel();
-                let serve = axum::serve(listener, app).with_graceful_shutdown(async move {
-                    let _ = admin_shutdown_rx.await;
-                    let _ = drain_started_tx.send(());
-                });
-
-                let drain_deadline = async {
-                    if drain_started_rx.await.is_ok() {
-                        sleep(ADMIN_REQUEST_TIMEOUT).await;
-                    } else {
-                        std::future::pending::<()>().await;
-                    }
-                };
-
-                tokio::select! {
-                    result = serve => {
-                        if let Err(e) = result {
-                            warn!("Admin HTTP server error: {e}");
-                        }
-                    }
-                    _ = drain_deadline => warn!(
-                        "Admin HTTP server graceful shutdown did not complete within \
-                         {ADMIN_REQUEST_TIMEOUT:?}; a client may not have finished reading \
-                         a response"
-                    ),
-                }
-
-                coordinator.signal_admin_shutdown_complete();
-            });
-        }
-        Err(e) => {
-            stop_tx
-                .send(OtlpRequest::Error(Error::HttpAdminError {
-                    error: format!("Failed to bind HTTP admin address {addr}: {e}"),
-                }))
-                .await
-                .expect("Failed to send an OtlpRequest::Error");
-        }
-    }
-}
-
-/// Spawn a task that monitors for inactivity and triggers shutdown if timeout is reached
-///
-/// Note: All the tasks created in this function are recorded into a
-/// JoinSet. `JoinSet::spawn` returns a `AbortHandle` that we can
-/// ignore as we don't need to abort these tasks.
-fn spawn_inactivity_monitor(
-    stop_tx: mpsc::Sender<OtlpRequest>,
-    activity_rx: watch::Receiver<Instant>,
-    timeout: Duration,
-    tasks: &mut JoinSet<()>,
-) {
+/// Stops the run once `timeout` has passed without an export. It only ever
+/// stops receiving; what happens after that is the client's call.
+fn spawn_inactivity_monitor(state: Arc<AppState>, timeout: Duration, tasks: &mut JoinSet<()>) {
+    // Checking every second keeps the stop close to the timeout itself,
+    // rather than up to a whole timeout late.
+    let interval = timeout.min(Duration::from_secs(1));
     let _ = tasks.spawn(async move {
         loop {
-            // Wait for the timeout duration
-            sleep(timeout).await;
-
-            // Check if we've exceeded the inactivity timeout
-            let last_activity = *activity_rx.borrow();
-            if last_activity.elapsed() >= timeout {
-                let _ = stop_tx
-                    .send(OtlpRequest::Stop(StopSignal::Inactivity))
-                    .await
-                    .ok();
-                break;
+            sleep(interval).await;
+            if !state.is_receiving() {
+                return;
             }
-
-            // Check if we should stop monitoring (channel closed)
-            if activity_rx.has_changed().is_err() {
-                break;
+            if state.activity.borrow().elapsed() >= timeout {
+                let _ = state
+                    .exports
+                    .send(OtlpRequest::Stop(StopSignal::Inactivity))
+                    .await;
+                return;
             }
         }
     });
 }
 
-// Synchronous iterator wrapping a Tokio mpsc::Receiver.
-pub struct SyncReceiver<T> {
-    receiver: mpsc::Receiver<T>,
-}
-
-impl<T> Iterator for SyncReceiver<T> {
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.receiver.blocking_recv()
-    }
-}
-
-async fn forward_to_channel<T>(
-    sender: &mpsc::Sender<OtlpRequest>,
-    otlp_request: T,
-    wrapper: fn(T) -> OtlpRequest,
-) -> Result<(), Status> {
-    sender
-        .send(wrapper(otlp_request))
-        .await
-        .map_err(|e| Status::resource_exhausted(format!("Channel full: {e}")))
-}
-
-pub struct LogsServiceImpl {
-    tx: mpsc::Sender<OtlpRequest>,
-    activity_tx: watch::Sender<Instant>,
-}
-pub struct MetricsServiceImpl {
-    tx: mpsc::Sender<OtlpRequest>,
-    activity_tx: watch::Sender<Instant>,
-}
-pub struct TraceServiceImpl {
-    tx: mpsc::Sender<OtlpRequest>,
-    activity_tx: watch::Sender<Instant>,
-}
-pub struct ProfilesServiceImpl {
-    tx: mpsc::Sender<OtlpRequest>,
-    activity_tx: watch::Sender<Instant>,
-}
-
-#[tonic::async_trait]
-impl LogsService for LogsServiceImpl {
-    async fn export(
-        &self,
-        request: Request<ExportLogsServiceRequest>,
-    ) -> Result<Response<ExportLogsServiceResponse>, Status> {
-        // Update last activity time
-        self.activity_tx
-            .send(Instant::now())
-            .map_err(|_| Status::internal("Failed to update activity timestamp"))?;
-
-        forward_to_channel(&self.tx, request.into_inner(), OtlpRequest::Logs).await?;
-        Ok(Response::new(ExportLogsServiceResponse {
-            partial_success: None,
-        }))
-    }
-}
-
-#[tonic::async_trait]
-impl MetricsService for MetricsServiceImpl {
-    async fn export(
-        &self,
-        request: Request<ExportMetricsServiceRequest>,
-    ) -> Result<Response<ExportMetricsServiceResponse>, Status> {
-        // Update last activity time
-        self.activity_tx
-            .send(Instant::now())
-            .map_err(|_| Status::internal("Failed to update activity timestamp"))?;
-
-        forward_to_channel(&self.tx, request.into_inner(), OtlpRequest::Metrics).await?;
-        Ok(Response::new(ExportMetricsServiceResponse {
-            partial_success: None,
-        }))
-    }
-}
-
-#[tonic::async_trait]
-impl TraceService for TraceServiceImpl {
-    async fn export(
-        &self,
-        request: Request<ExportTraceServiceRequest>,
-    ) -> Result<Response<ExportTraceServiceResponse>, Status> {
-        // Update last activity time
-        self.activity_tx
-            .send(Instant::now())
-            .map_err(|_| Status::internal("Failed to update activity timestamp"))?;
-
-        forward_to_channel(&self.tx, request.into_inner(), OtlpRequest::Traces).await?;
-        Ok(Response::new(ExportTraceServiceResponse {
-            partial_success: None,
-        }))
-    }
-}
-
-#[tonic::async_trait]
-impl ProfilesService for ProfilesServiceImpl {
-    async fn export(
-        &self,
-        request: Request<ExportProfilesServiceRequest>,
-    ) -> Result<Response<ExportProfilesServiceResponse>, Status> {
-        self.activity_tx
-            .send(Instant::now())
-            .map_err(|_| Status::internal("Failed to update activity timestamp"))?;
-
-        forward_to_channel(&self.tx, request.into_inner(), OtlpRequest::Profiles).await?;
-        Ok(Response::new(ExportProfilesServiceResponse {
-            partial_success: None,
-        }))
+fn otlp_error(error: impl ToString) -> Error {
+    Error::OtlpError {
+        error: error.to_string(),
     }
 }
 
@@ -753,251 +487,338 @@ mod tests {
     use crate::registry::otlp::grpc_stubs::proto::collector::logs::v1::logs_service_client::LogsServiceClient;
     use crate::registry::otlp::grpc_stubs::proto::collector::metrics::v1::metrics_service_client::MetricsServiceClient;
     use crate::registry::otlp::grpc_stubs::proto::collector::trace::v1::trace_service_client::TraceServiceClient;
+    use axum::body::Bytes;
     use std::thread;
-    use weaver_test_support::reserve_test_port;
+    use std::time::Instant;
+
+    /// Both ports `0`: two free ports, reported on the listener.
+    fn listen_ephemeral(inactivity_timeout: Duration) -> OtlpListener {
+        listen_otlp_requests("127.0.0.1", 0, 0, inactivity_timeout).expect("listen")
+    }
+
+    fn client_runtime() -> tokio::runtime::Runtime {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("client runtime")
+    }
+
+    async fn export_all(endpoint: &str, metrics: usize, logs: usize, traces: usize) {
+        let mut client = MetricsServiceClient::connect(endpoint.to_owned())
+            .await
+            .expect("connect metrics");
+        for _ in 0..metrics {
+            let _ = client
+                .export(ExportMetricsServiceRequest::default())
+                .await
+                .expect("export metrics");
+        }
+        let mut client = LogsServiceClient::connect(endpoint.to_owned())
+            .await
+            .expect("connect logs");
+        for _ in 0..logs {
+            let _ = client
+                .export(ExportLogsServiceRequest::default())
+                .await
+                .expect("export logs");
+        }
+        let mut client = TraceServiceClient::connect(endpoint.to_owned())
+            .await
+            .expect("connect traces");
+        for _ in 0..traces {
+            let _ = client
+                .export(ExportTraceServiceRequest::default())
+                .await
+                .expect("export traces");
+        }
+    }
+
+    /// Reads exports until the run stops and returns the stop signal.
+    fn read_until_stop(requests: &mut SyncReceiver) -> StopSignal {
+        for request in requests.by_ref() {
+            if let OtlpRequest::Stop(signal) = request {
+                return signal;
+            }
+        }
+        panic!("the requests ended without a stop");
+    }
+
+    fn body_of(response: ureq::http::Response<ureq::Body>) -> String {
+        response
+            .into_body()
+            .read_to_string()
+            .expect("read the body")
+    }
 
     #[test]
-    fn test_inactivity_stop_after_1_second() {
-        let grpc_port = reserve_test_port();
-        let admin_port = reserve_test_port();
-        let inactivity_timeout = Duration::from_secs(1);
+    fn an_ephemeral_port_is_reported_and_inactivity_stops_the_run() {
+        let listener = listen_ephemeral(Duration::from_secs(1));
+        assert_ne!(listener.grpc_addr.port(), 0, "the bound port is reported");
+        let endpoint = format!("http://{}", listener.grpc_addr);
 
-        let (mut receiver, _report_sender) =
-            listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();
-        let grpc_endpoint = format!("http://127.0.0.1:{grpc_port}");
-        let expected_metrics_count = 3;
-        let expected_logs_count = 4;
-        let expected_traces_count = 5;
+        client_runtime().block_on(export_all(&endpoint, 3, 4, 5));
 
-        let _ = thread::spawn(move || {
-            let grpc_endpoint_clone = grpc_endpoint.clone();
-            //let grpc_endpoint = grpc_endpoint_clone.as_str();
-            tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .unwrap()
-                .block_on(async {
-                    // Send 3 metrics
-                    let mut metrics_client =
-                        MetricsServiceClient::connect(grpc_endpoint_clone.clone())
-                            .await
-                            .inspect_err(|e| {
-                                eprintln!("Unable to connect to {grpc_endpoint_clone}. Error: {e}");
-                            })
-                            .unwrap();
-                    for _ in 0..expected_metrics_count {
-                        let _ = metrics_client
-                            .export(ExportMetricsServiceRequest::default())
-                            .await;
-                    }
-
-                    // Send 4 logs
-                    let mut logs_client = LogsServiceClient::connect(grpc_endpoint.clone())
-                        .await
-                        .unwrap();
-                    for _ in 0..expected_logs_count {
-                        let _ = logs_client
-                            .export(ExportLogsServiceRequest::default())
-                            .await;
-                    }
-
-                    // Send 5 traces
-                    let mut traces_client = TraceServiceClient::connect(grpc_endpoint.clone())
-                        .await
-                        .unwrap();
-                    for _ in 0..expected_traces_count {
-                        let _ = traces_client
-                            .export(ExportTraceServiceRequest::default())
-                            .await;
-                    }
-                });
-        })
-        .join();
-
-        // We expect 3 metrics, 4 logs, and 5 traces to be received and then the server to stop
-        // due to inactivity.
-        let mut metrics_count = 0;
-        let mut logs_count = 0;
-        let mut traces_count = 0;
-
-        loop {
-            let request = receiver.next().unwrap();
+        let (mut metrics, mut logs, mut traces) = (0, 0, 0);
+        for request in listener.requests {
             match request {
-                OtlpRequest::Metrics(_) => metrics_count += 1,
-                OtlpRequest::Logs(_) => logs_count += 1,
-                OtlpRequest::Traces(_) => traces_count += 1,
-                OtlpRequest::Stop(StopSignal::Inactivity) => {
-                    break;
-                }
-                other => {
-                    panic!("Unexpected request: {other:?}");
-                }
+                OtlpRequest::Metrics(_) => metrics += 1,
+                OtlpRequest::Logs(_) => logs += 1,
+                OtlpRequest::Traces(_) => traces += 1,
+                OtlpRequest::Stop(StopSignal::Inactivity) => break,
+                other => panic!("unexpected request: {other:?}"),
             }
         }
-
-        assert_eq!(
-            metrics_count, expected_metrics_count,
-            "The number of metrics received is incorrect"
-        );
-        assert_eq!(
-            logs_count, expected_logs_count,
-            "The number of logs received is incorrect"
-        );
-        assert_eq!(
-            traces_count, expected_traces_count,
-            "The number of traces received is incorrect"
-        );
+        assert_eq!((metrics, logs, traces), (3, 4, 5));
+        listener.handle.finish();
     }
 
     #[test]
-    fn test_http_stop_endpoint_with_report() {
-        let grpc_port = reserve_test_port();
-        let admin_port = reserve_test_port();
-        let inactivity_timeout = Duration::from_secs(5);
-
-        let (mut receiver, report_sender) =
-            listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();
-
-        // Enable report-via-HTTP mode (simulates --output http)
-        report_sender.set_expect_report(true);
-
-        // Give the server a little time to finish binding the port.
-        thread::sleep(Duration::from_millis(200));
-
-        // The HTTP handler now waits for a report before responding, so the
-        // POST must be on a separate thread.
-        let response_handle = thread::spawn(move || {
-            let url = format!("http://127.0.0.1:{admin_port}/stop");
-            ureq::post(&url)
-                .send("")
-                .expect("HTTP POST to /stop failed")
-        });
-
-        // Wait for the Stop signal and then send the report
-        match receiver.next() {
-            Some(OtlpRequest::Stop(StopSignal::AdminStop)) => {
-                report_sender.deliver_report("text/plain".into(), "test report".into());
-            }
-            other => {
-                panic!("Expected OtlpRequest::Stop, got {other:?}");
-            }
-        }
-
-        let response = response_handle.join().expect("HTTP thread panicked");
-        assert_eq!(
-            response.status(),
-            200,
-            "Stop endpoint returned non-200 status"
-        );
-        let body = response.into_body().read_to_string().unwrap();
-        assert_eq!(body, "test report");
+    fn equal_ports_are_rejected() {
+        let error = listen_otlp_requests("127.0.0.1", 4317, 4317, Duration::ZERO)
+            .err()
+            .expect("equal ports are refused");
+        assert!(error.to_string().contains("must differ"), "{error}");
     }
 
     #[test]
-    fn test_http_stop_endpoint_immediate() {
-        let grpc_port = reserve_test_port();
-        let admin_port = reserve_test_port();
-        let inactivity_timeout = Duration::from_secs(5);
+    fn health_answers_on_the_admin_port() {
+        let listener = listen_ephemeral(Duration::ZERO);
+        assert_ne!(listener.grpc_addr.port(), 0);
+        assert_ne!(listener.admin_addr.port(), 0);
+        assert_ne!(listener.grpc_addr, listener.admin_addr);
 
-        let (mut receiver, _report_sender) =
-            listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();
-
-        // expect_report defaults to false — /stop should return 200 immediately
-
-        // Give the server a little time to finish binding the port.
-        thread::sleep(Duration::from_millis(200));
-
-        let url = format!("http://127.0.0.1:{admin_port}/stop");
-        let response = ureq::post(&url)
-            .send("")
-            .expect("HTTP POST to /stop failed");
-        assert_eq!(
-            response.status(),
-            200,
-            "Stop endpoint returned non-200 status"
-        );
-        let body = response.into_body().read_to_string().unwrap();
-        assert!(body.is_empty(), "Expected empty body, got: {body}");
-
-        // Should still receive the stop signal
-        match receiver.next() {
-            Some(OtlpRequest::Stop(StopSignal::AdminStop)) => {}
-            other => {
-                panic!("Expected OtlpRequest::Stop, got {other:?}");
-            }
-        }
-    }
-
-    #[test]
-    fn test_health_endpoint() {
-        let grpc_port = reserve_test_port();
-        let admin_port = reserve_test_port();
-        let inactivity_timeout = Duration::from_secs(5);
-
-        let (_receiver, _report_sender) =
-            listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();
-
-        // Give the server a little time to finish binding the port.
-        thread::sleep(Duration::from_millis(200));
-
-        // First health check
-        let url = format!("http://127.0.0.1:{admin_port}/health");
-        let response = ureq::get(&url).call().expect("GET /health failed");
+        let response = ureq::get(format!("http://{}/health", listener.admin_addr))
+            .call()
+            .expect("GET /health");
         assert_eq!(response.status(), 200);
-        let body = response.into_body().read_to_string().unwrap();
-        assert_eq!(body, r#"{"status":"ready"}"#);
+        assert_eq!(body_of(response), r#"{"status":"ready"}"#);
 
-        // Second health check — server should still be running
-        let response2 = ureq::get(&url).call().expect("GET /health (2nd) failed");
-        assert_eq!(response2.status(), 200);
+        // The gRPC port serves the same router, so it answers too.
+        let response = ureq::get(format!("http://{}/health", listener.grpc_addr))
+            .call()
+            .expect("GET /health on the gRPC port");
+        assert_eq!(response.status(), 200);
+
+        listener.handle.finish();
     }
 
     #[test]
-    fn test_deliver_report_noop_without_pending_request() {
-        let (coordinator, _admin_shutdown_rx) = ShutdownCoordinator::new();
-        assert!(!coordinator.is_report_pending());
-        // Should not panic even though nothing is waiting.
-        coordinator.deliver_report("text/plain".into(), "unused".into());
-    }
+    fn stop_returns_once_the_run_is_over() {
+        let listener = listen_ephemeral(Duration::ZERO);
+        let OtlpListener {
+            mut requests,
+            admin_addr,
+            handle,
+            ..
+        } = listener;
 
-    #[test]
-    fn test_report_pending_state_transitions() {
-        let (coordinator, _admin_shutdown_rx) = ShutdownCoordinator::new();
-        assert!(!coordinator.is_report_pending());
-
-        let report_rx = coordinator.begin_report_wait();
-        assert!(coordinator.is_report_pending());
-
-        coordinator.deliver_report("text/plain".into(), "hello".into());
-        assert!(!coordinator.is_report_pending());
-
-        let (content_type, body) = report_rx.blocking_recv().expect("report was not delivered");
-        assert_eq!(content_type, "text/plain");
-        assert_eq!(body, "hello");
-    }
-
-    #[test]
-    fn test_wait_for_admin_shutdown_blocks_until_signaled() {
-        let (coordinator, _admin_shutdown_rx) = ShutdownCoordinator::new();
-        let coordinator_clone = coordinator.clone();
-
-        let (signaled_tx, signaled_rx) = std::sync::mpsc::channel::<()>();
-        let handle = thread::spawn(move || {
-            thread::sleep(Duration::from_millis(200));
-            signaled_tx.send(()).expect("main thread went away");
-            coordinator_clone.signal_admin_shutdown_complete();
+        let stop = thread::spawn(move || {
+            ureq::post(format!("http://{admin_addr}/stop"))
+                .send_empty()
+                .expect("POST /stop")
         });
 
-        // Proves the wait below actually blocks rather than trivially returning.
-        assert!(signaled_rx.try_recv().is_err());
+        assert!(matches!(
+            read_until_stop(&mut requests),
+            StopSignal::AdminStop
+        ));
+        // /stop is still waiting: the outcome is not published yet.
+        assert!(!stop.is_finished());
+        handle.finish();
 
-        coordinator.wait_for_admin_shutdown();
+        let response = stop.join().expect("stop thread");
+        assert_eq!(response.status(), 200);
+        assert_eq!(body_of(response), r#"{"state":"stopped","report":false}"#);
+    }
 
+    #[test]
+    fn the_report_is_served_until_shutdown() {
+        // A failed assertion on the client thread must not hang the test, so
+        // inactivity ends the server if the client never asks for shutdown.
+        let listener = listen_ephemeral(Duration::from_secs(10));
+        let OtlpListener {
+            mut requests,
+            admin_addr,
+            handle,
+            ..
+        } = listener;
+        let base = format!("http://{admin_addr}");
+
+        let before_stop = ureq::get(format!("{base}/report"))
+            .call()
+            .expect_err("no report while receiving");
+        assert!(matches!(before_stop, ureq::Error::StatusCode(409)));
+
+        let client = thread::spawn(move || {
+            let stop = ureq::post(format!("{base}/stop"))
+                .send_empty()
+                .expect("POST /stop");
+            assert_eq!(body_of(stop), r#"{"state":"stopped","report":true}"#);
+
+            let report = ureq::get(format!("{base}/report"))
+                .call()
+                .expect("GET /report");
+            assert_eq!(
+                report.headers().get("content-type").map(|v| v.as_bytes()),
+                Some(b"text/plain".as_slice())
+            );
+            assert_eq!(body_of(report), "the report");
+
+            // Reading it twice is fine; nothing is consumed.
+            let again = ureq::get(format!("{base}/report"))
+                .call()
+                .expect("GET /report again");
+            assert_eq!(body_of(again), "the report");
+
+            let shutdown = ureq::post(format!("{base}/shutdown"))
+                .send_empty()
+                .expect("POST /shutdown");
+            assert_eq!(body_of(shutdown), r#"{"state":"shutting_down"}"#);
+        });
+
+        assert!(matches!(
+            read_until_stop(&mut requests),
+            StopSignal::AdminStop
+        ));
+        handle.serve_report(Report {
+            content_type: "text/plain".to_owned(),
+            body: Bytes::from_static(b"the report"),
+        });
+        client.join().expect("client thread");
+    }
+
+    #[test]
+    fn a_report_after_an_inactivity_stop_waits_for_shutdown() {
+        let timeout = Duration::from_millis(300);
+        let listener = listen_ephemeral(timeout);
+        let OtlpListener {
+            mut requests,
+            admin_addr,
+            handle,
+            ..
+        } = listener;
+
+        assert!(matches!(
+            read_until_stop(&mut requests),
+            StopSignal::Inactivity
+        ));
+
+        // Well past another inactivity period, the report is still there:
+        // inactivity never ends a stopped run. Only the client does.
+        let client = thread::spawn(move || {
+            thread::sleep(timeout * 3);
+            let base = format!("http://{admin_addr}");
+            let report = ureq::get(format!("{base}/report"))
+                .call()
+                .expect("GET /report");
+            assert_eq!(body_of(report), "still here");
+            let _ = ureq::post(format!("{base}/shutdown"))
+                .send_empty()
+                .expect("POST /shutdown");
+        });
+
+        handle.serve_report(Report {
+            content_type: "text/plain".to_owned(),
+            body: Bytes::from_static(b"still here"),
+        });
+        client.join().expect("client thread");
+    }
+
+    #[test]
+    fn an_export_after_the_stop_is_refused() {
+        let listener = listen_ephemeral(Duration::from_millis(200));
+        let OtlpListener {
+            mut requests,
+            grpc_addr,
+            handle,
+            ..
+        } = listener;
+
+        // Reading the stop closes the channel.
+        assert!(matches!(
+            read_until_stop(&mut requests),
+            StopSignal::Inactivity
+        ));
+
+        let status = client_runtime().block_on(async {
+            let mut client = LogsServiceClient::connect(format!("http://{grpc_addr}"))
+                .await
+                .expect("connect logs");
+            client
+                .export(ExportLogsServiceRequest::default())
+                .await
+                .expect_err("the export is refused")
+        });
+        assert_eq!(status.code(), tonic::Code::Unavailable);
+
+        // The refused export holds nothing open, so this returns at once.
+        let started = Instant::now();
+        handle.finish();
+        assert!(started.elapsed() < Duration::from_secs(1));
+    }
+
+    #[test]
+    fn an_idle_grpc_client_does_not_delay_the_exit() {
+        let listener = listen_ephemeral(Duration::ZERO);
+        let OtlpListener {
+            mut requests,
+            grpc_addr,
+            handle,
+            ..
+        } = listener;
+
+        // An SDK keeps its HTTP/2 connection open after exporting. Hold one
+        // across the shutdown and make sure the exit does not wait for it.
+        let runtime = client_runtime();
+        let mut client = runtime.block_on(async {
+            let mut client = LogsServiceClient::connect(format!("http://{grpc_addr}"))
+                .await
+                .expect("connect logs");
+            let _ = client
+                .export(ExportLogsServiceRequest::default())
+                .await
+                .expect("export logs");
+            client
+        });
+        assert!(matches!(requests.next(), Some(OtlpRequest::Logs(_))));
+
+        let started = Instant::now();
+        handle.finish();
         assert!(
-            signaled_rx.try_recv().is_ok(),
-            "wait_for_admin_shutdown returned before signal_admin_shutdown_complete ran"
+            started.elapsed() < Duration::from_secs(1),
+            "finish took {:?} with an idle gRPC client connected",
+            started.elapsed()
         );
 
-        handle.join().expect("background thread panicked");
+        // The connection is gone from the client's point of view too.
+        let refused = runtime.block_on(client.export(ExportLogsServiceRequest::default()));
+        assert!(refused.is_err());
+    }
+
+    #[test]
+    fn shutdown_while_receiving_stops_the_run_first() {
+        let listener = listen_ephemeral(Duration::ZERO);
+        let OtlpListener {
+            mut requests,
+            admin_addr,
+            handle,
+            ..
+        } = listener;
+
+        let response = ureq::post(format!("http://{admin_addr}/shutdown"))
+            .send_empty()
+            .expect("POST /shutdown");
+        assert_eq!(response.status(), 200);
+
+        assert!(matches!(
+            read_until_stop(&mut requests),
+            StopSignal::AdminStop
+        ));
+        // The report is published to a listener that is already ending. That is
+        // the client's choice; nothing else is done with it.
+        handle.serve_report(Report {
+            content_type: "text/plain".to_owned(),
+            body: Bytes::from_static(b"too late"),
+        });
     }
 }
