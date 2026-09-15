@@ -503,7 +503,10 @@ impl Sample {
         }
     }
 
-    /// Returns a reference to the parent resource, if available.
+    /// Returns the resource associated with this sample, if any.
+    ///
+    /// For span/metric/log samples this is the parent resource; a resource
+    /// sample is its own resource.
     #[must_use]
     pub fn resource(&self) -> Option<&SampleResource> {
         match self {
@@ -511,6 +514,7 @@ impl Sample {
             Sample::Metric(m) => m.resource.as_deref(),
             Sample::Log(l) => l.resource.as_deref(),
             Sample::Profile(p) => p.resource.as_deref(),
+            Sample::Resource(r) => Some(r),
             _ => None,
         }
     }
@@ -759,6 +763,7 @@ mod tests {
     use sample_log::SampleLog;
     use sample_profile::SampleProfile;
     use sample_span::{SampleSpan, Status, StatusCode};
+    use serde_json::json;
     use weaver_semconv::v1::group::SpanKindSpec;
 
     fn sample_log_with_timestamp(timestamp: Option<String>) -> SampleLog {
@@ -807,6 +812,18 @@ mod tests {
             trace_state: None,
             start_time: None,
             end_time: None,
+        }
+    }
+
+    fn test_resource() -> SampleResource {
+        SampleResource {
+            attributes: vec![SampleAttribute {
+                name: "service.name".to_owned(),
+                value: Some(json!("my-test-service")),
+                r#type: None,
+                live_check_result: None,
+            }],
+            live_check_result: None,
         }
     }
 
@@ -904,5 +921,36 @@ mod tests {
 
         let json = serde_json::to_value(report).expect("serialize report");
         assert!(json["samples"][0]["log"].get("timestamp").is_none());
+    }
+
+    #[test]
+    fn test_resource_sample_is_its_own_resource() {
+        let resource = test_resource();
+        let sample = Sample::Resource(resource.clone());
+
+        assert_eq!(sample.resource(), Some(&resource));
+    }
+
+    #[test]
+    fn test_signal_sample_returns_parent_resource() {
+        let resource = test_resource();
+        let span = SampleSpan {
+            resource: Some(Rc::new(resource.clone())),
+            ..sample_span_with_trace_context(None, None)
+        };
+
+        assert_eq!(Sample::Span(span).resource(), Some(&resource));
+    }
+
+    #[test]
+    fn test_sample_without_resource_returns_none() {
+        let sample = Sample::Attribute(SampleAttribute {
+            name: "db.statement".to_owned(),
+            value: None,
+            r#type: None,
+            live_check_result: None,
+        });
+
+        assert_eq!(sample.resource(), None);
     }
 }
