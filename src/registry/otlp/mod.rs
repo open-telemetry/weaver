@@ -35,17 +35,17 @@ use tokio::task::JoinSet;
 use tokio::time::sleep;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 
-/// Exports queued ahead of the checker before exporters have to wait.
+/// How many exports can queue before exporters wait.
 const CHANNEL_CAPACITY: usize = 100;
 
 /// A bound socket and whether it carries the admin API.
 struct BoundListener {
     listener: std::net::TcpListener,
-    /// Shut down gracefully, so the in-flight `/shutdown` response completes.
-    /// There is no deadline: the client asked for the exit, so anything else it
-    /// left in flight is its own to finish. The gRPC listener just stops; after
-    /// a stop it has nothing left to deliver, and SDKs keep idle HTTP/2
-    /// connections open, which a graceful shutdown would wait for.
+    /// The admin listener shuts down gracefully, so the `/shutdown` response
+    /// completes. There is no deadline: the client asked for the exit and owns
+    /// anything else it left in flight. The gRPC listener just stops. After a
+    /// stop it has nothing to deliver, and SDKs keep idle HTTP/2 connections
+    /// open, which a graceful shutdown would wait for.
     serves_admin: bool,
 }
 
@@ -200,33 +200,32 @@ impl Display for StopSignal {
 pub struct OtlpListener {
     /// The exports, ending with the `Stop` or `Error` that ended the run.
     pub requests: SyncReceiver,
-    /// Where the gRPC services listen. Tells the real port when `0` was asked for.
+    /// The bound gRPC address. Shows the real port when `0` was requested.
     pub grpc_addr: SocketAddr,
-    /// Where the admin API listens. Tells the real port when `0` was asked for.
+    /// The bound admin address. Shows the real port when `0` was requested.
     pub admin_addr: SocketAddr,
     /// Publishes the outcome of the run and ends the listener.
     pub handle: ListenerHandle,
 }
 
-/// The checker's side of the listener: says how the run ended, then waits for
-/// the listener thread to finish.
+/// The checker's handle on the listener. It reports how the run ended and
+/// waits for the listener thread.
 pub struct ListenerHandle {
     state: Arc<AppState>,
     thread: Option<JoinHandle<()>>,
 }
 
 impl ListenerHandle {
-    /// The run is over and its report went to stdout or a directory. A waiting
-    /// `/stop` returns, the listeners drain, and this returns once the thread ends.
+    /// The run is over and the report went to stdout or a directory. A waiting
+    /// `/stop` returns, the listeners stop, and this returns when the thread ends.
     pub fn finish(mut self) {
         self.state.stopped(None);
         self.state.request_shutdown();
         self.join();
     }
 
-    /// The run is over and its report is served on `/report` until `/shutdown`
-    /// or a signal ends the listener. Whether anyone reads it is the client's
-    /// business; it asked for the report over HTTP.
+    /// The run is over and the report is served on `/report` until `/shutdown`
+    /// or a signal ends the listener. Whether anyone reads it is up to the client.
     pub fn serve_report(mut self, report: Report) {
         self.state.stopped(Some(report));
         self.join();
@@ -249,9 +248,9 @@ impl Drop for ListenerHandle {
 
 /// The blocking side of the export channel.
 ///
-/// Once it yields the `Stop` or `Error` that ends a run it closes the channel,
-/// so any export still arriving is refused at once instead of waiting on a
-/// queue nobody reads.
+/// When it yields the `Stop` or `Error` that ends a run, it closes the channel.
+/// Any export that arrives after that is refused at once instead of waiting in
+/// a queue nobody reads.
 pub struct SyncReceiver {
     receiver: mpsc::Receiver<OtlpRequest>,
 }
@@ -272,10 +271,9 @@ impl Iterator for SyncReceiver {
 /// an iterator.
 ///
 /// Both ports bind to `grpc_address` and must differ. Port `0` picks a free
-/// port for either; read them from [`OtlpListener::grpc_addr`] and
-/// [`OtlpListener::admin_addr`]. The sockets are bound before this returns, so
-/// exporters can connect at once. An `inactivity_timeout` of zero never stops
-/// the run on its own.
+/// port; read it from [`OtlpListener::grpc_addr`] or [`OtlpListener::admin_addr`].
+/// The sockets are bound before this returns, so exporters can connect at once.
+/// An `inactivity_timeout` of zero never stops the run.
 pub fn listen_otlp_requests(
     grpc_address: &str,
     grpc_port: u16,
@@ -344,8 +342,8 @@ pub fn listen_otlp_requests(
     })
 }
 
-/// Serves the router on every listener until shutdown is requested, then lets
-/// the admin side finish what is in flight.
+/// Serves the router on both listeners until shutdown is requested, then lets
+/// the admin listener finish its responses in flight.
 async fn serve_all(
     listeners: Vec<BoundListener>,
     router: Router,
@@ -452,8 +450,8 @@ fn spawn_stop_signal_handlers(state: Arc<AppState>, tasks: &mut JoinSet<()>) {
     }
 }
 
-/// Stops the run once `timeout` has passed without an export. It only ever
-/// stops receiving; what happens after that is the client's call.
+/// Stops the run after `timeout` without an export. It only stops receiving;
+/// what happens next is up to the client.
 fn spawn_inactivity_monitor(state: Arc<AppState>, timeout: Duration, tasks: &mut JoinSet<()>) {
     // Checking every second keeps the stop close to the timeout itself,
     // rather than up to a whole timeout late.

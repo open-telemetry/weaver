@@ -35,10 +35,9 @@ Linux runners only in v1.
 ## Behavior
 
 - Validates `fail-on`, `stop-timeout`, and `upload-report` inputs.
-- POSTs to weaver's admin `/stop`, which returns once the report is
-  ready; GETs the report from `/report` into `state-dir/live_check.json`;
-  then POSTs `/shutdown`. (With a weaver older than `/report`, the
-  `/stop` body is the report and weaver exits on its own.)
+- POSTs `/stop`, which returns once the report is ready. GETs `/report`
+  into `state-dir/live_check.json`. POSTs `/shutdown`. (Older weaver
+  returns the report in the `/stop` body and exits on its own.)
 - Waits for the weaver process to exit cleanly (up to `stop-timeout`);
   hard-kills if it does not.
 - Parses the report with `parse-report.py` (a Python script bundled

@@ -49,7 +49,7 @@ jobs:
 | `config` | no | — | Optional `.weaver.toml` config path, passed to `weaver registry live-check --config`. Useful for `[[live-check.finding_filters]]` (drop noisy attributes), `advice_policies`, etc. |
 | `otlp-grpc-port` | no | `4317` | Port the weaver OTLP/gRPC listener binds to (loopback only). |
 | `admin-port` | no | `4320` | Port for weaver admin endpoints (`/health`, `/stop`, `/report`, `/shutdown`). |
-| `inactivity-timeout` | no | `0` | Deprecated. Current weaver ignores it with `--output http`; only the stop action ends the run. On older releases a non-zero value stopped a quiet run early. |
+| `inactivity-timeout` | no | `0` | Deprecated. Current weaver ignores it; only the stop action ends the run. Older releases stopped a quiet run after this many seconds. |
 | `startup-timeout` | no | `120` | Seconds to wait for `/health` to come up. |
 | `diagnostic-format` | no | `gh_workflow_command` | Format passed to weaver's `--diagnostic-format`. |
 | `state-dir` | no | `$RUNNER_TEMP/weaver-live-check` | Override if you need multiple instances in the same job (and also override ports). |

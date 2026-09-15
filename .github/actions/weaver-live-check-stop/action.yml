@@ -117,13 +117,13 @@ runs:
 
         REPORT="$STATE_DIR/live_check.json"
 
-        # Stop receiving. `/stop` returns once the report is ready. `--output=http`
-        # (set by the start action) serves the report on GET /report until
-        # POST /shutdown ends the process.
+        # /stop returns once the report is ready. With --output=http (set by the
+        # start action) the report is served on GET /report until POST /shutdown
+        # ends the process.
         #
-        # Weaver before the /report endpoint returned the report as the /stop
-        # body and exited on its own. To work with either, keep the /stop body
-        # and use it when /report is not there.
+        # Older weaver returned the report as the /stop body and exited on its
+        # own. Keep the /stop body and use it when /report is missing, so both
+        # work.
         ADMIN="http://127.0.0.1:${ADMIN_PORT}"
         STOP_BODY="$STATE_DIR/stop.out"
         echo "Stopping weaver listener (admin :${ADMIN_PORT})..."

@@ -311,12 +311,9 @@ impl OtlpIngester {
             "  - send a SIGHUP signal to the weaver process or run this command kill -SIGHUP {}",
             std::process::id()
         );
+        info!("  - or POST to http://{}/stop", listener.admin_addr);
         info!(
-            "  - or send a POST request to the /stop endpoint via the following command curl -X POST http://{}/stop.",
-            listener.admin_addr
-        );
-        info!(
-            "With --output http, GET http://{0}/report returns the report and POST http://{0}/shutdown ends the process.",
+            "With --output http: GET http://{0}/report returns the report and POST http://{0}/shutdown ends the process.",
             listener.admin_addr
         );
         if self.inactivity_timeout == 0 {

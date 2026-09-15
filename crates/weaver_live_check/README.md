@@ -311,7 +311,13 @@ The output follows existing Weaver paradigms providing overridable jinja templat
 
 By default the output is streamed (when available) to an `ansi` template. Use the `--format` option to pick one of the builtin standard formats: `json`, `jsonl` and `yaml` or a template name. To override streaming and only produce a report when the input is closed, use `--no-stream`. Streaming is automatically disabled if your `--output` is a path to a directory; by default, output is printed to stdout.
 
-Set `--output=http` to serve the report on the admin port instead of writing it. `POST /stop` ends the run and returns once the report is ready, `GET /report` returns it as often as wanted, and `POST /shutdown` ends the process. Until then the process stays up, so a client can read a large report at its own pace. The client owns the lifecycle in this mode: `--inactivity-timeout` is ignored (with a warning if set) and weaver never stops or exits on its own. A signal still stops the run, and a second one ends the process; a report that was never read is not written anywhere else.
+Set `--output=http` to serve the report over the admin API instead of writing it:
+
+1. `POST /stop` ends the run and returns once the report is ready.
+2. `GET /report` returns the report, as often as you like.
+3. `POST /shutdown` ends the process.
+
+The process stays up until step 3, so a client can read a large report at its own pace. In this mode the client owns the run: `--inactivity-timeout` is ignored (with a warning if set) and weaver never stops or exits on its own. A signal still stops the run, and a second signal ends the process. A report nobody read is not written anywhere else.
 
 To provide your own custom templates use the `--templates` option.
 

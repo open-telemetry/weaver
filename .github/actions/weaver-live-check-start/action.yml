@@ -42,10 +42,9 @@ inputs:
     default: '4320'
   inactivity-timeout:
     description: >-
-      Deprecated. Weaver ignores the inactivity timeout with `--output http`,
-      which this action always uses: only the stop action ends the run.
-      Kept for older weaver releases, where a non-zero value made a quiet
-      stretch in your tests end the run early. `0` disables it there too.
+      Deprecated. Current weaver ignores it: this action uses `--output http`,
+      where only the stop action ends the run. Older releases stopped a quiet
+      run after this many seconds; `0` disables that.
     required: false
     default: '0'
   diagnostic-format:

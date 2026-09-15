@@ -3,13 +3,13 @@
 //! The live-check admin API and the state it shares with the OTLP receiver.
 //!
 //! A run has two phases. While it is *receiving*, exports flow to the checker.
-//! Once it is *stopped*, the report is final and, with `--output http`, is served
-//! on `/report` until `/shutdown`. Reading the report is never tied to exiting,
-//! which is what keeps a large body from being cut off (#1657).
+//! Once it is *stopped*, the report is final. With `--output http` it is served
+//! on `/report` until `/shutdown`. Reading the report is separate from exiting,
+//! so a large body is never cut off (#1657).
 //!
 //! Weaver acts on what it is told, a flag or a request, and never invents an
-//! exit of its own. There are no timers here: every wait ends when the client
-//! acts, and `/shutdown` finishes what is in flight and exits.
+//! exit of its own. There are no timers here. Every wait ends when the client
+//! acts, and `/shutdown` finishes the responses in flight and exits.
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -35,7 +35,7 @@ pub struct Report {
     pub body: Bytes,
 }
 
-/// Where a run is.
+/// The state of a run.
 #[derive(Clone, Debug, Default)]
 pub enum Phase {
     /// Exports are checked as they arrive.
@@ -47,11 +47,11 @@ pub enum Phase {
 
 /// Everything the receiver and the admin handlers share.
 pub struct AppState {
-    /// Exports and the `Stop` that ends them, in one FIFO.
+    /// Exports, and the `Stop` that ends them, in order.
     pub(super) exports: mpsc::Sender<OtlpRequest>,
     /// `Receiving` until the checker publishes the outcome of the run.
     pub(super) phase: watch::Sender<Phase>,
-    /// Raised once; the listeners drain and the process exits.
+    /// Raised once. The listeners stop and the process exits.
     pub(super) shutdown: watch::Sender<bool>,
     /// The last export, for the inactivity timeout.
     pub(super) activity: watch::Sender<Instant>,
@@ -130,14 +130,13 @@ pub fn router(state: Arc<AppState>) -> Router {
 }
 
 async fn health() -> impl IntoResponse {
-    // The shape scripts have polled since the endpoint appeared.
+    // Scripts poll for this exact body. Keep it.
     Json(serde_json::json!({"status": "ready"}))
 }
 
 /// Stops receiving and waits until the report is ready. Idempotent once stopped.
 ///
-/// The wait is as long as the client is willing to wait: when the client gives
-/// up and disconnects, the handler is dropped with the connection.
+/// There is no timeout. If the client disconnects, hyper drops this handler.
 async fn stop(State(state): State<Arc<AppState>>) -> Response {
     info!("POST /stop: stopping the run and waiting for the report");
     state.request_stop().await;
