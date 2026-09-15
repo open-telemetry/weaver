@@ -2,17 +2,20 @@
 
 //! The live-check admin API and the state it shares with the OTLP receiver.
 //!
-//! A run has two phases. While it is *receiving*, exports flow to the checker.
+//! A run has three phases. While it is *receiving*, exports flow to the checker.
 //! Once it is *stopped*, the report is final. With `--output http` it is served
-//! on `/report` until `/shutdown`. Reading the report is separate from exiting,
-//! so a large body is never cut off (#1657).
+//! on `/report` until the run is *shutting down*, when the process exits.
+//! Reading the report is separate from exiting, so a large body is never cut
+//! off (#1657).
+//!
+//! The phase is the whole state of the run, and the one thing everyone waits on.
 //!
 //! Weaver acts on what it is told, a flag or a request, and never invents an
 //! exit of its own. There are no timers here. Every wait ends when the client
 //! acts, and `/shutdown` finishes the responses in flight and exits.
 
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use axum::body::Bytes;
 use axum::extract::State;
@@ -35,45 +38,58 @@ pub struct Report {
     pub body: Bytes,
 }
 
-/// The state of a run.
-#[derive(Clone, Debug, Default)]
+/// The state of a run. Each phase carries the data that only exists in it.
+#[derive(Clone, Debug)]
 pub enum Phase {
     /// Exports are checked as they arrive.
-    #[default]
-    Receiving,
-    /// The report is final. `None` when it went to stdout or a directory.
-    Stopped { report: Option<Report> },
+    Receiving {
+        /// When the last export arrived, for the inactivity timeout.
+        last_export: Instant,
+    },
+    /// The report is final and served on `/report`.
+    Stopped { report: Report },
+    /// The listeners are closing and the process is about to exit.
+    ShuttingDown,
 }
 
 /// Everything the receiver and the admin handlers share.
 pub struct AppState {
     /// Exports, and the `Stop` that ends them, in order.
     pub(super) exports: mpsc::Sender<OtlpRequest>,
-    /// `Receiving` until the checker publishes the outcome of the run.
+    /// The phase of the run, and the only state anyone waits on. `/stop` waits
+    /// for it to leave `Receiving`; the listeners wait for `ShuttingDown`.
     pub(super) phase: watch::Sender<Phase>,
-    /// Raised once. The listeners stop and the process exits.
-    pub(super) shutdown: watch::Sender<bool>,
-    /// The last export, for the inactivity timeout.
-    pub(super) activity: watch::Sender<Instant>,
 }
 
 impl AppState {
     pub(super) fn new(exports: mpsc::Sender<OtlpRequest>) -> Self {
         Self {
             exports,
-            phase: watch::Sender::new(Phase::Receiving),
-            shutdown: watch::Sender::new(false),
-            activity: watch::Sender::new(Instant::now()),
+            phase: watch::Sender::new(Phase::Receiving {
+                last_export: Instant::now(),
+            }),
         }
     }
 
     pub(super) fn is_receiving(&self) -> bool {
-        matches!(*self.phase.borrow(), Phase::Receiving)
+        matches!(*self.phase.borrow(), Phase::Receiving { .. })
+    }
+
+    /// Time since the last export, while receiving.
+    pub(super) fn since_last_export(&self) -> Option<Duration> {
+        match &*self.phase.borrow() {
+            Phase::Receiving { last_export } => Some(last_export.elapsed()),
+            _ => None,
+        }
     }
 
     /// Restarts the inactivity clock.
     pub(super) fn touch(&self) {
-        let _ = self.activity.send_replace(Instant::now());
+        self.phase.send_modify(|phase| {
+            if let Phase::Receiving { last_export } = phase {
+                *last_export = Instant::now();
+            }
+        });
     }
 
     /// Asks the checker to stop. A no-op once the channel is closed.
@@ -86,13 +102,28 @@ impl AppState {
         }
     }
 
-    /// Publishes the outcome of the run. Wakes a waiting `/stop`.
-    pub(super) fn stopped(&self, report: Option<Report>) {
-        let _ = self.phase.send_replace(Phase::Stopped { report });
+    /// Publishes the report. Wakes a waiting `/stop`. Does nothing if shutdown
+    /// was already requested: nobody can fetch the report then.
+    pub(super) fn stopped(&self, report: Report) {
+        self.phase.send_modify(|phase| {
+            if !matches!(phase, Phase::ShuttingDown) {
+                *phase = Phase::Stopped { report };
+            }
+        });
     }
 
+    /// Ends the run, whatever phase it is in. The listeners stop and the
+    /// process exits.
     pub(super) fn request_shutdown(&self) {
-        let _ = self.shutdown.send_replace(true);
+        let _ = self.phase.send_replace(Phase::ShuttingDown);
+    }
+
+    /// Resolves once shutdown has been requested.
+    pub(super) async fn shutting_down(&self) {
+        let mut phase = self.phase.subscribe();
+        let _ = phase
+            .wait_for(|phase| matches!(phase, Phase::ShuttingDown))
+            .await;
     }
 }
 
@@ -143,10 +174,10 @@ async fn stop(State(state): State<Arc<AppState>>) -> Response {
 
     let mut phase = state.phase.subscribe();
     let outcome = phase
-        .wait_for(|phase| matches!(phase, Phase::Stopped { .. }))
+        .wait_for(|phase| !matches!(phase, Phase::Receiving { .. }))
         .await;
     let has_report = match outcome {
-        Ok(phase) => matches!(&*phase, Phase::Stopped { report: Some(_) }),
+        Ok(phase) => matches!(&*phase, Phase::Stopped { .. }),
         Err(_) => {
             return error(
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -170,20 +201,18 @@ async fn stop(State(state): State<Arc<AppState>>) -> Response {
 async fn report(State(state): State<Arc<AppState>>) -> Response {
     let phase = state.phase.borrow().clone();
     match phase {
-        Phase::Receiving => {
+        Phase::Receiving { .. } => {
             info!("GET /report: refused, the run is still receiving");
             error(StatusCode::CONFLICT, "still receiving; POST /stop first")
         }
-        Phase::Stopped { report: None } => {
-            info!("GET /report: refused, the report was written, not served");
+        Phase::ShuttingDown => {
+            info!("GET /report: refused, the process is shutting down");
             error(
-                StatusCode::NOT_FOUND,
-                "the report was written to stdout or a directory, not served; use --output http",
+                StatusCode::CONFLICT,
+                "shutting down; a report is only served with --output http",
             )
         }
-        Phase::Stopped {
-            report: Some(report),
-        } => {
+        Phase::Stopped { report } => {
             info!(
                 "GET /report: serving the report ({} bytes, {})",
                 report.body.len(),

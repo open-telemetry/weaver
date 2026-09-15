@@ -307,10 +307,7 @@ impl OtlpIngester {
         ));
         info!("To stop the OTLP receiver:");
         info!("  - press CTRL+C,");
-        info!(
-            "  - send a SIGHUP signal to the weaver process or run this command kill -SIGHUP {}",
-            std::process::id()
-        );
+        info!("  - run kill -HUP {},", std::process::id());
         info!("  - or POST to http://{}/stop", listener.admin_addr);
         info!(
             "With --output http: GET http://{0}/report returns the report and POST http://{0}/shutdown ends the process.",

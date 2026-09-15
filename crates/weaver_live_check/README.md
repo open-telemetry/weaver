@@ -72,11 +72,11 @@ OTLP live-check is particularly useful in CI/CD pipelines to evaluate the qualit
 
 This `Ingester` starts an OTLP listener and streams each received OTLP message to the `Advisors`. The currently supported stop conditions are: CTRL+C (SIGINT), SIGHUP, the HTTP /stop endpoint, and a maximum duration of no OTLP message reception. See the usage examples later in this document.
 
-The admin port serves a small HTTP API:
+The admin port serves a small HTTP API, described in [Driving live-check over HTTP](docs/http-api.md):
 
 - `GET /health`: `200` once the listener is up.
 - `POST /stop`: stops receiving and returns once the report is ready, as `{"state":"stopped","report":true|false}`. `report` is `true` when `--output=http` is set.
-- `GET /report`: the report, with `--output=http`. `409` while still receiving; `404` when the report went to stdout or a directory.
+- `GET /report`: the report, with `--output=http`. `409` while still receiving, or once the process is shutting down.
 - `POST /shutdown`: ends the process. Stops the run first if it is still receiving.
 
 Options for OTLP ingest:
@@ -317,7 +317,7 @@ Set `--output=http` to serve the report over the admin API instead of writing it
 2. `GET /report` returns the report, as often as you like.
 3. `POST /shutdown` ends the process.
 
-The process stays up until step 3, so a client can read a large report at its own pace. In this mode the client owns the run: `--inactivity-timeout` is ignored (with a warning if set) and weaver never stops or exits on its own. A signal still stops the run, and a second signal ends the process. A report nobody read is not written anywhere else.
+The process stays up until step 3, so a client can read a large report at its own pace. See [Driving live-check over HTTP](docs/http-api.md) for the sequence diagram and a worked script. In this mode the client owns the run: `--inactivity-timeout` is ignored (with a warning if set) and weaver never stops or exits on its own. A signal still stops the run, and a second signal ends the process. The report is only ever served from `/report`; if the process exits before anyone reads it, the report is gone.
 
 To provide your own custom templates use the `--templates` option.
 

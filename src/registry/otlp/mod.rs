@@ -25,7 +25,7 @@ use grpc_stubs::proto::collector::logs::v1::ExportLogsServiceRequest;
 use grpc_stubs::proto::collector::metrics::v1::ExportMetricsServiceRequest;
 use grpc_stubs::proto::collector::profiles::v1development::ExportProfilesServiceRequest;
 use grpc_stubs::proto::collector::trace::v1::ExportTraceServiceRequest;
-use log::warn;
+use log::{info, warn};
 use miette::Diagnostic;
 use receiver::OtlpReceiver;
 use serde::Serialize;
@@ -37,17 +37,6 @@ use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 
 /// How many exports can queue before exporters wait.
 const CHANNEL_CAPACITY: usize = 100;
-
-/// A bound socket and whether it carries the admin API.
-struct BoundListener {
-    listener: std::net::TcpListener,
-    /// The admin listener shuts down gracefully, so the `/shutdown` response
-    /// completes. There is no deadline: the client asked for the exit and owns
-    /// anything else it left in flight. The gRPC listener just stops. After a
-    /// stop it has nothing to deliver, and SDKs keep idle HTTP/2 connections
-    /// open, which a graceful shutdown would wait for.
-    serves_admin: bool,
-}
 
 /// Expose the OTLP gRPC services.
 /// See the build.rs file for more information.
@@ -219,7 +208,6 @@ impl ListenerHandle {
     /// The run is over and the report went to stdout or a directory. A waiting
     /// `/stop` returns, the listeners stop, and this returns when the thread ends.
     pub fn finish(mut self) {
-        self.state.stopped(None);
         self.state.request_shutdown();
         self.join();
     }
@@ -227,7 +215,7 @@ impl ListenerHandle {
     /// The run is over and the report is served on `/report` until `/shutdown`
     /// or a signal ends the listener. Whether anyone reads it is up to the client.
     pub fn serve_report(mut self, report: Report) {
-        self.state.stopped(Some(report));
+        self.state.stopped(report);
         self.join();
     }
 
@@ -299,19 +287,15 @@ pub fn listen_otlp_requests(
         .grpc_router()
         .merge(admin::router(state.clone()));
 
-    let bind = |addr: SocketAddr, serves_admin: bool| -> Result<BoundListener, Error> {
+    let bind = |addr: SocketAddr| -> Result<std::net::TcpListener, Error> {
         let listener = std::net::TcpListener::bind(addr).map_err(otlp_error)?;
         listener.set_nonblocking(true).map_err(otlp_error)?;
-        Ok(BoundListener {
-            listener,
-            serves_admin,
-        })
+        Ok(listener)
     };
-    let grpc = bind(grpc_addr, false)?;
-    let admin = bind(admin_addr, true)?;
-    let grpc_addr = grpc.listener.local_addr().map_err(otlp_error)?;
-    let admin_addr = admin.listener.local_addr().map_err(otlp_error)?;
-    let listeners = vec![grpc, admin];
+    let grpc = bind(grpc_addr)?;
+    let admin = bind(admin_addr)?;
+    let grpc_addr = grpc.local_addr().map_err(otlp_error)?;
+    let admin_addr = admin.local_addr().map_err(otlp_error)?;
 
     // Built here so a failure is an error, not a panic on the thread.
     let runtime = tokio::runtime::Builder::new_current_thread()
@@ -323,7 +307,8 @@ pub fn listen_otlp_requests(
         .name("otlp-listener".to_owned())
         .spawn(move || {
             runtime.block_on(serve_all(
-                listeners,
+                grpc,
+                admin,
                 router,
                 thread_state,
                 inactivity_timeout,
@@ -342,14 +327,28 @@ pub fn listen_otlp_requests(
     })
 }
 
-/// Serves the router on both listeners until shutdown is requested, then lets
-/// the admin listener finish its responses in flight.
+/// Serves the router on both listeners until shutdown is requested.
+///
+/// The admin listener shuts down gracefully, so the `/shutdown` response
+/// completes. There is no deadline: the client asked for the exit and owns
+/// anything else it left in flight. The gRPC listener just stops. After a
+/// stop it has nothing to deliver, and SDKs keep idle HTTP/2 connections
+/// open, which a graceful shutdown would wait for.
 async fn serve_all(
-    listeners: Vec<BoundListener>,
+    grpc: std::net::TcpListener,
+    admin: std::net::TcpListener,
     router: Router,
     state: Arc<AppState>,
     inactivity_timeout: Duration,
 ) {
+    let (grpc, admin) = match (TcpListener::from_std(grpc), TcpListener::from_std(admin)) {
+        (Ok(grpc), Ok(admin)) => (grpc, admin),
+        (Err(e), _) | (_, Err(e)) => {
+            report_error(&state, format!("The OTLP listener failed to start: {e}")).await;
+            return;
+        }
+    };
+
     let mut tasks = JoinSet::new();
     spawn_stop_signal_handlers(state.clone(), &mut tasks);
     if !inactivity_timeout.is_zero() {
@@ -357,34 +356,21 @@ async fn serve_all(
     }
 
     let mut servers = JoinSet::new();
-    for bound in listeners {
-        let listener = match TcpListener::from_std(bound.listener) {
-            Ok(listener) => listener,
-            Err(e) => {
-                report_error(&state, format!("The OTLP listener failed to start: {e}")).await;
-                return;
-            }
-        };
-        let mut shutdown = state.shutdown.subscribe();
-        let serve = axum::serve(listener, router.clone());
-        if bound.serves_admin {
-            let _ = servers.spawn(
-                serve
-                    .with_graceful_shutdown(async move {
-                        let _ = shutdown.wait_for(|stop| *stop).await;
-                    })
-                    .into_future(),
-            );
-        } else {
-            // Stop accepting at once. Open connections end with the runtime.
-            let _ = servers.spawn(async move {
-                tokio::select! {
-                    result = serve.into_future() => result,
-                    _ = shutdown.wait_for(|stop| *stop) => Ok(()),
-                }
-            });
+    let grpc_state = state.clone();
+    let grpc_router = router.clone();
+    let _ = servers.spawn(async move {
+        // Stop accepting at once. Open connections end with the runtime.
+        tokio::select! {
+            result = axum::serve(grpc, grpc_router).into_future() => result,
+            _ = grpc_state.shutting_down() => Ok(()),
         }
-    }
+    });
+    let admin_state = state.clone();
+    let _ = servers.spawn(
+        axum::serve(admin, router)
+            .with_graceful_shutdown(async move { admin_state.shutting_down().await })
+            .into_future(),
+    );
 
     while let Some(result) = servers.join_next().await {
         if let Ok(Err(e)) = result {
@@ -408,9 +394,11 @@ async fn report_error(state: &AppState, error: String) {
 /// A signal stops the run; once stopped, a signal ends the process.
 async fn on_signal(state: &AppState, signal: StopSignal) -> bool {
     if state.is_receiving() {
+        info!("{signal}: stopping the run");
         let _ = state.exports.send(OtlpRequest::Stop(signal)).await;
         true
     } else {
+        info!("{signal}: exiting");
         state.request_shutdown();
         false
     }
@@ -459,15 +447,17 @@ fn spawn_inactivity_monitor(state: Arc<AppState>, timeout: Duration, tasks: &mut
     let _ = tasks.spawn(async move {
         loop {
             sleep(interval).await;
-            if !state.is_receiving() {
-                return;
-            }
-            if state.activity.borrow().elapsed() >= timeout {
-                let _ = state
-                    .exports
-                    .send(OtlpRequest::Stop(StopSignal::Inactivity))
-                    .await;
-                return;
+            match state.since_last_export() {
+                // No longer receiving; nothing left to time out.
+                None => return,
+                Some(quiet) if quiet >= timeout => {
+                    let _ = state
+                        .exports
+                        .send(OtlpRequest::Stop(StopSignal::Inactivity))
+                        .await;
+                    return;
+                }
+                Some(_) => {}
             }
         }
     });
