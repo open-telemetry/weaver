@@ -818,7 +818,8 @@ mod tests {
                     r#type: SignalId::from("my-span".to_owned()),
                     kind: SpanKindSpec::Internal,
                     name: SpanName {
-                        note: "My Span".to_owned(),
+                        note: Some("My Span".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![span::SpanAttributeRef {
                         base: AttributeRef(0),
@@ -906,7 +907,8 @@ mod tests {
                         r#type: SignalId::from("my-span".to_owned()),
                         kind: SpanKindSpec::Client,
                         name: SpanName {
-                            note: "My Refined Span".to_owned(),
+                            note: Some("My Refined Span".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![span::SpanAttributeRef {
                             base: AttributeRef(0),
@@ -1180,7 +1182,8 @@ mod tests {
                         r#type: SignalId::from("z-span".to_owned()),
                         kind: SpanKindSpec::Internal,
                         name: SpanName {
-                            note: "".to_owned(),
+                            note: Some("".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![],
                         entity_associations: vec![],
@@ -1192,7 +1195,8 @@ mod tests {
                         r#type: SignalId::from("a-span".to_owned()),
                         kind: SpanKindSpec::Internal,
                         name: SpanName {
-                            note: "".to_owned(),
+                            note: Some("".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![],
                         entity_associations: vec![],
@@ -1269,7 +1273,8 @@ mod tests {
                             r#type: SignalId::from("z-span".to_owned()),
                             kind: SpanKindSpec::Internal,
                             name: SpanName {
-                                note: "".to_owned(),
+                                note: Some("".to_owned()),
+                                ..Default::default()
                             },
                             attributes: vec![],
                             entity_associations: vec![],
@@ -1284,7 +1289,8 @@ mod tests {
                             r#type: SignalId::from("a-span".to_owned()),
                             kind: SpanKindSpec::Internal,
                             name: SpanName {
-                                note: "".to_owned(),
+                                note: Some("".to_owned()),
+                                ..Default::default()
                             },
                             attributes: vec![],
                             entity_associations: vec![],
@@ -1576,7 +1582,8 @@ mod tests {
                     r#type: SignalId::from("my-span".to_owned()),
                     kind: SpanKindSpec::Internal,
                     name: SpanName {
-                        note: "".to_owned(),
+                        note: Some("".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![span::SpanAttributeRef {
                         base: AttributeRef(10),
@@ -1655,7 +1662,8 @@ mod tests {
                         r#type: SignalId::from("my-span".to_owned()),
                         kind: SpanKindSpec::Internal,
                         name: SpanName {
-                            note: "".to_owned(),
+                            note: Some("".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![span::SpanAttributeRef {
                             base: AttributeRef(16),
@@ -2266,7 +2274,8 @@ mod tests {
                     r#type: SignalId::from("dep-b-span".to_owned()),
                     kind: SpanKindSpec::Internal,
                     name: SpanName {
-                        note: "".to_owned(),
+                        note: Some("".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![span::SpanAttributeRef {
                         base: AttributeRef(0),
@@ -2794,7 +2803,8 @@ mod tests {
                     r#type: "my-span".to_owned().into(),
                     kind: SpanKindSpec::Internal,
                     name: SpanName {
-                        note: "My Span".to_owned(),
+                        note: Some("My Span".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![],
                     entity_associations: vec![entity::EntityAssociation::Ref(entity::EntityRef {
