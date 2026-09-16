@@ -19,11 +19,12 @@ registry:
       note: Process span name.
     links:
     - ref: linkserver.produce
-      requirement_level: recommended
+      requirement_level: opt_in
       brief: One link per processed message.
       attributes:
       - base: 0
-        requirement_level: recommended
+        requirement_level: required
+        sampling_relevant: true
       provenance:
         source: 0
     brief: A process span.
@@ -74,11 +75,12 @@ refinements:
       note: Process span name.
     links:
     - ref: linkserver.produce
-      requirement_level: recommended
+      requirement_level: opt_in
       brief: One link per processed message.
       attributes:
       - base: 0
-        requirement_level: recommended
+        requirement_level: required
+        sampling_relevant: true
       provenance:
         source: 0
     brief: A process span.

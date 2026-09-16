@@ -770,8 +770,10 @@ pub(crate) mod tests {
                         note: None,
                         attributes: vec![weaver_resolved_schema::v2::span::SpanAttributeRef {
                             base: weaver_resolved_schema::v2::attribute::AttributeRef(0),
-                            requirement_level: Default::default(),
-                            sampling_relevant: None,
+                            requirement_level: weaver_semconv::v2::attribute::RequirementLevel::Basic(
+                                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
+                            ),
+                            sampling_relevant: Some(true),
                         }],
                         provenance: Default::default(),
                     }],
