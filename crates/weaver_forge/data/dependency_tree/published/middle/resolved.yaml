@@ -1,0 +1,25 @@
+file_format: resolved/2.0
+schema_url: https://example.com/dependency-tree-middle/1.0.0
+attribute_catalog:
+- key: middle.key
+  type: string
+  examples:
+  - x
+  brief: Defined by the middle registry.
+  stability: stable
+registry:
+  attributes:
+  - 0
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+dependencies:
+- https://example.com/dependency-tree-leaf/1.0.0
+- https://example.com/dependency-tree-sub/1.0.0

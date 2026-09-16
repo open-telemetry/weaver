@@ -1,0 +1,8 @@
+file_format: definition/2
+
+attributes:
+  - key: sub.key
+    type: string
+    stability: stable
+    brief: Defined by the sub registry.
+    examples: ["x"]

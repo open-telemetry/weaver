@@ -1285,6 +1285,12 @@ mod tests {
         count
     }
 
+    fn install_test_crypto_provider() {
+        // This test binary is the TLS-using application, so it owns provider
+        // selection just as the Weaver and xtask binaries do.
+        let _ = rustls::crypto::ring::default_provider().install_default();
+    }
+
     #[test]
     fn test_semconv_registry_local_repo() {
         // A virtual directory created from a local folder.
@@ -1337,6 +1343,7 @@ mod tests {
 
     #[test]
     fn test_semconv_registry_git_repo() {
+        install_test_crypto_provider();
         let registry_path = VirtualDirectoryPath::GitRepo {
             // This git repo is expected to be available.
             url: "https://github.com/open-telemetry/semantic-conventions.git".to_owned(),
@@ -1348,6 +1355,7 @@ mod tests {
 
     #[test]
     fn test_semconv_registry_git_repo_with_commit_sha() {
+        install_test_crypto_provider();
         // Regression test for the panic that occurred when a refspec is a raw
         // commit SHA (rather than a branch/tag): `with_ref_name` panics on object
         // IDs, so SHAs must go through the `checkout_sha` path instead.
@@ -1364,6 +1372,7 @@ mod tests {
 
     #[test]
     fn test_semconv_registry_git_repo_with_nonexistent_commit_sha() {
+        install_test_crypto_provider();
         // A well-formed SHA that does not exist in the repo must fail gracefully
         // (a `GitError`, not a panic) when `checkout_sha` cannot resolve it.
         let url = "https://github.com/open-telemetry/semantic-conventions.git".to_owned();
@@ -1378,6 +1387,7 @@ mod tests {
 
     #[test]
     fn test_semconv_registry_git_repo_with_invalid_refspec() {
+        install_test_crypto_provider();
         // This git repo is expected to be available.
         let url = "https://github.com/open-telemetry/semantic-conventions.git".to_owned();
         let registry_path = VirtualDirectoryPath::GitRepo {

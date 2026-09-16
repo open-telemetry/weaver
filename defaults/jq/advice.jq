@@ -30,16 +30,19 @@
   # defines them, and then by entity type or refinement id. That pair is what an
   # association leaf carries, so a policy reads one definition with
   # `data.entities[leaf.provenance.source][leaf.type]` and never has to search by
-  # name. The dependency list is the whole closure, so one level covers every
-  # entity. A v1 registry has none of these paths and gets an empty object.
+  # name. `dependencies` holds every registry depended on, keyed by url. A v1
+  # registry has none of these paths and gets an empty object.
   "entities": (
-    [(.registry.dependencies // [])[], .registry]
-    | map(select(.schema_url != null))
+    [
+      ((.registry.dependencies // {}) | to_entries)[],
+      {key: .registry.schema_url, value: .registry}
+    ]
+    | map(select(.key != null))
     | map({
-        key: .schema_url,
+        key: .key,
         value: (
-          ((.registry.entities // []) | map({key: .type, value: .}))
-          + ((.refinements.entities // []) | map({key: .id, value: .}))
+          ((.value.registry.entities // []) | map({key: .type, value: .}))
+          + ((.value.refinements.entities // []) | map({key: .id, value: .}))
           | from_entries
         ),
       })

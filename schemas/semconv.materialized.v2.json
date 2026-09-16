@@ -5,10 +5,20 @@
   "type": "object",
   "properties": {
     "dependencies": {
-      "description": "The resolved dependencies of this registry.",
-      "type": "array",
-      "items": {
-        "$ref": "#"
+      "description": "Every registry this one depends on, directly or indirectly, keyed by\nschema url.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/ForgeDependency"
+      }
+    },
+    "dependency_graph": {
+      "description": "The direct dependencies of each registry, this one included. A registry\nwith no entry has unknown dependencies, not none.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/SchemaUrl"
+        }
       }
     },
     "refinements": {
@@ -1045,6 +1055,25 @@
         }
       ]
     },
+    "ForgeDependency": {
+      "description": "A dependency of a [`ForgeResolvedRegistry`], stored under its schema url.",
+      "type": "object",
+      "properties": {
+        "refinements": {
+          "description": "The set of refinements defined in this registry.",
+          "$ref": "#/$defs/Refinements"
+        },
+        "registry": {
+          "description": "The signals defined in this registry.",
+          "$ref": "#/$defs/Registry"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "registry",
+        "refinements"
+      ]
+    },
     "InstrumentSpec": {
       "description": "The type of the metric.",
       "oneOf": [
@@ -1765,13 +1794,51 @@
       "type": "object",
       "properties": {
         "note": {
-          "description": "Required description of how a span name should be created.",
-          "type": "string"
+          "description": "Description of how a span name should be created.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "templates": {
+          "description": "Ordered list of templates used to construct the span name.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpanNameTemplate"
+          }
         }
       },
-      "additionalProperties": false,
-      "required": [
-        "note"
+      "additionalProperties": false
+    },
+    "SpanNameTemplate": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "attributes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "parts": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/TemplatePart"
+              }
+            },
+            "pattern": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "pattern"
+          ]
+        }
       ]
     },
     "SpanRefinement": {
@@ -1896,6 +1963,47 @@
           "description": "A release candidate definition.",
           "type": "string",
           "const": "release_candidate"
+        }
+      ]
+    },
+    "TemplatePart": {
+      "description": "A parsed component of a span name template: either a literal string or an attribute reference.",
+      "oneOf": [
+        {
+          "description": "A literal string component.",
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "literal"
+            },
+            "value": {
+              "description": "The literal string content.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "description": "An attribute reference component.",
+          "type": "object",
+          "properties": {
+            "attribute": {
+              "description": "The attribute key.",
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "attribute"
+            }
+          },
+          "required": [
+            "type",
+            "attribute"
+          ]
         }
       ]
     },

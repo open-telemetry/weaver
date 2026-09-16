@@ -1,0 +1,9 @@
+# The second arm of the fork. It depends on leaf, which the first arm also
+# reaches through sub, so leaf sits at the bottom of a diamond.
+name: branch
+description: The second dependency of fork, sharing leaf with the first.
+schema_url: https://example.com/dependency-tree-branch/1.0.0
+dependencies:
+  - name: leaf
+    schema_url: https://example.com/dependency-tree-leaf/1.0.0
+    registry_path: data/dependency_tree/leaf

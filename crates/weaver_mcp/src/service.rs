@@ -80,6 +80,13 @@ impl WeaverMcpService {
     fn create_live_checker(&self) -> Result<LiveChecker, String> {
         let mut live_checker =
             LiveChecker::new(Arc::clone(&self.versioned_registry), default_advisors());
+        // The tool checks a bare attribute name. On a v2 registry, that needs a
+        // search of the whole registry.
+        if live_checker.is_v2() {
+            live_checker
+                .search_all_attributes()
+                .map_err(|error| error.to_string())?;
+        }
 
         // Add RegoAdvisor for policy-based advice
         let rego_advisor = RegoAdvisor::new(
@@ -560,11 +567,11 @@ mod tests {
     use weaver_forge::v2::registry::{ForgeResolvedRegistry, Refinements, Registry};
     use weaver_forge::v2::span::Span;
     use weaver_search::SearchType;
-    use weaver_semconv::attribute::AttributeType;
-    use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
     use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
     use weaver_semconv::stability::Stability;
-    use weaver_semconv::v2::span::SpanName;
+    use weaver_semconv::v2::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
+    use weaver_semconv::v2::metric::InstrumentSpec;
+    use weaver_semconv::v2::span::{SpanKindSpec, SpanName};
     use weaver_semconv::v2::CommonFields;
 
     fn make_test_registry() -> ForgeResolvedRegistry {
@@ -573,9 +580,7 @@ mod tests {
             registry: Registry {
                 attributes: vec![Attribute {
                     key: "http.request.method".to_owned(),
-                    r#type: AttributeType::PrimitiveOrArray(
-                        weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
-                    ),
+                    r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                     examples: None,
                     common: CommonFields {
                         brief: "HTTP request method".to_owned(),
@@ -608,7 +613,8 @@ mod tests {
                     r#type: "http.client".to_owned().into(),
                     kind: SpanKindSpec::Client,
                     name: SpanName {
-                        note: "HTTP client span".to_owned(),
+                        note: Some("HTTP client span".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![],
                     entity_associations: vec![],
@@ -656,7 +662,8 @@ mod tests {
                 events: vec![],
                 entities: vec![],
             },
-            dependencies: vec![],
+            dependencies: Default::default(),
+            dependency_graph: Default::default(),
         }
     }
 

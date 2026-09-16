@@ -5,7 +5,8 @@ attribute_catalog:
   type: string
   examples:
   - example.com
-  brief: Server address.
+  brief: Different brief
+  note: Different note
   stability: stable
   provenance:
     source: 1
@@ -13,17 +14,7 @@ attribute_catalog:
   type: string
   examples:
   - example.com
-  brief: Different brief
-  note: Different note
-  stability: stable
-  provenance:
-    source: 1
-- key: server.port
-  type: int
-  examples:
-  - 80
-  - 443
-  brief: Server port.
+  brief: Server address.
   stability: stable
   provenance:
     source: 1
@@ -33,6 +24,15 @@ attribute_catalog:
   - 80
   - 443
   brief: Deeply refined server port
+  stability: stable
+  provenance:
+    source: 1
+- key: server.port
+  type: int
+  examples:
+  - 80
+  - 443
+  brief: Server port.
   stability: stable
   provenance:
     source: 1
@@ -51,9 +51,9 @@ refinements:
     instrument: counter
     unit: '{request}'
     attributes:
-    - base: 0
+    - base: 1
       requirement_level: required
-    - base: 3
+    - base: 2
       requirement_level: recommended
     requirement_level: recommended
     brief: Refined consumer request count
@@ -63,9 +63,9 @@ refinements:
     instrument: histogram
     unit: s
     attributes:
-    - base: 1
+    - base: 0
       requirement_level: required
-    - base: 2
+    - base: 3
       requirement_level: recommended
     brief: Refined server request duration
     stability: stable

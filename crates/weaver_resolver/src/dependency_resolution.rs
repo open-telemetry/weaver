@@ -9,8 +9,8 @@
 //! prevent transitive leaks through resolved output.
 
 use std::collections::BTreeMap;
-use weaver_semconv::group::GroupType;
-use weaver_semconv::v2::attribute_group::AttributeGroupVisibilitySpec;
+use weaver_semconv::v1::group::AttributeGroupVisibilitySpec;
+use weaver_semconv::v1::group::GroupType;
 use weaver_semconv::YamlValue;
 
 /// Annotation key recognized by the resolver.

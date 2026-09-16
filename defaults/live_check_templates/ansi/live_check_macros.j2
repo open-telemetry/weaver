@@ -33,17 +33,50 @@
 
 {{ ("Registry coverage") | ansi_blue | ansi_bold }}
   - total seen: {{ (statistics.registry_coverage * 100) | round(2) }}%
+{% if statistics.matchers %}
+
+{{ ("Matcher coverage") | ansi_blue | ansi_bold }}
+{% for matcher in statistics.matchers %}
+  - {{ matcher.id }}: {{ matcher.matched }} sample(s){% if matcher.errors > 0 %}, {{ matcher.errors }} error(s): {{ matcher.first_error }}{% endif %}
+
+{% endfor %}
+{% endif %}
 {% endif %}
 {% endmacro %}
 
+{% macro display_match(match_info, indent=0) %}
+{% if match_info is defined and match_info is not none %}
+{% if match_info.signal %}
+{{ " " * indent }}  {{ ((match_info.signal_matcher or "none") ~ " -> signal: " ~ match_info.signal) | ansi_bright_black | ansi_italic }}
+{% else %}
+{% set no_match = "no match" | ansi_yellow | ansi_italic if match_info.signal_expected else "no match" | ansi_bright_black | ansi_italic %}
+{{ " " * indent }}  {{ ("none -> signal: ") | ansi_bright_black | ansi_italic }}{{ no_match }}
+{% endif %}
+{% for entry in match_info.entries %}
+{% if entry.strict_attribute_groups %}
+{{ " " * indent }}  {{ (entry.matcher ~ " -> strict_attribute_groups: " ~ (entry.strict_attribute_groups | join(", "))) | ansi_bright_black | ansi_italic }}
+{% endif %}
+{% if entry.attribute_groups %}
+{{ " " * indent }}  {{ (entry.matcher ~ " -> attribute_groups: " ~ (entry.attribute_groups | join(", "))) | ansi_bright_black | ansi_italic }}
+{% endif %}
+{% endfor %}
+{% for entry in match_info.entries %}
+{% if entry.ignored %}
+{{ " " * indent }}  {{ (entry.matcher ~ " -> signal: " ~ entry.signal ~ " ") | ansi_bright_black | ansi_italic }}{{ ("(conflict, ignored)") | ansi_red | ansi_italic }}
+{% endif %}
+{% endfor %}
+{% endif %}
+{%- endmacro %}
+
 {% macro display_advice(all_advice, indent=0) %}
   {% for advice in all_advice %}
+    {% set label = advice.id if params.show_finding_id else advice.level %}
     {% if advice.level == "information" %}
-{{ " " * indent }}    - [{{ advice.level | ansi_green }}] {{ advice.message }}
+{{ " " * indent }}    - [{{ label | ansi_green }}] {{ advice.message }}
     {% elif advice.level == "improvement" %}
-{{ " " * indent }}    - [{{ advice.level | ansi_yellow }}] {{ advice.message }}
+{{ " " * indent }}    - [{{ label | ansi_yellow }}] {{ advice.message }}
     {% else %}
-{{ " " * indent }}    - [{{ advice.level | ansi_red }}] {{ advice.message }}
+{{ " " * indent }}    - [{{ label | ansi_red }}] {{ advice.message }}
     {% endif %}
   {% endfor %}
 {% endmacro %}
@@ -56,6 +89,7 @@
 
 {% macro display_span_event(span_event, indent=0) %}
 {{ " " * indent }}{{ ("Span event") | ansi_bright_cyan | ansi_bold }} {{ display_sample_header(span_event.live_check_result.highest_advice_level, span_event.name) }}
+{{ display_match(span_event.live_check_result.match_info, indent) -}}
 {{ display_advice(span_event.live_check_result.all_advice, indent) }}
 {%- for attribute in span_event.attributes %}
 {{ display_attribute(attribute, indent + 4) }}
@@ -64,6 +98,7 @@
 
 {% macro display_span_link(span_link, indent=0) %}
 {{ " " * indent }}{{ ("Span link") | ansi_bright_cyan | ansi_bold }}
+{{ display_match(span_link.live_check_result.match_info, indent) -}}
 {{ display_advice(span_link.live_check_result.all_advice, indent) }}
 {%- for attribute in span_link.attributes %}
 {{ display_attribute(attribute, indent + 4) }}
@@ -72,6 +107,7 @@
 
 {% macro display_resource(resource, indent=0) %}
 {{ " " * indent }}{{ ("Resource") | ansi_bright_cyan | ansi_bold }}
+{{ display_match(resource.live_check_result.match_info, indent) -}}
 {{ display_advice(resource.live_check_result.all_advice, indent) }}
 {%- for attribute in resource.attributes %}
 {{ display_attribute(attribute, indent + 4) }}
@@ -79,9 +115,11 @@
 {% endmacro %}
 
 {% macro display_instrumentation_scope(scope, indent=0) %}
-{{ " " * indent }}{{ ("Instrumentation scope") | ansi_bright_cyan | ansi_bold }} {{ display_sample_header(scope.live_check_result.highest_advice_level, scope.name) }}{% if scope.version %} `{{ scope.version }}`{% endif %}
+{% set version = " `" ~ scope.version ~ "`" if scope.version else "" %}
+{{ " " * indent }}{{ ("Instrumentation scope") | ansi_bright_cyan | ansi_bold }} {{ display_sample_header(scope.live_check_result.highest_advice_level, scope.name) }}{{ version }}
+{{ display_match(scope.live_check_result.match_info, indent) -}}
 {{ display_advice(scope.live_check_result.all_advice, indent) }}
-{% if scope.schema_url %}
+{%- if scope.schema_url %}
 {{ " " * indent }}  schema URL: {{ scope.schema_url }}
 {% endif %}
 {% if scope.dropped_attributes_count %}
@@ -121,6 +159,7 @@ count={{ data_point.count }}, sum={{ data_point.sum }}, min={{ data_point.min }}
 
 {% macro display_metric(metric, indent=0) %}
 {{ " " * indent }}{{ ("Metric") | ansi_bright_cyan | ansi_bold }} {{ display_sample_header(metric.live_check_result.highest_advice_level, metric.name) }} `{{ metric.instrument }}`, `{{ metric.unit }}`
+{{ display_match(metric.live_check_result.match_info, indent) -}}
 {{ display_advice(metric.live_check_result.all_advice, indent) }}
 {%- for data_point in metric.data_points %}
 {{ display_data_point(data_point, indent + 4) }}
@@ -129,6 +168,7 @@ count={{ data_point.count }}, sum={{ data_point.sum }}, min={{ data_point.min }}
 
 {% macro display_log(log, indent=0) %}
 {{ " " * indent }}{% if log.event_name %}{{ ("Log Event") | ansi_bright_cyan | ansi_bold }}{% else %}{{ ("Log") | ansi_bright_cyan | ansi_bold }}{% endif %} {{ display_sample_header(log.live_check_result.highest_advice_level, log.event_name) }}
+{{ display_match(log.live_check_result.match_info, indent) -}}
 {{ display_advice(log.live_check_result.all_advice, indent) }}
 {%- for attribute in log.attributes %}
 {{ display_attribute(attribute, indent + 4) }}
@@ -137,6 +177,7 @@ count={{ data_point.count }}, sum={{ data_point.sum }}, min={{ data_point.min }}
 
 {% macro display_profile(profile, indent=0) %}
 {{ " " * indent }}{{ ("Profile") | ansi_bright_cyan | ansi_bold }} {{ display_sample_header(profile.live_check_result.highest_advice_level, profile.original_payload_format) }}
+{{ display_match(profile.live_check_result.match_info, indent) -}}
 {{ display_advice(profile.live_check_result.all_advice, indent) }}
 {%- for attribute in profile.attributes %}
 {{ display_attribute(attribute, indent + 4) }}
@@ -146,6 +187,7 @@ count={{ data_point.count }}, sum={{ data_point.sum }}, min={{ data_point.min }}
 {%- macro display_sample(sample, indent=0) -%}
 {%- if sample.span is defined -%}
 {{ " " * indent }}{{ ("Span") | ansi_bright_cyan | ansi_bold }} {{ display_sample_header(sample.span.live_check_result.highest_advice_level, sample.span.name) }} `{{ sample.span.kind }}`
+{{ display_match(sample.span.live_check_result.match_info, indent) -}}
 {{ display_advice(sample.span.live_check_result.all_advice, indent) }}
 {%- for attribute in sample.span.attributes %}
 {{ display_attribute(attribute, indent + 4) }}

@@ -307,8 +307,9 @@ impl Display for StopSignal {
     }
 }
 
-/// Start an OTLP receiver listening to a specific port on all IPv4 interfaces
-/// and return an iterator of received OTLP requests and a shutdown coordinator.
+/// Start an OTLP receiver listening to a specific address and port, and return
+/// an iterator of received OTLP requests and a shutdown coordinator. The admin
+/// server is bound to the same address as the OTLP listener.
 ///
 /// The `ShutdownCoordinator` sends the report back through `/stop`, and lets
 /// the caller wait for the admin server to finish delivering it before exiting.
@@ -321,12 +322,15 @@ pub fn listen_otlp_requests(
     admin_port: u16,
     inactivity_timeout: Duration,
 ) -> Result<(impl Iterator<Item = OtlpRequest>, ShutdownCoordinator), Error> {
-    let addr: SocketAddr =
-        format!("{grpc_addr}:{grpc_port}")
+    let parse_addr = |port: u16| -> Result<SocketAddr, Error> {
+        format!("{grpc_addr}:{port}")
             .parse()
             .map_err(|e: AddrParseError| Error::OtlpError {
                 error: e.to_string(),
-            })?;
+            })
+    };
+    let addr = parse_addr(grpc_port)?;
+    let admin_addr = parse_addr(admin_port)?;
 
     let listener = std::net::TcpListener::bind(addr).map_err(|e| Error::OtlpError {
         error: e.to_string(),
@@ -377,7 +381,7 @@ pub fn listen_otlp_requests(
                 spawn_stop_signal_handlers(stop_tx.clone(), &mut tasks);
                 spawn_http_admin_handler(
                     stop_tx.clone(),
-                    admin_port,
+                    admin_addr,
                     coordinator_clone,
                     admin_shutdown_rx,
                     &mut tasks,
@@ -533,15 +537,11 @@ async fn stop_handler(State(state): State<AdminState>) -> impl IntoResponse {
 /// ignore as we don't need to abort these tasks.
 async fn spawn_http_admin_handler(
     stop_tx: mpsc::Sender<OtlpRequest>,
-    port: u16,
+    addr: SocketAddr,
     coordinator: ShutdownCoordinator,
     admin_shutdown_rx: oneshot::Receiver<()>,
     tasks: &mut JoinSet<()>,
 ) {
-    let addr: SocketAddr = format!("0.0.0.0:{port}")
-        .parse()
-        .expect("Failed to parse HTTP admin port");
-
     match TcpListener::bind(addr).await {
         Ok(listener) => {
             let state = AdminState {
@@ -593,7 +593,7 @@ async fn spawn_http_admin_handler(
         Err(e) => {
             stop_tx
                 .send(OtlpRequest::Error(Error::HttpAdminError {
-                    error: format!("Failed to bind HTTP admin port {port}: {e}"),
+                    error: format!("Failed to bind HTTP admin address {addr}: {e}"),
                 }))
                 .await
                 .expect("Failed to send an OtlpRequest::Error");

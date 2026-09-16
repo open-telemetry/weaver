@@ -504,6 +504,8 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 
   Possible values: `true`, `false`
 
+* `-D`, `--param <PARAM>` — Parameters key=value, defined in the command line, to pass to the templates. The value must be a valid YAML value
+* `--params <PARAMS>` — Parameters, defined in a YAML file, to pass to the templates
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command. [default: ansi]
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located. [default: diagnostic_templates]
 * `--diagnostic-stdout <DIAGNOSTIC_STDOUT>` — Send the output to stdout instead of stderr. [default: false]
@@ -519,6 +521,10 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
   Possible values: `true`, `false`
 
 * `--no-stats <NO_STATS>` — Disable statistics accumulation. Useful for long-running sessions. [default: false]
+
+  Possible values: `true`, `false`
+
+* `--search-all-attributes <SEARCH_ALL_ATTRIBUTES>` — Also search the base attribute definitions of the registry and its dependencies for an attribute that is not on the matched signal or its attribute groups. [default: false]
 
   Possible values: `true`, `false`
 
@@ -598,7 +604,7 @@ Generates a schema file by inferring the schema from a OTLP message.
   Possible values: `true`, `false`
 
 * `-o`, `--output <OUTPUT>` — Output folder for generated YAML files. [default: ./inferred-registry/]
-* `--grpc-address <GRPC_ADDRESS>` — Address used by the gRPC OTLP listener. [default: 0.0.0.0]
+* `--grpc-address <GRPC_ADDRESS>` — Address used by the gRPC OTLP listener. [default: 127.0.0.1]
 * `--grpc-port <GRPC_PORT>` — Port used by the gRPC OTLP listener. [default: 4317]
 * `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin server (endpoints: /stop). [default: 8080]
 * `--inactivity-timeout <INACTIVITY_TIMEOUT>` — Seconds of inactivity before auto-stop (0 = never). [default: 60]

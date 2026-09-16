@@ -31,7 +31,7 @@ use crate::error::Error::{InvalidConfigFile, InvalidFilePath};
 use crate::extensions::{ansi, case, code, otel, util};
 use crate::file_loader::FileLoader;
 use crate::filter::Filter;
-use crate::registry::{ResolvedGroup, ResolvedRegistry};
+use crate::v1::registry::{ResolvedGroup, ResolvedRegistry};
 use crate::v2::registry::ForgeResolvedRegistry;
 
 pub mod config;
@@ -43,7 +43,7 @@ mod filter;
 mod formats;
 pub mod jq;
 pub mod output_processor;
-pub mod registry;
+pub mod v1;
 pub mod v2;
 
 pub use output_processor::{OutputProcessor, OutputTarget};
@@ -937,20 +937,27 @@ mod tests {
     use crate::error::Error;
     use crate::extensions::case::case_converter;
     use crate::file_loader::FileSystemFileLoader;
-    use crate::registry::ResolvedRegistry;
+    use crate::v1::registry::ResolvedRegistry;
     use crate::v2::attribute::Attribute;
     use crate::v2::entity::{Entity, EntityAssociation, EntityAttribute, EntityRef};
     use crate::v2::event::Event;
     use crate::v2::metric::Metric;
     use crate::v2::provenance::Provenance;
-    use crate::v2::registry::{ForgeResolvedRegistry, Refinements, Registry as V2Registry};
+    use crate::v2::registry::{
+        ForgeDependency, ForgeResolvedRegistry, Refinements, Registry as V2Registry,
+    };
     use crate::v2::span::Span;
     use crate::{run_filter_raw, OutputDirective, TemplateEngine};
-    use weaver_semconv::attribute::{
-        AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
+    use std::collections::BTreeMap;
+    use weaver_semconv::v2::{
+        attribute::{
+            AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
+        },
+        metric::InstrumentSpec,
+        signal_id::SignalId,
+        span::{SpanKindSpec, SpanName},
+        CommonFields,
     };
-    use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
-    use weaver_semconv::v2::{signal_id::SignalId, span::SpanName, CommonFields};
 
     fn prepare_engine(target: &str, cli_params: Params) -> TemplateEngine {
         let loader = FileSystemFileLoader::try_new("templates".into(), target)
@@ -962,7 +969,7 @@ mod tests {
 
     fn prepare_schema(
         ignore_non_fatal_errors: bool,
-    ) -> weaver_resolved_schema::ResolvedTelemetrySchema {
+    ) -> weaver_resolved_schema::v1::ResolvedTelemetrySchema {
         let schema_url: Option<SchemaUrl> = Some(
             "https://default/1.0.0"
                 .try_into()
@@ -1001,7 +1008,7 @@ mod tests {
     fn prepare_test_with_registry_readonly(
         target: &str,
         cli_params: Params,
-        schema: weaver_resolved_schema::ResolvedTelemetrySchema,
+        schema: weaver_resolved_schema::v1::ResolvedTelemetrySchema,
     ) -> (TemplateEngine, ResolvedRegistry) {
         let engine = prepare_engine(target, cli_params);
         let template_registry =
@@ -1047,7 +1054,7 @@ mod tests {
     fn prepare_test_with_registry(
         target: &str,
         cli_params: Params,
-        schema: weaver_resolved_schema::ResolvedTelemetrySchema,
+        schema: weaver_resolved_schema::v1::ResolvedTelemetrySchema,
     ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
         let (engine, template_registry) =
             prepare_test_with_registry_readonly(target, cli_params, schema);
@@ -1087,7 +1094,8 @@ mod tests {
                     r#type: SignalId::from("db.client".to_owned()),
                     kind: SpanKindSpec::Client,
                     name: SpanName {
-                        note: "A database client span.".to_owned(),
+                        note: Some("A database client span.".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![],
                     entity_associations: vec![],
@@ -1117,7 +1125,8 @@ mod tests {
                 events: vec![],
                 entities: vec![],
             },
-            dependencies: vec![],
+            dependencies: BTreeMap::new(),
+            dependency_graph: BTreeMap::new(),
         };
 
         (engine, registry)
@@ -1629,8 +1638,7 @@ mod tests {
         let dependency_url: SchemaUrl = "https://example.com/base/1.0.0"
             .try_into()
             .expect("Should be valid schema url");
-        let dependency = ForgeResolvedRegistry {
-            schema_url: dependency_url.clone(),
+        let dependency = ForgeDependency {
             registry: V2Registry {
                 attributes: vec![],
                 attribute_groups: vec![],
@@ -1643,7 +1651,6 @@ mod tests {
                 ],
             },
             refinements: empty_refinements(),
-            dependencies: vec![],
         };
 
         ForgeResolvedRegistry {
@@ -1659,7 +1666,8 @@ mod tests {
                     r#type: SignalId::from("db.client".to_owned()),
                     kind: SpanKindSpec::Client,
                     name: SpanName {
-                        note: "A database client span.".to_owned(),
+                        note: Some("A database client span.".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![],
                     entity_associations: vec![
@@ -1692,7 +1700,8 @@ mod tests {
                 entities: vec![entity("service", &["service.name"])],
             },
             refinements: empty_refinements(),
-            dependencies: vec![dependency],
+            dependencies: BTreeMap::from([(dependency_url, dependency)]),
+            dependency_graph: BTreeMap::new(),
         }
     }
 

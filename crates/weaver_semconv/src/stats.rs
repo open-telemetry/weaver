@@ -2,7 +2,7 @@
 
 //! Statistics about the semantic convention registry.
 
-use crate::group::GroupType;
+use crate::v1::group::GroupType;
 use std::collections::HashMap;
 
 /// Statistics about the semantic convention registry.

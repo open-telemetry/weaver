@@ -170,3 +170,5 @@ refinements:
     stability: stable
     provenance:
       path: tests/v2_forge/model/test.yaml
+dependency_graph:
+  https://unknown/unknown: []

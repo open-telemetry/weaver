@@ -6,10 +6,8 @@ use crate::v2::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
-    attribute::RequirementLevel,
-    group::InstrumentSpec,
     signal_requirement_level::SignalRequirementLevel,
-    v2::{signal_id::SignalId, CommonFields},
+    v2::{attribute::RequirementLevel, metric::InstrumentSpec, signal_id::SignalId, CommonFields},
 };
 
 /// The definition of a metric signal.
@@ -101,5 +99,33 @@ impl Signal for Metric {
 
     fn common(&self) -> &CommonFields {
         &self.common
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_metric_signal() {
+        let metric = Metric {
+            name: SignalId::from("http.server.duration"),
+            instrument: InstrumentSpec::Histogram,
+            unit: "ms".to_owned(),
+            attributes: vec![],
+            entity_associations: vec![],
+            requirement_level: None,
+            common: CommonFields {
+                brief: "Server duration".to_owned(),
+                note: "".to_owned(),
+                stability: Default::default(),
+                deprecated: None,
+                annotations: Default::default(),
+            },
+            provenance: Default::default(),
+        };
+
+        assert_eq!(metric.id(), "http.server.duration");
+        assert_eq!(metric.common().brief, "Server duration");
     }
 }

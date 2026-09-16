@@ -1,0 +1,8 @@
+file_format: definition/2
+
+attributes:
+  - key: leaf.key
+    type: string
+    stability: stable
+    brief: Defined by the leaf registry.
+    examples: ["x"]

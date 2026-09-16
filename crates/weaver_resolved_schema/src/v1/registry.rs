@@ -1,0 +1,516 @@
+// SPDX-License-Identifier: Apache-2.0
+
+#![allow(rustdoc::invalid_html_tags)]
+
+//! A semantic convention registry.
+
+use schemars::JsonSchema;
+use std::collections::{BTreeMap, HashMap, HashSet};
+use weaver_semconv::v1::any_value::AnyValueSpec;
+
+use crate::error::{handle_errors, Error};
+use crate::v1::attribute::{Attribute, AttributeRef};
+use crate::v1::catalog::Catalog;
+use crate::v1::lineage::GroupLineage;
+use crate::v1::registry::GroupStats::{
+    AttributeGroup, Entity, Event, Metric, MetricGroup, Scope, Span, Undefined,
+};
+use serde::{Deserialize, Serialize};
+use weaver_semconv::deprecated::Deprecated;
+use weaver_semconv::entity_association::EntityAssociation;
+use weaver_semconv::provenance::Provenance;
+use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
+use weaver_semconv::stability::Stability;
+use weaver_semconv::v1::group::{
+    AttributeGroupVisibilitySpec, GroupType, InstrumentSpec, SpanKindSpec,
+};
+use weaver_semconv::v2::span::SpanName;
+use weaver_semconv::YamlValue;
+
+/// Where the `entity_associations` entries of each group resolved: group id, to
+/// the name an entry uses, to the registry that defines that entity.
+pub type EntityAssociationOrigins =
+    BTreeMap<String, BTreeMap<String, weaver_semconv::schema_url::SchemaUrl>>;
+
+/// A semantic convention registry.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Registry {
+    /// The semantic convention registry url.
+    pub registry_url: String,
+    /// A list of semantic convention groups.
+    pub groups: Vec<Group>,
+
+    /// Where each `entity_associations` entry resolved, by group id and then by
+    /// the name the entry uses.
+    ///
+    /// An association names an entity, and the definition may live in a
+    /// dependency that nothing imports. No group records it, so the v2
+    /// conversion reads the origin from here. Carried through the v1
+    /// intermediate representation during resolution; it is omitted from v1
+    /// serialization and the v1 json schema, as the other v2-only fields are.
+    ///
+    /// The map is keyed by group because a name is not enough. An imported
+    /// signal brings an association that resolved in the registry that declared
+    /// it, and the importing registry may define an unrelated entity of the same
+    /// name.
+    ///
+    /// A published `resolved/1.0` file therefore carries no origins, and
+    /// converting one to v2 resolves an association against its own groups
+    /// alone. This is the format's limit: it has no place to record where an
+    /// entity it does not hold is defined.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub entity_association_origins: EntityAssociationOrigins,
+}
+
+/// Statistics on a registry.
+#[derive(Debug, Serialize)]
+#[must_use]
+pub struct Stats {
+    /// Url of the registry.
+    pub url: String,
+    /// Total number of groups.
+    pub group_count: usize,
+    /// Breakdown of group statistics by type.
+    pub group_breakdown: HashMap<GroupType, GroupStats>,
+}
+
+/// Group specification.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+pub struct Group {
+    /// The id that uniquely identifies the semantic convention.
+    pub id: String,
+    /// The type of the group including the specific fields for each type.
+    pub r#type: GroupType,
+    /// A brief description of the semantic convention.
+    pub brief: String,
+    /// A more elaborate description of the semantic convention.
+    /// It defaults to an empty string.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub note: String,
+    /// Prefix for the attributes for this semantic convention.
+    /// It defaults to an empty string.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub prefix: String,
+    /// Reference another semantic convention id. It inherits all
+    /// attributes defined in the specified semantic
+    /// convention.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extends: Option<String>,
+    /// Specifies the stability of the semantic convention.
+    /// Note that, if stability is missing but deprecated is present, it will
+    /// automatically set the stability to deprecated. If deprecated is
+    /// present and stability differs from deprecated, this will result in an
+    /// error.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stability: Option<Stability>,
+    /// Specifies if the semantic convention is deprecated. The string
+    /// provided as <description> MUST specify why it's deprecated and/or what
+    /// to use instead. See also stability.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<Deprecated>,
+    /// List of attributes that belong to the semantic convention.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub attributes: Vec<AttributeRef>,
+
+    /// Specifies the kind of the span.
+    /// Note: only valid if type is span (the default)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub span_kind: Option<SpanKindSpec>,
+    /// List of strings that specify the ids of event semantic conventions
+    /// associated with this span semantic convention.
+    /// Note: only valid if type is span (the default)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub events: Vec<String>,
+    /// The metric name as described by the [OpenTelemetry Specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/data-model.md#timeseries-model).
+    /// Note: This field is required if type is metric.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metric_name: Option<String>,
+    /// The instrument type that should be used to record the metric. Note that
+    /// the semantic conventions must be written using the names of the
+    /// synchronous instrument types (counter, gauge, updowncounter and
+    /// histogram).
+    /// For more details: [Metrics semantic conventions - Instrument types](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-types).
+    /// Note: This field is required if type is metric.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub instrument: Option<InstrumentSpec>,
+    /// The unit in which the metric is measured, which should adhere to the
+    /// [guidelines](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-units).
+    /// Note: This field is required if type is metric.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unit: Option<String>,
+    /// The name of the event. If not specified, the prefix is used.
+    /// If prefix is empty (or unspecified), name is required.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// The lineage of the group.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lineage: Option<GroupLineage>,
+    /// The readable name for attribute groups used when generating registry tables.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    /// The body of the event.
+    /// This fields is only used for event groups.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body: Option<AnyValueSpec>,
+    /// Annotations for the group.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub annotations: Option<BTreeMap<String, YamlValue>>,
+    /// Which resources this group should be associated with.
+    /// Note: this is only viable for span, metric and event groups.
+    ///
+    /// The list is an implicit `one_of`: telemetry must satisfy at least one of the entries.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub entity_associations: Vec<EntityAssociation>,
+    /// Visibility of the attribute group.
+    /// This is only used for v2 conversion.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub visibility: Option<AttributeGroupVisibilitySpec>,
+
+    /// Whether this group is a v2 group.
+    ///
+    /// This does NOT survive serialization, but is used when
+    /// tracking v2 groups during resolution.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub is_v2: bool,
+
+    /// The v2 span name specification, carried through the v1 intermediate
+    /// representation during resolution; it is omitted from v1 serialization
+    /// and the v1 json schema.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub span_name: Option<SpanName>,
+
+    /// Requirement level of the signal (metric, span, event, entity).
+    /// This is a v2-only concept carried through the v1 intermediate
+    /// representation during resolution; it is omitted from v1 serialization
+    /// and the v1 json schema.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub requirement_level: Option<SignalRequirementLevel>,
+}
+
+impl Group {
+    /// Returns the signal name for this group.
+    /// For `metric` - this is `metric_name` property
+    /// For `span`, `entity` or `event` this is the `name` property.
+    #[must_use]
+    pub fn signal_name(&self) -> Option<&str> {
+        match self.r#type {
+            GroupType::AttributeGroup => Some(self.id.as_str()),
+            // ToDo: Remove this comment way forward is agreed upon
+            // https://github.com/open-telemetry/weaver/issues/785
+            // For now we allow group.name to be a namespace for spans.
+            GroupType::Span => self.name.as_deref(),
+            GroupType::Event => self.name.as_deref(),
+            GroupType::Metric => self.metric_name.as_deref(),
+            GroupType::MetricGroup => None,
+            GroupType::Entity => self.name.as_deref(),
+            GroupType::Scope => None,
+            GroupType::Undefined => None,
+        }
+    }
+
+    /// Returns true if the group is a v2 group.
+    #[must_use]
+    pub fn is_v2(&self) -> bool {
+        self.is_v2
+    }
+
+    /// Returns true if the group is a v2 refinement.
+    #[must_use]
+    pub fn is_v2_refinement(&self) -> bool {
+        self.is_v2
+            && self
+                .lineage
+                .as_ref()
+                .is_some_and(|l| l.extends_group.is_some())
+    }
+}
+
+/// Common statistics for a group.
+#[derive(Debug, Serialize, Default)]
+pub struct CommonGroupStats {
+    /// Number of instances in this type of group.
+    pub count: usize,
+    /// Total number of attributes.
+    pub total_attribute_count: usize,
+    /// Total number of groups with a prefix.
+    pub total_with_prefix: usize,
+    /// Total number of groups with a note.
+    pub total_with_note: usize,
+    /// Stability breakdown.
+    pub stability_breakdown: HashMap<Stability, usize>,
+    /// Number of deprecated groups.
+    pub deprecated_count: usize,
+    /// Attribute cardinality breakdown.
+    pub attribute_card_breakdown: BTreeMap<usize, usize>,
+}
+
+/// Statistics on a group.
+#[derive(Debug, Serialize)]
+pub enum GroupStats {
+    /// Statistics for an attribute group.
+    AttributeGroup {
+        /// Common statistics for this type of group.
+        common_stats: CommonGroupStats,
+    },
+    /// Statistics for a metric.
+    Metric {
+        /// Common statistics for this type of group.
+        common_stats: CommonGroupStats,
+        /// Metric names.
+        metric_names: HashSet<String>,
+        /// Instrument breakdown.
+        instrument_breakdown: HashMap<InstrumentSpec, usize>,
+        /// Unit breakdown.
+        unit_breakdown: HashMap<String, usize>,
+    },
+    /// Statistics for a metric group.
+    MetricGroup {
+        /// Common statistics for this type of group.
+        common_stats: CommonGroupStats,
+    },
+    /// Statistics for an event.
+    Event {
+        /// Common statistics for this type of group.
+        common_stats: CommonGroupStats,
+    },
+    /// Statistics for a resource.
+    Entity {
+        /// Common statistics for this type of group.
+        common_stats: CommonGroupStats,
+    },
+    /// Statistics for a scope.
+    Scope {
+        /// Common statistics for this type of group.
+        common_stats: CommonGroupStats,
+    },
+    /// Statistics for a span.
+    Span {
+        /// Common statistics for this type of group.
+        common_stats: CommonGroupStats,
+        /// Span kind breakdown.
+        span_kind_breakdown: HashMap<SpanKindSpec, usize>,
+    },
+    /// Statistics for an undefined group.
+    Undefined {
+        /// Common statistics for this type of group.
+        common_stats: CommonGroupStats,
+    },
+}
+
+impl CommonGroupStats {
+    /// Update the statistics with the provided group.
+    pub fn update_stats(&mut self, group: &Group) {
+        self.count += 1;
+        self.total_attribute_count += group.attributes.len();
+        self.total_with_prefix += !group.prefix.is_empty() as usize;
+        self.total_with_note += !group.note.is_empty() as usize;
+        if let Some(stability) = group.stability.as_ref() {
+            *self
+                .stability_breakdown
+                .entry(stability.clone())
+                .or_insert(0) += 1;
+        }
+        self.deprecated_count += group.deprecated.is_some() as usize;
+        *self
+            .attribute_card_breakdown
+            .entry(group.attributes.len())
+            .or_insert(0) += 1;
+    }
+}
+
+impl Registry {
+    /// Creates a new registry.
+    #[must_use]
+    pub fn new<S: AsRef<str>>(registry_url: S) -> Self {
+        Self {
+            registry_url: registry_url.as_ref().to_owned(),
+            groups: Vec::new(),
+            entity_association_origins: BTreeMap::new(),
+        }
+    }
+
+    /// Returns the groups of the specified type.
+    ///
+    /// # Arguments
+    ///
+    /// * `group_type` - The type of the groups to return.
+    pub fn groups(&self, group_type: GroupType) -> impl Iterator<Item = &Group> {
+        self.groups
+            .iter()
+            .filter(move |group| group_type == group.r#type)
+    }
+
+    /// Statistics on a registry.
+    pub fn stats(&self) -> Stats {
+        Stats {
+            url: self.registry_url.clone(),
+            group_count: self.groups.len(),
+            group_breakdown: self.groups.iter().fold(HashMap::new(), |mut acc, group| {
+                let group_type = group.r#type.clone();
+
+                // Ensure we have an initialized entry
+                let entry = acc
+                    .entry(group_type.clone())
+                    .or_insert_with(|| match group_type {
+                        GroupType::AttributeGroup => AttributeGroup {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                        GroupType::Metric => Metric {
+                            common_stats: CommonGroupStats::default(),
+                            metric_names: HashSet::new(),
+                            instrument_breakdown: HashMap::new(),
+                            unit_breakdown: HashMap::new(),
+                        },
+                        GroupType::MetricGroup => MetricGroup {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                        GroupType::Event => Event {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                        GroupType::Entity => Entity {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                        GroupType::Scope => Scope {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                        GroupType::Span => Span {
+                            common_stats: CommonGroupStats::default(),
+                            span_kind_breakdown: HashMap::new(),
+                        },
+                        GroupType::Undefined => Undefined {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                    });
+
+                // Update stats
+                match entry {
+                    AttributeGroup { common_stats } => {
+                        common_stats.update_stats(group);
+                    }
+                    Metric {
+                        common_stats,
+                        metric_names,
+                        instrument_breakdown,
+                        unit_breakdown,
+                    } => {
+                        common_stats.update_stats(group);
+
+                        let metric_name = group
+                            .metric_name
+                            .clone()
+                            .expect("metric_name is required as we are in a metric group");
+                        _ = metric_names.insert(metric_name);
+
+                        let instrument = group
+                            .instrument
+                            .clone()
+                            .expect("instrument is required as we are in a metric group");
+                        *instrument_breakdown.entry(instrument).or_insert(0) += 1;
+
+                        let unit = group
+                            .unit
+                            .clone()
+                            .expect("unit is required as we are in a metric group");
+                        *unit_breakdown.entry(unit).or_insert(0) += 1;
+                    }
+                    MetricGroup { common_stats } => {
+                        common_stats.update_stats(group);
+                    }
+                    Event { common_stats } => {
+                        common_stats.update_stats(group);
+                    }
+                    Entity { common_stats } => {
+                        common_stats.update_stats(group);
+                    }
+                    Scope { common_stats } => {
+                        common_stats.update_stats(group);
+                    }
+                    Span {
+                        common_stats,
+                        span_kind_breakdown,
+                    } => {
+                        common_stats.update_stats(group);
+                        if let Some(span_kind) = group.span_kind.clone() {
+                            *span_kind_breakdown.entry(span_kind).or_insert(0) += 1;
+                        }
+                    }
+                    Undefined { common_stats } => {
+                        common_stats.update_stats(group);
+                    }
+                }
+
+                acc
+            }),
+        }
+    }
+}
+
+impl Group {
+    /// Returns the fully resolved attributes of the group.
+    /// The attribute references are resolved via the provided catalog.
+    /// If an attribute reference is not found in the catalog, an error is
+    /// returned. The errors are collected and returned as a compound error.
+    ///
+    /// # Arguments
+    ///
+    /// * `catalog` - The catalog to resolve the attribute references.
+    ///
+    /// # Returns
+    ///
+    /// The fully resolved attributes of the group.
+    pub fn attributes<'a>(&'a self, catalog: &'a Catalog) -> Result<Vec<&'a Attribute>, Error> {
+        let mut errors = Vec::new();
+        let attributes = self
+            .attributes
+            .iter()
+            .filter_map(|attr_ref| {
+                if let Some(attr) = catalog.attribute(attr_ref) {
+                    Some(attr)
+                } else {
+                    errors.push(Error::AttributeNotFound {
+                        group_id: self.id.clone(),
+                        attr_ref: *attr_ref,
+                    });
+                    None
+                }
+            })
+            .collect();
+
+        handle_errors(errors)?;
+        Ok(attributes)
+    }
+
+    /// Import attributes from the provided slice that do not exist in the
+    /// current group.
+    pub fn import_attributes_from(&mut self, attributes: &[AttributeRef]) {
+        for attr in attributes {
+            if !self.attributes.contains(attr) {
+                self.attributes.push(*attr);
+            }
+        }
+    }
+
+    /// Returns the provenance of the group.
+    #[must_use]
+    pub fn provenance(&self) -> Option<Provenance> {
+        self.lineage
+            .as_ref()
+            .map(|lineage| lineage.provenance().to_owned())
+    }
+}

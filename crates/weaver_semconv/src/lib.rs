@@ -12,21 +12,19 @@ use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 
-pub mod any_value;
-pub mod attribute;
+pub mod convert;
 pub mod deprecated;
 pub mod entity_association;
-pub mod group;
 pub mod json_schema;
 pub mod manifest;
 pub mod provenance;
-pub mod registry;
 pub mod registry_repo;
 pub mod schema_url;
 pub mod semconv;
 pub mod signal_requirement_level;
 pub mod stability;
 pub mod stats;
+pub mod v1;
 pub mod v2;
 
 /// An error that can occur while loading a semantic convention registry.
@@ -778,7 +776,7 @@ impl std::hash::Hash for YamlValue {
 
 #[cfg(test)]
 mod tests {
-    use crate::{registry::SemConvRegistry, schema_url::SchemaUrl, YamlValue};
+    use crate::{schema_url::SchemaUrl, v1::registry::SemConvRegistry, YamlValue};
     use std::{error::Error, vec};
     use weaver_common::diagnostic::DiagnosticMessages;
 

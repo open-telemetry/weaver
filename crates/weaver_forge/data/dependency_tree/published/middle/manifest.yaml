@@ -1,0 +1,7 @@
+file_format: manifest/2.0
+schema_url: https://example.com/dependency-tree-middle/1.0.0
+description: Depends on sub, and is depended on by root.
+dependencies:
+- schema_url: https://example.com/dependency-tree-sub/1.0.0
+stability: development
+resolved_registry_uri: ./resolved.yaml

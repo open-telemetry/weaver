@@ -4,13 +4,17 @@
 
 use std::rc::Rc;
 
+use cel::{Context, SerializationError};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    live_checker::LiveChecker, sample_attribute::SampleAttribute, Advisable, Error,
-    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleInstrumentationScope,
-    SampleRef, SampleResource, VersionedSignal,
+    cel::{attribute_map, bind_signal_context, Matchable},
+    live_checker::LiveChecker,
+    matcher::SampleMatch,
+    sample_attribute::SampleAttribute,
+    Advisable, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample,
+    SampleInstrumentationScope, SampleRef, SampleResource, SampleType,
 };
 
 /// Represents a profile collected via OTLP (v1development)
@@ -46,14 +50,43 @@ impl LiveCheckRunner for SampleProfile {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        _parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
+        let sample_match = Rc::new(live_checker.match_for(self, None));
+        live_checker.record_match(&sample_match);
+        let mut result = self.run_advisors(
+            live_checker,
+            stats,
+            Some(Rc::clone(&sample_match)),
+            parent_signal,
+        )?;
+        sample_match.add_findings(
+            &SampleRef::Profile(self),
+            &self.attributes,
+            &mut result,
+            live_checker,
+            parent_signal,
+        );
+        self.live_check_result = Some(result);
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         self.attributes
-            .run_live_check(live_checker, stats, parent_group, parent_signal)?;
-        Ok(())
+            .run_live_check(live_checker, stats, Some(sample_match), parent_signal)
+    }
+}
+
+impl Matchable for SampleProfile {
+    fn sample_type(&self) -> SampleType {
+        SampleType::Profile
+    }
+
+    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+        context.add_variable("attributes", attribute_map(self.attributes.iter()))?;
+        bind_signal_context(
+            self.resource.as_deref(),
+            self.instrumentation_scope.as_deref(),
+            context,
+        )
     }
 }
 
@@ -65,8 +98,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        live_checker::LiveChecker, DisabledStatistics, LiveCheckStatistics, Sample, SampleRef,
-        VersionedRegistry,
+        live_checker::LiveChecker, matcher::fixture::matcher_configs, DisabledStatistics,
+        LiveCheckStatistics, Sample, SampleRef, VersionedRegistry,
     };
 
     fn make_profile() -> SampleProfile {
@@ -96,7 +129,8 @@ mod tests {
                 events: vec![],
                 entities: vec![],
             },
-            dependencies: vec![],
+            dependencies: Default::default(),
+            dependency_graph: Default::default(),
         })))
     }
 
@@ -111,6 +145,35 @@ mod tests {
         assert!(matches!(profile.as_sample_ref(), SampleRef::Profile(_)));
     }
 
+    /// The OpenTelemetry SDKs cannot emit profiles yet, so this is the only
+    /// test of a profile matcher.
+    #[test]
+    fn a_profile_matcher_matches_a_profile() {
+        let mut profile = make_profile();
+        let mut live_checker = LiveChecker::new(empty_registry(), vec![]);
+        live_checker
+            .set_matchers(&matcher_configs(
+                r#"
+[[live-check.matchers]]
+id = "acme.profile"
+sample_type = "profile"
+when = 'true'
+"#,
+            ))
+            .expect("the matchers compile");
+        let mut stats = LiveCheckStatistics::Disabled(DisabledStatistics);
+        let parent = Sample::Profile(make_profile());
+        profile
+            .run_live_check(&mut live_checker, &mut stats, None, &parent)
+            .expect("the profile is checked");
+        let matcher = live_checker
+            .matchers()
+            .iter()
+            .next()
+            .expect("there is one matcher");
+        assert_eq!(matcher.matched(), 1);
+    }
+
     #[test]
     fn test_run_live_check_no_advisors() {
         let mut profile = make_profile();
@@ -120,5 +183,14 @@ mod tests {
         let result = profile.run_live_check(&mut live_checker, &mut stats, None, &parent);
         assert!(result.is_ok());
         assert!(profile.live_check_result.is_some());
+    }
+
+    #[test]
+    fn a_profile_binds_its_attributes() {
+        let mut profile = make_profile();
+        profile.attributes =
+            vec![SampleAttribute::try_from("myapp.profile.kind=cpu").expect("it parses")];
+        let when = r#"attributes["myapp.profile.kind"] == "cpu" && resource == null"#;
+        assert!(crate::cel::evaluate(when, &profile).expect("it evaluates"));
     }
 }

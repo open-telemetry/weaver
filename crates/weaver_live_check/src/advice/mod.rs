@@ -15,14 +15,14 @@ mod deprecated_advisor;
 mod enum_advisor;
 mod rego_advisor;
 mod stability_advisor;
-mod type_advisor;
+pub(crate) mod type_advisor;
 
 // Public re-exports
 pub use deprecated_advisor::DeprecatedAdvisor;
 pub use enum_advisor::EnumAdvisor;
 pub use rego_advisor::RegoAdvisor;
 pub use stability_advisor::StabilityAdvisor;
-pub(crate) use type_advisor::check_entity_associations;
+pub(crate) use type_advisor::add_entity_association_findings;
 pub use type_advisor::TypeAdvisor;
 
 /// Provides advice on a sample
@@ -140,13 +140,13 @@ mod tests {
     use crate::sample_attribute::SampleAttribute;
 
     use super::*;
-    use weaver_resolved_schema::attribute::Attribute;
-    use weaver_semconv::attribute::{
+    use weaver_resolved_schema::v1::attribute::Attribute;
+    use weaver_semconv::deprecated::Deprecated;
+    use weaver_semconv::stability::Stability;
+    use weaver_semconv::v1::attribute::{
         AttributeType::PrimitiveOrArray, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec,
         RequirementLevel,
     };
-    use weaver_semconv::deprecated::Deprecated;
-    use weaver_semconv::stability::Stability;
 
     fn create_sample_attribute(name: &str) -> SampleAttribute {
         SampleAttribute {
