@@ -14,8 +14,7 @@ use crate::v1::{
     group::{
         AttributeGroupVisibilitySpec as V1VisibilitySpec, GroupSpec as V1GroupSpec,
         GroupType as V1GroupType, GroupWildcard as V1GroupWildcard,
-        InstrumentSpec as V1InstrumentSpec, SpanKindSpec as V1SpanKindSpec, SpanLink as V1SpanLink,
-        SpanLinkAttribute as V1SpanLinkAttribute, SpanName as V1SpanName,
+        InstrumentSpec as V1InstrumentSpec, SpanKindSpec as V1SpanKindSpec, SpanName as V1SpanName,
     },
     semconv::{Imports as V1Imports, SemConvSpecV1},
 };
@@ -340,30 +339,6 @@ pub fn v2_span_name_to_v1(s: crate::v2::span::SpanName) -> V1SpanName {
     V1SpanName { note }
 }
 
-/// Converts a V2 span link into its V1 carrier form.
-#[must_use]
-pub fn v2_span_link_to_v1(link: crate::v2::span::SpanLink) -> V1SpanLink {
-    V1SpanLink {
-        r#ref: link.r#ref.to_string(),
-        requirement_level: link.requirement_level.map(v2_requirement_level_to_v1),
-        brief: link.brief,
-        note: link.note,
-        attributes: link
-            .attributes
-            .into_iter()
-            .map(|a| V1SpanLinkAttribute {
-                r#ref: a.base.r#ref,
-                brief: a.base.brief,
-                examples: a.base.examples.map(v2_examples_to_v1),
-                requirement_level: a.base.requirement_level.map(v2_requirement_level_to_v1),
-                note: a.base.note,
-                annotations: a.base.annotations,
-                sampling_relevant: a.sampling_relevant,
-            })
-            .collect(),
-    }
-}
-
 /// Converts a V2 metric into a V1 GroupSpec.
 #[must_use]
 pub(crate) fn v2_metric_to_v1(metric: Metric) -> V1GroupSpec {
@@ -470,7 +445,7 @@ pub(crate) fn v2_span_to_v1(span: Span) -> V1GroupSpec {
         visibility: None,
         is_v2: true,
         span_name: Some(span.name),
-        span_links: span.links.into_iter().map(v2_span_link_to_v1).collect(),
+        span_links: span.links,
         requirement_level: span.requirement_level,
     }
 }

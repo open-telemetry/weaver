@@ -64,7 +64,7 @@ pub(crate) struct GroupSummary {
     pub span_name: Option<weaver_semconv::v2::span::SpanName>,
     /// The v2 span links, inherited by refinements that do not
     /// declare their own.
-    pub span_links: Vec<weaver_semconv::v1::group::SpanLink>,
+    pub span_links: Vec<weaver_semconv::v2::span::SpanLink>,
     /// The attributes from this group before being completely resolved to a catalog.
     pub attributes: Vec<UnresolvedAttribute>,
     /// The annotations of the group.

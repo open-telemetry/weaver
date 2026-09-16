@@ -235,44 +235,42 @@ fn convert_attribute_ref<'a>(
 /// Resolves one link attribute by name to a v2 catalog reference;
 /// unsupported constructs fail instead of dropping data silently.
 fn convert_span_link_attribute(
-    ar: &weaver_semconv::v1::group::SpanLinkAttribute,
+    ar: &weaver_semconv::v2::span::SpanAttributeRef,
     g: &V1Group,
-    link: &weaver_semconv::v1::group::SpanLink,
+    link: &weaver_semconv::v2::span::SpanLink,
     c: &V1Catalog,
     v2_catalog: &V2CatalogBuilder,
 ) -> Result<span::SpanAttributeRef, crate::error::Error> {
     let unsupported = |reason: String| crate::error::Error::UnsupportedSpanLinkAttribute {
         group_id: g.id.clone(),
-        link_ref: link.r#ref.clone(),
+        link_ref: link.r#ref.to_string(),
         reason,
     };
-    if ar.brief.is_some()
-        || ar.note.is_some()
-        || ar.examples.is_some()
-        || !ar.annotations.is_empty()
+    if ar.base.brief.is_some()
+        || ar.base.note.is_some()
+        || ar.base.examples.is_some()
+        || !ar.base.annotations.is_empty()
     {
         return Err(unsupported(format!(
             "attribute '{}' carries overrides; only requirement_level and sampling_relevant are supported on link attributes",
-            ar.r#ref
+            ar.base.r#ref
         )));
     }
-    let Some((root, _)) = c.root_attribute(&ar.r#ref) else {
+    let Some((root, _)) = c.root_attribute(&ar.base.r#ref) else {
         return Err(unsupported(format!(
             "attribute '{}' not found in the catalog",
-            ar.r#ref
+            ar.base.r#ref
         )));
     };
     let Some(base) = v2_catalog.convert_ref(root) else {
         return Err(unsupported(format!(
             "attribute '{}' could not be mapped to the v2 catalog",
-            ar.r#ref
+            ar.base.r#ref
         )));
     };
     Ok(span::SpanAttributeRef {
         base,
-        requirement_level: weaver_semconv::convert::v1_requirement_level_to_v2(
-            ar.requirement_level.clone().unwrap_or_default(),
-        ),
+        requirement_level: ar.base.requirement_level.clone().unwrap_or_default(),
         sampling_relevant: ar.sampling_relevant,
     })
 }
@@ -291,10 +289,10 @@ fn convert_span_links(
     for link in g.span_links.iter() {
         // Only locally declared links are validated: refinement links can
         // be inherited from a dependency, so their targets may live elsewhere.
-        if validate_targets && !span_types.contains(&SignalId::from(link.r#ref.clone())) {
+        if validate_targets && !span_types.contains(&link.r#ref) {
             return Err(crate::error::Error::SpanLinkTargetNotFound {
                 group_id: g.id.clone(),
-                link_ref: link.r#ref.clone(),
+                link_ref: link.r#ref.to_string(),
             });
         }
         let mut attributes = Vec::new();
@@ -302,10 +300,8 @@ fn convert_span_links(
             attributes.push(convert_span_link_attribute(ar, g, link, c, v2_catalog)?);
         }
         links.push(span::SpanLink {
-            r#ref: SignalId::from(link.r#ref.clone()),
-            requirement_level: weaver_semconv::convert::v1_requirement_level_to_v2(
-                link.requirement_level.clone().unwrap_or_default(),
-            ),
+            r#ref: link.r#ref.clone(),
+            requirement_level: link.requirement_level.clone().unwrap_or_default(),
             brief: link.brief.clone(),
             note: link.note.clone(),
             attributes,
@@ -807,7 +803,8 @@ mod tests {
     use weaver_semconv::provenance::Provenance;
     use weaver_semconv::stability::Stability;
     use weaver_semconv::v1::group::InstrumentSpec as V1InstrumentSpec;
-    use weaver_semconv::v1::group::{SpanLink, SpanLinkAttribute};
+    use weaver_semconv::v2::attribute::AttributeRef as AttributeRefSpec;
+    use weaver_semconv::v2::span::{SpanAttributeRef as SpanAttributeRefSpec, SpanLink};
 
     /// Builds a minimal v1 span group carrying the given span links.
     fn span_group_with_links(id: &str, links: Vec<SpanLink>) -> V1Group {
@@ -856,7 +853,7 @@ mod tests {
     /// Builds a minimal span link to the given target type.
     fn link_to(target: &str) -> SpanLink {
         SpanLink {
-            r#ref: target.to_owned(),
+            r#ref: target.to_owned().into(),
             requirement_level: None,
             brief: None,
             note: None,
@@ -865,14 +862,16 @@ mod tests {
     }
 
     /// Builds a minimal link attribute reference with the given overrides.
-    fn link_attribute(name: &str, brief: Option<&str>) -> SpanLinkAttribute {
-        SpanLinkAttribute {
-            r#ref: name.to_owned(),
-            brief: brief.map(str::to_owned),
-            examples: None,
-            requirement_level: None,
-            note: None,
-            annotations: Default::default(),
+    fn link_attribute(name: &str, brief: Option<&str>) -> SpanAttributeRefSpec {
+        SpanAttributeRefSpec {
+            base: AttributeRefSpec {
+                r#ref: name.to_owned(),
+                brief: brief.map(str::to_owned),
+                examples: None,
+                requirement_level: None,
+                note: None,
+                annotations: Default::default(),
+            },
             sampling_relevant: None,
         }
     }

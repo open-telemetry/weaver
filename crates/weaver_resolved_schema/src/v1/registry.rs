@@ -199,7 +199,7 @@ pub struct Group {
     #[serde(default)]
     #[serde(skip_serializing)]
     #[schemars(skip)]
-    pub span_links: Vec<weaver_semconv::v1::group::SpanLink>,
+    pub span_links: Vec<weaver_semconv::v2::span::SpanLink>,
 
     /// Requirement level of the signal (metric, span, event, entity).
     /// This is a v2-only concept carried through the v1 intermediate
