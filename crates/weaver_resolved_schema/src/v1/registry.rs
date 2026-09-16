@@ -22,8 +22,9 @@ use weaver_semconv::provenance::Provenance;
 use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::stability::Stability;
 use weaver_semconv::v1::group::{
-    AttributeGroupVisibilitySpec, GroupType, InstrumentSpec, SpanKindSpec, SpanName,
+    AttributeGroupVisibilitySpec, GroupType, InstrumentSpec, SpanKindSpec,
 };
+use weaver_semconv::v2::span::SpanName;
 use weaver_semconv::YamlValue;
 
 /// Where the `entity_associations` entries of each group resolved: group id, to

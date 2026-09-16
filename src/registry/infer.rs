@@ -44,7 +44,7 @@ pub struct RegistryInferArgs {
 
     /// Address used by the gRPC OTLP listener.
     #[arg(long)]
-    #[config(default = "0.0.0.0")]
+    #[config(default = "127.0.0.1")]
     grpc_address: Option<String>,
 
     /// Port used by the gRPC OTLP listener.
@@ -124,6 +124,12 @@ fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSampl
                             instrumentation_scope: None,
                             live_check_result: None,
                             resource: None,
+                            trace_id: None,
+                            span_id: None,
+                            parent_span_id: None,
+                            trace_state: None,
+                            start_time: None,
+                            end_time: None,
                         };
                         for attribute in span.attributes {
                             sample_span
@@ -132,9 +138,12 @@ fn process_otlp_request(request: OtlpRequest, accumulator: &mut AccumulatedSampl
                         }
                         for event in span.events {
                             let mut sample_event = SampleSpanEvent {
+                                resource: None,
+                                instrumentation_scope: None,
                                 name: event.name,
                                 attributes: Vec::new(),
                                 live_check_result: None,
+                                timestamp: None,
                             };
                             for attribute in event.attributes {
                                 sample_event
@@ -180,7 +189,7 @@ pub(crate) fn command(
     cfg: Option<&WeaverConfig>,
     _auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     let config = cmd_config.config;
     log::warn!(
         "The `registry infer` command is experimental and not yet stable. \

@@ -74,10 +74,31 @@ This `Ingester` starts an OTLP listener and streams each received OTLP message t
 
 Options for OTLP ingest:
 
-- `--otlp-grpc-address`: Address used by the gRPC OTLP listener
+- `--otlp-grpc-address`: Address the gRPC OTLP listener binds to. Defaults to `127.0.0.1` (loopback only); set it to a specific interface address, or to `0.0.0.0` to listen on all of them. The admin listener binds to the same address.
 - `--otlp-grpc-port`: Port used by the gRPC OTLP listener
 - `--admin-port`: Port used by the HTTP admin port (endpoints: /stop)
 - `--inactivity-timeout`: Max inactivity time in seconds before stopping the listener
+
+## Matchers
+
+Before live-check can check a sample, it has to pair the sample with a signal in the registry. A metric has its name and an event has its `event_name`, so those resolve themselves. A span name is free-form and a resource is a bare set of attributes, so nothing in them says which definition they belong to.
+
+A matcher supplies that missing identifier. You describe a signature that your telemetry has, and you name the signal, or the attribute groups, to compare a matching sample with:
+
+```toml
+[[live-check.matchers]]
+id = "match.checkout"
+sample_type = "span"
+when = '"myapp.checkout.id" in attributes'
+signal = "myapp.checkout"
+attribute_groups = ["myapp.common"]
+```
+
+`when` is a [CEL](https://cel.dev) expression. Live-check compiles it at startup. A matcher never changes the checks themselves. It only decides what a sample is compared with. Matchers need a v2 registry.
+
+`attribute_groups` names the attributes that are _permitted_ on the sample. They are checked against their definitions, but an attribute missing from the sample is not reported. Use `strict_attribute_groups` for a group whose requirement levels must be enforced.
+
+See [Matchers](docs/matchers.md) for the guide: worked examples for each sample type, the expression variables, the resolution order and the diagnostics.
 
 ## Advisors
 
@@ -172,7 +193,7 @@ The default preprocessor produces these keys:
 - `data.schema_url`: the schema url of the registry under check. `null` for a v1 registry.
 - `data.entities`: the entity definitions, keyed by the schema url of the registry that defines them, and then by entity type or refinement id. Empty for a v1 registry.
 
-A signal declares the entities it belongs to with `entity_associations`, and an entity may be defined in a dependency rather than in the registry under check, so its definition is not in the input. Each association leaf carries the entity type and the provenance of the definition, which is the pair `data.entities` is keyed by, so a policy reads one definition rather than searching for it by name:
+A signal declares the entities it belongs to with `entity_associations`, and an entity may be defined in a dependency rather than in the registry under check, so its definition is not in the input. Each association leaf holds the entity type and the provenance of the definition, which is the pair `data.entities` is keyed by, so a policy reads one definition rather than searching for it by name:
 
 ```rego
 some assoc in input.registry_group.entity_associations
@@ -182,7 +203,7 @@ source := object.get(assoc, ["provenance", "source"], data.schema_url)
 entity := data.entities[source][assoc.type]
 ```
 
-An element of `entity_associations` can also be a `one_of` or `all_of` group rather than a direct reference. A group carries no `type`, so a policy that must cover those walks the tree itself. `data/policies/entity_advice/entities.rego` is a complete example of reading an entity definition.
+An element of `entity_associations` can also be a `one_of` or `all_of` group rather than a direct reference. A group has no `type`, so a policy that must cover those walks the tree itself. `data/policies/entity_advice/entities.rego` is a complete example of reading an entity definition.
 
 To override the default Otel jq preprocessor provide a path to the jq file through the `--advice-preprocessor` option.
 
@@ -199,7 +220,7 @@ weaver registry json-schema --json-schema weaver-config -o weaver-config.schema.
 ### Live-check settings
 
 ```toml
-[live_check]
+[live-check]
 input_source = "otlp"
 input_format = "json"
 format = "ansi"
@@ -211,19 +232,21 @@ output = "reports"
 advice_policies = "policies"
 advice_preprocessor = "preprocessor.jq"
 
-[live_check.otlp]
-grpc_address = "0.0.0.0"
+[live-check.otlp]
+grpc_address = "127.0.0.1"
 grpc_port = 4317
 admin_port = 4320
 inactivity_timeout = 10
 
-[live_check.emit]
+[live-check.emit]
 otlp_logs = false
 otlp_logs_endpoint = "http://localhost:4317"
 otlp_logs_stdout = false
 ```
 
 Every key is optional: omit anything you want to leave at its default (or set on the CLI).
+
+`search_all_attributes` and the `[[live-check.matchers]]` array also go in this section. See [Matchers](docs/matchers.md).
 
 ### Finding filters
 
@@ -259,7 +282,7 @@ The `exclude_samples` and `sample_names` fields match by sample name: attribute 
 
 Level overrides are applied before finding filters, so a `min_level` filter evaluated afterwards sees the overridden level rather than the original one.
 
-Note that `signal_type` scopes by the _parent_ signal, not by what the finding is about — an attribute finding like `undefined_enum_variant` (which only ever fires on attribute values) still carries the `signal_type` of the span/metric/log/resource that attribute belongs to.
+Note that `signal_type` scopes by the _parent_ signal, not by what the finding is about — an attribute finding like `undefined_enum_variant` (which only ever fires on attribute values) still reports the `signal_type` of the span/metric/log/resource that attribute belongs to.
 
 ```toml
 # undefined_enum_variant is information by default; treat it as a violation everywhere
@@ -286,6 +309,34 @@ Set `--output=http` to have the report sent as the response to the `/stop` endpo
 To provide your own custom templates use the `--templates` option.
 
 As mentioned, the exit-code is set non-zero if any `violation` finding is provided in the output. This can be used in tests and/or CI to fail builds for example.
+
+### OTLP context in reports
+
+When live check receives OTLP, it records the full telemetry fields on the
+corresponding live-check samples in the report:
+
+```sh
+weaver registry live-check --format json --output ./outdir
+```
+
+Spans include `trace_id`, `span_id`, `parent_span_id`, `trace_state`,
+`start_time`, and `end_time`. Span events include `timestamp`, span links
+include their linked `trace_id` and `span_id`, logs include their trace and
+span IDs plus `timestamp`, and metric data points include `start_time` and
+`end_time`. Timestamps use RFC 3339 format.
+
+Resource and instrumentation-scope data is emitted as `resource` and
+`instrumentation_scope` samples before the signals that share it, rather than
+being repeated on every span, log, or metric. The serialized signal samples do
+not contain a separate reference to those entries, so consumers that need this
+provenance must retain that ordering and grouping.
+
+This is Weaver's live-check report format (JSON, YAML, or JSON Lines), not
+OTLP JSON or OTLP protobuf, and it is not directly ingestible by an OTLP
+backend. It is intended to supplement validation findings with enough source
+context for report consumers. To inspect findings in a standard OpenTelemetry
+backend, enable [`OTLP Log Record Emission`](#otlp-log-record-emission), which
+emits the findings themselves as OTLP log records.
 
 ### Statistics
 

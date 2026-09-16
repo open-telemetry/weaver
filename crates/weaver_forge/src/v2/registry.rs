@@ -3,7 +3,7 @@
 use crate::v2::{attribute_group::AttributeGroupAttribute, provenance::Provenance};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet, VecDeque};
 use weaver_common::result::WResult;
 use weaver_resolved_schema::v2::{catalog::AttributeCatalog, entity::EntityAttributeRef};
 use weaver_resolver::SchemaResolver;
@@ -139,6 +139,40 @@ impl ForgeResolvedRegistry {
                 registry: entity_ref.provenance.source.as_ref().map(|u| u.to_string()),
             }
         })
+    }
+
+    /// Every registry this one depends on, nearest first. The order is a
+    /// breadth-first walk of `dependency_graph`. A registry the graph does not
+    /// reach comes last, in key order.
+    #[must_use]
+    pub fn dependencies_nearest_first(&self) -> Vec<(&SchemaUrl, &ForgeDependency)> {
+        let mut ordered = Vec::with_capacity(self.dependencies.len());
+        let mut seen = HashSet::with_capacity(self.dependencies.len() + 1);
+        let _ = seen.insert(&self.schema_url);
+        let mut queue: VecDeque<&SchemaUrl> = self
+            .dependency_graph
+            .get(&self.schema_url)
+            .map(|direct| direct.iter().collect())
+            .unwrap_or_default();
+
+        while let Some(url) = queue.pop_front() {
+            if !seen.insert(url) {
+                continue;
+            }
+            if let Some(entry) = self.dependencies.get_key_value(url) {
+                ordered.push(entry);
+            }
+            if let Some(direct) = self.dependency_graph.get(url) {
+                queue.extend(direct.iter());
+            }
+        }
+
+        ordered.extend(
+            self.dependencies
+                .iter()
+                .filter(|(url, _)| !seen.contains(url)),
+        );
+        ordered
     }
 
     /// Create a new template registry from a resolved schema registry, resolving
@@ -785,7 +819,8 @@ mod tests {
                     r#type: SignalId::from("my-span".to_owned()),
                     kind: SpanKindSpec::Internal,
                     name: SpanName {
-                        note: "My Span".to_owned(),
+                        note: Some("My Span".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![span::SpanAttributeRef {
                         base: AttributeRef(0),
@@ -873,7 +908,8 @@ mod tests {
                         r#type: SignalId::from("my-span".to_owned()),
                         kind: SpanKindSpec::Client,
                         name: SpanName {
-                            note: "My Refined Span".to_owned(),
+                            note: Some("My Refined Span".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![span::SpanAttributeRef {
                             base: AttributeRef(0),
@@ -1149,7 +1185,8 @@ mod tests {
                         r#type: SignalId::from("z-span".to_owned()),
                         kind: SpanKindSpec::Internal,
                         name: SpanName {
-                            note: "".to_owned(),
+                            note: Some("".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![],
                         entity_associations: vec![],
@@ -1162,7 +1199,8 @@ mod tests {
                         r#type: SignalId::from("a-span".to_owned()),
                         kind: SpanKindSpec::Internal,
                         name: SpanName {
-                            note: "".to_owned(),
+                            note: Some("".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![],
                         entity_associations: vec![],
@@ -1240,7 +1278,8 @@ mod tests {
                             r#type: SignalId::from("z-span".to_owned()),
                             kind: SpanKindSpec::Internal,
                             name: SpanName {
-                                note: "".to_owned(),
+                                note: Some("".to_owned()),
+                                ..Default::default()
                             },
                             attributes: vec![],
                             entity_associations: vec![],
@@ -1256,7 +1295,8 @@ mod tests {
                             r#type: SignalId::from("a-span".to_owned()),
                             kind: SpanKindSpec::Internal,
                             name: SpanName {
-                                note: "".to_owned(),
+                                note: Some("".to_owned()),
+                                ..Default::default()
                             },
                             attributes: vec![],
                             entity_associations: vec![],
@@ -1549,7 +1589,8 @@ mod tests {
                     r#type: SignalId::from("my-span".to_owned()),
                     kind: SpanKindSpec::Internal,
                     name: SpanName {
-                        note: "".to_owned(),
+                        note: Some("".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![span::SpanAttributeRef {
                         base: AttributeRef(10),
@@ -1629,7 +1670,8 @@ mod tests {
                         r#type: SignalId::from("my-span".to_owned()),
                         kind: SpanKindSpec::Internal,
                         name: SpanName {
-                            note: "".to_owned(),
+                            note: Some("".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![span::SpanAttributeRef {
                             base: AttributeRef(16),
@@ -1880,6 +1922,43 @@ mod tests {
         );
         assert_eq!(edges(&forge, SUB), Some(vec![LEAF.to_owned()]));
         assert_eq!(edges(&forge, BRANCH), Some(vec![LEAF.to_owned()]));
+    }
+
+    /// The urls of `dependencies_nearest_first`.
+    fn nearest_first(forge: &ForgeResolvedRegistry) -> Vec<String> {
+        forge
+            .dependencies_nearest_first()
+            .into_iter()
+            .map(|(url, _)| url.to_string())
+            .collect()
+    }
+
+    /// The `fork` fixture declares middle before branch, and both depend on leaf.
+    #[test]
+    fn dependencies_nearest_first_walks_the_graph_by_distance() {
+        let mut resolver =
+            weaver_resolver::WeaverResolver::new(weaver_resolver::WeaverResolverConfig::default());
+        let forge = dependency_tree_forge(&mut resolver, "data/dependency_tree/fork");
+
+        assert_eq!(nearest_first(&forge), vec![MIDDLE, BRANCH, SUB, LEAF]);
+    }
+
+    #[test]
+    fn dependencies_nearest_first_without_a_graph_keeps_every_dependency() {
+        let (root_url, middle_url, leaf_url, mut mock_resolver) = mock_dependencies();
+        let forge = match ForgeResolvedRegistry::try_from_resolved_schema(
+            mock_root_schema(&root_url, &middle_url, &leaf_url),
+            &mut mock_resolver,
+        ) {
+            WResult::Ok(f) | WResult::OkWithNFEs(f, _) => f,
+            WResult::FatalErr(e) => panic!("failed to build the forge registry: {e}"),
+        };
+
+        assert!(forge.dependency_graph.is_empty());
+        assert_eq!(
+            nearest_first(&forge),
+            vec![leaf_url.to_string(), middle_url.to_string()]
+        );
     }
 
     /// The same graph, with `middle` consumed as an already-resolved artifact
@@ -2203,7 +2282,8 @@ mod tests {
                     r#type: SignalId::from("dep-b-span".to_owned()),
                     kind: SpanKindSpec::Internal,
                     name: SpanName {
-                        note: "".to_owned(),
+                        note: Some("".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![span::SpanAttributeRef {
                         base: AttributeRef(0),
@@ -2733,7 +2813,8 @@ mod tests {
                     r#type: "my-span".to_owned().into(),
                     kind: SpanKindSpec::Internal,
                     name: SpanName {
-                        note: "My Span".to_owned(),
+                        note: Some("My Span".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![],
                     entity_associations: vec![entity::EntityAssociation::Ref(entity::EntityRef {
