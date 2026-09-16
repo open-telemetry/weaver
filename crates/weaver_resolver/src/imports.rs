@@ -644,7 +644,7 @@ fn upgrade_imported_group_v2<C: crate::SchemaCacheLookup>(
                 ))),
             );
             upgraded.span_kind = Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
-            upgraded.span_name = Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
+            upgraded.span_name = Some(s.name.clone());
             upgraded.name = Some(s.r#type.to_string());
             upgraded.entity_associations = to_named_associations(&s.entity_associations);
             upgraded.requirement_level = s.requirement_level.clone();
@@ -1123,7 +1123,7 @@ impl ImportableDependency for V2Schema {
                 Some(GroupLineage::new(v2_provenance(self, &deps, &s.provenance))),
             );
             group.span_kind = Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
-            group.span_name = Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
+            group.span_name = Some(s.name.clone());
             group.name = Some(s.r#type.to_string());
             group.entity_associations = to_named_associations(&s.entity_associations);
             group.requirement_level = s.requirement_level.clone();
@@ -1439,8 +1439,9 @@ mod tests {
         );
         assert_eq!(
             span.span_name,
-            Some(weaver_semconv::v1::group::SpanName {
-                note: "test".to_owned(),
+            Some(weaver_semconv::v2::span::SpanName {
+                templates: Vec::new(),
+                note: Some("test".to_owned()),
             })
         );
 

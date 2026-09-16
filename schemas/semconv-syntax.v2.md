@@ -376,9 +376,13 @@ A span refinement definition consists of the following properties:
 
 #### Span name
 
-The `name` field specifies how the span name should be formatted. It consists of a `note` field that describes in a free form how to format span name based on the attributes. OpenTelemetry semantic conventions use `{action} {target}` format where action and target match attributes on that span. For example, [HTTP server span names](https://github.com/open-telemetry/semantic-conventions/blob/v1.36.0/docs/http/http-spans.md#name) match `{http.request.method} {http.route}` pattern in general case.
+The `name` field specifies how the span name should be formatted. It supports:
+- `templates` - Optional. An ordered list of template patterns evaluated sequentially. The first template whose referenced attributes are all present, non-empty, and not `_OTHER` is selected. A literal template with no placeholders (e.g. `HTTP`) can be placed at the end to serve as a fallback.
+- `note` - Optional. A description in free form explaining how to format the span name based on attributes. Required if `templates` is omitted.
 
-The span name structure may be evolved in the future to formally define the naming pattern.
+OpenTelemetry semantic conventions use `{action} {target}` format where action and target match attributes on that span. For example, HTTP client span names match `{http.request.method} {url.template}` falling back to `{http.request.method}` and finally `HTTP` if `{http.request.method}` resolves to `_OTHER`.
+
+For enum attributes, `_OTHER` is treated in the same way as a missing value.
 
 ### `entities` definition
 

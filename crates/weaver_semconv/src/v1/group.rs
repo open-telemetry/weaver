@@ -171,7 +171,7 @@ pub struct GroupSpec {
     #[serde(default)]
     #[serde(skip_serializing)]
     #[schemars(skip)]
-    pub span_name: Option<SpanName>,
+    pub span_name: Option<crate::v2::span::SpanName>,
 
     /// Requirement level of the signal (metric, span, event, entity).
     /// This is a v2-only concept carried through the v1 intermediate

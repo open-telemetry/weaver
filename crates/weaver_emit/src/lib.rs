@@ -612,7 +612,8 @@ mod tests {
                     r#type: SignalId::from("test.comprehensive.internal".to_owned()),
                     kind: SpanKindSpec::Internal,
                     name: SpanName {
-                        note: "test span".to_owned(),
+                        note: Some("test span".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![SpanAttribute {
                         base: V2Attribute {
