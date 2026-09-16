@@ -10,14 +10,12 @@
 
 use std::vec;
 
-#[allow(deprecated)]
-use crate::registry_repo::LEGACY_REGISTRY_MANIFEST;
 use crate::schema_url::SchemaUrl;
 use crate::v2::stability::Stability;
 use crate::Error;
 use crate::Error::{
-    DeprecatedSyntaxInRegistryManifest, InvalidRegistryManifest, LegacyRegistryManifest,
-    MissingManifestFileFormat, RegistryManifestNotFound,
+    DeprecatedSyntaxInRegistryManifest, InvalidRegistryManifest, MissingManifestFileFormat,
+    RegistryManifestNotFound,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -63,9 +61,6 @@ pub struct DefinitionRegistryManifest {
     /// The stability of this repository.
     #[serde(default)]
     pub stability: Stability,
-
-    #[serde(skip)]
-    pub(crate) deserialization_warnings: Vec<String>,
 }
 
 impl DefinitionRegistryManifest {
@@ -78,7 +73,6 @@ impl DefinitionRegistryManifest {
             description: None,
             dependencies: vec![],
             stability: Stability::Development,
-            deserialization_warnings: vec![],
         }
     }
 }
@@ -147,7 +141,11 @@ struct RawManifestFields {
 
 impl RawManifestFields {
     /// Convert to [`RegistryManifest`], reporting errors relative to `path`.
-    fn into_manifest(self, path: &std::path::Path) -> Result<RegistryManifest, Error> {
+    fn into_manifest(
+        self,
+        path: &std::path::Path,
+        nfes: &mut Vec<Error>,
+    ) -> Result<RegistryManifest, Error> {
         let is_publication = self.file_format.as_deref() == Some(PUBLICATION_MANIFEST_FILE_FORMAT);
         let is_definition = self.file_format.as_deref() == Some(DEFINITION_MANIFEST_FILE_FORMAT);
         let is_empty = self.file_format.is_none();
@@ -168,15 +166,15 @@ impl RawManifestFields {
                     path: path.to_path_buf(),
                     details,
                 })?;
-            let mut warnings = vec![];
             let resolved_registry_uri = match (self.resolved_registry_uri, self.resolved_schema_uri)
             {
                 (Some(v), _) => v,
                 (None, Some(v)) => {
-                    warnings.push(
-                        "The 'resolved_schema_uri' field is deprecated in favor of 'resolved_registry_uri'."
+                    nfes.push(DeprecatedSyntaxInRegistryManifest {
+                        path: path.to_path_buf(),
+                        error: "The 'resolved_schema_uri' field is deprecated in favor of 'resolved_registry_uri'."
                             .to_owned(),
-                    );
+                    });
                     v
                 }
                 (None, None) => {
@@ -193,14 +191,13 @@ impl RawManifestFields {
                 dependencies,
                 stability: self.stability,
                 resolved_registry_uri,
-                deserialization_warnings: warnings,
             }))
         } else if is_definition || is_empty {
-            let mut warnings = vec![];
             if is_empty {
-                warnings.push(format!(
-                    "Missing 'file_format' field. Assumed to be a V2 definition manifest ('{DEFINITION_MANIFEST_FILE_FORMAT}')."
-                ));
+                nfes.push(MissingManifestFileFormat {
+                    path: path.to_path_buf(),
+                    expected_format: DEFINITION_MANIFEST_FILE_FORMAT.to_owned(),
+                });
             }
             let schema_url = self.schema_url.ok_or_else(|| InvalidRegistryManifest {
                 path: path.to_path_buf(),
@@ -221,7 +218,6 @@ impl RawManifestFields {
                 description: self.description,
                 dependencies,
                 stability: self.stability,
-                deserialization_warnings: warnings,
             }))
         } else {
             let fmt = self.file_format.as_deref().unwrap_or("unknown");
@@ -275,42 +271,7 @@ impl RegistryManifest {
                 path: manifest_path_buf.clone(),
                 error: e.to_string(),
             })?;
-        let manifest = raw.into_manifest(&manifest_path_buf)?;
-
-        // Check if this is a legacy manifest file
-        let is_legacy = if let Some(file_name) = manifest_path_buf.file_name() {
-            #[allow(deprecated)]
-            let legacy = file_name == LEGACY_REGISTRY_MANIFEST;
-            legacy
-        } else {
-            false
-        };
-
-        if is_legacy {
-            nfes.push(LegacyRegistryManifest {
-                path: manifest_path_buf.clone(),
-            });
-        }
-
-        let deserialization_warnings = match &manifest {
-            RegistryManifest::Definition(def) => def.deserialization_warnings.as_slice(),
-            RegistryManifest::Publication(pubm) => pubm.deserialization_warnings.as_slice(),
-        };
-        for w in deserialization_warnings {
-            if w.starts_with("Missing 'file_format' field") {
-                nfes.push(MissingManifestFileFormat {
-                    path: manifest_path_buf.clone(),
-                    expected_format: DEFINITION_MANIFEST_FILE_FORMAT.to_owned(),
-                });
-            } else {
-                nfes.push(DeprecatedSyntaxInRegistryManifest {
-                    path: manifest_path_buf.clone(),
-                    error: w.clone(),
-                });
-            }
-        }
-
-        Ok(manifest)
+        raw.into_manifest(&manifest_path_buf, nfes)
     }
 
     /// Returns the schema URL of the registry.
@@ -372,9 +333,6 @@ pub struct PublicationRegistryManifest {
     /// URI pointing to the resolved registry artifact included in this package.
     #[serde(alias = "resolved_schema_uri")]
     pub resolved_registry_uri: String,
-
-    #[serde(skip)]
-    pub(crate) deserialization_warnings: Vec<String>,
 }
 
 impl PublicationRegistryManifest {
@@ -411,7 +369,6 @@ impl PublicationRegistryManifest {
             dependencies,
             stability: registry_manifest.stability.clone(),
             resolved_registry_uri,
-            deserialization_warnings: vec![],
         })
     }
 }
@@ -706,7 +663,6 @@ dependencies:
                 }),
             }],
             stability: Stability::Stable,
-            deserialization_warnings: vec![],
         };
 
         let result = PublicationRegistryManifest::try_from_registry_manifest(

@@ -425,10 +425,7 @@ impl WeaverResolver {
             }
         }
 
-        let manifest = match repo.v2_manifest().transpose() {
-            Ok(m) => m,
-            Err(e) => return WResult::FatalErr(e.into()),
-        };
+        let manifest = repo.v1_manifest();
         let schema_url = if let Some(m) = manifest.as_ref() {
             m.schema_url().clone()
         } else {
@@ -497,7 +494,7 @@ impl WeaverResolver {
             instrumentation_library: None,
             dependencies,
             versions: None,
-            registry_manifest: manifest.map(Into::into),
+            registry_manifest: manifest,
         })
     }
 

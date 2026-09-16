@@ -1462,7 +1462,8 @@ mod tests {
         assert_eq!(
             span.span_name,
             Some(weaver_semconv::v1::group::SpanName {
-                note: "test".to_owned(),
+                templates: Vec::new(),
+                note: Some("test".to_owned()),
             })
         );
 

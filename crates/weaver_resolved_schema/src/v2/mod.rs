@@ -416,7 +416,8 @@ mod tests {
             r#type: "http.client".to_owned().into(),
             kind: weaver_semconv::v2::span::SpanKindSpec::Client,
             name: weaver_semconv::v2::span::SpanName {
-                note: "HTTP".to_owned(),
+                note: Some("HTTP".to_owned()),
+                ..Default::default()
             },
             attributes: vec![],
             entity_associations: vec![],
@@ -439,7 +440,8 @@ mod tests {
             r#type: "http.client".to_owned().into(),
             kind: weaver_semconv::v2::span::SpanKindSpec::Client,
             name: weaver_semconv::v2::span::SpanName {
-                note: "HTTP".to_owned(),
+                note: Some("HTTP".to_owned()),
+                ..Default::default()
             },
             attributes: vec![],
             entity_associations: vec![],
@@ -645,7 +647,8 @@ mod tests {
                         r#type: "http.server.request".to_owned().into(),
                         kind: SpanKindSpec::Server,
                         name: SpanName {
-                            note: "HTTP server span".to_owned(),
+                            note: Some("HTTP server span".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![span::SpanAttributeRef {
                             base: AttributeRef(0),
@@ -669,7 +672,8 @@ mod tests {
                         r#type: "internal.processing".to_owned().into(),
                         kind: SpanKindSpec::Internal,
                         name: SpanName {
-                            note: "Background processing".to_owned(),
+                            note: Some("Background processing".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![],
                         entity_associations: vec![],
@@ -840,7 +844,8 @@ mod tests {
                         r#type: "http.server.request".to_owned().into(),
                         kind: SpanKindSpec::Server,
                         name: SpanName {
-                            note: "HTTP server span".to_owned(),
+                            note: Some("HTTP server span".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![],
                         entity_associations: vec![],

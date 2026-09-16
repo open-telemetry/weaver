@@ -118,24 +118,6 @@ impl VersionedManifest {
         }
     }
 
-    /// Returns a reference to the V1 manifest, if this is a V1 manifest.
-    #[must_use]
-    pub fn as_v1(&self) -> Option<&V1RegistryManifest> {
-        match self {
-            VersionedManifest::V1(v1) => Some(v1),
-            VersionedManifest::V2(_) => None,
-        }
-    }
-
-    /// Returns a reference to the V2 manifest, if this is a V2 manifest.
-    #[must_use]
-    pub fn as_v2(&self) -> Option<&V2RegistryManifest> {
-        match self {
-            VersionedManifest::V1(_) => None,
-            VersionedManifest::V2(v2) => Some(v2),
-        }
-    }
-
     /// Converts this manifest to a V1 manifest.
     #[must_use]
     pub fn to_v1(&self) -> V1RegistryManifest {
@@ -179,11 +161,6 @@ impl ManifestPath {
             ManifestPath::LegacyPath(p) | ManifestPath::RegistryPath(p) => Some(p),
             ManifestPath::None => None,
         }
-    }
-
-    /// Attempts to load the manifest from this [`ManifestPath`].
-    pub fn try_into_manifest(&self, nfes: &mut Vec<Error>) -> Result<VersionedManifest, Error> {
-        VersionedManifest::try_from_file(self, nfes)
     }
 }
 

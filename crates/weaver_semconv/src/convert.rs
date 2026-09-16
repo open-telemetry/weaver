@@ -16,6 +16,7 @@ use crate::v1::{
         AttributeGroupVisibilitySpec as V1VisibilitySpec, GroupSpec as V1GroupSpec,
         GroupType as V1GroupType, GroupWildcard as V1GroupWildcard,
         InstrumentSpec as V1InstrumentSpec, SpanKindSpec as V1SpanKindSpec, SpanName as V1SpanName,
+        SpanNameTemplate as V1SpanNameTemplate, TemplatePart as V1TemplatePart,
     },
     manifest::{
         DefinitionRegistryManifest as V1DefinitionRegistryManifest, Dependency as V1Dependency,
@@ -46,7 +47,8 @@ use crate::v2::{
     signal_requirement_level::SignalRequirementLevel as V2SignalRequirementLevel,
     span::{
         Span, SpanAttributeOrGroupRef, SpanAttributeRef, SpanKindSpec as V2SpanKindSpec,
-        SpanRefinement,
+        SpanName as V2SpanName, SpanNameTemplate as V2SpanNameTemplate, SpanRefinement,
+        TemplatePart as V2TemplatePart,
     },
     stability::Stability as V2Stability,
     Imports as V2Imports, SemConvSpecV2,
@@ -339,10 +341,36 @@ pub fn v2_span_kind_to_v1(k: V2SpanKindSpec) -> V1SpanKindSpec {
     }
 }
 
+/// Converts a V2 span name template part to V1.
+#[must_use]
+pub(crate) fn v2_template_part_to_v1(p: V2TemplatePart) -> V1TemplatePart {
+    match p {
+        V2TemplatePart::Literal { value } => V1TemplatePart::Literal { value },
+        V2TemplatePart::Attribute { attribute } => V1TemplatePart::Attribute { attribute },
+    }
+}
+
+/// Converts a V2 span name template to V1.
+#[must_use]
+pub(crate) fn v2_span_name_template_to_v1(t: V2SpanNameTemplate) -> V1SpanNameTemplate {
+    V1SpanNameTemplate {
+        pattern: t.pattern,
+        attributes: t.attributes,
+        parts: t.parts.into_iter().map(v2_template_part_to_v1).collect(),
+    }
+}
+
 /// Converts a V2 span name to V1.
 #[must_use]
-pub fn v2_span_name_to_v1(s: crate::v2::span::SpanName) -> V1SpanName {
-    V1SpanName { note: s.note }
+pub fn v2_span_name_to_v1(s: V2SpanName) -> V1SpanName {
+    V1SpanName {
+        templates: s
+            .templates
+            .into_iter()
+            .map(v2_span_name_template_to_v1)
+            .collect(),
+        note: s.note,
+    }
 }
 
 /// Converts a V2 stability level to V1.
@@ -365,7 +393,9 @@ impl From<V2Stability> for V1Stability {
 
 /// Converts a V2 signal requirement level to V1.
 #[must_use]
-pub fn v2_signal_requirement_level_to_v1(s: V2SignalRequirementLevel) -> V1SignalRequirementLevel {
+pub(crate) fn v2_signal_requirement_level_to_v1(
+    s: V2SignalRequirementLevel,
+) -> V1SignalRequirementLevel {
     match s {
         V2SignalRequirementLevel::Recommended => V1SignalRequirementLevel::Recommended,
         V2SignalRequirementLevel::OptIn => V1SignalRequirementLevel::OptIn,
@@ -380,7 +410,7 @@ impl From<V2SignalRequirementLevel> for V1SignalRequirementLevel {
 
 /// Converts a V2 entity association to V1.
 #[must_use]
-pub fn v2_entity_association_to_v1(e: V2EntityAssociation) -> V1EntityAssociation {
+pub(crate) fn v2_entity_association_to_v1(e: V2EntityAssociation) -> V1EntityAssociation {
     match e {
         V2EntityAssociation::Ref(name) => V1EntityAssociation::Ref(name),
         V2EntityAssociation::OneOf { one_of } => V1EntityAssociation::OneOf {
@@ -406,7 +436,7 @@ impl From<V2EntityAssociation> for V1EntityAssociation {
 
 /// Converts a V2 dependency to V1.
 #[must_use]
-pub fn v2_dependency_to_v1(d: V2Dependency) -> V1Dependency {
+pub(crate) fn v2_dependency_to_v1(d: V2Dependency) -> V1Dependency {
     V1Dependency {
         schema_url: d.schema_url,
         registry_path: d.registry_path,
@@ -421,7 +451,7 @@ impl From<V2Dependency> for V1Dependency {
 
 /// Converts a V2 definition registry manifest to V1.
 #[must_use]
-pub fn v2_definition_manifest_to_v1(
+pub(crate) fn v2_definition_manifest_to_v1(
     m: V2DefinitionRegistryManifest,
 ) -> V1DefinitionRegistryManifest {
     V1DefinitionRegistryManifest {
@@ -433,7 +463,6 @@ pub fn v2_definition_manifest_to_v1(
             .map(v2_dependency_to_v1)
             .collect(),
         stability: v2_stability_to_v1(m.stability),
-        deserialization_warnings: m.deserialization_warnings,
     }
 }
 
@@ -445,7 +474,7 @@ impl From<V2DefinitionRegistryManifest> for V1DefinitionRegistryManifest {
 
 /// Converts a V2 registry manifest to V1.
 #[must_use]
-pub fn v2_manifest_to_v1(m: V2RegistryManifest) -> V1RegistryManifest {
+pub(crate) fn v2_manifest_to_v1(m: V2RegistryManifest) -> V1RegistryManifest {
     match m {
         V2RegistryManifest::Definition(def) => {
             V1RegistryManifest::Definition(v2_definition_manifest_to_v1(def))
@@ -460,7 +489,6 @@ pub fn v2_manifest_to_v1(m: V2RegistryManifest) -> V1RegistryManifest {
                     .map(v2_dependency_to_v1)
                     .collect(),
                 stability: v2_stability_to_v1(pubm.stability),
-                deserialization_warnings: pubm.deserialization_warnings,
             })
         }
     }
@@ -589,9 +617,7 @@ pub(crate) fn v2_span_to_v1(span: Span) -> V1GroupSpec {
             .collect(),
         visibility: None,
         is_v2: true,
-        span_name: Some(V1SpanName {
-            note: span.name.note,
-        }),
+        span_name: Some(v2_span_name_to_v1(span.name)),
         requirement_level: span
             .requirement_level
             .map(v2_signal_requirement_level_to_v1),
@@ -633,7 +659,7 @@ pub(crate) fn v2_span_refinement_to_v1(r: SpanRefinement) -> V1GroupSpec {
             .collect(),
         visibility: None,
         is_v2: true,
-        span_name: r.name.map(|n| V1SpanName { note: n.note }),
+        span_name: r.name.map(v2_span_name_to_v1),
         requirement_level: None,
     }
 }
@@ -1112,10 +1138,36 @@ pub fn v1_span_kind_to_v2(k: V1SpanKindSpec) -> V2SpanKindSpec {
     }
 }
 
+/// Converts a V1 span name template part to V2.
+#[must_use]
+pub(crate) fn v1_template_part_to_v2(p: V1TemplatePart) -> V2TemplatePart {
+    match p {
+        V1TemplatePart::Literal { value } => V2TemplatePart::Literal { value },
+        V1TemplatePart::Attribute { attribute } => V2TemplatePart::Attribute { attribute },
+    }
+}
+
+/// Converts a V1 span name template to V2.
+#[must_use]
+pub(crate) fn v1_span_name_template_to_v2(t: V1SpanNameTemplate) -> V2SpanNameTemplate {
+    V2SpanNameTemplate {
+        pattern: t.pattern,
+        attributes: t.attributes,
+        parts: t.parts.into_iter().map(v1_template_part_to_v2).collect(),
+    }
+}
+
 /// Converts V1 span name to V2.
 #[must_use]
-pub fn v1_span_name_to_v2(s: V1SpanName) -> crate::v2::span::SpanName {
-    crate::v2::span::SpanName { note: s.note }
+pub fn v1_span_name_to_v2(s: V1SpanName) -> V2SpanName {
+    V2SpanName {
+        templates: s
+            .templates
+            .into_iter()
+            .map(v1_span_name_template_to_v2)
+            .collect(),
+        note: s.note,
+    }
 }
 
 /// Converts a V1 stability level to V2.
@@ -1145,7 +1197,9 @@ impl TryFrom<V1Stability> for V2Stability {
 
 /// Converts a V1 signal requirement level to V2.
 #[must_use]
-pub fn v1_signal_requirement_level_to_v2(s: V1SignalRequirementLevel) -> V2SignalRequirementLevel {
+pub(crate) fn v1_signal_requirement_level_to_v2(
+    s: V1SignalRequirementLevel,
+) -> V2SignalRequirementLevel {
     match s {
         V1SignalRequirementLevel::Recommended => V2SignalRequirementLevel::Recommended,
         V1SignalRequirementLevel::OptIn => V2SignalRequirementLevel::OptIn,
@@ -1160,7 +1214,7 @@ impl From<V1SignalRequirementLevel> for V2SignalRequirementLevel {
 
 /// Converts a V1 entity association to V2.
 #[must_use]
-pub fn v1_entity_association_to_v2(e: V1EntityAssociation) -> V2EntityAssociation {
+pub(crate) fn v1_entity_association_to_v2(e: V1EntityAssociation) -> V2EntityAssociation {
     match e {
         V1EntityAssociation::Ref(name) => V2EntityAssociation::Ref(name),
         V1EntityAssociation::OneOf { one_of } => V2EntityAssociation::OneOf {
@@ -1186,7 +1240,7 @@ impl From<V1EntityAssociation> for V2EntityAssociation {
 
 /// Converts a V1 dependency to V2.
 #[must_use]
-pub fn v1_dependency_to_v2(d: V1Dependency) -> V2Dependency {
+pub(crate) fn v1_dependency_to_v2(d: V1Dependency) -> V2Dependency {
     V2Dependency {
         schema_url: d.schema_url,
         registry_path: d.registry_path,
@@ -1200,7 +1254,7 @@ impl From<V1Dependency> for V2Dependency {
 }
 
 /// Converts a V1 definition registry manifest to V2.
-pub fn v1_definition_manifest_to_v2(
+pub(crate) fn v1_definition_manifest_to_v2(
     m: V1DefinitionRegistryManifest,
 ) -> Result<V2DefinitionRegistryManifest, Error> {
     let stability = v1_stability_to_v2(m.stability)?;
@@ -1215,7 +1269,6 @@ pub fn v1_definition_manifest_to_v2(
         description: m.description,
         dependencies,
         stability,
-        deserialization_warnings: m.deserialization_warnings,
     })
 }
 
@@ -1228,7 +1281,7 @@ impl TryFrom<V1DefinitionRegistryManifest> for V2DefinitionRegistryManifest {
 }
 
 /// Converts a V1 registry manifest to V2.
-pub fn v1_manifest_to_v2(m: V1RegistryManifest) -> Result<V2RegistryManifest, Error> {
+pub(crate) fn v1_manifest_to_v2(m: V1RegistryManifest) -> Result<V2RegistryManifest, Error> {
     match m {
         V1RegistryManifest::Definition(def) => {
             v1_definition_manifest_to_v2(def).map(V2RegistryManifest::Definition)
@@ -1248,11 +1301,11 @@ impl TryFrom<V1RegistryManifest> for V2RegistryManifest {
 mod tests {
     use super::*;
     use crate::deprecated::Deprecated;
-    use crate::v1::group::SpanName as V1SpanName;
+    use crate::v1::group::{SpanName as V1SpanName, SpanNameTemplate as V1SpanNameTemplate};
     use crate::v1::stability::Stability as V1Stability;
     use crate::v2::attribute::GroupRef;
     use crate::v2::signal_id::SignalId;
-    use crate::v2::span::{SpanGroupRef, SpanName};
+    use crate::v2::span::{SpanGroupRef, SpanName, SpanNameTemplate};
     use crate::v2::stability::Stability as V2Stability;
     use crate::v2::{CommonFields, GroupWildcard as V2GroupWildcard};
     use crate::YamlValue;
@@ -1570,10 +1623,11 @@ mod tests {
     #[test]
     fn test_span_name_conversions() {
         let v2_span_name = SpanName {
-            note: "HTTP {method}".to_owned(),
+            templates: Vec::new(),
+            note: Some("HTTP {method}".to_owned()),
         };
         let v1_span_name = v2_span_name_to_v1(v2_span_name.clone());
-        assert_eq!(v1_span_name.note, "HTTP {method}");
+        assert_eq!(v1_span_name.note, Some("HTTP {method}".to_owned()));
         assert_eq!(v1_span_name_to_v2(v1_span_name).note, v2_span_name.note);
     }
 
@@ -1795,7 +1849,8 @@ attributes:
             r#type: SignalId::from("http.client"),
             kind: V2SpanKindSpec::Client,
             name: SpanName {
-                note: "HTTP {http.request.method}".to_owned(),
+                note: Some("HTTP {http.request.method}".to_owned()),
+                ..Default::default()
             },
             common: CommonFields {
                 brief: "Client HTTP span".to_owned(),
@@ -1826,7 +1881,8 @@ attributes:
         assert_eq!(
             v1_group.span_name,
             Some(V1SpanName {
-                note: "HTTP {http.request.method}".to_owned()
+                note: Some("HTTP {http.request.method}".to_owned()),
+                ..Default::default()
             })
         );
         assert_eq!(v1_group.attributes.len(), 1);
@@ -1839,7 +1895,8 @@ attributes:
             id: SignalId::from("http.client.refined"),
             r#ref: SignalId::from("http.client"),
             name: Some(SpanName {
-                note: "Overridden name".to_owned(),
+                note: Some("Overridden name".to_owned()),
+                ..Default::default()
             }),
             brief: Some("Refined span brief".to_owned()),
             note: Some("Refined span note".to_owned()),
@@ -1857,10 +1914,37 @@ attributes:
         assert_eq!(
             v1_group.span_name,
             Some(V1SpanName {
-                note: "Overridden name".to_owned()
+                note: Some("Overridden name".to_owned()),
+                ..Default::default()
             })
         );
         assert!(v1_group.is_v2);
+    }
+
+    #[test]
+    fn test_v2_span_name_to_v1_preserves_templates() {
+        let v2_name = SpanName {
+            templates: vec![
+                SpanNameTemplate::parse("{http.request.method} {url.template}").unwrap(),
+                SpanNameTemplate::parse("{http.request.method}").unwrap(),
+                SpanNameTemplate::parse("HTTP").unwrap(),
+            ],
+            note: None,
+        };
+
+        let v1_name = v2_span_name_to_v1(v2_name.clone());
+        assert_eq!(
+            v1_name.templates,
+            vec![
+                V1SpanNameTemplate::parse("{http.request.method} {url.template}").unwrap(),
+                V1SpanNameTemplate::parse("{http.request.method}").unwrap(),
+                V1SpanNameTemplate::parse("HTTP").unwrap(),
+            ]
+        );
+        assert_eq!(v1_name.note, None);
+
+        let v2_roundtrip = v1_span_name_to_v2(v1_name);
+        assert_eq!(v2_roundtrip, v2_name);
     }
 
     #[test]
@@ -2196,7 +2280,6 @@ stability: stable
             description: Some("test registry".to_owned()),
             dependencies: vec![v1_dep],
             stability: V1Stability::Stable,
-            deserialization_warnings: vec![],
         };
         let v2_def = V2DefinitionRegistryManifest::try_from(v1_def.clone()).unwrap();
         assert_eq!(
@@ -2230,7 +2313,6 @@ stability: stable
             dependencies: vec![],
             stability: V2Stability::Stable,
             resolved_registry_uri: "https://example.com/resolved.yaml".to_owned(),
-            deserialization_warnings: vec![],
         };
         let v1_from_pub = V1RegistryManifest::from(V2RegistryManifest::Publication(v2_pub));
         assert_eq!(
@@ -2245,7 +2327,6 @@ stability: stable
             description: None,
             dependencies: vec![],
             stability: V1Stability::Deprecated,
-            deserialization_warnings: vec![],
         };
         assert!(V2DefinitionRegistryManifest::try_from(v1_deprecated_def).is_err());
     }

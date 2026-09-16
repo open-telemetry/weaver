@@ -39,9 +39,6 @@ pub struct DefinitionRegistryManifest {
     /// The stability of this repository.
     #[serde(default)]
     pub stability: Stability,
-
-    #[serde(skip)]
-    pub(crate) deserialization_warnings: Vec<String>,
 }
 
 impl DefinitionRegistryManifest {
@@ -65,7 +62,6 @@ impl DefinitionRegistryManifest {
             description: None,
             dependencies: vec![],
             stability: Stability::Development,
-            deserialization_warnings: vec![],
         }
     }
 }
@@ -146,8 +142,11 @@ struct RawManifestFields {
 }
 
 impl RawManifestFields {
-    fn into_manifest(self, path: &std::path::Path) -> Result<RegistryManifest, Error> {
-        let mut warnings = vec![];
+    fn into_manifest(
+        self,
+        path: &std::path::Path,
+        nfes: &mut Vec<Error>,
+    ) -> Result<RegistryManifest, Error> {
         if let Some(ref fmt) = self.file_format {
             return Err(InvalidRegistryManifest {
                 path: path.to_path_buf(),
@@ -169,10 +168,11 @@ impl RawManifestFields {
                     path: path.to_path_buf(),
                     error: "Either 'schema_url' or both 'schema_base_url' and 'semconv_version' must be provided".into(),
                 })?;
-            warnings.push(
-                "The 'semconv_version' and 'schema_base_url' fields are deprecated in favor of 'schema_url'."
+            nfes.push(DeprecatedSyntaxInRegistryManifest {
+                path: path.to_path_buf(),
+                error: "The 'semconv_version' and 'schema_base_url' fields are deprecated in favor of 'schema_url'."
                     .to_owned(),
-            );
+            });
             SchemaUrl::try_from_name_version(base_url, version).map_err(|e| {
                 InvalidRegistryManifest {
                     path: path.to_path_buf(),
@@ -194,7 +194,6 @@ impl RawManifestFields {
             description: self.description,
             dependencies,
             stability: self.stability,
-            deserialization_warnings: warnings,
         }))
     }
 }
@@ -231,7 +230,7 @@ impl RegistryManifest {
                 path: manifest_path_buf.clone(),
                 error: e.to_string(),
             })?;
-        let manifest = raw.into_manifest(&manifest_path_buf)?;
+        let manifest = raw.into_manifest(&manifest_path_buf, nfes)?;
 
         // Check if this is a legacy manifest file
         let is_legacy = if let Some(file_name) = manifest_path_buf.file_name() {
@@ -247,18 +246,6 @@ impl RegistryManifest {
                 path: manifest_path_buf.clone(),
             });
         }
-
-        let deserialization_warnings = match &manifest {
-            RegistryManifest::Definition(def) => def.deserialization_warnings.as_slice(),
-        };
-        nfes.extend(
-            deserialization_warnings
-                .iter()
-                .map(|w| DeprecatedSyntaxInRegistryManifest {
-                    path: manifest_path_buf.clone(),
-                    error: w.clone(),
-                }),
-        );
 
         Ok(manifest)
     }

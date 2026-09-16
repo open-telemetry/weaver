@@ -458,7 +458,8 @@ pub fn convert_v1_to_v2(
                     .clone()
                     .map(weaver_semconv::convert::v1_span_name_to_v2)
                     .unwrap_or_else(|| SpanName {
-                        note: g.name.clone().unwrap_or_default(),
+                        templates: Vec::new(),
+                        note: g.name.clone(),
                     });
                 if !is_refinement {
                     let span = V2Span {
@@ -1859,7 +1860,8 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: Some(weaver_semconv::v1::group::SpanName {
-                note: "HTTP {http.request.method}".to_owned(),
+                templates: Vec::new(),
+                note: Some("HTTP {http.request.method}".to_owned()),
             }),
         };
 
@@ -1878,7 +1880,10 @@ mod tests {
             refinement.span.kind,
             weaver_semconv::v2::span::SpanKindSpec::Client
         );
-        assert_eq!(refinement.span.name.note, "HTTP {http.request.method}");
+        assert_eq!(
+            refinement.span.name.note.as_deref(),
+            Some("HTTP {http.request.method}")
+        );
     }
 
     /// Converting a public attribute group carries the group-specific requirement level.

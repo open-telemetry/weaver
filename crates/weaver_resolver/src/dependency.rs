@@ -747,7 +747,8 @@ pub(crate) mod tests {
                     r#type: "span.d".to_owned().into(),
                     kind: weaver_semconv::v2::span::SpanKindSpec::Client,
                     name: weaver_semconv::v2::span::SpanName {
-                        note: "test".to_owned(),
+                        templates: Vec::new(),
+                        note: Some("test".to_owned()),
                     },
                     attributes: vec![],
                     entity_associations: vec![],
@@ -853,7 +854,8 @@ pub(crate) mod tests {
         assert_eq!(
             span_summary.span_name,
             Some(weaver_semconv::v1::group::SpanName {
-                note: "test".to_owned(),
+                templates: Vec::new(),
+                note: Some("test".to_owned()),
             })
         );
 
