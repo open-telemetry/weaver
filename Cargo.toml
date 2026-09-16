@@ -41,6 +41,7 @@ serde_yaml = "0.9.34"
 serde_json = { version = "1.0.145" }
 thiserror = "2.0.17"
 url = "2.5.4"
+sha2 = "0.10.9"
 ureq = { version = "3.1.4", default-features = false, features = [
     "gzip",
     "platform-verifier",

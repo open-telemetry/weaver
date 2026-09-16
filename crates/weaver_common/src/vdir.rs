@@ -75,6 +75,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::fs::{create_dir_all, File};
@@ -317,6 +318,34 @@ enum RefStability {
     Moving,
 }
 
+/// A cloned repository on disk, either a cache entry that outlives the process
+/// or a directory deleted when it is dropped.
+#[derive(Debug)]
+enum GitCheckout {
+    /// A cache entry, kept after the command exits.
+    Cached(PathBuf),
+    /// A directory deleted when the returned [`VirtualDirectory`] is dropped.
+    Throwaway(TempDir),
+}
+
+impl GitCheckout {
+    /// The repository root on disk.
+    fn path(&self) -> &Path {
+        match self {
+            GitCheckout::Cached(path) => path,
+            GitCheckout::Throwaway(tmp_dir) => tmp_dir.path(),
+        }
+    }
+
+    /// The directory to delete on drop, if this checkout owns one.
+    fn into_tmp_dir(self) -> Option<TempDir> {
+        match self {
+            GitCheckout::Cached(_) => None,
+            GitCheckout::Throwaway(tmp_dir) => Some(tmp_dir),
+        }
+    }
+}
+
 /// Process-wide git-registry cache configuration, set once at startup by the CLI
 /// layer via [`configure_git_cache`]. Defaults to disabled (`root: None`).
 static GIT_CACHE_CONFIG: Lazy<RwLock<GitCacheConfig>> =
@@ -349,22 +378,16 @@ fn git_cache_config() -> GitCacheConfig {
 ///
 /// The key is a function of `(url, refspec)` only — the sub-folder is applied
 /// after checkout, so registries that differ only by sub-folder share one clone.
-/// A short human-readable slug is prefixed for debuggability; a 64-bit FNV-1a
-/// hash (rendered as hex) guarantees uniqueness and is stable across platforms
-/// and toolchain versions, so the same key is reproducible in CI caches.
+/// A short human-readable slug is prefixed for debuggability, and a truncated
+/// SHA-256 of the two fields makes the name unique. The digest is stable across
+/// platforms and toolchain versions, so the key is reproducible in CI caches.
 fn git_cache_key(url: &str, refspec: &str) -> String {
-    const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
-    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
-
-    let mut hash = FNV_OFFSET;
-    for byte in url
-        .bytes()
-        .chain(std::iter::once(0u8))
-        .chain(refspec.bytes())
-    {
-        hash ^= u64::from(byte);
-        hash = hash.wrapping_mul(FNV_PRIME);
-    }
+    let mut hasher = Sha256::new();
+    hasher.update(url.as_bytes());
+    hasher.update([0u8]);
+    hasher.update(refspec.as_bytes());
+    let digest = hasher.finalize();
+    let hash: String = digest.iter().take(8).map(|b| format!("{b:02x}")).collect();
 
     let sanitize = |s: &str| -> String {
         s.chars()
@@ -387,20 +410,19 @@ fn git_cache_key(url: &str, refspec: &str) -> String {
     );
     let ref_slug = sanitize(refspec);
 
-    format!("{repo_slug}-{ref_slug}-{hash:016x}")
+    format!("{repo_slug}-{ref_slug}-{hash}")
 }
 
 /// Strips a `user[:password]@` component from `url`, returning `None` when the
 /// URL carries no credentials.
 fn url_without_userinfo(url: &str) -> Option<String> {
-    let (scheme, rest) = url.split_once("://")?;
-    let (userinfo, host) = rest.split_once('@')?;
-    // Only the authority may hold credentials; an `@` after the first `/`
-    // belongs to the path.
-    if userinfo.contains('/') {
+    let mut parsed = Url::parse(url).ok()?;
+    if parsed.username().is_empty() && parsed.password().is_none() {
         return None;
     }
-    Some(format!("{scheme}://{host}"))
+    parsed.set_username("").ok()?;
+    parsed.set_password(None).ok()?;
+    Some(parsed.to_string())
 }
 
 /// Derives a unique sibling path under `git_root` from an existing unique staging
@@ -793,10 +815,7 @@ impl VirtualDirectory {
         Self::try_from_git_url_with_cache(url, sub_folder, refspec, vdir_path, &git_cache_config())
     }
 
-    /// Dispatches a Git source to the cache or to a throwaway clone.
-    ///
-    /// A source without a refspec tracks the remote default branch, so it is
-    /// never cacheable and never consults `cache`.
+    /// Resolves a Git source into a [`VirtualDirectory`] backed by `cache`.
     fn try_from_git_url_with_cache(
         url: &str,
         sub_folder: &Option<String>,
@@ -804,84 +823,55 @@ impl VirtualDirectory {
         vdir_path: String,
         cache: &GitCacheConfig,
     ) -> Result<Self, Error> {
-        match (cache.root.as_ref(), refspec.as_ref()) {
-            (Some(root), Some(refspec)) => Self::try_from_git_url_cached(
-                url,
-                sub_folder,
-                refspec,
-                vdir_path,
-                root,
-                cache.offline,
-                cache.refresh,
-            ),
-            _ => Self::try_from_git_url_tmp(url, sub_folder, refspec, vdir_path),
-        }
-    }
-
-    /// Clones a Git repository into a throwaway temporary directory that is
-    /// deleted when the returned [`VirtualDirectory`] is dropped.
-    fn try_from_git_url_tmp(
-        url: &str,
-        sub_folder: &Option<String>,
-        refspec: &Option<String>,
-        vdir_path: String,
-    ) -> Result<Self, Error> {
-        let tmp_dir = Self::create_tmp_repo()?;
-        let _ = Self::clone_into(url, refspec, tmp_dir.path())?;
-        let path = Self::resolve_git_sub_folder(tmp_dir.path(), sub_folder, url)?;
+        let checkout = Self::checkout_git_repo(url, refspec, cache)?;
+        let path = Self::resolve_git_sub_folder(checkout.path(), sub_folder, url)?;
         Ok(Self {
             vdir_path,
             path,
-            tmp_dir: Arc::new(Some(tmp_dir)),
+            tmp_dir: Arc::new(checkout.into_tmp_dir()),
         })
     }
 
-    /// Resolves a Git source through the on-disk cache rooted at `cache_root`.
+    /// Materializes `url` on disk, in the cache when the source is cacheable
+    /// and in a throwaway directory otherwise.
     ///
-    /// A hit is reused with no network access. A miss clones into a private
-    /// staging directory; only an [`RefStability::Immutable`] refspec is then
-    /// installed in the cache, and a moving one is served from the staging
-    /// directory as a throwaway clone.
-    fn try_from_git_url_cached(
+    /// A cache hit is reused with no network access. A miss clones into a
+    /// private staging directory, which is installed in the cache only for an
+    /// [`RefStability::Immutable`] refspec; a moving one is served from the
+    /// staging directory, which is then a throwaway clone. A source with no
+    /// refspec tracks the remote default branch, so it never consults `cache`.
+    fn checkout_git_repo(
         url: &str,
-        sub_folder: &Option<String>,
-        refspec: &str,
-        vdir_path: String,
-        cache_root: &Path,
-        offline: bool,
-        refresh: bool,
-    ) -> Result<Self, Error> {
+        refspec: &Option<String>,
+        cache: &GitCacheConfig,
+    ) -> Result<GitCheckout, Error> {
+        let (Some(cache_root), Some(pinned)) = (cache.root.as_ref(), refspec.as_ref()) else {
+            let tmp_dir = Self::create_tmp_repo()?;
+            let _ = Self::clone_into(url, refspec, tmp_dir.path())?;
+            return Ok(GitCheckout::Throwaway(tmp_dir));
+        };
+
         let git_root = cache_root.join("git");
-        let target = git_root.join(git_cache_key(url, refspec));
+        let target = git_root.join(git_cache_key(url, pinned));
 
         // A refresh needs the network, so offline serves whatever is cached.
-        let refresh = refresh && !offline;
+        let refresh = cache.refresh && !cache.offline;
 
         if !refresh && target.exists() {
-            return Ok(Self {
-                vdir_path,
-                path: Self::resolve_git_sub_folder(&target, sub_folder, url)?,
-                tmp_dir: Arc::new(None),
-            });
+            return Ok(GitCheckout::Cached(target));
         }
-        if offline {
+        if cache.offline {
             return Err(Error::RegistryOffline {
-                registry: format!("{url}@{refspec}"),
+                registry: format!("{url}@{pinned}"),
             });
         }
 
-        match Self::populate_git_cache(url, refspec, &git_root, &target)? {
-            None => Ok(Self {
-                vdir_path,
-                path: Self::resolve_git_sub_folder(&target, sub_folder, url)?,
-                tmp_dir: Arc::new(None),
-            }),
-            Some(tmp_dir) => Ok(Self {
-                vdir_path,
-                path: Self::resolve_git_sub_folder(tmp_dir.path(), sub_folder, url)?,
-                tmp_dir: Arc::new(Some(tmp_dir)),
-            }),
-        }
+        Ok(
+            match Self::populate_git_cache(url, pinned, &git_root, &target)? {
+                None => GitCheckout::Cached(target),
+                Some(tmp_dir) => GitCheckout::Throwaway(tmp_dir),
+            },
+        )
     }
 
     /// Clones `url`@`refspec` into a private staging directory under `git_root`.
@@ -1480,6 +1470,7 @@ impl VirtualDirectory {
 
 #[cfg(test)]
 mod tests {
+    use super::GitCacheConfig;
     use crate::test::ServeStaticFiles;
     use crate::vdir::{VirtualDirectory, VirtualDirectoryPath};
     use crate::Error::GitError;
@@ -2205,14 +2196,16 @@ mod tests {
         // cache unusable, and that must surface rather than be ignored.
         std::fs::write(cache.path().join("git"), "not a directory").unwrap();
 
-        let result = VirtualDirectory::try_from_git_url_cached(
+        let result = VirtualDirectory::try_from_git_url_with_cache(
             "https://example.com/repo.git",
             &Some("model".to_owned()),
-            "v1.0.0",
+            &Some("v1.0.0".to_owned()),
             "vdir".to_owned(),
-            cache.path(),
-            false, // offline
-            false, // refresh
+            &GitCacheConfig {
+                root: Some(cache.path().to_path_buf()),
+                offline: false,
+                refresh: false,
+            },
         );
         assert!(
             matches!(result, Err(CacheDirNotCreated { .. })),
@@ -2227,14 +2220,16 @@ mod tests {
         let cache = tempfile::tempdir().unwrap();
         // Offline + empty cache must fail fast with `RegistryOffline` and never
         // touch the network.
-        let result = VirtualDirectory::try_from_git_url_cached(
+        let result = VirtualDirectory::try_from_git_url_with_cache(
             "https://github.com/open-telemetry/semantic-conventions.git",
             &Some("model".to_owned()),
-            "v1.26.0",
+            &Some("v1.26.0".to_owned()),
             "vdir".to_owned(),
-            cache.path(),
-            true,  // offline
-            false, // refresh
+            &GitCacheConfig {
+                root: Some(cache.path().to_path_buf()),
+                offline: true,
+                refresh: false,
+            },
         );
         assert!(
             matches!(result, Err(RegistryOffline { .. })),
@@ -2256,14 +2251,16 @@ mod tests {
         std::fs::create_dir_all(&model).unwrap();
         std::fs::write(model.join("general.yaml"), "groups: []\n").unwrap();
 
-        let vdir = VirtualDirectory::try_from_git_url_cached(
+        let vdir = VirtualDirectory::try_from_git_url_with_cache(
             url,
             &Some("model".to_owned()),
-            refspec,
+            &Some(refspec.to_owned()),
             "vdir".to_owned(),
-            cache.path(),
-            true,  // offline
-            false, // refresh
+            &GitCacheConfig {
+                root: Some(cache.path().to_path_buf()),
+                offline: true,
+                refresh: false,
+            },
         )
         .expect("cache hit should succeed offline");
 
@@ -2320,14 +2317,16 @@ mod tests {
         assert!(!entry.exists());
 
         // First call populates the cache by cloning the (local) repo.
-        let first = VirtualDirectory::try_from_git_url_cached(
+        let first = VirtualDirectory::try_from_git_url_with_cache(
             &url,
             &Some("model".to_owned()),
-            refspec,
+            &Some(refspec.to_owned()),
             "vdir".to_owned(),
-            cache.path(),
-            false, // offline
-            false, // refresh
+            &GitCacheConfig {
+                root: Some(cache.path().to_path_buf()),
+                offline: false,
+                refresh: false,
+            },
         )
         .expect("first call should populate the cache");
         let first_path = first.path().to_path_buf();
@@ -2339,14 +2338,16 @@ mod tests {
         assert!(first_path.exists());
 
         // Second call is served from the cache with no fetch.
-        let second = VirtualDirectory::try_from_git_url_cached(
+        let second = VirtualDirectory::try_from_git_url_with_cache(
             &url,
             &Some("model".to_owned()),
-            refspec,
+            &Some(refspec.to_owned()),
             "vdir".to_owned(),
-            cache.path(),
-            true,  // offline
-            false, // refresh
+            &GitCacheConfig {
+                root: Some(cache.path().to_path_buf()),
+                offline: true,
+                refresh: false,
+            },
         )
         .expect("second call should hit the cache offline");
         assert_eq!(second.path(), first_path);
@@ -2367,14 +2368,16 @@ mod tests {
         std::fs::write(model.join("general.yaml"), "stale: true\n").unwrap();
 
         // Refresh re-clones and atomically replaces the stale entry.
-        let refreshed = VirtualDirectory::try_from_git_url_cached(
+        let refreshed = VirtualDirectory::try_from_git_url_with_cache(
             &url,
             &Some("model".to_owned()),
-            refspec,
+            &Some(refspec.to_owned()),
             "vdir".to_owned(),
-            cache.path(),
-            false, // offline
-            true,  // refresh
+            &GitCacheConfig {
+                root: Some(cache.path().to_path_buf()),
+                offline: false,
+                refresh: true,
+            },
         )
         .expect("refresh should re-clone and replace the entry");
 
@@ -2415,14 +2418,16 @@ mod tests {
 
         // offline + refresh: offline must win, so the cached entry is served
         // untouched with no network access instead of a re-fetch.
-        let vdir = VirtualDirectory::try_from_git_url_cached(
+        let vdir = VirtualDirectory::try_from_git_url_with_cache(
             url,
             &Some("model".to_owned()),
-            refspec,
+            &Some(refspec.to_owned()),
             "vdir".to_owned(),
-            cache.path(),
-            true, // offline
-            true, // refresh
+            &GitCacheConfig {
+                root: Some(cache.path().to_path_buf()),
+                offline: true,
+                refresh: true,
+            },
         )
         .expect("offline should override refresh and serve the cache");
 
@@ -2439,14 +2444,16 @@ mod tests {
         use crate::Error::RegistryOffline;
 
         let cache = tempfile::tempdir().unwrap();
-        let result = VirtualDirectory::try_from_git_url_cached(
+        let result = VirtualDirectory::try_from_git_url_with_cache(
             "https://github.com/open-telemetry/semantic-conventions.git",
             &Some("model".to_owned()),
-            "v1.26.0",
+            &Some("v1.26.0".to_owned()),
             "vdir".to_owned(),
-            cache.path(),
-            true, // offline
-            true, // refresh
+            &GitCacheConfig {
+                root: Some(cache.path().to_path_buf()),
+                offline: true,
+                refresh: true,
+            },
         );
         assert!(
             matches!(result, Err(RegistryOffline { .. })),
@@ -2456,8 +2463,6 @@ mod tests {
 
     #[test]
     fn test_source_without_refspec_is_never_cached() {
-        use super::GitCacheConfig;
-
         let (_repo, url) = make_local_git_repo();
         let cache = tempfile::tempdir().unwrap();
         let config = GitCacheConfig {
@@ -2495,7 +2500,7 @@ mod tests {
 
     #[test]
     fn test_branch_refspec_is_never_cached() {
-        use super::{git_cache_key, GitCacheConfig};
+        use super::git_cache_key;
 
         let (_repo, url) = make_local_git_repo();
         let cache = tempfile::tempdir().unwrap();
@@ -2530,7 +2535,7 @@ mod tests {
 
     #[test]
     fn test_tag_refspec_is_cached() {
-        use super::{git_cache_key, GitCacheConfig};
+        use super::git_cache_key;
 
         let (_repo, url) = make_local_git_repo();
         let cache = tempfile::tempdir().unwrap();
@@ -2563,8 +2568,6 @@ mod tests {
 
     #[test]
     fn test_disabled_cache_uses_throwaway_clone() {
-        use super::GitCacheConfig;
-
         let (_repo, url) = make_local_git_repo();
         let vdir = VirtualDirectory::try_from_git_url_with_cache(
             &url,
