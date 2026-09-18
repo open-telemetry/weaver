@@ -74,6 +74,13 @@ params:                    # optional
   <param_2>: <any_simple_type>
   # ...
 
+# JQ modules added to Weaver's built-in filter prelude. Paths are resolved
+# relative to this weaver.yaml file. Modules are loaded in list order; later
+# definitions take precedence on collisions.
+jq_modules:
+  - jq/common.jq
+  - jq/rust.jq
+
 # Each template mapping specifies a jaq filter (compatible with jq)
 # to apply to every file matching the template pattern. The application_mode specifies
 # how the template should be applied. The application_mode can be `each` or

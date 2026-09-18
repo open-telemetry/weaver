@@ -509,6 +509,17 @@
             "type": "string"
           }
         },
+        "jq_modules": {
+          "description": "JQ modules added to Weaver's built-in filter prelude for template generation.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "items": {
+            "type": "string"
+          }
+        },
         "text_maps": {
           "description": "Named text mappings used by the `map_text` filter (e.g. a\n`namespace_mapping` from `CICD` to `CI/CD`).",
           "type": [

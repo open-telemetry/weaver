@@ -89,6 +89,22 @@ impl WeaverConfig {
                 reason: e.to_string(),
             })
     }
+
+    fn resolve_template_jq_modules(&mut self, config_path: &Path) {
+        let Some(jq_modules) = self.template.jq_modules.as_mut() else {
+            return;
+        };
+        let base = config_path
+            .parent()
+            .filter(|path| !path.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
+        let base = base.canonicalize().unwrap_or_else(|_| base.to_path_buf());
+        for module in jq_modules {
+            if module.is_relative() {
+                *module = base.join(&*module);
+            }
+        }
+    }
 }
 
 /// Discover a `.weaver.toml` file by walking up from the given directory.
@@ -118,10 +134,12 @@ pub fn load(path: &Path) -> Result<WeaverConfig, ConfigError> {
         path: path.to_path_buf(),
         reason: e.to_string(),
     })?;
-    toml::from_str(&content).map_err(|e| ConfigError::Parse {
+    let mut config: WeaverConfig = toml::from_str(&content).map_err(|e| ConfigError::Parse {
         path: path.to_path_buf(),
         reason: e.to_string(),
-    })
+    })?;
+    config.resolve_template_jq_modules(path);
+    Ok(config)
 }
 
 /// Discover and load a `.weaver.toml` starting from the given directory.
@@ -230,5 +248,26 @@ endpoint = "http://example.com:4317"
 
         // Verify the raw table has the emit section
         assert!(config.commands.contains_key("emit"));
+    }
+
+    #[test]
+    fn test_load_resolves_template_jq_modules_from_config_directory() {
+        let dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let config_path = dir.path().join(CONFIG_FILENAME);
+        fs::write(
+            &config_path,
+            "[template]\njq_modules = [\"jq/common.jq\"]\n",
+        )
+        .expect("Failed to write config");
+
+        let config = load(&config_path).expect("Failed to load config");
+        assert_eq!(
+            config.template.jq_modules,
+            Some(vec![dir
+                .path()
+                .canonicalize()
+                .expect("Failed to canonicalize config directory")
+                .join("jq/common.jq"),])
+        );
     }
 }
