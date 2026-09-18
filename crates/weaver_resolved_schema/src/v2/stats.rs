@@ -3,10 +3,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use serde::Serialize;
-use weaver_semconv::{
-    stability::Stability,
-    v2::{metric::InstrumentSpec, span::SpanKindSpec},
-};
+use weaver_semconv::v2::{metric::InstrumentSpec, span::SpanKindSpec, stability::Stability};
 
 /// Statistics on a resolved telemetry schema.
 #[derive(Debug, Serialize)]

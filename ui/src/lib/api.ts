@@ -107,16 +107,41 @@ export interface RegistryStats {
   refinements: Record<string, unknown>;
 }
 
-export interface AttributeResponse {
-  key: string;
-  stability?: StabilityFilter;
-  deprecated?: {
-    note?: string;
-    renamed_to?: string;
-  } | boolean;
+export interface DeprecatedInfo {
+  reason?: 'renamed' | 'obsoleted' | 'uncategorized' | 'unspecified' | string;
+  note?: string;
+  renamed_to?: string;
+}
+
+export type DeprecatedField = DeprecatedInfo | boolean;
+
+export type StabilityLevel =
+  | 'stable'
+  | 'development'
+  | 'alpha'
+  | 'beta'
+  | 'release_candidate';
+
+export type StabilityFilter = StabilityLevel | null;
+export type DeprecatedFilter = 'hide' | 'show' | 'only';
+export type TypeFilter = 'all' | 'attribute' | 'metric' | 'span' | 'event' | 'entity';
+
+export interface EnumMember {
+  value?: string | number | boolean;
+  id?: string;
   brief?: string;
   note?: string;
-  type: string | { members: Array<{ value?: string; id?: string; brief?: string }> };
+  stability?: StabilityLevel;
+  deprecated?: DeprecatedField;
+}
+
+export interface AttributeResponse {
+  key: string;
+  stability?: StabilityLevel;
+  deprecated?: DeprecatedField;
+  brief?: string;
+  note?: string;
+  type: string | { members: EnumMember[] };
   // A single example is a bare scalar; multiple is an array.
   examples?: unknown[] | unknown;
 }
@@ -141,8 +166,10 @@ export type EntityAssociation =
 
 export interface MetricAttribute {
   key: string;
-  type: string | { members: Array<{ value?: string; id?: string; brief?: string }> };
+  type: string | { members: EnumMember[] };
   brief?: string;
+  stability?: StabilityLevel;
+  deprecated?: DeprecatedField;
   requirement_level:
     | 'required'
     | 'recommended'
@@ -152,11 +179,8 @@ export interface MetricAttribute {
 
 export interface MetricResponse {
   name: string;
-  stability?: StabilityFilter;
-  deprecated?: {
-    note?: string;
-    renamed_to?: string;
-  } | boolean;
+  stability?: StabilityLevel;
+  deprecated?: DeprecatedField;
   brief?: string;
   note?: string;
   instrument: string;
@@ -167,8 +191,10 @@ export interface MetricResponse {
 
 export interface SpanAttribute {
   key: string;
-  type: string | { members: Array<{ value?: string; id?: string; brief?: string }> };
+  type: string | { members: EnumMember[] };
   brief?: string;
+  stability?: StabilityLevel;
+  deprecated?: DeprecatedField;
   requirement_level:
     | 'required'
     | 'recommended'
@@ -179,11 +205,8 @@ export interface SpanAttribute {
 
 export interface SpanResponse {
   type: string;
-  stability?: StabilityFilter;
-  deprecated?: {
-    note?: string;
-    renamed_to?: string;
-  } | boolean;
+  stability?: StabilityLevel;
+  deprecated?: DeprecatedField;
   brief?: string;
   note?: string;
   kind?: string;
@@ -193,8 +216,10 @@ export interface SpanResponse {
 
 export interface EventAttribute {
   key: string;
-  type: string;
+  type: string | { members: EnumMember[] };
   brief?: string;
+  stability?: StabilityLevel;
+  deprecated?: DeprecatedField;
   requirement_level:
     | 'required'
     | 'recommended'
@@ -204,11 +229,8 @@ export interface EventAttribute {
 
 export interface EventResponse {
   name: string;
-  stability?: StabilityFilter;
-  deprecated?: {
-    note?: string;
-    renamed_to?: string;
-  } | boolean;
+  stability?: StabilityLevel;
+  deprecated?: DeprecatedField;
   brief?: string;
   note?: string;
   attributes?: EventAttribute[];
@@ -217,17 +239,16 @@ export interface EventResponse {
 
 export interface EntityAttribute {
   key: string;
-  type: string | { members: Array<{ value?: string; id?: string; brief?: string }> };
+  type: string | { members: EnumMember[] };
   brief?: string;
+  stability?: StabilityLevel;
+  deprecated?: DeprecatedField;
 }
 
 export interface EntityResponse {
   type: string;
-  stability?: StabilityFilter;
-  deprecated?: {
-    note?: string;
-    renamed_to?: string;
-  } | boolean;
+  stability?: StabilityLevel;
+  deprecated?: DeprecatedField;
   brief?: string;
   note?: string;
   identity?: EntityAttribute[];
@@ -268,8 +289,8 @@ export interface SchemaResponse {
 export interface SearchResult {
   result_type: 'attribute' | 'metric' | 'span' | 'event' | 'entity';
   score: number;
-  stability?: Exclude<StabilityFilter, null>;
-  deprecated?: boolean;
+  stability?: StabilityLevel;
+  deprecated?: DeprecatedField;
   brief?: string;
   key?: string;
   name?: string;
@@ -286,16 +307,6 @@ export interface SearchResponse {
   offset: number;
   results: SearchResult[];
 }
-
-export type StabilityFilter =
-  | 'stable'
-  | 'development'
-  | 'alpha'
-  | 'beta'
-  | 'release_candidate'
-  | 'deprecated'
-  | null;
-export type TypeFilter = 'all' | 'attribute' | 'metric' | 'span' | 'event' | 'entity';
 
 export async function getRegistryStats(): Promise<RegistryStats> {
   return fetchJSON<RegistryStats>(`${BASE_URL}/registry/stats`);
@@ -327,7 +338,7 @@ export async function search(
   query: string | null = null,
   type: TypeFilter = 'all',
   stability: StabilityFilter = null,
-  hideDeprecated: boolean = false,
+  deprecated: DeprecatedFilter = 'hide',
   limit: number = 50,
   offset: number = 0,
   options?: { signal?: AbortSignal }
@@ -336,7 +347,11 @@ export async function search(
   if (query) searchParams.set('q', query);
   if (type !== 'all') searchParams.set('type', type);
   if (stability) searchParams.set('stability', stability);
-  if (hideDeprecated) searchParams.set('hide_deprecated', 'true');
+  if (deprecated === 'hide') {
+    searchParams.set('deprecated', 'false');
+  } else if (deprecated === 'only') {
+    searchParams.set('deprecated', 'true');
+  }
   if (limit) searchParams.set('limit', limit.toString());
   if (offset) searchParams.set('offset', offset.toString());
   return fetchJSON<SearchResponse>(`${BASE_URL}/registry/search?${searchParams.toString()}`, {
@@ -355,10 +370,10 @@ export async function searchAll(
   query: string | null = null,
   type: TypeFilter = 'all',
   stability: StabilityFilter = null,
-  hideDeprecated: boolean = false,
+  deprecated: DeprecatedFilter = 'hide',
   options?: { signal?: AbortSignal }
 ): Promise<SearchResponse> {
-  const first = await search(query, type, stability, hideDeprecated, maxSearchLimit, 0, options);
+  const first = await search(query, type, stability, deprecated, maxSearchLimit, 0, options);
   const results = [...first.results];
   let prevPageFirst = JSON.stringify(first.results[0] ?? null);
   while (results.length < first.total) {
@@ -366,7 +381,7 @@ export async function searchAll(
       query,
       type,
       stability,
-      hideDeprecated,
+      deprecated,
       maxSearchLimit,
       results.length,
       options

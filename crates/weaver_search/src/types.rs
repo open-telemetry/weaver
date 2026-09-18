@@ -11,7 +11,8 @@ use weaver_forge::v2::entity::Entity;
 use weaver_forge::v2::event::Event;
 use weaver_forge::v2::metric::Metric;
 use weaver_forge::v2::span::Span;
-use weaver_semconv::stability::Stability;
+use weaver_semconv::deprecated::Deprecated;
+use weaver_semconv::v2::stability::Stability;
 
 /// Generic wrapper that adds a relevance score to any searchable object.
 #[derive(Debug, Serialize, Clone, ToSchema)]
@@ -52,6 +53,9 @@ pub struct NamespaceAttribute {
     pub brief: String,
     /// Stability level.
     pub stability: Stability,
+    /// Deprecation info if deprecated.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<Deprecated>,
 }
 
 impl NamespaceAttribute {
@@ -62,6 +66,7 @@ impl NamespaceAttribute {
             key,
             brief: attr.common.brief.clone(),
             stability: attr.common.stability.clone(),
+            deprecated: attr.common.deprecated.clone(),
         }
     }
 }

@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: base
 description: >
   The same as `base`, but the `host` entity is excluded from dependency

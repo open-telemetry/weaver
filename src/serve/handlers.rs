@@ -272,12 +272,16 @@ pub async fn search_registry(
 ) -> impl IntoResponse {
     // Convert Option<String> to Option<&str> for search
     let query = params.q.as_deref();
+    #[allow(deprecated)]
+    let deprecated = params
+        .deprecated
+        .or_else(|| params.hide_deprecated.then_some(false));
 
     let (results, total) = state.search_ctx.search(
         query,
         params.search_type,
         params.stability,
-        params.hide_deprecated,
+        deprecated,
         params.limit,
         params.offset,
     );

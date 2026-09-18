@@ -17,11 +17,17 @@ import {
 import { InlineMarkdown } from '../components/InlineMarkdown'
 import { NamespaceTree, NamespaceTreeToolbar } from '../components/NamespaceTree'
 import { Pagination } from '../components/Pagination'
-import { StabilityBadge } from '../components/StabilityBadge'
+import { DeprecatedBadge, StabilityBadge } from '../components/StabilityBadge'
 import { TypeBadge } from '../components/TypeBadge'
-import { EyeIcon, EyeSlashIcon, ListViewIcon, TreeViewIcon } from '../components/ViewModeIcons'
+import {
+  DeprecatedOnlyIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  ListViewIcon,
+  TreeViewIcon,
+} from '../components/ViewModeIcons'
 import { search, searchAll } from '../lib/api'
-import type { SearchResponse, StabilityFilter, TypeFilter } from '../lib/api'
+import type { DeprecatedFilter, SearchResponse, StabilityFilter, TypeFilter } from '../lib/api'
 import { buildNamespaceTree, collectFolderPaths, defaultExpansion } from '../lib/namespaceTree'
 import { getScrollRestorationKey } from '../lib/scrollRestorationKey'
 import { getResultId, getResultLink, getResultMeta } from '../lib/searchResults'
@@ -36,16 +42,27 @@ const stabilityOptions: Array<Exclude<StabilityFilter, null>> = [
   'alpha',
   'beta',
   'release_candidate',
-  'deprecated',
 ]
 
 type ViewMode = 'list' | 'tree'
+type SortOrder = 'default' | 'name' | 'stability' | 'deprecated'
+
+const sortOptions: SortOrder[] = ['default', 'name', 'stability', 'deprecated']
+
+const stabilitySortRank: Record<string, number> = {
+  stable: 0,
+  release_candidate: 1,
+  beta: 2,
+  alpha: 3,
+  development: 4,
+}
 
 interface SearchState {
   query: string
   searchType: TypeFilter
   stabilityFilter: StabilityFilter
-  hideDeprecated: boolean
+  deprecatedFilter: DeprecatedFilter
+  sortOrder: SortOrder
   currentPage: number
   view: ViewMode
 }
@@ -74,10 +91,16 @@ const parseStabilityFilter = (value: string | null): StabilityFilter =>
 
 const parseViewMode = (value: string | null): ViewMode => (value === 'tree' ? 'tree' : 'list')
 
+const parseSortOrder = (value: string | null): SortOrder =>
+  sortOptions.includes(value as SortOrder) ? (value as SortOrder) : 'default'
+
 // Deprecated items are hidden by default, so the URL only carries a param
-// when the user opts in to showing them - same "only serialize non-default
-// state" convention as the rest of this file's filters.
-const parseHideDeprecated = (value: string | null): boolean => value !== 'show'
+// when the user opts in to showing them or filtering exclusively for them.
+const parseDeprecatedFilter = (value: string | null): DeprecatedFilter => {
+  if (value === 'show') return 'show'
+  if (value === 'only' || value === 'true') return 'only'
+  return 'hide'
+}
 
 // A bare digit string (e.g. "1") is valid JSON, and TanStack Router's default
 // search codec re-encodes any JSON-parseable string value through
@@ -111,7 +134,8 @@ function Search() {
   const [query, setQuery] = useState('')
   const [searchType, setSearchType] = useState<TypeFilter>('all')
   const [stabilityFilter, setStabilityFilter] = useState<StabilityFilter>(null)
-  const [hideDeprecated, setHideDeprecated] = useState(true)
+  const [deprecatedFilter, setDeprecatedFilter] = useState<DeprecatedFilter>('hide')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('default')
   const [currentPage, setCurrentPage] = useState(1)
   const [view, setView] = useState<ViewMode>('list')
   const [treeExpansion, setTreeExpansionState] = useState<TreeExpansion>(noTreeExpansion)
@@ -135,6 +159,24 @@ function Search() {
     () => (view === 'tree' && results ? buildNamespaceTree(results.results) : null),
     [results, view]
   )
+  const sortedResults = useMemo(() => {
+    if (!results) return []
+    if (sortOrder === 'default') return results.results
+    const copy = [...results.results]
+    copy.sort((a, b) => {
+      if (sortOrder === 'deprecated') {
+        const aDep = Boolean(a.deprecated)
+        const bDep = Boolean(b.deprecated)
+        if (aDep !== bDep) return aDep ? -1 : 1
+      } else if (sortOrder === 'stability') {
+        const aRank = a.stability ? (stabilitySortRank[a.stability] ?? 99) : 99
+        const bRank = b.stability ? (stabilitySortRank[b.stability] ?? 99) : 99
+        if (aRank !== bRank) return aRank - bRank
+      }
+      return getResultId(a).localeCompare(getResultId(b))
+    })
+    return copy
+  }, [results, sortOrder])
   const expanded = useMemo(() => {
     if (!tree) return new Set<string>()
     const { base, open, closed } = treeExpansion
@@ -158,7 +200,12 @@ function Search() {
       if (state.query) params.set('q', state.query)
       if (state.searchType !== 'all') params.set('type', state.searchType)
       if (state.stabilityFilter) params.set('stability', state.stabilityFilter)
-      if (!state.hideDeprecated) params.set('deprecated', 'show')
+      if (state.deprecatedFilter === 'show') {
+        params.set('deprecated', 'show')
+      } else if (state.deprecatedFilter === 'only') {
+        params.set('deprecated', 'only')
+      }
+      if (state.sortOrder !== 'default') params.set('sort', state.sortOrder)
       if (state.view === 'tree') params.set('view', 'tree')
       if (state.view === 'list' && state.currentPage > 1) {
         params.set('page', state.currentPage.toString())
@@ -193,7 +240,8 @@ function Search() {
       const nextQuery = overrides.query ?? query
       const nextType = overrides.searchType ?? searchType
       const nextStability = overrides.stabilityFilter ?? stabilityFilter
-      const nextHideDeprecated = overrides.hideDeprecated ?? hideDeprecated
+      const nextDeprecatedFilter = overrides.deprecatedFilter ?? deprecatedFilter
+      const nextSortOrder = overrides.sortOrder ?? sortOrder
       const nextPage = overrides.currentPage ?? currentPage
       const nextView = overrides.view ?? view
       const nextOffset = (nextPage - 1) * itemsPerPage
@@ -212,14 +260,14 @@ function Search() {
         // The tree view needs the complete result set; the list view pages.
         const response =
           nextView === 'tree'
-            ? await searchAll(normalizedQuery, nextType, nextStability, nextHideDeprecated, {
+            ? await searchAll(normalizedQuery, nextType, nextStability, nextDeprecatedFilter, {
                 signal: controller.signal,
               })
             : await search(
                 normalizedQuery,
                 nextType,
                 nextStability,
-                nextHideDeprecated,
+                nextDeprecatedFilter,
                 itemsPerPage,
                 nextOffset,
                 { signal: controller.signal }
@@ -230,7 +278,8 @@ function Search() {
           query: nextQuery,
           searchType: nextType,
           stabilityFilter: nextStability,
-          hideDeprecated: nextHideDeprecated,
+          deprecatedFilter: nextDeprecatedFilter,
+          sortOrder: nextSortOrder,
           currentPage: nextPage,
           view: nextView,
         })
@@ -244,7 +293,7 @@ function Search() {
         setLoading(false)
       }
     },
-    [currentPage, query, searchType, stabilityFilter, hideDeprecated, updateURL, view]
+    [currentPage, query, searchType, stabilityFilter, deprecatedFilter, sortOrder, updateURL, view]
   )
 
   useEffect(() => {
@@ -253,7 +302,11 @@ function Search() {
       const initialQuery = params.get('q') ?? ''
       const initialType = parseTypeFilter(params.get('type'))
       const initialStability = parseStabilityFilter(params.get('stability'))
-      const initialHideDeprecated = parseHideDeprecated(params.get('deprecated'))
+      const initialSortOrder = parseSortOrder(params.get('sort'))
+      let initialDeprecatedFilter = parseDeprecatedFilter(params.get('deprecated'))
+      if (initialSortOrder === 'deprecated' && initialDeprecatedFilter === 'hide') {
+        initialDeprecatedFilter = 'show'
+      }
       const initialView = parseViewMode(params.get('view'))
       const parsedPage = Number.parseInt(params.get('page') ?? '1', 10)
       const initialPage = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage
@@ -261,7 +314,8 @@ function Search() {
       setQuery(initialQuery)
       setSearchType(initialType)
       setStabilityFilter(initialStability)
-      setHideDeprecated(initialHideDeprecated)
+      setDeprecatedFilter(initialDeprecatedFilter)
+      setSortOrder(initialSortOrder)
       setCurrentPage(initialPage)
       setView(initialView)
       setTreeExpansion({
@@ -275,7 +329,8 @@ function Search() {
         query: initialQuery,
         searchType: initialType,
         stabilityFilter: initialStability,
-        hideDeprecated: initialHideDeprecated,
+        deprecatedFilter: initialDeprecatedFilter,
+        sortOrder: initialSortOrder,
         currentPage: initialPage,
         view: initialView,
       })
@@ -324,7 +379,8 @@ function Search() {
     query,
     searchType,
     stabilityFilter,
-    hideDeprecated,
+    deprecatedFilter,
+    sortOrder,
     currentPage,
     view,
   })
@@ -407,12 +463,29 @@ function Search() {
     void performSearch({ stabilityFilter: nextStability, currentPage: 1 })
   }
 
-  const handleHideDeprecatedChange = (nextHideDeprecated: boolean) => {
-    if (nextHideDeprecated === hideDeprecated) return
-    setHideDeprecated(nextHideDeprecated)
+  const handleDeprecatedFilterChange = (nextDeprecatedFilter: DeprecatedFilter) => {
+    if (nextDeprecatedFilter === deprecatedFilter) return
+    setDeprecatedFilter(nextDeprecatedFilter)
     setCurrentPage(1)
     setTreeExpansion(noTreeExpansion)
-    void performSearch({ hideDeprecated: nextHideDeprecated, currentPage: 1 })
+    void performSearch({ deprecatedFilter: nextDeprecatedFilter, currentPage: 1 })
+  }
+
+  const handleSortOrderChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const nextSortOrder = parseSortOrder(event.target.value)
+    setSortOrder(nextSortOrder)
+    const nextDeprecatedFilter =
+      nextSortOrder === 'deprecated' && deprecatedFilter === 'hide' ? 'show' : deprecatedFilter
+    if (nextDeprecatedFilter !== deprecatedFilter) {
+      setDeprecatedFilter(nextDeprecatedFilter)
+    }
+    setCurrentPage(1)
+    setTreeExpansion(noTreeExpansion)
+    void performSearch({
+      sortOrder: nextSortOrder,
+      deprecatedFilter: nextDeprecatedFilter,
+      currentPage: 1,
+    })
   }
 
   const handleViewChange = (nextView: ViewMode) => {
@@ -445,7 +518,12 @@ function Search() {
             onChange={handleQueryInput}
             onKeyDown={handleKeyDown}
           />
-          <select className="select select-bordered" value={searchType} onChange={handleTypeChange}>
+          <select
+            aria-label="Filter by type"
+            className="select select-bordered"
+            value={searchType}
+            onChange={handleTypeChange}
+          >
             <option value="all">All Types</option>
             <option value="attribute">Attributes</option>
             <option value="metric">Metrics</option>
@@ -454,6 +532,7 @@ function Search() {
             <option value="entity">Entities</option>
           </select>
           <select
+            aria-label="Filter by stability"
             className="select select-bordered"
             value={stabilityFilter ?? ''}
             onChange={handleStabilityChange}
@@ -464,28 +543,48 @@ function Search() {
             <option value="alpha">Alpha</option>
             <option value="beta">Beta</option>
             <option value="release_candidate">Release Candidate</option>
-            <option value="deprecated">Deprecated</option>
+          </select>
+          <select
+            aria-label="Sort by"
+            className="select select-bordered"
+            value={sortOrder}
+            onChange={handleSortOrderChange}
+          >
+            <option value="default">Sort: Default</option>
+            <option value="name">Sort: Name (A–Z)</option>
+            <option value="stability">Sort: Stability</option>
+            <option value="deprecated">Sort: Deprecated first</option>
           </select>
           <div className="join" role="group" aria-label="Deprecated items visibility">
             <button
               type="button"
-              className={`join-item btn btn-square${!hideDeprecated ? ' btn-primary' : ''}`}
-              aria-pressed={!hideDeprecated}
+              className={`join-item btn btn-square${deprecatedFilter === 'show' ? ' btn-primary' : ''}`}
+              aria-pressed={deprecatedFilter === 'show'}
               aria-label="Show deprecated items"
               title="Show deprecated items"
-              onClick={() => handleHideDeprecatedChange(false)}
+              onClick={() => handleDeprecatedFilterChange('show')}
             >
               <EyeIcon />
             </button>
             <button
               type="button"
-              className={`join-item btn btn-square${hideDeprecated ? ' btn-primary' : ''}`}
-              aria-pressed={hideDeprecated}
+              className={`join-item btn btn-square${deprecatedFilter === 'hide' ? ' btn-primary' : ''}`}
+              aria-pressed={deprecatedFilter === 'hide'}
               aria-label="Hide deprecated items"
               title="Hide deprecated items"
-              onClick={() => handleHideDeprecatedChange(true)}
+              onClick={() => handleDeprecatedFilterChange('hide')}
             >
               <EyeSlashIcon />
+            </button>
+            <button
+              type="button"
+              className={`join-item btn btn-square${deprecatedFilter === 'only' ? ' btn-primary' : ''}`}
+              aria-pressed={deprecatedFilter === 'only'}
+              aria-label="Only deprecated items"
+              title="Only deprecated items"
+              onClick={() => handleDeprecatedFilterChange('only')}
+            >
+              <DeprecatedOnlyIcon />
             </button>
           </div>
           <div className="join" role="group" aria-label="Result view">
@@ -573,7 +672,7 @@ function Search() {
               ) : null
             ) : (
               <div className="space-y-2">
-                {results.results.map((result, index) => (
+                {sortedResults.map((result, index) => (
                   <Link
                     key={`${result.result_type}-${getResultId(result)}-${index}`}
                     to={getResultLink(result)}
@@ -587,7 +686,7 @@ function Search() {
                         <span className="font-mono font-semibold">{getResultId(result)}</span>
                         {result.stability ? <StabilityBadge stability={result.stability} /> : null}
                         {result.deprecated ? (
-                          <span className="badge badge-sm badge-ghost">deprecated</span>
+                          <DeprecatedBadge deprecated={result.deprecated} size="sm" />
                         ) : null}
                         {getResultMeta(result).map((info) => (
                           <span key={info.label} className="text-xs text-base-content/60">
