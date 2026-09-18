@@ -173,6 +173,15 @@ pub struct GroupSpec {
     #[schemars(skip)]
     pub span_name: Option<crate::v2::span::SpanName>,
 
+    /// The v2 span links, carried through the v1 intermediate
+    /// representation so they survive resolution.
+    /// This parameter must not be provided in yaml, it's only used to
+    /// convert v2 schema into v1 and back.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub span_links: Vec<crate::v2::span::SpanLink>,
+
     /// Requirement level of the signal (metric, span, event, entity).
     /// This is a v2-only concept carried through the v1 intermediate
     /// representation so it survives resolution; it must not be provided in
@@ -823,6 +832,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -993,6 +1003,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -1295,6 +1306,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -1515,6 +1527,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -1664,6 +1677,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -1839,6 +1853,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
 
         // Attribute Group must have extends or attributes.
@@ -1996,6 +2011,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
 
         // Check group with duplicate attributes.
@@ -2061,6 +2077,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
         assert!(group
             .validate("<test>")

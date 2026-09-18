@@ -1,0 +1,37 @@
+file_format: definition/2
+imports:
+  spans:
+    - linkserver.*
+spans:
+  # A local span with no links; the target of the local link below.
+  - type: consumer.batch
+    kind: internal
+    name:
+      note: Batch span name.
+    brief: A local batch span.
+    stability: stable
+  # A local span with two links: one to the local span above, one to an
+  # imported span. The second link carries a link attribute; the span
+  # references the same attribute so it is present in the catalog.
+  - type: consumer.op
+    kind: consumer
+    name:
+      note: Op span name.
+    brief: A local op span with links.
+    stability: stable
+    attributes:
+      - ref: linkserver.job.id
+        requirement_level: recommended
+    links:
+      - ref: consumer.batch
+        requirement_level: required
+        brief: The batch this op belongs to.
+      - ref: linkserver.produce
+        attributes:
+          - ref: linkserver.job.id
+            requirement_level: required
+span_refinements:
+  # Declares no links; must inherit both links from consumer.op.
+  - id: refined.op
+    ref: consumer.op
+    brief: Refined op span.

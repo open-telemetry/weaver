@@ -24,12 +24,17 @@ use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
 use weaver_resolved_schema::v2::entity::{
     to_named_associations, EntityAssociation as V2EntityAssociation,
 };
+use weaver_resolved_schema::v2::span::SpanLink as V2SpanLink;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::v2::Signal;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v1::attribute::{AttributeRole, RequirementLevel};
 use weaver_semconv::v1::group::{GroupType, GroupWildcard, ImportsWithProvenance};
 use weaver_semconv::v1::semconv::Imports;
+use weaver_semconv::v2::attribute::AttributeRef as AttributeRefSpec;
+use weaver_semconv::v2::span::{
+    SpanAttributeRef as SpanAttributeRefSpec, SpanLink as SpanLinkSpec,
+};
 
 use crate::{
     attribute::{AttributeCatalog, AttributeSource},
@@ -645,6 +650,7 @@ fn upgrade_imported_group_v2<C: crate::SchemaCacheLookup>(
             );
             upgraded.span_kind = Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
             upgraded.span_name = Some(s.name.clone());
+            upgraded.span_links = v2_span_links_to_spec(chosen_v2, &s.links)?;
             upgraded.name = Some(s.r#type.to_string());
             upgraded.entity_associations = to_named_associations(&s.entity_associations);
             upgraded.requirement_level = s.requirement_level.clone();
@@ -900,7 +906,48 @@ fn imported_v2_group(
         visibility: None,
         is_v2: true,
         span_name: None,
+        span_links: Vec::new(),
     }
+}
+
+/// Converts a resolved v2 span's links back into the definition shape the
+/// carrier holds: catalog indices become attribute names via the owning
+/// schema's catalog.
+fn v2_span_links_to_spec(
+    schema: &V2Schema,
+    links: &[V2SpanLink],
+) -> Result<Vec<SpanLinkSpec>, Error> {
+    let mut spec_links = Vec::new();
+    for link in links {
+        let mut link_attributes = Vec::new();
+        for la in link.attributes.iter() {
+            let attr = schema.attribute_catalog.attribute(&la.base).ok_or(
+                Error::InvalidRegistryAttributeRef {
+                    registry_name: schema.schema_url.name().to_owned(),
+                    attribute_ref: la.base.0,
+                },
+            )?;
+            link_attributes.push(SpanAttributeRefSpec {
+                base: AttributeRefSpec {
+                    r#ref: attr.key.clone(),
+                    brief: None,
+                    examples: None,
+                    requirement_level: Some(la.requirement_level.clone()),
+                    note: None,
+                    annotations: Default::default(),
+                },
+                sampling_relevant: la.sampling_relevant,
+            });
+        }
+        spec_links.push(SpanLinkSpec {
+            r#ref: link.r#ref.clone(),
+            requirement_level: Some(link.requirement_level.clone()),
+            brief: link.brief.clone(),
+            note: link.note.clone(),
+            attributes: link_attributes,
+        });
+    }
+    Ok(spec_links)
 }
 
 /// Where each entity a v2 signal is associated with is defined.
@@ -1124,6 +1171,7 @@ impl ImportableDependency for V2Schema {
             );
             group.span_kind = Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
             group.span_name = Some(s.name.clone());
+            group.span_links = v2_span_links_to_spec(self, &s.links)?;
             group.name = Some(s.r#type.to_string());
             group.entity_associations = to_named_associations(&s.entity_associations);
             group.requirement_level = s.requirement_level.clone();
@@ -1600,6 +1648,7 @@ mod tests {
         let arc_v2 = Arc::new(crate::WeaverResolvedSchema::V2(chosen_schema));
 
         let group = Group {
+            span_links: Vec::new(),
             id: "metric.a".to_owned(),
             r#type: weaver_semconv::v1::group::GroupType::Metric,
             brief: "Old brief".to_owned(),
@@ -1639,6 +1688,7 @@ mod tests {
         assert_eq!(upgraded.attributes.len(), 0);
 
         let group_ag = Group {
+            span_links: Vec::new(),
             id: "attribute_group.e".to_owned(),
             r#type: weaver_semconv::v1::group::GroupType::AttributeGroup,
             brief: "Old brief".to_owned(),
@@ -1669,6 +1719,59 @@ mod tests {
             .expect("attribute_group should be upgraded");
         assert_eq!(upgraded_ag.id, "attribute_group.e");
         assert_eq!(upgraded_ag.attributes.len(), 1);
+
+        // The imported copy carries no links; the upgraded definition must
+        // get them from the chosen registry, not keep the empty default.
+        let group_span = Group {
+            span_links: Vec::new(),
+            id: "span.d".to_owned(),
+            r#type: weaver_semconv::v1::group::GroupType::Span,
+            brief: "Old brief".to_owned(),
+            note: String::new(),
+            prefix: String::new(),
+            extends: None,
+            stability: None,
+            deprecated: None,
+            attributes: vec![],
+            lineage: Some(GroupLineage::new(Provenance::new(old_url.clone(), "test"))),
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            span_kind: None,
+            span_name: None,
+            events: vec![],
+            annotations: None,
+            display_name: None,
+            body: None,
+            entity_associations: vec![],
+            requirement_level: None,
+            name: Some("span.d".to_owned()),
+            visibility: None,
+            is_v2: true,
+        };
+
+        let upgraded_span = upgrade_imported_group(&group_span, &old_url, &mut catalog, &lookup)?
+            .expect("span should be upgraded");
+        assert_eq!(upgraded_span.id, "span.d");
+        assert_eq!(upgraded_span.span_links.len(), 1);
+        let link = &upgraded_span.span_links[0];
+        assert_eq!(&*link.r#ref, "span.d");
+        // Non-default modifiers must survive the resolved-to-carrier hop.
+        assert_eq!(
+            link.requirement_level,
+            Some(weaver_semconv::v2::attribute::RequirementLevel::Basic(
+                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
+            ))
+        );
+        assert_eq!(link.attributes.len(), 1);
+        assert_eq!(link.attributes[0].base.r#ref, "attr.in.group");
+        assert_eq!(
+            link.attributes[0].base.requirement_level,
+            Some(weaver_semconv::v2::attribute::RequirementLevel::Basic(
+                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
+            ))
+        );
+        assert_eq!(link.attributes[0].sampling_relevant, Some(true));
 
         Ok(())
     }
