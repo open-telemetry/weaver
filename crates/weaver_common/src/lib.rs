@@ -98,6 +98,22 @@ pub enum Error {
         archive: String,
     },
 
+    /// A registry is absent from the cache while offline mode is enabled.
+    #[error("Registry `{registry}` is not in the cache and offline mode is enabled")]
+    RegistryOffline {
+        /// The registry source (`url[@refspec]`) that could not be served offline.
+        registry: String,
+    },
+
+    /// A cloned registry could not be installed in the cache.
+    #[error("Failed to install registry `{registry}` in the cache: {message}")]
+    CacheEntryNotInstalled {
+        /// The registry source (`url[@refspec]`) that could not be installed.
+        registry: String,
+        /// The underlying filesystem error.
+        message: String,
+    },
+
     /// A container for multiple errors.
     #[error("{:?}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),
