@@ -546,6 +546,7 @@ impl LiveChecker {
 #[cfg(test)]
 mod tests {
     use std::fs::File;
+    use std::path::Path;
 
     use crate::{
         advice::{DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor},
@@ -1567,7 +1568,7 @@ mod tests {
         }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/live_check_advice/".into()),
+            &Some(Path::new("data/policies/live_check_advice/").into()),
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -1729,7 +1730,7 @@ mod tests {
         }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/live_check_advice/".into()),
+            &Some(Path::new("data/policies/live_check_advice/").into()),
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -1879,7 +1880,7 @@ mod tests {
         }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/live_check_advice/".into()),
+            &Some(Path::new("data/policies/live_check_advice/").into()),
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -1934,7 +1935,7 @@ mod tests {
         }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/live_check_advice/".into()),
+            &Some(Path::new("data/policies/live_check_advice/").into()),
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -2325,7 +2326,7 @@ mod tests {
         }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/bad_advice/".into()),
+            &Some(Path::new("data/policies/bad_advice/").into()),
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -2483,7 +2484,7 @@ mod tests {
 
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/live_check_advice/".into()),
+            &Some(Path::new("data/policies/live_check_advice/").into()),
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -3122,13 +3123,9 @@ mod tests {
 
         let registry = make_registry(false);
         let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
-        let rego_advisor = RegoAdvisor::new(
-            &live_checker,
-            &Some(temp_dir.path().to_path_buf()),
-            &None,
-            &None,
-        )
-        .expect("Failed to create Rego advisor");
+        let rego_advisor =
+            RegoAdvisor::new(&live_checker, &Some(temp_dir.path().into()), &None, &None)
+                .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
         let mut sample = Sample::Span(SampleSpan {
@@ -3916,7 +3913,7 @@ mod tests {
         let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/entity_advice/".into()),
+            &Some(Path::new("data/policies/entity_advice/").into()),
             &None,
             &None,
         )
