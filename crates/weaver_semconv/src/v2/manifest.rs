@@ -130,6 +130,10 @@ struct RawManifestFields {
     file_format: Option<String>,
     schema_url: Option<SchemaUrl>,
     description: Option<String>,
+    /// Legacy V1 field detected for clear error messaging.
+    semconv_version: Option<String>,
+    /// Legacy V1 field detected for clear error messaging.
+    schema_base_url: Option<String>,
     #[serde(default)]
     dependencies: Vec<serde_yaml::Value>,
     #[serde(default)]
@@ -149,13 +153,20 @@ impl RawManifestFields {
         let is_publication = self.file_format.as_deref() == Some(PUBLICATION_MANIFEST_FILE_FORMAT);
         let is_definition = self.file_format.as_deref() == Some(DEFINITION_MANIFEST_FILE_FORMAT);
         let is_empty = self.file_format.is_none();
+        let has_legacy_url_fields =
+            self.schema_base_url.is_some() || self.semconv_version.is_some();
 
         if is_publication {
             let schema_url = self
                 .schema_url
                 .ok_or_else(|| Error::InvalidPublicationManifest {
                     path: path.to_path_buf(),
-                    details: "missing required field 'schema_url'".into(),
+                    details: if has_legacy_url_fields {
+                        "missing required field 'schema_url'. Legacy V1 fields 'schema_base_url' and 'semconv_version' are not supported in 'manifest.yaml'; please combine them into 'schema_url'."
+                    } else {
+                        "missing required field 'schema_url'"
+                    }
+                    .into(),
                 })?;
             let dependencies = self
                 .dependencies
@@ -201,7 +212,12 @@ impl RawManifestFields {
             }
             let schema_url = self.schema_url.ok_or_else(|| InvalidRegistryManifest {
                 path: path.to_path_buf(),
-                error: "missing required field 'schema_url'".into(),
+                error: if has_legacy_url_fields {
+                    "missing required field 'schema_url'. Legacy V1 fields 'schema_base_url' and 'semconv_version' are not supported in 'manifest.yaml'; please combine them into 'schema_url'."
+                } else {
+                    "missing required field 'schema_url'"
+                }
+                .into(),
             })?;
             let dependencies = self
                 .dependencies
@@ -239,10 +255,10 @@ impl RawManifestFields {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(untagged)]
 pub enum RegistryManifest {
-    /// A definition manifest (used when developing a registry).
-    Definition(DefinitionRegistryManifest),
     /// A publication manifest (produced by `weaver registry package`).
     Publication(PublicationRegistryManifest),
+    /// A definition manifest (used when developing a registry).
+    Definition(DefinitionRegistryManifest),
 }
 
 impl RegistryManifest {
@@ -743,5 +759,38 @@ schema_url: "https://example.com/schemas/1.0.0"
             Err(Error::InvalidPublicationManifest { details, .. })
                 if details.contains("resolved_registry_uri")
         ));
+    }
+
+    #[test]
+    fn test_publication_manifest_serde_untagged_roundtrip() {
+        let yaml = r#"
+file_format: "manifest/2.0"
+schema_url: "https://example.com/schemas/1.0.0"
+resolved_registry_uri: "https://example.com/resolved/1.0.0/resolved.yaml"
+"#;
+        let parsed: RegistryManifest =
+            serde_yaml::from_str(yaml).expect("serde_yaml::from_str should succeed");
+        assert!(
+            matches!(parsed, RegistryManifest::Publication(_)),
+            "expected Publication variant from untagged serde deserialization, got {parsed:?}"
+        );
+    }
+
+    #[test]
+    fn test_legacy_v1_url_fields_error_message() {
+        let result = manifest_from_yaml(
+            r#"
+schema_base_url: "https://example.com/schemas"
+semconv_version: "1.0.0"
+"#,
+            &mut vec![],
+        );
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains(
+                "Legacy V1 fields 'schema_base_url' and 'semconv_version' are not supported"
+            ),
+            "unexpected error message: {err}"
+        );
     }
 }

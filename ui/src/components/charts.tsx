@@ -8,7 +8,7 @@ export interface Datum {
 
 interface ChartCardProps {
   title: string
-  subtitle?: string
+  subtitle?: ReactNode
   height?: number
   children: ReactNode
 }

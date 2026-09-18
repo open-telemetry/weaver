@@ -80,21 +80,3 @@ export function DeprecatedBadge({ deprecated, size }: DeprecatedBadgeProps) {
     </span>
   )
 }
-
-export function DeprecatedDot({ deprecated }: DeprecatedBadgeProps) {
-  if (!deprecated) return null
-
-  let title = 'Deprecated'
-  if (typeof deprecated === 'object' && deprecated.note) {
-    title = `Deprecated: ${deprecated.note}`
-  }
-
-  return (
-    <span
-      className="inline-block h-2 w-2 shrink-0 rounded-full bg-error"
-      title={title}
-      role="img"
-      aria-label={title}
-    />
-  )
-}

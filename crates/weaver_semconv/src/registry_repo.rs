@@ -5,9 +5,13 @@
 use std::default::Default;
 use std::path::{Path, PathBuf};
 
+use crate::convert::{v1_dependency_to_v2, v1_manifest_to_v2, v2_manifest_to_v1};
 use crate::schema_url::SchemaUrl;
 use crate::v1::manifest::RegistryManifest as V1RegistryManifest;
-use crate::v2::manifest::{Dependency, RegistryManifest as V2RegistryManifest};
+use crate::v2::manifest::{
+    DefinitionRegistryManifest as V2DefinitionRegistryManifest, Dependency,
+    RegistryManifest as V2RegistryManifest,
+};
 use crate::Error;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
@@ -68,9 +72,7 @@ impl VersionedManifest {
             ManifestPath::RegistryPath(path) => {
                 V2RegistryManifest::try_from_file(path, nfes).map(VersionedManifest::V2)
             }
-            ManifestPath::None => Err(Error::RegistryManifestNotFound {
-                path: PathBuf::new(),
-            }),
+            ManifestPath::None(path) => Err(Error::RegistryManifestNotFound { path: path.clone() }),
         }
     }
 
@@ -112,7 +114,7 @@ impl VersionedManifest {
                 .dependencies()
                 .iter()
                 .cloned()
-                .map(crate::convert::v1_dependency_to_v2)
+                .map(v1_dependency_to_v2)
                 .collect(),
             VersionedManifest::V2(v2) => v2.dependencies().to_vec(),
         }
@@ -123,14 +125,14 @@ impl VersionedManifest {
     pub fn to_v1(&self) -> V1RegistryManifest {
         match self {
             VersionedManifest::V1(v1) => v1.clone(),
-            VersionedManifest::V2(v2) => crate::convert::v2_manifest_to_v1(v2.clone()),
+            VersionedManifest::V2(v2) => v2_manifest_to_v1(v2.clone()),
         }
     }
 
     /// Converts this manifest to a V2 manifest.
     pub fn to_v2(&self) -> Result<V2RegistryManifest, Error> {
         match self {
-            VersionedManifest::V1(v1) => crate::convert::v1_manifest_to_v2(v1.clone()),
+            VersionedManifest::V1(v1) => v1_manifest_to_v2(v1.clone()),
             VersionedManifest::V2(v2) => Ok(v2.clone()),
         }
     }
@@ -143,8 +145,8 @@ pub enum ManifestPath {
     LegacyPath(PathBuf),
     /// Found the new path (`manifest.yaml` or directly specified file), which checks for `file_format`.
     RegistryPath(PathBuf),
-    /// Did not find a registry path at all.
-    None,
+    /// Did not find a registry path at the given directory path.
+    None(PathBuf),
 }
 
 impl ManifestPath {
@@ -159,7 +161,7 @@ impl ManifestPath {
     pub fn path(&self) -> Option<&Path> {
         match self {
             ManifestPath::LegacyPath(p) | ManifestPath::RegistryPath(p) => Some(p),
-            ManifestPath::None => None,
+            ManifestPath::None(_) => None,
         }
     }
 }
@@ -204,7 +206,7 @@ fn find_manifest_path(registry_path: &Path) -> ManifestPath {
             "No registry manifest found: {}",
             manifest_path.display()
         ));
-        ManifestPath::None
+        ManifestPath::None(registry_path.to_path_buf())
     }
 }
 
@@ -285,7 +287,7 @@ impl RegistryRepo {
                 let schema_url = manifest.schema_url().clone();
                 (Some(manifest), schema_url, Some(path.clone()))
             }
-            ManifestPath::None => {
+            ManifestPath::None(_) => {
                 // No manifest
                 let schema_url_combined = schema_url.unwrap_or_else(SchemaUrl::new_unknown);
                 (None, schema_url_combined, None)
@@ -355,7 +357,7 @@ impl RegistryRepo {
             let schema_url = SchemaUrl::try_from_name_version(self.name(), self.version())
                 .map_err(|_| Error::FailToResolveSchemaUrl {})?;
             Ok(V2RegistryManifest::Definition(
-                crate::v2::manifest::DefinitionRegistryManifest::from_schema_url(schema_url),
+                V2DefinitionRegistryManifest::from_schema_url(schema_url),
             ))
         }
     }
@@ -524,9 +526,19 @@ mod tests {
     fn test_find_manifest_path() {
         let dir = tempfile::tempdir().unwrap();
 
-        // When neither manifest exists, returns None.
-        assert_eq!(find_manifest_path(dir.path()), ManifestPath::None);
-        assert_eq!(ManifestPath::None.path(), None);
+        // When neither manifest exists, returns None(path).
+        assert_eq!(
+            find_manifest_path(dir.path()),
+            ManifestPath::None(dir.path().to_path_buf())
+        );
+        assert_eq!(ManifestPath::None(dir.path().to_path_buf()).path(), None);
+        let mut nfes = Vec::new();
+        let err = VersionedManifest::try_from_file(&find_manifest_path(dir.path()), &mut nfes)
+            .unwrap_err();
+        assert!(
+            matches!(err, Error::RegistryManifestNotFound { ref path } if path == dir.path()),
+            "expected RegistryManifestNotFound with actual directory path, got: {err:?}"
+        );
 
         // When legacy manifest exists, returns LegacyPath.
         #[allow(deprecated)]

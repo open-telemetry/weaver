@@ -48,7 +48,7 @@ test('deprecated items are hidden by default and controlled by hide/show/only bu
   await expect(page.locator('a.card').first()).toBeVisible()
 
   // Verify the stability dropdown does not include Deprecated.
-  const stabilitySelect = page.locator('select').nth(1)
+  const stabilitySelect = page.getByLabel('Filter by stability')
   await expect(stabilitySelect.locator('option[value="deprecated"]')).toHaveCount(0)
 
   const deprecatedCard = page.locator('a[href="/attribute/render.attr.deprecated_renamed"]')
@@ -98,7 +98,32 @@ test('deprecated items are hidden by default and controlled by hide/show/only bu
   await expect(page).not.toHaveURL(/deprecated=/)
 })
 
-test('stats page shows counts and links into filtered search', async ({ page }) => {
+test('?deprecated=only query parameter and sort by deprecated first work as expected', async ({
+  page,
+}) => {
+  await page.goto('/search?deprecated=only')
+
+  const onlyButton = page.getByRole('button', { name: 'Only deprecated items' })
+  await expect(onlyButton).toHaveAttribute('aria-pressed', 'true')
+
+  const deprecatedCard = page.locator('a[href="/attribute/render.attr.deprecated_renamed"]')
+  const nonDeprecatedCard = page.locator('a[href="/attribute/render.attr.string_single_example"]')
+  await expect(deprecatedCard).toBeVisible()
+  await expect(nonDeprecatedCard).toHaveCount(0)
+
+  // Selecting "Sort: Deprecated first" from default view automatically shows deprecated items first.
+  await page.goto('/search')
+  const sortSelect = page.getByLabel('Sort by')
+  await sortSelect.selectOption('deprecated')
+  await expect(page).toHaveURL(/sort=deprecated/)
+  await expect(page).toHaveURL(/deprecated=show/)
+  const firstCardHref = await page.locator('a.card').first().getAttribute('href')
+  expect(firstCardHref).toMatch(/deprecated/)
+})
+
+test('stats page shows counts and links into filtered search including deprecated items', async ({
+  page,
+}) => {
   await page.goto('/stats')
 
   await expect(page.getByRole('heading', { name: 'Registry Stats' })).toBeVisible()
@@ -112,6 +137,13 @@ test('stats page shows counts and links into filtered search', async ({ page }) 
 
   await attributesCard.click()
   await expect(page).toHaveURL(/\/search\?.*type=attribute/)
+
+  // Deprecated items subtitle links to /search?deprecated=only.
+  await page.goto('/stats')
+  const deprecatedLink = page.locator('a', { hasText: /deprecated definitions in total/ })
+  await expect(deprecatedLink).toBeVisible()
+  await deprecatedLink.click()
+  await expect(page).toHaveURL(/\/search\?.*deprecated=only/)
 })
 
 test('API docs render the Swagger UI for the OpenAPI spec', async ({ page }) => {

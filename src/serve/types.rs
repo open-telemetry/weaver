@@ -37,7 +37,9 @@ pub struct SearchParams {
     pub stability: Option<Stability>,
     /// Filter by deprecation status: `true` for only deprecated, `false` to exclude deprecated, omitted for all.
     pub deprecated: Option<bool>,
-    /// Exclude deprecated items, independent of the stability filter (default: false).
+    /// Legacy alias to exclude deprecated items when `deprecated` is omitted (default: false).
+    /// If `deprecated` is explicitly provided, it takes precedence over `hide_deprecated`.
+    #[deprecated(note = "Use `deprecated=false` instead")]
     #[serde(default)]
     pub hide_deprecated: bool,
     /// Maximum number of results (default: 50).

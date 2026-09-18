@@ -107,20 +107,19 @@ fn parse_dependency(value: serde_yaml::Value) -> Result<Dependency, String> {
     if value.get("schema_url").is_some() {
         return serde_yaml::from_value(value).map_err(|e| e.to_string());
     }
-    let name = value.get("name").and_then(serde_yaml::Value::as_str);
-    if name.is_some() {
+    if value
+        .get("name")
+        .and_then(serde_yaml::Value::as_str)
+        .is_some()
+    {
         let named: NamedDependency = serde_yaml::from_value(value).map_err(|e| e.to_string())?;
         Ok(Dependency {
             schema_url: SchemaUrl::try_from_name_version(&named.name, UNKNOWN_VERSION)?,
             registry_path: Some(named.registry_path),
         })
     } else {
-        let subject = name.map_or_else(
-            || "a dependency".to_owned(),
-            |name| format!("dependency '{name}'"),
-        );
         Err(format!(
-            "{subject} is missing the required field 'schema_url'. {SCHEMA_URL_HELP}"
+            "a dependency is missing the required field 'schema_url'. {SCHEMA_URL_HELP}"
         ))
     }
 }
@@ -151,7 +150,7 @@ impl RawManifestFields {
             return Err(InvalidRegistryManifest {
                 path: path.to_path_buf(),
                 error: format!(
-                    "Unknown file_format '{fmt}'. Expected no file_format for a definition manifest."
+                    "file_format '{fmt}' is not supported in legacy 'registry_manifest.yaml'. Please rename this file to 'manifest.yaml'."
                 ),
             });
         }
@@ -233,15 +232,11 @@ impl RegistryManifest {
         let manifest = raw.into_manifest(&manifest_path_buf, nfes)?;
 
         // Check if this is a legacy manifest file
-        let is_legacy = if let Some(file_name) = manifest_path_buf.file_name() {
-            #[allow(deprecated)]
-            let legacy = file_name == LEGACY_REGISTRY_MANIFEST;
-            legacy
-        } else {
-            false
-        };
-
-        if is_legacy {
+        #[allow(deprecated)]
+        if manifest_path_buf
+            .file_name()
+            .is_some_and(|n| n == LEGACY_REGISTRY_MANIFEST)
+        {
             nfes.push(LegacyRegistryManifest {
                 path: manifest_path_buf.clone(),
             });
@@ -529,7 +524,7 @@ schema_url: "https://example.com/schemas/1.0.0"
         assert!(result
             .unwrap_err()
             .to_string()
-            .contains("Unknown file_format"));
+            .contains("not supported in legacy 'registry_manifest.yaml'"));
     }
 
     #[test]

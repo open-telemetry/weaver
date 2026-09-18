@@ -2080,20 +2080,23 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_dependency_resolution_v1_schema_success() {
+    fn make_v1_dep_resolution_setup(
+        v1_schema_url: &str,
+    ) -> (
+        SchemaUrl,
+        weaver_resolved_schema::v2::ResolvedTelemetrySchema,
+        crate::v2::registry::tests::MockSchemaResolver,
+    ) {
         use std::collections::BTreeSet;
-        use weaver_common::result::WResult;
         use weaver_resolved_schema::v2::{self, refinements, ResolvedTelemetrySchema};
-        use weaver_semconv::schema_url::SchemaUrl;
 
         let dep_url: SchemaUrl = "https://example.com/dep-v1".try_into().unwrap();
         let v1_schema = weaver_resolved_schema::v1::ResolvedTelemetrySchema {
             file_format: "resolved/1.0".to_owned(),
-            schema_url: "https://example.com/dep-v1".to_owned(),
+            schema_url: v1_schema_url.to_owned(),
             registry_id: "test".to_owned(),
             registry: weaver_resolved_schema::v1::registry::Registry {
-                registry_url: "https://example.com/dep-v1".to_owned(),
+                registry_url: v1_schema_url.to_owned(),
                 entity_association_origins: Default::default(),
                 groups: vec![],
             },
@@ -2136,6 +2139,16 @@ mod tests {
             weaver_resolver::WeaverResolvedSchema::V1(v1_schema),
         );
 
+        (dep_url, root_schema, mock_resolver)
+    }
+
+    #[test]
+    fn test_dependency_resolution_v1_schema_success() {
+        use weaver_common::result::WResult;
+
+        let (dep_url, root_schema, mut mock_resolver) =
+            make_v1_dep_resolution_setup("https://example.com/dep-v1");
+
         let forge = match ForgeResolvedRegistry::try_from_resolved_schema(
             root_schema,
             &mut mock_resolver,
@@ -2152,67 +2165,13 @@ mod tests {
 
     #[test]
     fn test_dependency_resolution_v1_schema_conversion_error() {
-        use std::collections::BTreeSet;
         use weaver_common::result::WResult;
-        use weaver_resolved_schema::v2::{self, refinements, ResolvedTelemetrySchema};
-        use weaver_semconv::schema_url::SchemaUrl;
 
-        let dep_url: SchemaUrl = "https://example.com/dep-v1".try_into().unwrap();
-        let invalid_v1_schema = weaver_resolved_schema::v1::ResolvedTelemetrySchema {
-            file_format: "resolved/1.0".to_owned(),
-            schema_url: "invalid schema url with spaces".to_owned(),
-            registry_id: "test".to_owned(),
-            registry: weaver_resolved_schema::v1::registry::Registry {
-                registry_url: "invalid schema url with spaces".to_owned(),
-                entity_association_origins: Default::default(),
-                groups: vec![],
-            },
-            catalog: weaver_resolved_schema::v1::catalog::Catalog::default(),
-            resource: None,
-            instrumentation_library: None,
-            dependencies: BTreeSet::new(),
-            versions: None,
-            registry_manifest: None,
-        };
-
-        let root_schema = ResolvedTelemetrySchema {
-            file_format: "2.0.0".to_owned(),
-            schema_url: "https://example.com/root".try_into().unwrap(),
-            attribute_catalog: vec![],
-            dependencies: {
-                let mut deps = BTreeSet::new();
-                let _ = deps.insert(dep_url.clone());
-                deps
-            },
-            registry: v2::registry::Registry {
-                attributes: vec![],
-                spans: vec![],
-                metrics: vec![],
-                events: vec![],
-                entities: vec![],
-                attribute_groups: vec![],
-            },
-            refinements: refinements::Refinements {
-                spans: vec![],
-                metrics: vec![],
-                events: vec![],
-                entities: vec![],
-            },
-        };
-
-        let mut mock_resolver = crate::v2::registry::tests::MockSchemaResolver::new();
-        mock_resolver.add_resolved_schema(
-            dep_url,
-            weaver_resolver::WeaverResolvedSchema::V1(invalid_v1_schema),
-        );
+        let (_dep_url, root_schema, mut mock_resolver) =
+            make_v1_dep_resolution_setup("invalid schema url with spaces");
 
         let result =
             ForgeResolvedRegistry::try_from_resolved_schema(root_schema, &mut mock_resolver);
-        assert!(result.is_fatal());
-        if let WResult::FatalErr(Error::SchemaError(_)) = result {
-            // Expected
-        } else {
-            panic!("Expected FatalErr(SchemaError)");
-        }
+        assert!(matches!(result, WResult::FatalErr(Error::SchemaError(_))));
     }
 }

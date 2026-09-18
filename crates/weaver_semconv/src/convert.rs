@@ -2,6 +2,7 @@
 
 //! Conversions between V1 and V2 semantic convention specifications.
 
+use crate::deprecated::Deprecated;
 use crate::v1::{
     attribute::{
         AttributeRole as V1AttributeRole, AttributeSpec as V1AttributeSpec,
@@ -1042,13 +1043,14 @@ pub(crate) fn v1_value_to_v2(v: V1ValueSpec) -> V2ValueSpec {
 /// Converts a V1 enum entry to V2.
 #[must_use]
 pub(crate) fn v1_enum_entry_to_v2(e: V1EnumEntriesSpec) -> V2EnumEntriesSpec {
+    let (stability, deprecated) = v1_stability_and_deprecated_to_v2(e.stability, e.deprecated);
     V2EnumEntriesSpec {
         id: e.id,
         value: v1_value_to_v2(e.value),
         brief: e.brief,
         note: e.note,
-        stability: e.stability.and_then(|s| v1_stability_to_v2(s).ok()),
-        deprecated: e.deprecated,
+        stability,
+        deprecated,
         annotations: e.annotations,
     }
 }
@@ -1170,7 +1172,41 @@ pub fn v1_span_name_to_v2(s: V1SpanName) -> V2SpanName {
     }
 }
 
+/// Converts a V1 stability level and deprecated field to V2 stability and deprecated field.
+///
+/// In V1, `stability: deprecated` was valid, whereas in V2 `Deprecated` is no longer a stability level.
+/// When encountering `V1Stability::Deprecated`, its V2 stability is set to `V2Stability::Development`
+/// ("experimental") and its `deprecated` field defaults to `Deprecated::Unspecified` if not already set.
+/// This matches the state of semantic conventions when Stability::Deprecated was first removed.
+#[must_use]
+pub fn v1_stability_and_deprecated_to_v2(
+    stability: Option<V1Stability>,
+    deprecated: Option<Deprecated>,
+) -> (Option<V2Stability>, Option<Deprecated>) {
+    match stability {
+        #[allow(deprecated)]
+        Some(V1Stability::Deprecated) => (
+            Some(V2Stability::Development),
+            deprecated.or_else(|| {
+                Some(Deprecated::Unspecified {
+                    note: "converted from no-note legacy V1 deprecation".to_owned(),
+                })
+            }),
+        ),
+        Some(V1Stability::Stable) => (Some(V2Stability::Stable), deprecated),
+        Some(V1Stability::Development) => (Some(V2Stability::Development), deprecated),
+        Some(V1Stability::Alpha) => (Some(V2Stability::Alpha), deprecated),
+        Some(V1Stability::Beta) => (Some(V2Stability::Beta), deprecated),
+        Some(V1Stability::ReleaseCandidate) => (Some(V2Stability::ReleaseCandidate), deprecated),
+        None => (None, deprecated),
+    }
+}
+
 /// Converts a V1 stability level to V2.
+///
+/// Note: Standalone `V1Stability::Deprecated` returns an error (used for manifests where `deprecated`
+/// is not a separate field). For telemetry items with both `stability` and `deprecated` fields,
+/// use [`v1_stability_and_deprecated_to_v2`].
 pub fn v1_stability_to_v2(s: V1Stability) -> Result<V2Stability, Error> {
     match s {
         V1Stability::Stable => Ok(V2Stability::Stable),
@@ -1178,8 +1214,6 @@ pub fn v1_stability_to_v2(s: V1Stability) -> Result<V2Stability, Error> {
         V1Stability::Alpha => Ok(V2Stability::Alpha),
         V1Stability::Beta => Ok(V2Stability::Beta),
         V1Stability::ReleaseCandidate => Ok(V2Stability::ReleaseCandidate),
-        // TODO: Should we consider this *STABLE* for v1->v2, since
-        // that was how things were treated in semconv prior to v2?
         #[allow(deprecated)]
         V1Stability::Deprecated => Err(Error::SemConvSpecError {
             error: "Deprecated stability level cannot be converted to v2; use the deprecated field instead".to_owned(),
@@ -2197,7 +2231,47 @@ stability: stable
 
         #[allow(deprecated)]
         let deprecated_v1 = V1Stability::Deprecated;
-        assert!(v1_stability_to_v2(deprecated_v1).is_err());
+        assert!(v1_stability_to_v2(deprecated_v1.clone()).is_err());
+
+        // Test v1_stability_and_deprecated_to_v2 with None deprecated
+        let (stab, dep) = v1_stability_and_deprecated_to_v2(Some(deprecated_v1.clone()), None);
+        assert_eq!(stab, Some(V2Stability::Development));
+        assert_eq!(
+            dep,
+            Some(Deprecated::Unspecified {
+                note: "converted from no-note legacy V1 deprecation".to_owned()
+            })
+        );
+
+        // Test v1_stability_and_deprecated_to_v2 with existing deprecated field
+        let existing_dep = Deprecated::Obsoleted {
+            note: "obsolete".to_owned(),
+        };
+        let (stab, dep) = v1_stability_and_deprecated_to_v2(
+            Some(deprecated_v1.clone()),
+            Some(existing_dep.clone()),
+        );
+        assert_eq!(stab, Some(V2Stability::Development));
+        assert_eq!(dep, Some(existing_dep));
+
+        // Test v1_enum_entry_to_v2 with deprecated stability
+        let v1_entry = V1EnumEntriesSpec {
+            id: "foo".to_owned(),
+            value: V1ValueSpec::String("bar".to_owned()),
+            brief: None,
+            note: None,
+            stability: Some(deprecated_v1),
+            deprecated: None,
+            annotations: None,
+        };
+        let v2_entry = v1_enum_entry_to_v2(v1_entry);
+        assert_eq!(v2_entry.stability, Some(V2Stability::Development));
+        assert_eq!(
+            v2_entry.deprecated,
+            Some(Deprecated::Unspecified {
+                note: "converted from no-note legacy V1 deprecation".to_owned()
+            })
+        );
     }
 
     #[test]

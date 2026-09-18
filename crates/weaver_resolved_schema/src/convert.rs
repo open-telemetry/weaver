@@ -57,6 +57,8 @@ impl V2CatalogBuilder {
             .examples
             .clone()
             .map(weaver_semconv::convert::v1_examples_to_v2);
+        let (expected_v2_stability, expected_v2_deprecated) =
+            convert_v1_stability_and_deprecated(&attribute.stability, &attribute.deprecated);
 
         self.lookup.get(&attribute.name)?.iter().find_map(|idx| {
             self.attributes
@@ -67,13 +69,8 @@ impl V2CatalogBuilder {
                         && a.examples == v2_examples
                         && a.common.brief == attribute.brief
                         && a.common.note == attribute.note
-                        && a.common.deprecated == attribute.deprecated
-                        && weaver_semconv::v1::stability::Stability::from(
-                            a.common.stability.clone(),
-                        ) == *attribute
-                            .stability
-                            .as_ref()
-                            .unwrap_or(&weaver_semconv::v1::stability::Stability::default())
+                        && a.common.stability == expected_v2_stability
+                        && a.common.deprecated == expected_v2_deprecated
                         && attribute
                             .annotations
                             .as_ref()
@@ -186,13 +183,29 @@ fn fix_span_group_id(group_id: &str) -> SignalId {
     fix_group_id("span.", group_id)
 }
 
-fn convert_v1_stability(
+fn convert_v1_stability_and_deprecated(
     stability: &Option<weaver_semconv::v1::stability::Stability>,
-) -> weaver_semconv::v2::stability::Stability {
-    stability
-        .as_ref()
-        .and_then(|s| weaver_semconv::convert::v1_stability_to_v2(s.clone()).ok())
-        .unwrap_or_default()
+    deprecated: &Option<weaver_semconv::deprecated::Deprecated>,
+) -> (
+    weaver_semconv::v2::stability::Stability,
+    Option<weaver_semconv::deprecated::Deprecated>,
+) {
+    let (stab, dep) = weaver_semconv::convert::v1_stability_and_deprecated_to_v2(
+        stability.clone(),
+        deprecated.clone(),
+    );
+    (stab.unwrap_or_default(), dep)
+}
+
+fn group_common_fields(g: &V1Group) -> CommonFields {
+    let (stability, deprecated) = convert_v1_stability_and_deprecated(&g.stability, &g.deprecated);
+    CommonFields {
+        brief: g.brief.clone(),
+        note: g.note.clone(),
+        stability,
+        deprecated,
+        annotations: g.annotations.clone().unwrap_or_default(),
+    }
 }
 
 fn is_refinement_of(group: &V1Group) -> bool {
@@ -327,6 +340,8 @@ pub fn convert_v1_to_v2(
             let provenance = attr_provenance(&a);
             let r#type = weaver_semconv::convert::v1_attribute_type_to_v2(a.r#type);
             let examples = a.examples.map(weaver_semconv::convert::v1_examples_to_v2);
+            let (stability, deprecated) =
+                convert_v1_stability_and_deprecated(&a.stability, &a.deprecated);
             V2Attribute {
                 key: a.name,
                 r#type,
@@ -334,8 +349,8 @@ pub fn convert_v1_to_v2(
                 common: CommonFields {
                     brief: a.brief,
                     note: a.note,
-                    stability: convert_v1_stability(&a.stability),
-                    deprecated: a.deprecated,
+                    stability,
+                    deprecated,
                     annotations: a.annotations.unwrap_or_default(),
                 },
                 provenance,
@@ -394,13 +409,7 @@ pub fn convert_v1_to_v2(
             identity: id_attrs,
             description: desc_attrs,
             requirement_level: g.requirement_level.clone().map(Into::into),
-            common: CommonFields {
-                brief: g.brief.clone(),
-                note: g.note.clone(),
-                stability: convert_v1_stability(&g.stability),
-                deprecated: g.deprecated.clone(),
-                annotations: g.annotations.clone().unwrap_or_default(),
-            },
+            common: group_common_fields(g),
             provenance: get_provenance(g),
         };
         if is_refinement {
@@ -472,13 +481,7 @@ pub fn convert_v1_to_v2(
                             &g.id,
                         )?,
                         requirement_level: g.requirement_level.clone().map(Into::into),
-                        common: CommonFields {
-                            brief: g.brief.clone(),
-                            note: g.note.clone(),
-                            stability: convert_v1_stability(&g.stability),
-                            deprecated: g.deprecated.clone(),
-                            annotations: g.annotations.clone().unwrap_or_default(),
-                        },
+                        common: group_common_fields(g),
                         attributes: span_attributes,
                         provenance: get_provenance(g),
                     };
@@ -508,13 +511,7 @@ pub fn convert_v1_to_v2(
                                 &g.id,
                             )?,
                             requirement_level: g.requirement_level.clone().map(Into::into),
-                            common: CommonFields {
-                                brief: g.brief.clone(),
-                                note: g.note.clone(),
-                                stability: convert_v1_stability(&g.stability),
-                                deprecated: g.deprecated.clone(),
-                                annotations: g.annotations.clone().unwrap_or_default(),
-                            },
+                            common: group_common_fields(g),
                             attributes: span_attributes,
                             provenance: get_provenance(g),
                         },
@@ -544,13 +541,7 @@ pub fn convert_v1_to_v2(
                             &g.id,
                         )?,
                         requirement_level: g.requirement_level.clone().map(Into::into),
-                        common: CommonFields {
-                            brief: g.brief.clone(),
-                            note: g.note.clone(),
-                            stability: convert_v1_stability(&g.stability),
-                            deprecated: g.deprecated.clone(),
-                            annotations: g.annotations.clone().unwrap_or_default(),
-                        },
+                        common: group_common_fields(g),
                         provenance: get_provenance(g),
                     };
                     if !is_refinement {
@@ -616,13 +607,7 @@ pub fn convert_v1_to_v2(
                         &g.id,
                     )?,
                     requirement_level: g.requirement_level.clone().map(Into::into),
-                    common: CommonFields {
-                        brief: g.brief.clone(),
-                        note: g.note.clone(),
-                        stability: convert_v1_stability(&g.stability),
-                        deprecated: g.deprecated.clone(),
-                        annotations: g.annotations.clone().unwrap_or_default(),
-                    },
+                    common: group_common_fields(g),
                     provenance: get_provenance(g),
                 };
                 if is_refinement {
@@ -659,13 +644,7 @@ pub fn convert_v1_to_v2(
                     attribute_groups.push(V2AttributeGroup {
                         id: fix_group_id("attribute_group.", &g.id),
                         attributes,
-                        common: CommonFields {
-                            brief: g.brief.clone(),
-                            note: g.note.clone(),
-                            stability: convert_v1_stability(&g.stability),
-                            deprecated: g.deprecated.clone(),
-                            annotations: g.annotations.clone().unwrap_or_default(),
-                        },
+                        common: group_common_fields(g),
                         provenance: get_provenance(g),
                     });
                 }
@@ -2557,5 +2536,112 @@ mod tests {
             role: None,
         });
         assert!(result2.is_some());
+    }
+
+    #[test]
+    fn test_v1_deprecated_stability_attribute_conversion() {
+        #[allow(deprecated)]
+        let deprecated_v1 = Stability::Deprecated;
+
+        let catalog = V1Catalog::new(
+            vec![V1Attribute {
+                name: "legacy.deprecated.attr".to_owned(),
+                r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                    weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String,
+                ),
+                brief: "A legacy deprecated attribute".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: weaver_semconv::v1::attribute::RequirementLevel::Basic(
+                    weaver_semconv::v1::attribute::BasicRequirementLevelSpec::Recommended,
+                ),
+                sampling_relevant: None,
+                note: String::new(),
+                stability: Some(deprecated_v1.clone()),
+                deprecated: None,
+                prefix: false,
+                tags: None,
+                annotations: None,
+                value: None,
+                role: None,
+            }],
+            Default::default(),
+        );
+
+        let registry = V1Registry {
+            registry_url: "https://opentelemetry.io/schemas/1.0.0".to_owned(),
+            groups: vec![V1Group {
+                id: "span.legacy.test".to_owned(),
+                r#type: GroupType::Span,
+                brief: "Legacy span".to_owned(),
+                note: String::new(),
+                prefix: String::new(),
+                extends: None,
+                stability: Some(deprecated_v1),
+                deprecated: None,
+                attributes: vec![V1AttributeRef(0)],
+                span_kind: Some(weaver_semconv::v1::group::SpanKindSpec::Internal),
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                name: Some("legacy.span".to_owned()),
+                lineage: None,
+                display_name: None,
+                body: None,
+                annotations: None,
+                entity_associations: vec![],
+                requirement_level: None,
+                visibility: None,
+                is_v2: false,
+                span_name: None,
+            }],
+            entity_association_origins: Default::default(),
+        };
+
+        let v1_schema = V1ResolvedSchema {
+            file_format: "1.0.0".to_owned(),
+            schema_url: "https://opentelemetry.io/schemas/1.0.0".to_owned(),
+            registry_id: "test".to_owned(),
+            registry,
+            catalog,
+            resource: None,
+            instrumentation_library: None,
+            dependencies: BTreeSet::new(),
+            versions: None,
+            registry_manifest: None,
+        };
+
+        let v2_schema = V2ResolvedSchema::try_from(v1_schema)
+            .expect("V1 schema with Stability::Deprecated should convert cleanly to V2");
+
+        assert_eq!(v2_schema.attribute_catalog.len(), 1);
+        let attr = &v2_schema.attribute_catalog[0];
+        assert_eq!(attr.key, "legacy.deprecated.attr");
+        assert_eq!(
+            attr.common.stability,
+            weaver_semconv::v2::stability::Stability::Development
+        );
+        assert_eq!(
+            attr.common.deprecated,
+            Some(weaver_semconv::deprecated::Deprecated::Unspecified {
+                note: "converted from no-note legacy V1 deprecation".to_owned(),
+            })
+        );
+
+        assert_eq!(v2_schema.registry.spans.len(), 1);
+        let span = &v2_schema.registry.spans[0];
+        assert_eq!(
+            span.common.stability,
+            weaver_semconv::v2::stability::Stability::Development
+        );
+        assert_eq!(
+            span.common.deprecated,
+            Some(weaver_semconv::deprecated::Deprecated::Unspecified {
+                note: "converted from no-note legacy V1 deprecation".to_owned(),
+            })
+        );
+        assert_eq!(span.attributes.len(), 1);
+        assert_eq!(span.attributes[0].base.0, 0);
     }
 }
