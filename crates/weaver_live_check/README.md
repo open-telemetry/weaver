@@ -220,6 +220,9 @@ weaver registry json-schema --json-schema weaver-config -o weaver-config.schema.
 ### Live-check settings
 
 ```toml
+# Applies to every subcommand, not just live-check.
+namespace_separator = "."
+
 [live-check]
 input_source = "otlp"
 input_format = "json"

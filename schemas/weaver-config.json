@@ -339,13 +339,16 @@
             "null"
           ],
           "default": null
-        },
-        "namespace_separator": {
-          "description": "Namespace separator used in attribute keys. Defaults to \".\".\nUsed by namespace browsing and search token splitting.\n[default: .]",
-          "type": "string",
-          "default": "."
         }
       }
+    },
+    "namespace_separator": {
+      "description": "Namespace separator in registry names, such as the `.` in `http.request.method`.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
     },
     "package": {
       "description": "Package a resolved registry for publication (produces `resolved.yaml` and `manifest.yaml`).",

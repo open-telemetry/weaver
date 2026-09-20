@@ -16,6 +16,7 @@ use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
+use weaver_common::namespace::namespace_separator;
 use weaver_config::{WeaverCommand, WeaverConfig};
 use weaver_macros::weaver_command;
 
@@ -48,12 +49,6 @@ pub struct RegistryMcpArgs {
     #[arg(long)]
     #[config]
     pub advice_data: Option<String>,
-
-    /// Namespace separator used in attribute keys. Defaults to ".".
-    /// Used by namespace browsing and search token splitting.
-    #[arg(long)]
-    #[config(default = ".")]
-    pub namespace_separator: Option<String>,
 }
 
 /// Run the MCP server for the semantic convention registry.
@@ -91,7 +86,7 @@ pub(crate) fn command(
         advice_policies: cmd_config.config.advice_policies,
         advice_data: cmd_config.config.advice_data,
         advice_preprocessor: cmd_config.config.advice_preprocessor,
-        namespace_separator: cmd_config.config.namespace_separator,
+        namespace_separator: namespace_separator().to_owned(),
     };
 
     // Run the MCP server

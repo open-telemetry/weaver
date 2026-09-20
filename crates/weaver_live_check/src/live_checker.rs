@@ -10,6 +10,8 @@ use std::sync::Arc;
 use weaver_semconv::v1::{attribute::AttributeType, group::GroupType};
 use weaver_semconv::v2::attribute::AttributeType as V2AttributeType;
 
+use weaver_common::namespace::namespace_separator;
+
 use crate::cel::Matchable;
 use crate::{
     advice::Advisor,
@@ -32,13 +34,26 @@ type AttributeIndex = HashMap<String, Rc<VersionedAttribute>>;
 /// Signal attributes, keyed by signal id and then by attribute key.
 type RefinedAttributes = HashMap<String, AttributeIndex>;
 
+/// Whether `key` is an instance of the template attribute named `template_key`:
+/// the template name, the namespace separator, then a non-empty remainder. A
+/// template name that already ends with the separator does not need a second
+/// one.
+#[must_use]
+pub fn key_extends_template(key: &str, template_key: &str) -> bool {
+    let separator = namespace_separator();
+    let template_key = template_key.strip_suffix(separator).unwrap_or(template_key);
+    key.strip_prefix(template_key)
+        .and_then(|rest| rest.strip_prefix(separator))
+        .is_some_and(|rest| !rest.is_empty())
+}
+
 /// The longest template attribute in `index` that `key` extends.
 fn find_template_in(index: &AttributeIndex, key: &str) -> Option<Rc<VersionedAttribute>> {
     index
         .iter()
         .filter(|(name, attribute)| {
             matches!(*attribute.r#type(), AttributeType::Template(_))
-                && key.starts_with(name.as_str())
+                && key_extends_template(key, name)
         })
         .max_by_key(|(name, _)| name.len())
         .map(|(_, attribute)| Rc::clone(attribute))
@@ -461,7 +476,7 @@ impl LiveChecker {
     pub fn find_base_template(&self, key: &str) -> Option<&BaseAttribute> {
         self.base_template_keys
             .iter()
-            .find(|template| key.starts_with(template.as_str()))
+            .find(|template| key_extends_template(key, template))
             .and_then(|template| self.base_attributes.get(template))
     }
 
@@ -535,7 +550,7 @@ impl LiveChecker {
     pub fn find_template(&self, attribute_name: &str) -> Option<Rc<VersionedAttribute>> {
         // Use the pre-sorted list to find the first (longest) matching template
         for (template_name, attribute) in &self.templates_by_length {
-            if attribute_name.starts_with(template_name) {
+            if key_extends_template(attribute_name, template_name) {
                 return Some(Rc::clone(attribute));
             }
         }
@@ -920,6 +935,56 @@ mod tests {
             assert_eq!(cumulative_stats.registry_coverage, 1.0);
         } else {
             panic!("Expected Cumulative statistics");
+        }
+    }
+
+    /// A key that extends a template's name without the namespace separator
+    /// between them is not an instance of that template.
+    #[test]
+    fn test_template_match_requires_the_namespace_separator() {
+        for use_v2 in [false, true] {
+            let mut live_checker =
+                LiveChecker::new(Arc::new(make_registry(use_v2)), vec![Box::new(TypeAdvisor)]);
+            if use_v2 {
+                live_checker
+                    .search_all_attributes()
+                    .expect("the fixture registry is v2");
+            }
+            let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
+                .expect("Failed to create Rego advisor");
+            live_checker.add_advisor(Box::new(rego_advisor));
+
+            assert!(live_checker.find_template("test.template.my.key").is_some());
+            assert!(live_checker
+                .find_template("test.templates.my.key")
+                .is_none());
+            if use_v2 {
+                assert!(live_checker
+                    .find_base_template("test.template.my.key")
+                    .is_some());
+                assert!(live_checker
+                    .find_base_template("test.templates.my.key")
+                    .is_none());
+            }
+
+            let mut stats =
+                LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+            let mut sample = Sample::Attribute(
+                SampleAttribute::try_from("test.templates.my.key=42").expect("a valid attribute"),
+            );
+            sample
+                .run_live_check(&mut live_checker, &mut stats, None, &sample.clone())
+                .expect("the live check runs");
+
+            let advice = get_all_advice(&mut sample);
+            assert!(
+                advice.iter().all(|a| a.id != "template_attribute"),
+                "v2 = {use_v2}, got: {advice:?}"
+            );
+            assert!(
+                advice.iter().any(|a| a.id == "missing_attribute"),
+                "v2 = {use_v2}, got: {advice:?}"
+            );
         }
     }
 

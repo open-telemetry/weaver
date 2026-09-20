@@ -59,6 +59,8 @@ pub struct WeaverConfig {
     pub template: TemplateConfig,
     /// Per-URL HTTP authentication entries for downloading remote registries.
     pub auth: Vec<AuthEntry>,
+    /// Namespace separator in registry names, such as the `.` in `http.request.method`.
+    pub namespace_separator: Option<String>,
     /// Per-command configuration sections, stored as raw TOML values.
     /// Each key matches the command section name (e.g. "emit", "generate", "live-check").
     #[serde(flatten)]

@@ -46,6 +46,10 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub config: Option<PathBuf>,
 
+    /// Namespace separator in registry names. Defaults to ".".
+    #[arg(long, global = true)]
+    pub namespace_separator: Option<String>,
+
     /// List of supported commands
     #[command(subcommand)]
     pub command: Option<Commands>,

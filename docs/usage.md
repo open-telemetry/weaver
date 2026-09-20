@@ -44,6 +44,7 @@ Manage semantic convention registry and telemetry schema workflows (OpenTelemetr
 * `--future` — Enable the most recent validation rules for the semconv registry. It is recommended to enable this flag when checking a new registry. Note: `semantic_conventions` main branch should always enable this flag
 * `--allow-git-credentials` — Allow git credential helpers when cloning registries from private repositories. By default, git operations are isolated and cannot access global git config or credential helpers. Enable this flag to authenticate with private registries using your system's configured git credential helpers (e.g., osxkeychain, git-credential-manager)
 * `--config <CONFIG>` — Path to a `.weaver.toml` project config file. When set, skips the upward-walk discovery from the current working directory
+* `--namespace-separator <NAMESPACE_SEPARATOR>` — Namespace separator in registry names. Defaults to "."
 
 
 
@@ -585,7 +586,6 @@ The server communicates over stdio using JSON-RPC.
 * `--advice-policies <ADVICE_POLICIES>` — Advice policies directory. Set this to override the default policies
 * `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego
 * `--advice-data <ADVICE_DATA>` — Glob pattern pointing to additional JSON/YAML files to load into OPA rego data. Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user)
-* `--namespace-separator <NAMESPACE_SEPARATOR>` — Namespace separator used in attribute keys. Defaults to ".". Used by namespace browsing and search token splitting. [default: .]
 
 
 

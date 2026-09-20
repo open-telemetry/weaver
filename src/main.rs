@@ -14,6 +14,7 @@ use std::io::Write;
 use registry::{resolve_weaver_config, semconv_registry};
 use weaver_common::diagnostic::{enable_future_mode, DiagnosticMessages};
 use weaver_common::log_error;
+use weaver_common::namespace::set_namespace_separator;
 use weaver_forge::config::Params;
 use weaver_forge::{OutputProcessor, OutputTarget};
 
@@ -181,6 +182,14 @@ fn run_command(cli: &Cli) -> ExitDirectives {
         }
     };
     let cfg = weaver_config.as_ref();
+    // The separator is process-wide: the global flag wins over `.weaver.toml`.
+    if let Some(separator) = cli
+        .namespace_separator
+        .clone()
+        .or_else(|| cfg.and_then(|c| c.namespace_separator.clone()))
+    {
+        set_namespace_separator(separator);
+    }
     let auth = registry::auth_resolver_from_config(cfg);
     let cmd_result = match &cli.command {
         Some(Commands::Registry(params)) => semconv_registry(params, cfg, &auth),
