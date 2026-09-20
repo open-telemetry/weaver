@@ -203,6 +203,62 @@ templates:
     assert_eq!(lines[2], "int64");
 }
 
+#[test]
+fn test_generate_loads_jq_modules_from_template_package() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("registry_generate")
+        .join("jq_modules");
+    let project = tempfile::tempdir().expect("Failed to create temp dir");
+    // Stop project-config discovery before it reaches the temporary directory's ancestors.
+    fs::write(project.path().join(".weaver.toml"), "").expect("Failed to write project config");
+
+    for enabled in [false, true] {
+        let out_dir = project
+            .path()
+            .join(if enabled { "enabled" } else { "disabled" });
+        let mut cmd = Command::cargo_bin("weaver").unwrap();
+        let output = cmd
+            .current_dir(project.path())
+            .arg("--quiet")
+            .arg("registry")
+            .arg("generate")
+            .arg("-r")
+            .arg(fixture.join("model"))
+            .arg("-t")
+            .arg(fixture.join("templates"))
+            .arg("--skip-policies")
+            .arg("-D")
+            .arg(format!("generate_public_attributes={enabled}"))
+            .arg("jq_modules")
+            .arg(&out_dir)
+            .timeout(std::time::Duration::from_secs(60))
+            .output()
+            .expect("failed to execute process");
+
+        assert!(
+            output.status.success(),
+            "generate failed (enabled={enabled}):\nstdout: {}\nstderr: {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+
+        let generated = out_dir.join("attributes.md");
+        if enabled {
+            let content = fs::read_to_string(generated).expect("Failed to read generated output");
+            assert_eq!(
+                content.lines().collect::<Vec<_>>(),
+                vec!["public.alpha", "public.beta"]
+            );
+        } else {
+            assert!(
+                !generated.exists(),
+                "attributes.md should be skipped when the module's `when` function returns false"
+            );
+        }
+    }
+}
+
 /// End-to-end check that `.weaver.toml` appends JQ modules after the template
 /// package's modules without replacing Weaver's built-in JQ prelude.
 #[test]

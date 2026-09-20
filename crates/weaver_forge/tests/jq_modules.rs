@@ -137,10 +137,14 @@ fn cycles_invalid_utf8_and_missing_nested_imports_fail_with_provenance() {
     assert!(message.contains("main.jq"));
     assert!(!message.contains("__weaver_configured_module_"));
     fs::write(&module, "include \"missing\";").unwrap();
-    assert!(run()
-        .unwrap_err()
-        .to_string()
-        .contains(&dir.path().display().to_string()));
+    let message = run().unwrap_err().to_string();
+    // Nested imports resolve from the canonical importing module's directory.
+    let missing = module.canonicalize().unwrap().with_file_name("missing.jq");
+    assert!(
+        message.contains(&missing.display().to_string()),
+        "expected missing module path {} in diagnostic: {message}",
+        missing.display()
+    );
 }
 
 #[test]
