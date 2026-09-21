@@ -27,7 +27,13 @@ import {
   TreeViewIcon,
 } from '../components/ViewModeIcons'
 import { search, searchAll } from '../lib/api'
-import type { DeprecatedFilter, SearchResponse, StabilityFilter, TypeFilter } from '../lib/api'
+import type {
+  DeprecatedFilter,
+  SearchResponse,
+  SortOrder,
+  StabilityFilter,
+  TypeFilter,
+} from '../lib/api'
 import { buildNamespaceTree, collectFolderPaths, defaultExpansion } from '../lib/namespaceTree'
 import { getScrollRestorationKey } from '../lib/scrollRestorationKey'
 import { getResultId, getResultLink, getResultMeta } from '../lib/searchResults'
@@ -45,17 +51,8 @@ const stabilityOptions: Array<Exclude<StabilityFilter, null>> = [
 ]
 
 type ViewMode = 'list' | 'tree'
-type SortOrder = 'default' | 'name' | 'stability' | 'deprecated'
 
 const sortOptions: SortOrder[] = ['default', 'name', 'stability', 'deprecated']
-
-const stabilitySortRank: Record<string, number> = {
-  stable: 0,
-  release_candidate: 1,
-  beta: 2,
-  alpha: 3,
-  development: 4,
-}
 
 interface SearchState {
   query: string
@@ -159,24 +156,6 @@ function Search() {
     () => (view === 'tree' && results ? buildNamespaceTree(results.results) : null),
     [results, view]
   )
-  const sortedResults = useMemo(() => {
-    if (!results) return []
-    if (sortOrder === 'default') return results.results
-    const copy = [...results.results]
-    copy.sort((a, b) => {
-      if (sortOrder === 'deprecated') {
-        const aDep = Boolean(a.deprecated)
-        const bDep = Boolean(b.deprecated)
-        if (aDep !== bDep) return aDep ? -1 : 1
-      } else if (sortOrder === 'stability') {
-        const aRank = a.stability ? (stabilitySortRank[a.stability] ?? 99) : 99
-        const bRank = b.stability ? (stabilitySortRank[b.stability] ?? 99) : 99
-        if (aRank !== bRank) return aRank - bRank
-      }
-      return getResultId(a).localeCompare(getResultId(b))
-    })
-    return copy
-  }, [results, sortOrder])
   const expanded = useMemo(() => {
     if (!tree) return new Set<string>()
     const { base, open, closed } = treeExpansion
@@ -270,6 +249,7 @@ function Search() {
                 nextDeprecatedFilter,
                 itemsPerPage,
                 nextOffset,
+                nextSortOrder,
                 { signal: controller.signal }
               )
         if (requestVersion !== requestVersionRef.current) return
@@ -544,17 +524,19 @@ function Search() {
             <option value="beta">Beta</option>
             <option value="release_candidate">Release Candidate</option>
           </select>
-          <select
-            aria-label="Sort by"
-            className="select select-bordered"
-            value={sortOrder}
-            onChange={handleSortOrderChange}
-          >
-            <option value="default">Sort: Default</option>
-            <option value="name">Sort: Name (A–Z)</option>
-            <option value="stability">Sort: Stability</option>
-            <option value="deprecated">Sort: Deprecated first</option>
-          </select>
+          {view === 'list' ? (
+            <select
+              aria-label="Sort by"
+              className="select select-bordered"
+              value={sortOrder}
+              onChange={handleSortOrderChange}
+            >
+              <option value="default">Sort: Default</option>
+              <option value="name">Sort: Name (A–Z)</option>
+              <option value="stability">Sort: Stability</option>
+              <option value="deprecated">Sort: Deprecated first</option>
+            </select>
+          ) : null}
           <div className="join" role="group" aria-label="Deprecated items visibility">
             <button
               type="button"
@@ -672,7 +654,7 @@ function Search() {
               ) : null
             ) : (
               <div className="space-y-2">
-                {sortedResults.map((result, index) => (
+                {results.results.map((result, index) => (
                   <Link
                     key={`${result.result_type}-${getResultId(result)}-${index}`}
                     to={getResultLink(result)}

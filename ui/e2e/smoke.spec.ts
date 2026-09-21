@@ -98,8 +98,9 @@ test('deprecated items are hidden by default and controlled by hide/show/only bu
   await expect(page).not.toHaveURL(/deprecated=/)
 })
 
-test('?deprecated=only query parameter and sort by deprecated first work as expected', async ({
+test('?deprecated=only query parameter and sort modes (deprecated, name, stability) work across pages and hide in tree view', async ({
   page,
+  request,
 }) => {
   await page.goto('/search?deprecated=only')
 
@@ -111,14 +112,45 @@ test('?deprecated=only query parameter and sort by deprecated first work as expe
   await expect(deprecatedCard).toBeVisible()
   await expect(nonDeprecatedCard).toHaveCount(0)
 
-  // Selecting "Sort: Deprecated first" from default view automatically shows deprecated items first.
+  // Verify backend sorts across the full result set before paginating (even with limit=1).
+  const depPage1 = await request.get('/api/v1/registry/search?sort=deprecated&limit=1&offset=0')
+  expect(depPage1.ok()).toBeTruthy()
+  const depPage1Json = await depPage1.json()
+  expect(depPage1Json.results[0].deprecated).toBeTruthy()
+
+  // 1. Selecting "Sort: Deprecated first" from default view automatically shows deprecated items first.
   await page.goto('/search')
   const sortSelect = page.getByLabel('Sort by')
   await sortSelect.selectOption('deprecated')
   await expect(page).toHaveURL(/sort=deprecated/)
   await expect(page).toHaveURL(/deprecated=show/)
-  const firstCardHref = await page.locator('a.card').first().getAttribute('href')
-  expect(firstCardHref).toMatch(/deprecated/)
+  await expect(page.locator('a.card').first()).toHaveAttribute('href', /deprecated/)
+
+  // 2. Selecting "Sort: Name (A–Z)" sorts results alphabetically (render.attr.boolean_example comes before render.attr.string_single_example).
+  await page.getByRole('button', { name: 'Hide deprecated items' }).click()
+  await sortSelect.selectOption('name')
+  await expect(page).toHaveURL(/sort=name/)
+  await expect(page.locator('a.card').first()).toHaveAttribute(
+    'href',
+    '/attribute/render.attr.boolean_example'
+  )
+  const nameKeys = await page.locator('a.card .font-mono').allInnerTexts()
+  expect(nameKeys.length).toBeGreaterThan(2)
+  for (let i = 1; i < nameKeys.length; i++) {
+    expect(nameKeys[i - 1].localeCompare(nameKeys[i])).toBeLessThanOrEqual(0)
+  }
+
+  // 3. Selecting "Sort: Stability" puts Stable items first and Development items last.
+  await sortSelect.selectOption('stability')
+  await expect(page).toHaveURL(/sort=stability/)
+  await expect(page.locator('a.card').first().locator('.badge', { hasText: 'Stable' })).toBeVisible()
+  await expect(
+    page.locator('a.card').last().locator('.badge', { hasText: 'Development' })
+  ).toBeVisible()
+
+  // 4. Switching to Tree view hides the "Sort by" dropdown.
+  await page.getByRole('button', { name: 'Tree' }).click()
+  await expect(page.getByLabel('Sort by')).toHaveCount(0)
 })
 
 test('stats page shows counts and links into filtered search including deprecated items', async ({

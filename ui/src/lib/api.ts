@@ -125,6 +125,7 @@ export type StabilityLevel =
 export type StabilityFilter = StabilityLevel | null;
 export type DeprecatedFilter = 'hide' | 'show' | 'only';
 export type TypeFilter = 'all' | 'attribute' | 'metric' | 'span' | 'event' | 'entity';
+export type SortOrder = 'default' | 'name' | 'stability' | 'deprecated';
 
 export interface EnumMember {
   value?: string | number | boolean;
@@ -341,6 +342,7 @@ export async function search(
   deprecated: DeprecatedFilter = 'hide',
   limit: number = 50,
   offset: number = 0,
+  sort: SortOrder = 'default',
   options?: { signal?: AbortSignal }
 ): Promise<SearchResponse> {
   const searchParams = new URLSearchParams();
@@ -352,6 +354,7 @@ export async function search(
   } else if (deprecated === 'only') {
     searchParams.set('deprecated', 'true');
   }
+  if (sort !== 'default') searchParams.set('sort', sort);
   if (limit) searchParams.set('limit', limit.toString());
   if (offset) searchParams.set('offset', offset.toString());
   return fetchJSON<SearchResponse>(`${BASE_URL}/registry/search?${searchParams.toString()}`, {
@@ -373,7 +376,16 @@ export async function searchAll(
   deprecated: DeprecatedFilter = 'hide',
   options?: { signal?: AbortSignal }
 ): Promise<SearchResponse> {
-  const first = await search(query, type, stability, deprecated, maxSearchLimit, 0, options);
+  const first = await search(
+    query,
+    type,
+    stability,
+    deprecated,
+    maxSearchLimit,
+    0,
+    'default',
+    options
+  );
   const results = [...first.results];
   let prevPageFirst = JSON.stringify(first.results[0] ?? null);
   while (results.length < first.total) {
@@ -384,6 +396,7 @@ export async function searchAll(
       deprecated,
       maxSearchLimit,
       results.length,
+      'default',
       options
     );
     if (page.results.length === 0) break;

@@ -44,6 +44,21 @@ pub enum SearchType {
     Entity,
 }
 
+/// Sort order for search results.
+#[derive(Debug, Deserialize, Default, Clone, Copy, PartialEq, Eq, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum SearchSort {
+    /// Default ordering (by relevance score when searching, or natural registry order when browsing).
+    #[default]
+    Default,
+    /// Sort alphabetically by item identifier (key/name/type).
+    Name,
+    /// Sort by maturity/stability level (stable -> release_candidate -> beta -> alpha -> development), then by name.
+    Stability,
+    /// Sort deprecated items first, then by relevance/name.
+    Deprecated,
+}
+
 /// A lightweight attribute summary used by `browse_namespace` and `check_attributes`.
 #[derive(Debug, Serialize, Clone)]
 pub struct NamespaceAttribute {

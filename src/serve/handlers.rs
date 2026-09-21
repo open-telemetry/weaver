@@ -277,11 +277,12 @@ pub async fn search_registry(
         .deprecated
         .or_else(|| params.hide_deprecated.then_some(false));
 
-    let (results, total) = state.search_ctx.search(
+    let (results, total) = state.search_ctx.search_sorted(
         query,
         params.search_type,
         params.stability,
         deprecated,
+        params.sort,
         params.limit,
         params.offset,
     );

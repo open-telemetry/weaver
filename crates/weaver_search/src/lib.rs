@@ -10,7 +10,9 @@
 
 mod types;
 
-pub use types::{NamespaceAttribute, NamespaceInfo, ScoredResult, SearchResult, SearchType};
+pub use types::{
+    NamespaceAttribute, NamespaceInfo, ScoredResult, SearchResult, SearchSort, SearchType,
+};
 
 use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
@@ -173,6 +175,31 @@ impl SearchContext {
         limit: usize,
         offset: usize,
     ) -> (Vec<SearchResult>, usize) {
+        self.search_sorted(
+            query,
+            search_type,
+            stability,
+            deprecated,
+            SearchSort::Default,
+            limit,
+            offset,
+        )
+    }
+
+    /// Search for items matching the query with an explicit sort order applied
+    /// across the full matched result set before pagination.
+    #[must_use]
+    #[allow(clippy::too_many_arguments)]
+    pub fn search_sorted(
+        &self,
+        query: Option<&str>,
+        search_type: SearchType,
+        stability: Option<Stability>,
+        deprecated: Option<bool>,
+        sort: SearchSort,
+        limit: usize,
+        offset: usize,
+    ) -> (Vec<SearchResult>, usize) {
         let limit = limit.min(MAX_SEARCH_LIMIT);
 
         // Filter by type
@@ -198,16 +225,16 @@ impl SearchContext {
             if q.is_empty() {
                 // Empty query - browse mode
                 let total = items.len();
-                let results = browse_mode(items, limit, offset);
+                let results = browse_mode(items, sort, limit, offset);
                 (results, total)
             } else {
                 // Non-empty query - search mode with scoring
-                search_mode_with_total(items, q, limit, offset, &self.separator)
+                search_mode_with_total(items, q, sort, limit, offset, &self.separator)
             }
         } else {
             // No query - browse mode
             let total = items.len();
-            let results = browse_mode(items, limit, offset);
+            let results = browse_mode(items, sort, limit, offset);
             (results, total)
         };
 
@@ -340,10 +367,43 @@ impl SearchContext {
     }
 }
 
+fn stability_rank(stability: &Stability) -> u8 {
+    match stability {
+        Stability::Stable => 0,
+        Stability::ReleaseCandidate => 1,
+        Stability::Beta => 2,
+        Stability::Alpha => 3,
+        Stability::Development => 4,
+    }
+}
+
+fn compare_items(
+    a: &SearchableItem,
+    a_score: u32,
+    b: &SearchableItem,
+    b_score: u32,
+    sort: SearchSort,
+) -> std::cmp::Ordering {
+    match sort {
+        SearchSort::Default => b_score.cmp(&a_score),
+        SearchSort::Name => a.id().cmp(b.id()).then_with(|| b_score.cmp(&a_score)),
+        SearchSort::Stability => stability_rank(a.stability())
+            .cmp(&stability_rank(b.stability()))
+            .then_with(|| a.id().cmp(b.id()))
+            .then_with(|| b_score.cmp(&a_score)),
+        SearchSort::Deprecated => b
+            .is_deprecated()
+            .cmp(&a.is_deprecated())
+            .then_with(|| b_score.cmp(&a_score))
+            .then_with(|| a.id().cmp(b.id())),
+    }
+}
+
 /// Search mode with total count: perform fuzzy matching with scoring and return (results, total).
 fn search_mode_with_total(
     items: Vec<&SearchableItem>,
     query: &str,
+    sort: SearchSort,
     limit: usize,
     offset: usize,
     separator: &str,
@@ -360,8 +420,9 @@ fn search_mode_with_total(
         })
         .collect();
 
-    // Sort by score descending
-    scored_items.sort_by_key(|b| std::cmp::Reverse(b.0));
+    // Sort across the full matched result set before paginating
+    scored_items
+        .sort_by(|(a_score, a), (b_score, b)| compare_items(a, *a_score, b, *b_score, sort));
 
     // Calculate total before paginating
     let total = scored_items.len();
@@ -377,8 +438,16 @@ fn search_mode_with_total(
     (results, total)
 }
 
-/// Browse mode: return all items in natural order with pagination.
-fn browse_mode(items: Vec<&SearchableItem>, limit: usize, offset: usize) -> Vec<SearchResult> {
+/// Browse mode: return all items in the requested sort order with pagination.
+fn browse_mode(
+    mut items: Vec<&SearchableItem>,
+    sort: SearchSort,
+    limit: usize,
+    offset: usize,
+) -> Vec<SearchResult> {
+    if sort != SearchSort::Default {
+        items.sort_by(|a, b| compare_items(a, 0, b, 0, sort));
+    }
     items
         .into_iter()
         .skip(offset)
@@ -1230,5 +1299,82 @@ mod tests {
         let info = ctx.browse_namespace(Some(""));
         assert_eq!(info.prefix, "");
         assert_eq!(info.total_attribute_count, 5);
+    }
+
+    #[test]
+    fn test_search_sorted_across_pages() {
+        fn attr_key(r: &SearchResult) -> &str {
+            match r {
+                SearchResult::Attribute(a) => a.item.key.as_str(),
+                _ => panic!("expected attribute"),
+            }
+        }
+
+        let mut dev_attr = make_attribute("z.dev", "Development attribute", "", false);
+        dev_attr.common.stability = Stability::Development;
+        let stable_attr = make_attribute("m.stable", "Stable attribute", "", false);
+        let dep_attr = make_attribute("a.deprecated", "Deprecated attribute", "", true);
+
+        // Place the deprecated item last in natural registry order so page 1 (limit=1)
+        // would NOT include it unless sorting happens before pagination.
+        let registry = make_registry_with_attributes(vec![dev_attr, stable_attr, dep_attr]);
+        let ctx = SearchContext::from_registry(&registry);
+
+        // 1. Sort by Deprecated first: page 1 (limit=1, offset=0) returns the deprecated item.
+        let (page1, total) = ctx.search_sorted(
+            None,
+            SearchType::Attribute,
+            None,
+            None,
+            SearchSort::Deprecated,
+            1,
+            0,
+        );
+        assert_eq!(total, 3);
+        assert_eq!(attr_key(&page1[0]), "a.deprecated");
+
+        // 2. Sort by Stability: page 1 (limit=1, offset=0) returns the Stable item (even though dev_attr was first in registry).
+        let (page1_stab, _) = ctx.search_sorted(
+            None,
+            SearchType::Attribute,
+            None,
+            Some(false),
+            SearchSort::Stability,
+            1,
+            0,
+        );
+        assert_eq!(attr_key(&page1_stab[0]), "m.stable");
+
+        // 3. Sort by Name: page 1 (limit=1, offset=0) returns `a.deprecated`, page 2 returns `m.stable`, page 3 returns `z.dev`.
+        let (page1_name, _) = ctx.search_sorted(
+            None,
+            SearchType::Attribute,
+            None,
+            None,
+            SearchSort::Name,
+            1,
+            0,
+        );
+        let (page2_name, _) = ctx.search_sorted(
+            None,
+            SearchType::Attribute,
+            None,
+            None,
+            SearchSort::Name,
+            1,
+            1,
+        );
+        let (page3_name, _) = ctx.search_sorted(
+            None,
+            SearchType::Attribute,
+            None,
+            None,
+            SearchSort::Name,
+            1,
+            2,
+        );
+        assert_eq!(attr_key(&page1_name[0]), "a.deprecated");
+        assert_eq!(attr_key(&page2_name[0]), "m.stable");
+        assert_eq!(attr_key(&page3_name[0]), "z.dev");
     }
 }
