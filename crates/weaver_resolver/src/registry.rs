@@ -1698,6 +1698,14 @@ mod tests {
                         )
                     )
                 })
+                .ignore(|e| {
+                    matches!(
+                        e,
+                        crate::Error::FailToResolveDefinition(
+                            weaver_semconv::Error::MissingManifestFileFormat { .. }
+                        )
+                    )
+                })
                 .into_result_failing_non_fatal()
                 .expect("Failed to load semconv specs");
 
@@ -2338,7 +2346,7 @@ groups:
         use crate::Error as ResolverError;
         use std::collections::BTreeMap;
         use weaver_resolved_schema::v1::attribute::AttributeRef;
-        use weaver_semconv::v2::span::{SpanName, SpanNameTemplate};
+        use weaver_semconv::v1::group::{SpanName, SpanNameTemplate};
 
         let attr_name_index = vec!["http.request.method".to_owned()];
         let group = Group {
