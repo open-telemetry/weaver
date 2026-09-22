@@ -126,18 +126,19 @@ test('?deprecated=only query parameter and sort modes (deprecated, name, stabili
   await expect(page).toHaveURL(/deprecated=show/)
   await expect(page.locator('a.card').first()).toHaveAttribute('href', /deprecated/)
 
-  // 2. Selecting "Sort: Name (A–Z)" sorts results alphabetically (render.attr.boolean_example comes before render.attr.string_single_example).
+  // 2. Selecting "Sort: Name (A–Z)" sorts results alphabetically (render.attr event comes first, followed by render.attr.boolean_example).
   await page.getByRole('button', { name: 'Hide deprecated items' }).click()
   await sortSelect.selectOption('name')
   await expect(page).toHaveURL(/sort=name/)
-  await expect(page.locator('a.card').first()).toHaveAttribute(
+  await expect(page.locator('a.card').first()).toHaveAttribute('href', '/event/render.attr')
+  await expect(page.locator('a.card').nth(1)).toHaveAttribute(
     'href',
     '/attribute/render.attr.boolean_example'
   )
   const nameKeys = await page.locator('a.card .font-mono').allInnerTexts()
   expect(nameKeys.length).toBeGreaterThan(2)
   for (let i = 1; i < nameKeys.length; i++) {
-    expect(nameKeys[i - 1].localeCompare(nameKeys[i])).toBeLessThanOrEqual(0)
+    expect(nameKeys[i - 1] <= nameKeys[i]).toBeTruthy()
   }
 
   // 3. Selecting "Sort: Stability" puts Stable items first and Development items last.
