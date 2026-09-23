@@ -27,6 +27,9 @@ spans:
           - ref: linkserver.job.id
             requirement_level: required
             brief: job id carried on the link
+            annotations:
+              code_generation:
+                exclude: true
 span_refinements:
   # Declares no links; must inherit both links from consumer.op.
   - id: refined.op

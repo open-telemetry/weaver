@@ -260,6 +260,9 @@ fn convert_span_link_attribute(
     if let Some(examples) = &ar.base.examples {
         merged.examples = Some(weaver_semconv::convert::v2_examples_to_v1(examples.clone()));
     }
+    if !ar.base.annotations.is_empty() {
+        merged.annotations = Some(ar.base.annotations.clone());
+    }
     let base = v2_catalog.convert_ref(&merged).ok_or_else(not_found)?;
     Ok(span::LinkAttributeRef {
         base,

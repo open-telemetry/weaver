@@ -15,6 +15,9 @@ attribute_catalog:
   - job-42
   brief: job id carried on the link
   stability: stable
+  annotations:
+    code_generation:
+      exclude: true
   provenance:
     source: 0
 registry:

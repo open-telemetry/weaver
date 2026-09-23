@@ -766,7 +766,7 @@ pub(crate) mod tests {
                         brief: Some("test link".to_owned()),
                         note: None,
                         attributes: vec![weaver_resolved_schema::v2::span::LinkAttributeRef {
-                            base: weaver_resolved_schema::v2::attribute::AttributeRef(0),
+                            base: weaver_resolved_schema::v2::attribute::AttributeRef(3),
                             requirement_level: weaver_semconv::v2::attribute::RequirementLevel::Basic(
                                 weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
                             ),
@@ -821,6 +821,20 @@ pub(crate) mod tests {
                     ),
                     examples: None,
                     common: Default::default(),
+                    provenance: Default::default(),
+                },
+                // An overridden variant of attr.in.group, referenced by the
+                // span link; importing must preserve the override.
+                weaver_resolved_schema::v2::attribute::Attribute {
+                    key: "attr.in.group".to_owned(),
+                    r#type: weaver_semconv::v2::attribute::AttributeType::PrimitiveOrArray(
+                        weaver_semconv::v2::attribute::PrimitiveOrArrayTypeSpec::String,
+                    ),
+                    examples: None,
+                    common: weaver_semconv::v2::CommonFields {
+                        brief: "the id, as carried on the link".to_owned(),
+                        ..Default::default()
+                    },
                     provenance: Default::default(),
                 },
             ],

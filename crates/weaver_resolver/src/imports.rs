@@ -927,14 +927,16 @@ fn v2_span_links_to_spec(
                     attribute_ref: la.base.0,
                 },
             )?;
+            // The catalog entry may be an overridden variant; carry its
+            // metadata as explicit overrides so it survives re-resolution.
             link_attributes.push(LinkAttributeRefSpec {
                 base: AttributeRefSpec {
                     r#ref: attr.key.clone(),
-                    brief: None,
-                    examples: None,
+                    brief: Some(attr.common.brief.clone()),
+                    examples: attr.examples.clone(),
                     requirement_level: Some(la.requirement_level.clone()),
-                    note: None,
-                    annotations: Default::default(),
+                    note: Some(attr.common.note.clone()),
+                    annotations: attr.common.annotations.clone(),
                 },
             });
         }
@@ -1762,6 +1764,12 @@ mod tests {
             Some(weaver_semconv::v2::attribute::RequirementLevel::Basic(
                 weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
             ))
+        );
+        // The dependency's catalog entry is an overridden variant; its
+        // metadata must survive the import as explicit overrides.
+        assert_eq!(
+            link.attributes[0].base.brief.as_deref(),
+            Some("the id, as carried on the link")
         );
 
         Ok(())
