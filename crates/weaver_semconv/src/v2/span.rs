@@ -14,11 +14,7 @@ use crate::{
     entity_association::EntityAssociation,
     signal_requirement_level::SignalRequirementLevel,
     stability::Stability,
-    v2::{
-        attribute::{AttributeRef, RequirementLevel},
-        signal_id::SignalId,
-        CommonFields,
-    },
+    v2::{attribute::AttributeRef, signal_id::SignalId, CommonFields},
     YamlValue,
 };
 
@@ -412,16 +408,10 @@ pub fn split_span_attributes_and_groups(
 pub struct SpanLink {
     /// The span type this link points to.
     pub r#ref: SignalId,
-    /// The requirement level of the link. Uses the attribute requirement
-    /// levels ("required", "conditionally_required", "recommended",
-    /// "opt_in") because a link, unlike a signal, can be required.
-    /// Defaults to 'recommended' when omitted.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub requirement_level: Option<RequirementLevel>,
-    /// Refines the brief description of the link.
+    /// The brief description of the link.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub brief: Option<String>,
-    /// Refines the more elaborate description of the link.
+    /// The more elaborate description of the link.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     /// List of attributes expected on the link itself.
@@ -429,7 +419,20 @@ pub struct SpanLink {
     /// is a single attribute reference.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<SpanAttributeRef>,
+    pub attributes: Vec<LinkAttributeRef>,
+}
+
+/// A reference to an attribute expected on a span link.
+///
+/// Links carry a dedicated reference type without sampling relevance:
+/// a link can be attached before or after the span starts.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub struct LinkAttributeRef {
+    /// Baseline attribute reference.
+    #[serde(flatten)]
+    pub base: AttributeRef,
 }
 
 /// Defines a new Span signal.
@@ -468,9 +471,6 @@ pub struct Span {
 }
 
 /// A refinement of an existing span.
-///
-/// A refinement inherits the base span's links during resolution.
-/// A refinement cannot declare, replace, or extend links yet.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct SpanRefinement {
@@ -523,7 +523,7 @@ pub struct SpanRefinement {
 mod tests {
     use super::*;
     use crate::v2::attribute::AttributeRef;
-    use crate::v2::attribute::BasicRequirementLevelSpec;
+    use crate::v2::attribute::{BasicRequirementLevelSpec, RequirementLevel};
 
     #[test]
     fn test_span_links_deserialization() {
@@ -538,10 +538,10 @@ brief: Processes a batch of messages.
 links:
   - ref: messaging.producer.publish
   - ref: messaging.producer.publish
-    requirement_level: required
     brief: One link per message in the batch.
     attributes:
       - ref: messaging.message.id
+        requirement_level: required
 "#,
         )
         .expect("Failed to parse span with links");
@@ -551,21 +551,20 @@ links:
         // The minimal link: only `ref`; everything else defaults.
         let minimal = &span.links[0];
         assert_eq!(minimal.r#ref.to_string(), "messaging.producer.publish");
-        assert!(minimal.requirement_level.is_none());
         assert!(minimal.brief.is_none());
         assert!(minimal.attributes.is_empty());
 
-        // The full link carries a level, a brief, and one attribute ref.
+        // The full link carries a brief and one attribute ref with a level.
         let full = &span.links[1];
-        assert_eq!(
-            full.requirement_level,
-            Some(RequirementLevel::Basic(BasicRequirementLevelSpec::Required))
-        );
         assert_eq!(
             full.brief.as_deref(),
             Some("One link per message in the batch.")
         );
         assert_eq!(full.attributes.len(), 1);
+        assert_eq!(
+            full.attributes[0].base.requirement_level,
+            Some(RequirementLevel::Basic(BasicRequirementLevelSpec::Required))
+        );
 
         // A span without a `links` key parses to an empty list.
         let without: Span = serde_yaml::from_str(

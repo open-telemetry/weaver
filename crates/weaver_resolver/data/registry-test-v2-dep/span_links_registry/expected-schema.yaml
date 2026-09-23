@@ -19,12 +19,10 @@ registry:
       note: Process span name.
     links:
     - ref: linkserver.produce
-      requirement_level: opt_in
       brief: One link per processed message.
       attributes:
       - base: 0
         requirement_level: required
-        sampling_relevant: true
       provenance:
         source: 0
     brief: A process span.
@@ -54,10 +52,8 @@ registry:
       requirement_level: recommended
     links:
     - ref: consumer.batch
-      requirement_level: required
       brief: The batch this op belongs to.
     - ref: linkserver.produce
-      requirement_level: recommended
       attributes:
       - base: 0
         requirement_level: required
@@ -75,12 +71,10 @@ refinements:
       note: Process span name.
     links:
     - ref: linkserver.produce
-      requirement_level: opt_in
       brief: One link per processed message.
       attributes:
       - base: 0
         requirement_level: required
-        sampling_relevant: true
       provenance:
         source: 0
     brief: A process span.
@@ -106,10 +100,8 @@ refinements:
       requirement_level: recommended
     links:
     - ref: consumer.batch
-      requirement_level: required
       brief: The batch this op belongs to.
     - ref: linkserver.produce
-      requirement_level: recommended
       attributes:
       - base: 0
         requirement_level: required
@@ -132,10 +124,8 @@ refinements:
       requirement_level: recommended
     links:
     - ref: consumer.batch
-      requirement_level: required
       brief: The batch this op belongs to.
     - ref: linkserver.produce
-      requirement_level: recommended
       attributes:
       - base: 0
         requirement_level: required

@@ -33,7 +33,7 @@ use weaver_semconv::v1::group::{GroupType, GroupWildcard, ImportsWithProvenance}
 use weaver_semconv::v1::semconv::Imports;
 use weaver_semconv::v2::attribute::AttributeRef as AttributeRefSpec;
 use weaver_semconv::v2::span::{
-    SpanAttributeRef as SpanAttributeRefSpec, SpanLink as SpanLinkSpec,
+    LinkAttributeRef as LinkAttributeRefSpec, SpanLink as SpanLinkSpec,
 };
 
 use crate::{
@@ -927,7 +927,7 @@ fn v2_span_links_to_spec(
                     attribute_ref: la.base.0,
                 },
             )?;
-            link_attributes.push(SpanAttributeRefSpec {
+            link_attributes.push(LinkAttributeRefSpec {
                 base: AttributeRefSpec {
                     r#ref: attr.key.clone(),
                     brief: None,
@@ -936,12 +936,10 @@ fn v2_span_links_to_spec(
                     note: None,
                     annotations: Default::default(),
                 },
-                sampling_relevant: la.sampling_relevant,
             });
         }
         spec_links.push(SpanLinkSpec {
             r#ref: link.r#ref.clone(),
-            requirement_level: Some(link.requirement_level.clone()),
             brief: link.brief.clone(),
             note: link.note.clone(),
             attributes: link_attributes,
@@ -1756,22 +1754,15 @@ mod tests {
         assert_eq!(upgraded_span.span_links.len(), 1);
         let link = &upgraded_span.span_links[0];
         assert_eq!(&*link.r#ref, "span.d");
-        // Non-default modifiers must survive the resolved-to-carrier hop.
-        assert_eq!(
-            link.requirement_level,
-            Some(weaver_semconv::v2::attribute::RequirementLevel::Basic(
-                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
-            ))
-        );
         assert_eq!(link.attributes.len(), 1);
         assert_eq!(link.attributes[0].base.r#ref, "attr.in.group");
+        // A non-default attribute level must survive the resolved-to-carrier hop.
         assert_eq!(
             link.attributes[0].base.requirement_level,
             Some(weaver_semconv::v2::attribute::RequirementLevel::Basic(
                 weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
             ))
         );
-        assert_eq!(link.attributes[0].sampling_relevant, Some(true));
 
         Ok(())
     }

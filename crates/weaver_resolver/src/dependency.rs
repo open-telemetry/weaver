@@ -763,17 +763,13 @@ pub(crate) mod tests {
                     // path and the upgrade path must carry it over.
                     links: vec![weaver_resolved_schema::v2::span::SpanLink {
                         r#ref: "span.d".to_owned().into(),
-                        requirement_level: weaver_semconv::v2::attribute::RequirementLevel::Basic(
-                            weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
-                        ),
                         brief: Some("test link".to_owned()),
                         note: None,
-                        attributes: vec![weaver_resolved_schema::v2::span::SpanAttributeRef {
+                        attributes: vec![weaver_resolved_schema::v2::span::LinkAttributeRef {
                             base: weaver_resolved_schema::v2::attribute::AttributeRef(0),
                             requirement_level: weaver_semconv::v2::attribute::RequirementLevel::Basic(
                                 weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
                             ),
-                            sampling_relevant: Some(true),
                         }],
                         provenance: Default::default(),
                     }],

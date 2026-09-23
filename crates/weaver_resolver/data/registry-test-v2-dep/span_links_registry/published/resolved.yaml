@@ -24,12 +24,10 @@ registry:
       note: Process span name.
     links:
     - ref: linkserver.produce
-      requirement_level: opt_in
       brief: One link per processed message.
       attributes:
       - base: 0
         requirement_level: required
-        sampling_relevant: true
     brief: A process span.
     stability: stable
   metrics: []
@@ -51,12 +49,10 @@ refinements:
       note: Process span name.
     links:
     - ref: linkserver.produce
-      requirement_level: opt_in
       brief: One link per processed message.
       attributes:
       - base: 0
         requirement_level: required
-        sampling_relevant: true
     brief: A process span.
     stability: stable
   metrics: []

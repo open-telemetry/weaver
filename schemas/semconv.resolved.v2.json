@@ -943,6 +943,25 @@
         }
       ]
     },
+    "LinkAttributeRef": {
+      "description": "A resolved reference to an attribute expected on a span link.",
+      "type": "object",
+      "properties": {
+        "base": {
+          "description": "Reference, by index, to the attribute catalog.",
+          "$ref": "#/$defs/AttributeRef"
+        },
+        "requirement_level": {
+          "description": "Specifies if the attribute is mandatory. Can be \"required\",\n\"conditionally_required\", \"recommended\" or \"opt_in\". When omitted,\nthe attribute is \"recommended\".",
+          "$ref": "#/$defs/RequirementLevel"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "base",
+        "requirement_level"
+      ]
+    },
     "Metric": {
       "description": "The definition of a metric signal.",
       "type": "object",
@@ -1537,7 +1556,7 @@
           "description": "List of attributes expected on the link itself.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/SpanAttributeRef"
+            "$ref": "#/$defs/LinkAttributeRef"
           }
         },
         "brief": {
@@ -1561,16 +1580,11 @@
         "ref": {
           "description": "The span type this link points to.",
           "$ref": "#/$defs/SignalId"
-        },
-        "requirement_level": {
-          "description": "The requirement level of the link. Uses the attribute requirement\nlevels because a link, unlike a signal, can be required. The\ndefinition-time default ('recommended') is applied during\nresolution.",
-          "$ref": "#/$defs/RequirementLevel"
         }
       },
       "additionalProperties": false,
       "required": [
-        "ref",
-        "requirement_level"
+        "ref"
       ]
     },
     "SpanName": {

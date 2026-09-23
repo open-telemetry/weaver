@@ -1060,6 +1060,63 @@
         }
       ]
     },
+    "LinkAttributeRef": {
+      "description": "A reference to an attribute expected on a span link.\n\nLinks carry a dedicated reference type without sampling relevance:\na link can be attached before or after the span starts.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Additional annotations for the attribute. These will be\nmerged with annotations from the definition.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "brief": {
+          "description": "Refines the brief description of the attribute.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "examples": {
+          "description": "Refined sequence of example values for the attribute or single example\nvalue. They are required only for string and string array\nattributes. Example values must be of the same type of the\nattribute. If only a single example is provided, it can directly\nbe reported without encapsulating it into a sequence/dictionary.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Examples"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "note": {
+          "description": "Refines the more elaborate description of the attribute.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ref": {
+          "description": "Reference an existing attribute by key.",
+          "type": "string"
+        },
+        "requirement_level": {
+          "description": "Refines the attribute requirement level. Can be \"required\",\n\"conditionally_required\", \"recommended\" or \"opt_in\". When omitted,\nthe original attribute requirement level is used. When set to\n\"conditionally_required\", the string provided as `condition` MUST\nspecify the conditions under which the attribute is required.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RequirementLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "ref"
+      ]
+    },
     "Metric": {
       "description": "Defines a new metric.",
       "type": "object",
@@ -1551,18 +1608,18 @@
           "description": "List of attributes expected on the link itself.\nAttribute-group references are not supported on links; each entry\nis a single attribute reference.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/SpanAttributeRef"
+            "$ref": "#/$defs/LinkAttributeRef"
           }
         },
         "brief": {
-          "description": "Refines the brief description of the link.",
+          "description": "The brief description of the link.",
           "type": [
             "string",
             "null"
           ]
         },
         "note": {
-          "description": "Refines the more elaborate description of the link.",
+          "description": "The more elaborate description of the link.",
           "type": [
             "string",
             "null"
@@ -1571,17 +1628,6 @@
         "ref": {
           "description": "The span type this link points to.",
           "$ref": "#/$defs/SignalId"
-        },
-        "requirement_level": {
-          "description": "The requirement level of the link. Uses the attribute requirement\nlevels (\"required\", \"conditionally_required\", \"recommended\",\n\"opt_in\") because a link, unlike a signal, can be required.\nDefaults to 'recommended' when omitted.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RequirementLevel"
-            },
-            {
-              "type": "null"
-            }
-          ]
         }
       },
       "additionalProperties": false,
@@ -1642,7 +1688,7 @@
       ]
     },
     "SpanRefinement": {
-      "description": "A refinement of an existing span.\n\nA refinement inherits the base span's links during resolution.\nA refinement cannot declare, replace, or extend links yet.",
+      "description": "A refinement of an existing span.",
       "type": "object",
       "properties": {
         "annotations": {

@@ -24,7 +24,6 @@ spans:
         requirement_level: recommended
     links:
       - ref: consumer.batch
-        requirement_level: required
         brief: The batch this op belongs to.
       - ref: linkserver.produce
         attributes:

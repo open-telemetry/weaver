@@ -235,12 +235,12 @@ fn convert_attribute_ref<'a>(
 /// Resolves one link attribute by name to a v2 catalog reference;
 /// unsupported constructs fail instead of dropping data silently.
 fn convert_span_link_attribute(
-    ar: &weaver_semconv::v2::span::SpanAttributeRef,
+    ar: &weaver_semconv::v2::span::LinkAttributeRef,
     g: &V1Group,
     link: &weaver_semconv::v2::span::SpanLink,
     c: &V1Catalog,
     v2_catalog: &V2CatalogBuilder,
-) -> Result<span::SpanAttributeRef, crate::error::Error> {
+) -> Result<span::LinkAttributeRef, crate::error::Error> {
     let unsupported = |reason: String| crate::error::Error::UnsupportedSpanLinkAttribute {
         group_id: g.id.clone(),
         link_ref: link.r#ref.to_string(),
@@ -268,10 +268,9 @@ fn convert_span_link_attribute(
             ar.base.r#ref
         )));
     };
-    Ok(span::SpanAttributeRef {
+    Ok(span::LinkAttributeRef {
         base,
         requirement_level: ar.base.requirement_level.clone().unwrap_or_default(),
-        sampling_relevant: ar.sampling_relevant,
     })
 }
 
@@ -301,7 +300,6 @@ fn convert_span_links(
         }
         links.push(span::SpanLink {
             r#ref: link.r#ref.clone(),
-            requirement_level: link.requirement_level.clone().unwrap_or_default(),
             brief: link.brief.clone(),
             note: link.note.clone(),
             attributes,
@@ -804,7 +802,7 @@ mod tests {
     use weaver_semconv::stability::Stability;
     use weaver_semconv::v1::group::InstrumentSpec as V1InstrumentSpec;
     use weaver_semconv::v2::attribute::AttributeRef as AttributeRefSpec;
-    use weaver_semconv::v2::span::{SpanAttributeRef as SpanAttributeRefSpec, SpanLink};
+    use weaver_semconv::v2::span::{LinkAttributeRef as LinkAttributeRefSpec, SpanLink};
 
     /// Builds a minimal v1 span group carrying the given span links.
     fn span_group_with_links(id: &str, links: Vec<SpanLink>) -> V1Group {
@@ -854,7 +852,6 @@ mod tests {
     fn link_to(target: &str) -> SpanLink {
         SpanLink {
             r#ref: target.to_owned().into(),
-            requirement_level: None,
             brief: None,
             note: None,
             attributes: vec![],
@@ -862,8 +859,8 @@ mod tests {
     }
 
     /// Builds a minimal link attribute reference with the given overrides.
-    fn link_attribute(name: &str, brief: Option<&str>) -> SpanAttributeRefSpec {
-        SpanAttributeRefSpec {
+    fn link_attribute(name: &str, brief: Option<&str>) -> LinkAttributeRefSpec {
+        LinkAttributeRefSpec {
             base: AttributeRefSpec {
                 r#ref: name.to_owned(),
                 brief: brief.map(str::to_owned),
@@ -872,7 +869,6 @@ mod tests {
                 note: None,
                 annotations: Default::default(),
             },
-            sampling_relevant: None,
         }
     }
 

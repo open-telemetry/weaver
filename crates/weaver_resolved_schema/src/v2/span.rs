@@ -73,11 +73,6 @@ pub struct Span {
 pub struct SpanLink {
     /// The span type this link points to.
     pub r#ref: SignalId,
-    /// The requirement level of the link. Uses the attribute requirement
-    /// levels because a link, unlike a signal, can be required. The
-    /// definition-time default ('recommended') is applied during
-    /// resolution.
-    pub requirement_level: RequirementLevel,
     /// The brief description of the link.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub brief: Option<String>,
@@ -87,11 +82,24 @@ pub struct SpanLink {
     /// List of attributes expected on the link itself.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<SpanAttributeRef>,
+    pub attributes: Vec<LinkAttributeRef>,
     /// The provenance of the registry that declared the link.
     #[serde(default)]
     #[serde(skip_serializing_if = "Provenance::is_empty")]
     pub provenance: Provenance,
+}
+
+/// A resolved reference to an attribute expected on a span link.
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(deny_unknown_fields)]
+pub struct LinkAttributeRef {
+    /// Reference, by index, to the attribute catalog.
+    pub base: AttributeRef,
+    /// Specifies if the attribute is mandatory. Can be "required",
+    /// "conditionally_required", "recommended" or "opt_in". When omitted,
+    /// the attribute is "recommended".
+    pub requirement_level: RequirementLevel,
 }
 
 /// A special type of reference to attributes that remembers span-specicific information.
