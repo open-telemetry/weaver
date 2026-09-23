@@ -66,7 +66,7 @@ pub enum Error {
     },
 
     /// A span link references a span type that does not exist in the registry.
-    #[error("Span link target '{link_ref}' (group: {group_id}) not found among span definitions")]
+    #[error("Span '{link_ref}' (linked by {group_id}) not found among span definitions")]
     SpanLinkTargetNotFound {
         /// Group id of the span declaring the link.
         group_id: String,

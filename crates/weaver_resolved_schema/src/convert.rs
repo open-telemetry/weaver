@@ -286,8 +286,8 @@ fn convert_span_links(
 ) -> Result<Vec<span::SpanLink>, crate::error::Error> {
     let mut links = Vec::new();
     for link in g.span_links.iter() {
-        // Only locally declared links are validated: refinement links can
-        // be inherited from a dependency, so their targets may live elsewhere.
+        // The caller scopes validation: refinements and imported spans skip
+        // it, because their link targets may live in a dependency.
         if validate_targets && !span_types.contains(&link.r#ref) {
             return Err(crate::error::Error::SpanLinkTargetNotFound {
                 group_id: g.id.clone(),
@@ -535,8 +535,15 @@ pub fn convert_v1_to_v2(
                 });
                 if !is_refinement {
                     let provenance = get_provenance(g);
-                    let links =
-                        convert_span_links(g, &span_types, true, &c, &v2_catalog, &provenance)?;
+                    let validate_targets = provenance.source.is_none();
+                    let links = convert_span_links(
+                        g,
+                        &span_types,
+                        validate_targets,
+                        &c,
+                        &v2_catalog,
+                        &provenance,
+                    )?;
                     let span = V2Span {
                         r#type: fix_span_group_id(&g.id),
                         kind: span_kind,
@@ -882,6 +889,38 @@ mod tests {
             err,
             crate::error::Error::SpanLinkTargetNotFound { .. }
         ));
+    }
+
+    #[test]
+    fn test_imported_span_link_target_in_dependency_not_imported() {
+        use weaver_semconv::schema_url::SchemaUrl;
+
+        let dep_url = SchemaUrl::try_from("https://dep.example.com/schemas/1.0.0").unwrap();
+        let mut imported_span = span_group_with_links(
+            "dep.consumer",
+            // The target is defined in the dependency, not imported locally.
+            vec![link_to("dep.producer")],
+        );
+        imported_span.lineage = Some(crate::v1::lineage::GroupLineage::new(Provenance::new(
+            dep_url.clone(),
+            "dep.yaml",
+        )));
+
+        let v1_catalog = crate::v1::catalog::test_utils::CatalogBuilder::default().build();
+        let v1_registry = V1Registry {
+            registry_url: "https://my.schema.url".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![imported_span],
+        };
+        let mut deps = BTreeSet::new();
+        _ = deps.insert(dep_url);
+
+        let result = convert_v1_to_v2(v1_catalog, v1_registry, deps);
+        assert!(
+            result.is_ok(),
+            "an imported span that links an unimported dependency span must not fail target validation: {:?}",
+            result.err()
+        );
     }
 
     #[test]
