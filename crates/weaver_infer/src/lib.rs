@@ -11,7 +11,7 @@ use weaver_live_check::sample_metric::{SampleInstrument, SampleMetric};
 use weaver_live_check::sample_resource::SampleResource;
 use weaver_live_check::sample_span::SampleSpan;
 use weaver_live_check::Sample;
-use weaver_semconv::stability::Stability;
+use weaver_semconv::v2::stability::Stability;
 use weaver_semconv::v2::{
     attribute::{
         AttributeDef, AttributeOrGroupRef, AttributeRef, AttributeType, Examples,

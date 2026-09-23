@@ -1,7 +1,7 @@
 import { createRoute, Link } from '@tanstack/react-router'
 import { getAttribute, type AttributeResponse } from '../lib/api'
 import { Route as RootRoute } from './__root'
-import { StabilityBadge } from '../components/StabilityBadge'
+import { DeprecatedBadge, StabilityBadge } from '../components/StabilityBadge'
 import { Markdown } from '../components/Markdown'
 import { InlineMarkdown } from '../components/InlineMarkdown'
 import { useCopyToClipboard } from '../hooks/useCopyToClipboard'
@@ -60,7 +60,7 @@ function AttributeDetail() {
             <span className="badge badge-outline">Attribute</span>
             <StabilityBadge stability={data.stability} />
             {data.deprecated && (
-              <span className="badge badge-warning">deprecated</span>
+              <DeprecatedBadge deprecated={data.deprecated} />
             )}
           </div>
 
@@ -113,6 +113,7 @@ function AttributeDetail() {
                         <thead>
                           <tr>
                             <th>Value</th>
+                            <th>Stability</th>
                             <th>Description</th>
                           </tr>
                         </thead>
@@ -120,6 +121,13 @@ function AttributeDetail() {
                           {data.type.members.map((member, index) => (
                             <tr key={index}>
                               <td className="font-mono">{member.value || member.id}</td>
+                              <td>
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  {member.stability && <StabilityBadge stability={member.stability} size="sm" />}
+                                  {member.deprecated && <DeprecatedBadge deprecated={member.deprecated} size="sm" />}
+                                  {!member.stability && !member.deprecated && '-'}
+                                </div>
+                              </td>
                               <td><InlineMarkdown content={member.brief || '-'} /></td>
                             </tr>
                           ))}
