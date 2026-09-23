@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::Error::{
     AttributeNotFound, CompoundError, EntityAssociationNotFound, EventNameNotFound,
-    InvalidSchemaUrl, MissingMetricField, RefinementBaseNotFound, SpanLinkTargetNotFound,
-    UnsupportedSpanLinkAttribute,
+    InvalidSchemaUrl, MissingMetricField, RefinementBaseNotFound, SpanLinkAttributeNotFound,
+    SpanLinkTargetNotFound,
 };
 use crate::v1::attribute::AttributeRef;
 
@@ -74,15 +74,15 @@ pub enum Error {
         link_ref: String,
     },
 
-    /// A span link attribute uses a feature that is not supported yet.
-    #[error("Unsupported span link attribute in group {group_id} (link: {link_ref}): {reason}")]
-    UnsupportedSpanLinkAttribute {
+    /// A span link attribute is missing from the catalog.
+    #[error("Attribute '{attribute}' on the link to '{link_ref}' (group: {group_id}) not found in the catalog")]
+    SpanLinkAttributeNotFound {
         /// Group id of the span declaring the link.
         group_id: String,
         /// The link's target span type.
         link_ref: String,
-        /// The reason the attribute is unsupported.
-        reason: String,
+        /// The attribute name the link references.
+        attribute: String,
     },
 
     /// A generic container for multiple errors.
@@ -117,7 +117,7 @@ impl Error {
                     e @ InvalidSchemaUrl { .. } => vec![e],
                     e @ MissingMetricField { .. } => vec![e],
                     e @ SpanLinkTargetNotFound { .. } => vec![e],
-                    e @ UnsupportedSpanLinkAttribute { .. } => vec![e],
+                    e @ SpanLinkAttributeNotFound { .. } => vec![e],
                 })
                 .collect(),
         )

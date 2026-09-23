@@ -11,17 +11,14 @@ spans:
     brief: A local batch span.
     stability: stable
   # A local span with two links: one to the local span above, one to an
-  # imported span. The second link carries a link attribute; the span
-  # references the same attribute so it is present in the catalog.
+  # imported span. The second link carries a link attribute resolved from
+  # the dependency catalog; its brief override gets its own catalog entry.
   - type: consumer.op
     kind: consumer
     name:
       note: Op span name.
     brief: A local op span with links.
     stability: stable
-    attributes:
-      - ref: linkserver.job.id
-        requirement_level: recommended
     links:
       - ref: consumer.batch
         brief: The batch this op belongs to.
@@ -29,6 +26,7 @@ spans:
         attributes:
           - ref: linkserver.job.id
             requirement_level: required
+            brief: job id carried on the link
 span_refinements:
   # Declares no links; must inherit both links from consumer.op.
   - id: refined.op

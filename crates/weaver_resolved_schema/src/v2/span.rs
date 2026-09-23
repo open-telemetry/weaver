@@ -98,7 +98,7 @@ pub struct LinkAttributeRef {
     pub base: AttributeRef,
     /// Specifies if the attribute is mandatory. Can be "required",
     /// "conditionally_required", "recommended" or "opt_in". When omitted,
-    /// the attribute is "recommended".
+    /// the referenced attribute's requirement level applies.
     pub requirement_level: RequirementLevel,
 }
 

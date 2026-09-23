@@ -9,6 +9,14 @@ attribute_catalog:
   stability: stable
   provenance:
     source: 0
+- key: linkserver.job.id
+  type: string
+  examples:
+  - job-42
+  brief: job id carried on the link
+  stability: stable
+  provenance:
+    source: 0
 registry:
   attributes: []
   attribute_groups: []
@@ -47,15 +55,12 @@ registry:
     kind: consumer
     name:
       note: Op span name.
-    attributes:
-    - base: 0
-      requirement_level: recommended
     links:
     - ref: consumer.batch
       brief: The batch this op belongs to.
     - ref: linkserver.produce
       attributes:
-      - base: 0
+      - base: 1
         requirement_level: required
     brief: A local op span with links.
     stability: stable
@@ -95,15 +100,12 @@ refinements:
     kind: consumer
     name:
       note: Op span name.
-    attributes:
-    - base: 0
-      requirement_level: recommended
     links:
     - ref: consumer.batch
       brief: The batch this op belongs to.
     - ref: linkserver.produce
       attributes:
-      - base: 0
+      - base: 1
         requirement_level: required
     brief: Refined op span.
     stability: stable
@@ -119,15 +121,12 @@ refinements:
     kind: consumer
     name:
       note: Op span name.
-    attributes:
-    - base: 0
-      requirement_level: recommended
     links:
     - ref: consumer.batch
       brief: The batch this op belongs to.
     - ref: linkserver.produce
       attributes:
-      - base: 0
+      - base: 1
         requirement_level: required
     brief: A local op span with links.
     stability: stable

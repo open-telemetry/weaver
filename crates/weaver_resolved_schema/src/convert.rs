@@ -232,8 +232,9 @@ fn convert_attribute_ref<'a>(
     Ok((attr, v2_ref))
 }
 
-/// Resolves one link attribute by name to a v2 catalog reference;
-/// unsupported constructs fail instead of dropping data silently.
+/// Resolves one link attribute by name to a v2 catalog reference. The
+/// resolver already placed the (possibly overridden) attribute in the
+/// catalog, so a miss here is a broken registry and fails loudly.
 fn convert_span_link_attribute(
     ar: &weaver_semconv::v2::span::LinkAttributeRef,
     g: &V1Group,
@@ -241,41 +242,35 @@ fn convert_span_link_attribute(
     c: &V1Catalog,
     v2_catalog: &V2CatalogBuilder,
 ) -> Result<span::LinkAttributeRef, crate::error::Error> {
-    let unsupported = |reason: String| crate::error::Error::UnsupportedSpanLinkAttribute {
+    let not_found = || crate::error::Error::SpanLinkAttributeNotFound {
         group_id: g.id.clone(),
         link_ref: link.r#ref.to_string(),
-        reason,
+        attribute: ar.base.r#ref.clone(),
     };
-    if ar.base.brief.is_some()
-        || ar.base.note.is_some()
-        || ar.base.examples.is_some()
-        || !ar.base.annotations.is_empty()
-    {
-        return Err(unsupported(format!(
-            "attribute '{}' carries overrides; only requirement_level and sampling_relevant are supported on link attributes",
-            ar.base.r#ref
-        )));
+    let (root, _) = c.root_attribute(&ar.base.r#ref).ok_or_else(not_found)?;
+    // Overrides produce their own catalog entry during resolution; rebuild
+    // the overridden value to find that entry.
+    let mut merged = root.clone();
+    if let Some(brief) = &ar.base.brief {
+        merged.brief = brief.clone();
     }
-    let Some((root, _)) = c.root_attribute(&ar.base.r#ref) else {
-        return Err(unsupported(format!(
-            "attribute '{}' not found in the catalog",
-            ar.base.r#ref
-        )));
-    };
-    let Some(base) = v2_catalog.convert_ref(root) else {
-        return Err(unsupported(format!(
-            "attribute '{}' could not be mapped to the v2 catalog",
-            ar.base.r#ref
-        )));
-    };
+    if let Some(note) = &ar.base.note {
+        merged.note = note.clone();
+    }
+    if let Some(examples) = &ar.base.examples {
+        merged.examples = Some(weaver_semconv::convert::v2_examples_to_v1(examples.clone()));
+    }
+    let base = v2_catalog.convert_ref(&merged).ok_or_else(not_found)?;
     Ok(span::LinkAttributeRef {
         base,
-        requirement_level: ar.base.requirement_level.clone().unwrap_or_default(),
+        requirement_level: ar.base.requirement_level.clone().unwrap_or_else(|| {
+            weaver_semconv::convert::v1_requirement_level_to_v2(merged.requirement_level.clone())
+        }),
     })
 }
 
 /// Converts the span links carried on a v1 group into resolved links;
-/// link attributes skipped v1 resolution, so they resolve here by name.
+/// link attributes map by name to the catalog entries the resolver placed.
 fn convert_span_links(
     g: &V1Group,
     span_types: &HashSet<SignalId>,
@@ -924,7 +919,9 @@ mod tests {
     }
 
     #[test]
-    fn test_span_link_attribute_override_unsupported() {
+    fn test_span_link_attribute_override_variant_missing_from_catalog() {
+        // The resolver places one catalog entry per override combination; a
+        // conversion that cannot find the overridden variant fails loudly.
         let mut link = link_to("b");
         link.attributes = vec![link_attribute("test.key", Some("an override"))];
         let err = convert_links_err(vec![
@@ -933,12 +930,12 @@ mod tests {
         ]);
         assert!(matches!(
             err,
-            crate::error::Error::UnsupportedSpanLinkAttribute { .. }
+            crate::error::Error::SpanLinkAttributeNotFound { .. }
         ));
     }
 
     #[test]
-    fn test_span_link_attribute_unknown_name_unsupported() {
+    fn test_span_link_attribute_unknown_name_not_found() {
         let mut link = link_to("b");
         link.attributes = vec![link_attribute("nope.key", None)];
         let err = convert_links_err(vec![
@@ -947,7 +944,7 @@ mod tests {
         ]);
         assert!(matches!(
             err,
-            crate::error::Error::UnsupportedSpanLinkAttribute { .. }
+            crate::error::Error::SpanLinkAttributeNotFound { .. }
         ));
     }
 
