@@ -21,9 +21,7 @@ use weaver_resolved_schema::v1::registry::Group;
 use weaver_resolved_schema::v1::ResolvedTelemetrySchema as V1Schema;
 use weaver_resolved_schema::v2::attribute::AttributeRef as V2AttributeRef;
 use weaver_resolved_schema::v2::catalog::AttributeCatalog as V2Catalog;
-use weaver_resolved_schema::v2::entity::{
-    to_named_associations, EntityAssociation as V2EntityAssociation,
-};
+use weaver_resolved_schema::v2::entity::EntityAssociation as V2EntityAssociation;
 use weaver_resolved_schema::v2::span::SpanLink as V2SpanLink;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::v2::Signal;
@@ -527,7 +525,7 @@ fn upgrade_imported_group_v2<C: crate::SchemaCacheLookup>(
             upgraded.instrument = Some(weaver_semconv::convert::v2_instrument_to_v1(m.instrument));
             upgraded.unit = Some(m.unit.clone());
             upgraded.entity_associations = to_named_associations(&m.entity_associations);
-            upgraded.requirement_level = m.requirement_level.clone();
+            upgraded.requirement_level = m.requirement_level.clone().map(Into::into);
             Ok(Some(upgraded))
         }
         GroupType::Event => {
@@ -564,7 +562,7 @@ fn upgrade_imported_group_v2<C: crate::SchemaCacheLookup>(
             );
             upgraded.name = Some(e.name.to_string());
             upgraded.entity_associations = to_named_associations(&e.entity_associations);
-            upgraded.requirement_level = e.requirement_level.clone();
+            upgraded.requirement_level = e.requirement_level.clone().map(Into::into);
             Ok(Some(upgraded))
         }
         GroupType::Entity => {
@@ -612,7 +610,7 @@ fn upgrade_imported_group_v2<C: crate::SchemaCacheLookup>(
                 ))),
             );
             upgraded.name = Some(e.r#type.to_string());
-            upgraded.requirement_level = e.requirement_level.clone();
+            upgraded.requirement_level = e.requirement_level.clone().map(Into::into);
             Ok(Some(upgraded))
         }
         GroupType::Span => {
@@ -649,11 +647,11 @@ fn upgrade_imported_group_v2<C: crate::SchemaCacheLookup>(
                 ))),
             );
             upgraded.span_kind = Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
-            upgraded.span_name = Some(s.name.clone());
+            upgraded.span_name = Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
             upgraded.span_links = v2_span_links_to_spec(chosen_v2, &s.links)?;
             upgraded.name = Some(s.r#type.to_string());
             upgraded.entity_associations = to_named_associations(&s.entity_associations);
-            upgraded.requirement_level = s.requirement_level.clone();
+            upgraded.requirement_level = s.requirement_level.clone().map(Into::into);
             Ok(Some(upgraded))
         }
         GroupType::AttributeGroup => {
@@ -812,7 +810,7 @@ fn convert_v2_attribute(
         requirement_level,
         sampling_relevant,
         note: attr.common.note.clone(),
-        stability: Some(attr.common.stability.clone()),
+        stability: Some(attr.common.stability.clone().into()),
         deprecated: attr.common.deprecated.clone(),
         prefix: false,
         tags: None,
@@ -888,7 +886,7 @@ fn imported_v2_group(
         note: common.note.clone(),
         prefix: "".to_owned(),
         extends: None,
-        stability: Some(common.stability.clone()),
+        stability: Some(common.stability.clone().into()),
         deprecated: common.deprecated.clone(),
         attributes,
         span_kind: None,
@@ -977,6 +975,28 @@ fn v2_association_origins(
         .collect()
 }
 
+/// Turns resolved association expressions back into the authored form, where a
+/// leaf is a name alone.
+fn to_named_associations(
+    associations: &[V2EntityAssociation],
+) -> Vec<weaver_semconv::v1::entity_association::EntityAssociation> {
+    use weaver_semconv::v1::entity_association::EntityAssociation as SpecAssociation;
+    associations
+        .iter()
+        .map(|assoc| match assoc {
+            V2EntityAssociation::Ref(entity_ref) => {
+                SpecAssociation::Ref(entity_ref.r#type.to_string())
+            }
+            V2EntityAssociation::OneOf { one_of } => SpecAssociation::OneOf {
+                one_of: to_named_associations(one_of),
+            },
+            V2EntityAssociation::AllOf { all_of } => SpecAssociation::AllOf {
+                all_of: to_named_associations(all_of),
+            },
+        })
+        .collect()
+}
+
 impl ImportableDependency for V2Schema {
     fn import_groups<C: crate::SchemaCacheLookup>(
         &self,
@@ -1054,7 +1074,7 @@ impl ImportableDependency for V2Schema {
             group.instrument = Some(weaver_semconv::convert::v2_instrument_to_v1(m.instrument));
             group.unit = Some(m.unit.clone());
             group.entity_associations = to_named_associations(&m.entity_associations);
-            group.requirement_level = m.requirement_level.clone();
+            group.requirement_level = m.requirement_level.clone().map(Into::into);
             _ = origins.insert(
                 group.id.clone(),
                 v2_association_origins(self, &deps, &m.entity_associations),
@@ -1090,7 +1110,7 @@ impl ImportableDependency for V2Schema {
             );
             group.name = Some(e.name.to_string());
             group.entity_associations = to_named_associations(&e.entity_associations);
-            group.requirement_level = e.requirement_level.clone();
+            group.requirement_level = e.requirement_level.clone().map(Into::into);
             _ = origins.insert(
                 group.id.clone(),
                 v2_association_origins(self, &deps, &e.entity_associations),
@@ -1138,7 +1158,7 @@ impl ImportableDependency for V2Schema {
                 Some(GroupLineage::new(v2_provenance(self, &deps, &e.provenance))),
             );
             group.name = Some(e.r#type.to_string());
-            group.requirement_level = e.requirement_level.clone();
+            group.requirement_level = e.requirement_level.clone().map(Into::into);
             result.push(group);
         }
 
@@ -1170,11 +1190,11 @@ impl ImportableDependency for V2Schema {
                 Some(GroupLineage::new(v2_provenance(self, &deps, &s.provenance))),
             );
             group.span_kind = Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
-            group.span_name = Some(s.name.clone());
+            group.span_name = Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
             group.span_links = v2_span_links_to_spec(self, &s.links)?;
             group.name = Some(s.r#type.to_string());
             group.entity_associations = to_named_associations(&s.entity_associations);
-            group.requirement_level = s.requirement_level.clone();
+            group.requirement_level = s.requirement_level.clone().map(Into::into);
             _ = origins.insert(
                 group.id.clone(),
                 v2_association_origins(self, &deps, &s.entity_associations),
@@ -1468,9 +1488,11 @@ mod tests {
         assert_eq!(metric.unit.as_deref(), Some("1"));
         assert_eq!(
             metric.entity_associations,
-            vec![weaver_semconv::entity_association::EntityAssociation::Ref(
-                "entity.c".to_owned()
-            )]
+            vec![
+                weaver_semconv::v1::entity_association::EntityAssociation::Ref(
+                    "entity.c".to_owned()
+                )
+            ]
         );
         assert!(metric.name.is_none(), "A metric has no signal name");
         assert!(metric.lineage.is_some(), "A metric carries its lineage");
@@ -1487,7 +1509,7 @@ mod tests {
         );
         assert_eq!(
             span.span_name,
-            Some(weaver_semconv::v2::span::SpanName {
+            Some(weaver_semconv::v1::group::SpanName {
                 templates: Vec::new(),
                 note: Some("test".to_owned()),
             })
@@ -1772,5 +1794,42 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    #[test]
+    fn test_to_named_associations_keeps_the_shape() {
+        use super::{to_named_associations, V2EntityAssociation};
+        use weaver_resolved_schema::v2::entity::EntityRef;
+        use weaver_semconv::v1::entity_association::EntityAssociation as SpecAssociation;
+
+        let association_tree = vec![V2EntityAssociation::AllOf {
+            all_of: vec![
+                V2EntityAssociation::Ref(EntityRef {
+                    r#type: "service".into(),
+                    provenance: Default::default(),
+                }),
+                V2EntityAssociation::OneOf {
+                    one_of: vec![V2EntityAssociation::Ref(EntityRef {
+                        r#type: "host".into(),
+                        provenance: weaver_resolved_schema::v2::provenance::Provenance {
+                            source: Some(weaver_resolved_schema::v2::provenance::DependencyRef(2)),
+                            path: Default::default(),
+                        },
+                    })],
+                },
+            ],
+        }];
+
+        assert_eq!(
+            to_named_associations(&association_tree),
+            vec![SpecAssociation::AllOf {
+                all_of: vec![
+                    SpecAssociation::Ref("service".to_owned()),
+                    SpecAssociation::OneOf {
+                        one_of: vec![SpecAssociation::Ref("host".to_owned())],
+                    },
+                ],
+            }]
+        );
     }
 }

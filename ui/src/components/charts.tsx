@@ -8,7 +8,7 @@ export interface Datum {
 
 interface ChartCardProps {
   title: string
-  subtitle?: string
+  subtitle?: ReactNode
   height?: number
   children: ReactNode
 }
@@ -75,7 +75,6 @@ const STABILITY_LABELS: Record<string, string> = {
   development: 'Development',
   alpha: 'Alpha',
   beta: 'Beta',
-  deprecated: 'Deprecated',
 }
 
 export function stabilityLabel(key: string): string {

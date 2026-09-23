@@ -57,7 +57,7 @@ A semantic convention file starts with `file_format: definition/2` and may conta
 - `metric_refinements`: Contains definitions of metric instrument refinements.
 - `spans`: Contains definitions of spans.
 - `span_refinements`: Contains definitions of span refinements.
-- `imports`: Allows importing attributes or signal definitions from a different semantic convention registry (dependencies on registries are declared in `registry_manifest.yaml`).
+- `imports`: Allows importing attributes or signal definitions from a different semantic convention registry (dependencies on registries are declared in `manifest.yaml`).
 
 ### `attributes` definition
 

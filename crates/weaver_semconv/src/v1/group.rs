@@ -11,14 +11,14 @@ use std::collections::{BTreeMap, HashSet};
 use std::fmt::{Display, Formatter};
 
 use crate::deprecated::Deprecated;
-use crate::entity_association::EntityAssociation;
 use crate::provenance::Provenance;
-use crate::signal_requirement_level::SignalRequirementLevel;
-use crate::stability::Stability;
 use crate::v1::any_value::AnyValueSpec;
 use crate::v1::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
+use crate::v1::entity_association::EntityAssociation;
 use crate::v1::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::v1::semconv::Imports;
+use crate::v1::signal_requirement_level::SignalRequirementLevel;
+use crate::v1::stability::Stability;
 use crate::{Error, YamlValue};
 use weaver_common::result::WResult;
 
@@ -32,13 +32,265 @@ pub enum AttributeGroupVisibilitySpec {
     Public,
 }
 
-/// A span name specification.
+/// A parsed component of a span name template: either a literal string or an attribute reference.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Eq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum TemplatePart {
+    /// A literal string component.
+    Literal {
+        /// The literal string content.
+        value: String,
+    },
+    /// An attribute reference component.
+    Attribute {
+        /// The attribute key.
+        attribute: String,
+    },
+}
+
+/// A parsed span name template pattern.
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct SpanNameTemplate {
+    /// The original pattern string, e.g. "{http.request.method} {url.template}".
+    pub pattern: String,
+    /// The list of attribute keys required by this template.
+    pub attributes: Vec<String>,
+    /// The parsed components of the template.
+    pub parts: Vec<TemplatePart>,
+}
+
+impl SpanNameTemplate {
+    /// Parses a template pattern string into a `SpanNameTemplate`.
+    pub fn parse(pattern: &str) -> Result<Self, String> {
+        if pattern.trim().is_empty() {
+            return Err("Span name template pattern cannot be empty".to_owned());
+        }
+
+        let mut parts = Vec::new();
+        let mut attributes = Vec::new();
+        let mut chars = pattern.chars().peekable();
+        let mut current_literal = String::new();
+
+        while let Some(c) = chars.next() {
+            if c == '{' {
+                let mut attr = String::new();
+                let mut closed = false;
+                for inner in chars.by_ref() {
+                    if inner == '}' {
+                        closed = true;
+                        break;
+                    }
+                    if inner == '{' {
+                        return Err(format!("Nested '{{' in template: `{pattern}`"));
+                    }
+                    attr.push(inner);
+                }
+                if !closed {
+                    return Err(format!("Unclosed '{{' in template: `{pattern}`"));
+                }
+                if attr.is_empty()
+                    || attr.contains(char::is_whitespace)
+                    || !attr
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_')
+                {
+                    return Err(format!(
+                        "Invalid attribute placeholder `{attr}` in template: `{pattern}`"
+                    ));
+                }
+                if !current_literal.is_empty() {
+                    parts.push(TemplatePart::Literal {
+                        value: std::mem::take(&mut current_literal),
+                    });
+                }
+                if !attributes.iter().any(|a| a == &attr) {
+                    attributes.push(attr.to_owned());
+                }
+                parts.push(TemplatePart::Attribute {
+                    attribute: attr.to_owned(),
+                });
+            } else if c == '}' {
+                return Err(format!("Unmatched '}}' in template: `{pattern}`"));
+            } else {
+                current_literal.push(c);
+            }
+        }
+
+        if !current_literal.is_empty() {
+            parts.push(TemplatePart::Literal {
+                value: current_literal,
+            });
+        }
+
+        Ok(Self {
+            pattern: pattern.to_owned(),
+            attributes,
+            parts,
+        })
+    }
+
+    /// Renders the template given an attribute value lookup function.
+    /// Returns `None` if any required attribute is missing or empty.
+    pub fn render<'a, F>(&self, mut get_attr: F) -> Option<String>
+    where
+        F: FnMut(&str) -> Option<&'a str>,
+    {
+        let mut result = String::new();
+        for part in &self.parts {
+            match part {
+                TemplatePart::Literal { value } => result.push_str(value),
+                TemplatePart::Attribute { attribute } => {
+                    let val = get_attr(attribute)?;
+                    if val.is_empty() {
+                        return None;
+                    }
+                    result.push_str(val);
+                }
+            }
+        }
+        Some(result)
+    }
+}
+
+impl Display for SpanNameTemplate {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.pattern)
+    }
+}
+
+impl TryFrom<String> for SpanNameTemplate {
+    type Error = String;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::parse(&s)
+    }
+}
+
+impl TryFrom<&str> for SpanNameTemplate {
+    type Error = String;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Self::parse(s)
+    }
+}
+
+impl<'de> Deserialize<'de> for SpanNameTemplate {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct SpanNameTemplateVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for SpanNameTemplateVisitor {
+            type Value = SpanNameTemplate;
+
+            fn expecting(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("a span name template string or object")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                SpanNameTemplate::parse(value).map_err(serde::de::Error::custom)
+            }
+
+            fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+            where
+                M: serde::de::MapAccess<'de>,
+            {
+                let mut pattern: Option<String> = None;
+                let mut attributes: Option<Vec<String>> = None;
+                let mut parts: Option<Vec<TemplatePart>> = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "pattern" => pattern = Some(map.next_value()?),
+                        "attributes" => attributes = Some(map.next_value()?),
+                        "parts" => parts = Some(map.next_value()?),
+                        unknown => {
+                            return Err(serde::de::Error::unknown_field(
+                                unknown,
+                                &["pattern", "attributes", "parts"],
+                            ));
+                        }
+                    }
+                }
+
+                let pattern: String =
+                    pattern.ok_or_else(|| serde::de::Error::missing_field("pattern"))?;
+                let parsed = SpanNameTemplate::parse(&pattern).map_err(serde::de::Error::custom)?;
+                if let Some(attrs) = attributes {
+                    if attrs != parsed.attributes {
+                        return Err(serde::de::Error::custom(
+                            "provided 'attributes' does not match attributes extracted from 'pattern'",
+                        ));
+                    }
+                }
+                if let Some(p) = parts {
+                    if p != parsed.parts {
+                        return Err(serde::de::Error::custom(
+                            "provided 'parts' does not match parts extracted from 'pattern'",
+                        ));
+                    }
+                }
+                Ok(parsed)
+            }
+        }
+
+        deserializer.deserialize_any(SpanNameTemplateVisitor)
+    }
+}
+
+impl JsonSchema for SpanNameTemplate {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        "SpanNameTemplate".into()
+    }
+
+    fn schema_id() -> std::borrow::Cow<'static, str> {
+        concat!(module_path!(), "::SpanNameTemplate").into()
+    }
+
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        let part_schema = generator.subschema_for::<TemplatePart>();
+        schemars::json_schema!({
+            "oneOf": [
+                { "type": "string" },
+                {
+                    "type": "object",
+                    "properties": {
+                        "pattern": { "type": "string" },
+                        "attributes": {
+                            "type": "array",
+                            "items": { "type": "string" }
+                        },
+                        "parts": {
+                            "type": "array",
+                            "items": part_schema
+                        }
+                    },
+                    "required": ["pattern"],
+                    "additionalProperties": false
+                }
+            ]
+        })
+    }
+}
+
+/// A span name specification.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub struct SpanName {
-    /// Required description of how a span name should be created.
-    pub note: String,
+    /// Ordered list of templates used to construct the span name.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub templates: Vec<SpanNameTemplate>,
+    /// Description of how a span name should be created.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
 }
 
 /// A group defines an attribute group, an entity, or a signal.
@@ -171,7 +423,7 @@ pub struct GroupSpec {
     #[serde(default)]
     #[serde(skip_serializing)]
     #[schemars(skip)]
-    pub span_name: Option<crate::v2::span::SpanName>,
+    pub span_name: Option<SpanName>,
 
     /// The v2 span links, carried through the v1 intermediate
     /// representation so they survive resolution.
@@ -199,6 +451,7 @@ pub struct GroupWildcard(#[schemars(with = "String")] pub Glob);
 
 impl GroupSpec {
     /// Validation logic for the group.
+    #[allow(deprecated)]
     pub(crate) fn validate(&self, path_or_url: &str) -> WResult<(), Error> {
         let mut errors = vec![];
 

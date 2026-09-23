@@ -656,7 +656,7 @@ impl ForgeResolvedRegistry {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::collections::{BTreeMap, BTreeSet, HashMap};
     use std::sync::Arc;
 
@@ -672,8 +672,6 @@ mod tests {
     use weaver_resolver::NullSchemaResolver;
     use weaver_semconv::{
         schema_url::SchemaUrl,
-        signal_requirement_level::SignalRequirementLevel,
-        stability::Stability,
         v2::{
             attribute::{
                 AttributeType, BasicRequirementLevelSpec, Examples, PrimitiveOrArrayTypeSpec,
@@ -681,7 +679,9 @@ mod tests {
             },
             metric::InstrumentSpec,
             signal_id::SignalId,
+            signal_requirement_level::SignalRequirementLevel,
             span::{SpanKindSpec, SpanName},
+            stability::Stability,
             CommonFields,
         },
     };
@@ -697,13 +697,13 @@ mod tests {
         Fatal(weaver_resolver::Error),
     }
 
-    struct MockSchemaResolver {
+    pub(crate) struct MockSchemaResolver {
         schemas: HashMap<SchemaUrl, MockResolution>,
         direct_dependencies: HashMap<SchemaUrl, Vec<SchemaUrl>>,
     }
 
     impl MockSchemaResolver {
-        fn new() -> Self {
+        pub(crate) fn new() -> Self {
             Self {
                 schemas: HashMap::new(),
                 direct_dependencies: HashMap::new(),
@@ -717,15 +717,14 @@ mod tests {
             );
         }
 
-        fn add_v1_schema(
+        pub(crate) fn add_resolved_schema(
             &mut self,
             url: SchemaUrl,
-            schema: weaver_resolved_schema::v1::ResolvedTelemetrySchema,
+            schema: weaver_resolver::WeaverResolvedSchema,
         ) {
-            let _ = self.schemas.insert(
-                url,
-                MockResolution::Ok(Arc::new(weaver_resolver::WeaverResolvedSchema::V1(schema))),
-            );
+            let _ = self
+                .schemas
+                .insert(url, MockResolution::Ok(Arc::new(schema)));
         }
 
         fn add_with_nfes(
@@ -2144,126 +2143,6 @@ mod tests {
             assert_eq!(nfes.len(), 1);
         } else {
             panic!("Expected OkWithNFEs");
-        }
-    }
-
-    #[test]
-    fn test_dependency_resolution_v1_schema_success() {
-        let dep_url: SchemaUrl = "https://example.com/dep-v1".try_into().unwrap();
-        let v1_schema = weaver_resolved_schema::v1::ResolvedTelemetrySchema {
-            file_format: "resolved/1.0".to_owned(),
-            schema_url: "https://example.com/dep-v1".to_owned(),
-            registry_id: "test".to_owned(),
-            registry: weaver_resolved_schema::v1::registry::Registry {
-                registry_url: "https://example.com/dep-v1".to_owned(),
-                entity_association_origins: Default::default(),
-                groups: vec![],
-            },
-            catalog: weaver_resolved_schema::v1::catalog::Catalog::default(),
-            resource: None,
-            instrumentation_library: None,
-            dependencies: BTreeSet::new(),
-            versions: None,
-            registry_manifest: None,
-        };
-
-        let root_schema = ResolvedTelemetrySchema {
-            file_format: "2.0.0".to_owned(),
-            schema_url: "https://example.com/root".try_into().unwrap(),
-            attribute_catalog: vec![],
-            dependencies: {
-                let mut deps = BTreeSet::new();
-                let _ = deps.insert(dep_url.clone());
-                deps
-            },
-            registry: v2::registry::Registry {
-                attributes: vec![],
-                spans: vec![],
-                metrics: vec![],
-                events: vec![],
-                entities: vec![],
-                attribute_groups: vec![],
-            },
-            refinements: refinements::Refinements {
-                spans: vec![],
-                metrics: vec![],
-                events: vec![],
-                entities: vec![],
-            },
-        };
-
-        let mut mock_resolver = MockSchemaResolver::new();
-        mock_resolver.add_v1_schema(dep_url.clone(), v1_schema);
-
-        let forge = match ForgeResolvedRegistry::try_from_resolved_schema(
-            root_schema,
-            &mut mock_resolver,
-        ) {
-            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
-            WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
-        };
-
-        assert_eq!(
-            forge.dependencies.keys().collect::<Vec<_>>(),
-            vec![&dep_url]
-        );
-    }
-
-    #[test]
-    fn test_dependency_resolution_v1_schema_conversion_error() {
-        let dep_url: SchemaUrl = "https://example.com/dep-v1".try_into().unwrap();
-        let invalid_v1_schema = weaver_resolved_schema::v1::ResolvedTelemetrySchema {
-            file_format: "resolved/1.0".to_owned(),
-            schema_url: "invalid schema url with spaces".to_owned(),
-            registry_id: "test".to_owned(),
-            registry: weaver_resolved_schema::v1::registry::Registry {
-                registry_url: "invalid schema url with spaces".to_owned(),
-                entity_association_origins: Default::default(),
-                groups: vec![],
-            },
-            catalog: weaver_resolved_schema::v1::catalog::Catalog::default(),
-            resource: None,
-            instrumentation_library: None,
-            dependencies: BTreeSet::new(),
-            versions: None,
-            registry_manifest: None,
-        };
-
-        let root_schema = ResolvedTelemetrySchema {
-            file_format: "2.0.0".to_owned(),
-            schema_url: "https://example.com/root".try_into().unwrap(),
-            attribute_catalog: vec![],
-            dependencies: {
-                let mut deps = BTreeSet::new();
-                let _ = deps.insert(dep_url.clone());
-                deps
-            },
-            registry: v2::registry::Registry {
-                attributes: vec![],
-                spans: vec![],
-                metrics: vec![],
-                events: vec![],
-                entities: vec![],
-                attribute_groups: vec![],
-            },
-            refinements: refinements::Refinements {
-                spans: vec![],
-                metrics: vec![],
-                events: vec![],
-                entities: vec![],
-            },
-        };
-
-        let mut mock_resolver = MockSchemaResolver::new();
-        mock_resolver.add_v1_schema(dep_url, invalid_v1_schema);
-
-        let result =
-            ForgeResolvedRegistry::try_from_resolved_schema(root_schema, &mut mock_resolver);
-        assert!(result.is_fatal());
-        if let WResult::FatalErr(Error::SchemaError(_)) = result {
-            // Expected
-        } else {
-            panic!("Expected FatalErr(SchemaError)");
         }
     }
 

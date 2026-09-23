@@ -20,10 +20,10 @@ use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::v2::Signal;
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::schema_url::SchemaUrl;
-use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
-use weaver_semconv::stability::Stability;
 use weaver_semconv::v1::attribute::{AttributeRole, RequirementLevel};
 use weaver_semconv::v1::group::{GroupType, InstrumentSpec, SpanKindSpec};
+use weaver_semconv::v1::signal_requirement_level::SignalRequirementLevel;
+use weaver_semconv::v1::stability::Stability;
 
 use crate::attribute::AttributeSource;
 use crate::dependency_resolution::is_excluded;
@@ -61,7 +61,7 @@ pub(crate) struct GroupSummary {
     pub span_kind: Option<SpanKindSpec>,
     /// The v2 span name specification, inherited by refinements that do not
     /// override it.
-    pub span_name: Option<weaver_semconv::v2::span::SpanName>,
+    pub span_name: Option<weaver_semconv::v1::group::SpanName>,
     /// The v2 span links, inherited by refinements that do not
     /// declare their own.
     pub span_links: Vec<weaver_semconv::v2::span::SpanLink>,
@@ -377,7 +377,7 @@ fn attr_spec(
             requirement_level,
             sampling_relevant,
             note: a.common.note.clone(),
-            stability: Some(a.common.stability.clone()),
+            stability: Some(a.common.stability.clone().into()),
             deprecated: a.common.deprecated.clone(),
             annotations: Some(a.common.annotations.clone()),
             role,
@@ -390,19 +390,19 @@ fn attr_spec(
 fn signal_summary(
     r#type: GroupType,
     common: &weaver_semconv::v2::CommonFields,
-    requirement_level: Option<SignalRequirementLevel>,
+    requirement_level: Option<weaver_semconv::v2::signal_requirement_level::SignalRequirementLevel>,
     attributes: Vec<UnresolvedAttribute>,
 ) -> GroupSummary {
     GroupSummary {
         r#type,
         brief: common.brief.clone(),
         note: common.note.clone(),
-        stability: Some(common.stability.clone()),
+        stability: Some(common.stability.clone().into()),
         deprecated: common.deprecated.clone(),
         metric_name: None,
         instrument: None,
         unit: None,
-        requirement_level,
+        requirement_level: requirement_level.map(Into::into),
         span_kind: None,
         span_name: None,
         span_links: Vec::new(),
@@ -549,7 +549,7 @@ impl GroupRefinementLookup for V2Schema {
                 attributes,
             );
             summary.span_kind = Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
-            summary.span_name = Some(s.name.clone());
+            summary.span_name = Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
             return Some(summary);
         }
         None
@@ -888,7 +888,7 @@ pub(crate) mod tests {
         // not override it inherit the dependency's definition.
         assert_eq!(
             span_summary.span_name,
-            Some(weaver_semconv::v2::span::SpanName {
+            Some(weaver_semconv::v1::group::SpanName {
                 templates: Vec::new(),
                 note: Some("test".to_owned()),
             })
