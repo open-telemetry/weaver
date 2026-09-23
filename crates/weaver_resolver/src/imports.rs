@@ -1765,8 +1765,7 @@ mod tests {
                 weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
             ))
         );
-        // The dependency's catalog entry is an overridden variant; its
-        // metadata must survive the import as explicit overrides.
+        // Overridden metadata must survive the import as explicit overrides.
         assert_eq!(
             link.attributes[0].base.brief.as_deref(),
             Some("the id, as carried on the link")

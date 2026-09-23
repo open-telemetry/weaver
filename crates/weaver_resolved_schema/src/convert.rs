@@ -842,8 +842,10 @@ mod tests {
 
     /// Runs the conversion over the given groups and returns the error it
     /// must produce.
-    fn convert_links_err(groups: Vec<V1Group>) -> crate::error::Error {
-        let v1_catalog = crate::v1::catalog::test_utils::CatalogBuilder::default().build();
+    fn convert_links_err(
+        v1_catalog: crate::v1::catalog::Catalog,
+        groups: Vec<V1Group>,
+    ) -> crate::error::Error {
         let v1_registry = V1Registry {
             registry_url: "my.schema.url".to_owned(),
             entity_association_origins: Default::default(),
@@ -851,6 +853,30 @@ mod tests {
         };
         convert_v1_to_v2(v1_catalog, v1_registry, BTreeSet::new())
             .expect_err("conversion must fail")
+    }
+
+    /// Builds a minimal string attribute with the given name.
+    fn test_attribute(name: &str) -> crate::v1::attribute::Attribute {
+        use weaver_semconv::v1::attribute::{
+            AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
+        };
+        crate::v1::attribute::Attribute {
+            name: name.to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            brief: "a test attribute".to_owned(),
+            examples: None,
+            tag: None,
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+            sampling_relevant: None,
+            note: "".to_owned(),
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            prefix: false,
+            tags: None,
+            annotations: None,
+            value: None,
+            role: None,
+        }
     }
 
     /// Builds a minimal span link to the given target type.
@@ -879,10 +905,10 @@ mod tests {
 
     #[test]
     fn test_span_link_target_not_found() {
-        let err = convert_links_err(vec![span_group_with_links(
-            "span.a",
-            vec![link_to("missing")],
-        )]);
+        let err = convert_links_err(
+            crate::v1::catalog::test_utils::CatalogBuilder::default().build(),
+            vec![span_group_with_links("span.a", vec![link_to("missing")])],
+        );
         assert!(matches!(
             err,
             crate::error::Error::SpanLinkTargetNotFound { .. }
@@ -924,13 +950,19 @@ mod tests {
     #[test]
     fn test_span_link_attribute_override_variant_missing_from_catalog() {
         // The resolver places one catalog entry per override combination; a
-        // conversion that cannot find the overridden variant fails loudly.
+        // conversion that finds the root but not the overridden variant
+        // fails loudly.
+        let mut builder = crate::v1::catalog::test_utils::CatalogBuilder::default();
+        _ = builder.add(test_attribute("test.key"), Some("registry.test"));
         let mut link = link_to("b");
         link.attributes = vec![link_attribute("test.key", Some("an override"))];
-        let err = convert_links_err(vec![
-            span_group_with_links("span.a", vec![link]),
-            span_group_with_links("span.b", vec![]),
-        ]);
+        let err = convert_links_err(
+            builder.build(),
+            vec![
+                span_group_with_links("span.a", vec![link]),
+                span_group_with_links("span.b", vec![]),
+            ],
+        );
         assert!(matches!(
             err,
             crate::error::Error::SpanLinkAttributeNotFound { .. }
@@ -938,13 +970,68 @@ mod tests {
     }
 
     #[test]
+    fn test_span_link_annotation_override_binds_variant() {
+        // An annotations-only override must bind the overridden catalog
+        // entry, not the root that differs only in annotations.
+        let mut annotations = BTreeMap::new();
+        _ = annotations.insert(
+            "code_generation".to_owned(),
+            serde_json::from_str::<weaver_semconv::YamlValue>("\"exclude\"").unwrap(),
+        );
+
+        let mut builder = crate::v1::catalog::test_utils::CatalogBuilder::default();
+        let root = test_attribute("test.key");
+        let mut variant = root.clone();
+        variant.annotations = Some(annotations.clone());
+        _ = builder.add(root, Some("registry.test"));
+        _ = builder.add(variant, None);
+
+        let mut link = link_to("b");
+        link.attributes = vec![LinkAttributeRefSpec {
+            base: AttributeRefSpec {
+                r#ref: "test.key".to_owned(),
+                brief: None,
+                examples: None,
+                requirement_level: None,
+                note: None,
+                annotations: annotations.clone(),
+            },
+        }];
+        let v1_registry = V1Registry {
+            registry_url: "my.schema.url".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![
+                span_group_with_links("span.a", vec![link]),
+                span_group_with_links("span.b", vec![]),
+            ],
+        };
+        let (v2_catalog, registry, _, _) =
+            convert_v1_to_v2(builder.build(), v1_registry, BTreeSet::new())
+                .expect("conversion must succeed");
+
+        let span = registry
+            .spans
+            .iter()
+            .find(|s| &*s.r#type == "a")
+            .expect("span.a must be in the output");
+        let base = span.links[0].attributes[0].base;
+        assert_eq!(
+            v2_catalog[base.0 as usize].common.annotations, annotations,
+            "the link must bind the annotated variant, not the root"
+        );
+    }
+
+    #[test]
     fn test_span_link_attribute_unknown_name_not_found() {
         let mut link = link_to("b");
         link.attributes = vec![link_attribute("nope.key", None)];
-        let err = convert_links_err(vec![
-            span_group_with_links("span.a", vec![link]),
-            span_group_with_links("span.b", vec![]),
-        ]);
+        let err = convert_links_err(
+            crate::v1::catalog::test_utils::CatalogBuilder::default().build(),
+            vec![
+                span_group_with_links("span.a", vec![link]),
+                span_group_with_links("span.b", vec![]),
+            ],
+        );
         assert!(matches!(
             err,
             crate::error::Error::SpanLinkAttributeNotFound { .. }
