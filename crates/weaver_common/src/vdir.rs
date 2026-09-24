@@ -77,7 +77,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::fs::{create_dir_all, File};
+use std::fs::{create_dir_all, remove_dir_all, rename, File};
 use std::io;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
@@ -306,9 +306,6 @@ struct GitCacheConfig {
 }
 
 /// Whether a cloned refspec can later point at different content.
-///
-/// Only [`RefStability::Immutable`] sources are cached; caching a moving ref
-/// would serve its first snapshot indefinitely.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RefStability {
     /// A commit SHA or a tag.
@@ -373,16 +370,8 @@ fn git_cache_config() -> GitCacheConfig {
         .clone()
 }
 
-/// Derives a filesystem-safe cache directory name for a pinned Git source.
-///
-/// The key is a function of `(url, refspec)` only — the sub-folder is applied
-/// after checkout, so registries that differ only by sub-folder share one clone.
-/// A short human-readable slug is prefixed for debuggability, and a truncated
-/// SHA-1 of the two fields makes the name unique. The digest is stable across
-/// platforms and toolchain versions, so the key is reproducible in CI caches.
-///
-/// Returns `None` when Git's SHA-1 collision detection flags the input, so a
-/// crafted source cannot share another source's cache entry.
+/// Derives the cache directory name for `url`@`refspec`, or `None` when Git's
+/// SHA-1 collision detection flags the input.
 fn git_cache_key(url: &str, refspec: &str) -> Option<String> {
     let mut hasher = gix::hash::hasher(gix::hash::Kind::Sha1);
     hasher.update(url.as_bytes());
@@ -415,22 +404,7 @@ fn git_cache_key(url: &str, refspec: &str) -> Option<String> {
     Some(format!("{repo_slug}-{ref_slug}-{hash}"))
 }
 
-/// Strips a `user[:password]@` component from `url`, returning `None` when the
-/// URL carries no credentials.
-fn url_without_userinfo(url: &str) -> Option<String> {
-    let mut parsed = Url::parse(url).ok()?;
-    if parsed.username().is_empty() && parsed.password().is_none() {
-        return None;
-    }
-    parsed.set_username("").ok()?;
-    parsed.set_password(None).ok()?;
-    Some(parsed.to_string())
-}
-
-/// Derives a unique sibling path under `git_root` from an existing unique staging
-/// directory, replacing the `.staging-` prefix with `prefix`. Used to name the
-/// retired copy of a cache entry during an atomic refresh swap, so the sibling is
-/// as unique as the staging directory it is derived from.
+/// Names a sibling of `staged` under `git_root`, with `prefix` in place of `.staging-`.
 fn sibling_cache_path(git_root: &Path, staged: &Path, prefix: &str) -> PathBuf {
     let name = staged
         .file_name()
@@ -700,10 +674,12 @@ impl Display for VirtualDirectoryPath {
 /// This struct is created from a [`VirtualDirectoryPath`]. Depending on the source type,
 /// it might involve:
 /// - Simply pointing to an existing local directory.
-/// - Cloning a Git repository into a temporary cache directory.
+/// - Cloning a Git repository into a temporary directory, or reusing an entry in
+///   the on-disk registry cache when one is configured.
 /// - Downloading and extracting an archive into a temporary cache directory.
 ///
-/// Temporary directories are managed and automatically cleaned up when this struct goes out of scope.
+/// Temporary directories are cleaned up when this struct goes out of scope;
+/// registry cache entries persist across runs.
 #[derive(Default, Debug, Clone)]
 pub struct VirtualDirectory {
     /// The original string representation used to create this virtual directory.
@@ -834,14 +810,8 @@ impl VirtualDirectory {
         })
     }
 
-    /// Materializes `url` on disk, in the cache when the source is cacheable
-    /// and in a throwaway directory otherwise.
-    ///
-    /// A cache hit is reused with no network access. A miss clones into a
-    /// private staging directory, which is installed in the cache only for an
-    /// [`RefStability::Immutable`] refspec; a moving one is served from the
-    /// staging directory, which is then a throwaway clone. A source with no
-    /// refspec tracks the remote default branch, so it never consults `cache`.
+    /// Materializes `url` on disk: in the cache for a commit or tag refspec,
+    /// otherwise in a throwaway directory.
     fn checkout_git_repo(
         url: &str,
         refspec: &Option<String>,
@@ -874,32 +844,22 @@ impl VirtualDirectory {
         }
 
         Ok(
-            match Self::populate_git_cache(url, pinned, &git_root, &target)? {
+            match Self::populate_git_cache(url, pinned, &git_root, &target, refresh)? {
                 None => GitCheckout::Cached(target),
                 Some(tmp_dir) => GitCheckout::Throwaway(tmp_dir),
             },
         )
     }
 
-    /// Clones `url`@`refspec` into a private staging directory under `git_root`.
-    ///
-    /// Returns `None` once the clone has been installed at `target`, or
-    /// `Some(staging)` when the refspec is [`RefStability::Moving`] and so must
-    /// not be cached — the caller serves that throwaway directory instead.
-    ///
-    /// The clone is completed in staging before any rename, so `target` is only
-    /// ever created or replaced as a single complete directory.
-    ///
-    /// - Fresh entry: one atomic `rename`. A process that loses the race
-    ///   discards its staging copy and keeps the winner's clone.
-    /// - Refresh: the current entry is retired to a unique sibling and the new
-    ///   clone renamed into place, leaving `target` briefly absent; the retired
-    ///   copy is then deleted, or restored if the final rename fails.
+    /// Clones `url`@`refspec` into staging under `git_root` and installs it at
+    /// `target`, or returns the staging directory when the refspec is
+    /// [`RefStability::Moving`].
     fn populate_git_cache(
         url: &str,
         refspec: &str,
         git_root: &Path,
         target: &Path,
+        refresh: bool,
     ) -> Result<Option<TempDir>, Error> {
         create_dir_all(git_root).map_err(|e| Error::CacheDirNotCreated {
             message: e.to_string(),
@@ -915,73 +875,55 @@ impl VirtualDirectory {
         if stability == RefStability::Moving {
             return Ok(Some(staging));
         }
-        Self::strip_url_credentials(staging.path(), url);
 
-        // Disarm the temp-dir guard: we move the directory into place ourselves
-        // and clean it up manually on the error/race paths.
         let staged = staging.keep();
-
-        let cache_err = |e: io::Error| Error::CacheEntryNotInstalled {
-            registry: format!("{url}@{refspec}"),
-            message: e.to_string(),
+        let installed = if refresh {
+            Self::replace_cache_entry(git_root, &staged, target)
+        } else {
+            Self::install_cache_entry(&staged, target)
         };
-
-        // Fast path: no existing entry, so a single atomic rename installs it.
-        if !target.exists() {
-            return match std::fs::rename(&staged, target) {
-                Ok(()) => Ok(None),
-                // Lost the race with a concurrent populate: keep the winner's clone.
-                Err(_) if target.exists() => {
-                    let _ = std::fs::remove_dir_all(&staged);
-                    Ok(None)
-                }
-                Err(e) => {
-                    let _ = std::fs::remove_dir_all(&staged);
-                    Err(cache_err(e))
-                }
-            };
-        }
-
-        // Refresh path: retire the current entry to a unique sibling derived from
-        // the (already-unique) staging name, keeping a complete directory visible.
-        let aside = sibling_cache_path(git_root, &staged, ".old-");
-        match std::fs::rename(target, &aside) {
-            Ok(()) => {}
-            // Another refresher already retired it: treat as a lost race and keep
-            // whatever is now in place.
-            Err(_) if !target.exists() => {
-                let _ = std::fs::remove_dir_all(&staged);
-                return Ok(None);
-            }
-            Err(e) => {
-                let _ = std::fs::remove_dir_all(&staged);
-                return Err(cache_err(e));
-            }
-        }
-
-        match std::fs::rename(&staged, target) {
-            Ok(()) => {
-                let _ = std::fs::remove_dir_all(&aside);
-                Ok(None)
-            }
-            Err(e) => {
-                // Restore the retired entry so a working cache is never lost.
-                let _ = std::fs::rename(&aside, target);
-                let _ = std::fs::remove_dir_all(&staged);
-                Err(cache_err(e))
-            }
-        }
+        installed
+            .map(|()| None)
+            .map_err(|e| Error::CacheEntryNotInstalled {
+                registry: format!("{url}@{refspec}"),
+                message: e.to_string(),
+            })
     }
 
-    /// Rewrites `remote.origin.url` in a freshly cloned repository so a URL
-    /// carrying credentials does not persist in the cache on disk.
-    fn strip_url_credentials(dest: &Path, url: &str) {
-        let Some(sanitized) = url_without_userinfo(url) else {
-            return;
-        };
-        let config = dest.join(".git").join("config");
-        if let Ok(contents) = std::fs::read_to_string(&config) {
-            let _ = std::fs::write(&config, contents.replace(url, &sanitized));
+    /// Moves `staged` to `target`, keeping the entry instead when a concurrent
+    /// process installed one first.
+    fn install_cache_entry(staged: &Path, target: &Path) -> io::Result<()> {
+        rename(staged, target).or_else(|e| {
+            let _ = remove_dir_all(staged);
+            if target.exists() {
+                Ok(())
+            } else {
+                Err(e)
+            }
+        })
+    }
+
+    /// Replaces the entry at `target` with `staged`, restoring the previous
+    /// entry if the swap fails.
+    fn replace_cache_entry(git_root: &Path, staged: &Path, target: &Path) -> io::Result<()> {
+        let aside = sibling_cache_path(git_root, staged, ".old-");
+        if let Err(e) = rename(target, &aside) {
+            if target.exists() {
+                let _ = remove_dir_all(staged);
+                return Err(e);
+            }
+            return Self::install_cache_entry(staged, target);
+        }
+        match rename(staged, target) {
+            Ok(()) => {
+                let _ = remove_dir_all(&aside);
+                Ok(())
+            }
+            Err(e) => {
+                let _ = remove_dir_all(staged);
+                let _ = rename(&aside, target);
+                Err(e)
+            }
         }
     }
 
@@ -2628,41 +2570,51 @@ mod tests {
     }
 
     #[test]
-    fn test_url_without_userinfo() {
-        use super::url_without_userinfo;
+    fn test_populate_keeps_entry_installed_by_a_concurrent_process() {
+        use super::git_cache_key;
 
+        let (_repo, url) = make_local_git_repo();
+        let cache = tempfile::tempdir().unwrap();
+        let git_root = cache.path().join("git");
+        let target = git_root.join(git_cache_key(&url, "v0.0.1").unwrap());
+        // Another process finished its clone between our cache miss and our install.
+        std::fs::create_dir_all(target.join("model")).unwrap();
+        std::fs::write(target.join("model/general.yaml"), "winner: true\n").unwrap();
+
+        let staging =
+            VirtualDirectory::populate_git_cache(&url, "v0.0.1", &git_root, &target, false)
+                .expect("losing the install race must not fail");
+
+        assert!(staging.is_none());
         assert_eq!(
-            url_without_userinfo("https://x-access-token:secret@github.com/org/repo.git"),
-            Some("https://github.com/org/repo.git".to_owned())
+            std::fs::read_to_string(target.join("model/general.yaml")).unwrap(),
+            "winner: true\n",
+            "the winner's entry must be kept, not swapped out"
         );
-        assert_eq!(
-            url_without_userinfo("https://user@github.com/org/repo.git"),
-            Some("https://github.com/org/repo.git".to_owned())
-        );
-        assert_eq!(
-            url_without_userinfo("https://github.com/org/repo.git"),
-            None
-        );
-        // An `@` in the path is not a credential.
-        assert_eq!(
-            url_without_userinfo("https://github.com/org/repo@v1.0.git"),
-            None
-        );
+        let leftovers: Vec<_> = std::fs::read_dir(&git_root)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path != &target)
+            .collect();
+        assert!(leftovers.is_empty(), "staging left behind: {leftovers:?}");
     }
 
     #[test]
-    fn test_strip_url_credentials_rewrites_remote() {
-        let dest = tempfile::tempdir().unwrap();
-        let url = "https://x-access-token:secret@github.com/org/repo.git";
-        let config = dest.path().join(".git").join("config");
-        std::fs::create_dir_all(config.parent().unwrap()).unwrap();
-        std::fs::write(&config, format!("[remote \"origin\"]\n\turl = {url}\n")).unwrap();
+    fn test_replace_installs_when_entry_is_already_gone() {
+        let git_root = tempfile::tempdir().unwrap();
+        let staged = git_root.path().join(".staging-abc");
+        std::fs::create_dir_all(&staged).unwrap();
+        std::fs::write(staged.join("general.yaml"), "fresh: true\n").unwrap();
+        let target = git_root.path().join("entry");
 
-        VirtualDirectory::strip_url_credentials(dest.path(), url);
+        VirtualDirectory::replace_cache_entry(git_root.path(), &staged, &target)
+            .expect("a refresh racing another refresh must still install");
 
-        let contents = std::fs::read_to_string(&config).unwrap();
-        assert!(!contents.contains("secret"), "credentials left on disk");
-        assert!(contents.contains("https://github.com/org/repo.git"));
+        assert_eq!(
+            std::fs::read_to_string(target.join("general.yaml")).unwrap(),
+            "fresh: true\n"
+        );
+        assert!(!staged.exists());
     }
 
     #[test]

@@ -186,7 +186,8 @@ CLI flags (available on every subcommand):
 `--registry-cache-offline` scopes to the registry cache only. It does not make
 the whole run offline: an unpinned git source, a remote archive, a remote file,
 and a `dependencies[]` entry resolved from its `schema_url` are all still
-downloaded.
+downloaded. A branch refspec is never cached, so under
+`--registry-cache-offline` it always fails; pin to a tag or commit instead.
 
 Cache entries are keyed by `(url, refspec)`, so registries that differ only by
 sub-folder share a single clone. Population is concurrency-safe: the clone is

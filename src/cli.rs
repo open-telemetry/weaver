@@ -56,7 +56,8 @@ pub struct Cli {
     pub registry_cache_dir: Option<PathBuf>,
 
     /// Serve cached Git registries without network access: a cache miss becomes
-    /// an error instead of a clone. Does not restrict any other download.
+    /// an error instead of a clone. A branch refspec is never cached, so it
+    /// always fails. Does not restrict any other download.
     #[arg(long, global = true, requires = "registry_cache_dir")]
     pub registry_cache_offline: bool,
 

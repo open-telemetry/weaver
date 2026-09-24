@@ -99,7 +99,9 @@ pub enum Error {
     },
 
     /// A registry is absent from the cache while offline mode is enabled.
-    #[error("Registry `{registry}` is not in the cache and offline mode is enabled")]
+    #[error(
+        "Registry `{registry}` is not in the cache and offline mode is enabled (only commit SHA and tag refspecs are ever cached)"
+    )]
     RegistryOffline {
         /// The registry source (`url[@refspec]`) that could not be served offline.
         registry: String,
