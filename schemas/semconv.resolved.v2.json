@@ -952,7 +952,7 @@
           "$ref": "#/$defs/AttributeRef"
         },
         "requirement_level": {
-          "description": "Specifies if the attribute is mandatory. Can be \"required\",\n\"conditionally_required\", \"recommended\" or \"opt_in\". When omitted,\nthe attribute is \"recommended\".",
+          "description": "Specifies if the attribute is mandatory. Can be \"required\",\n\"conditionally_required\", \"recommended\" or \"opt_in\". When omitted,\nthe referenced attribute's requirement level applies.",
           "$ref": "#/$defs/RequirementLevel"
         }
       },
