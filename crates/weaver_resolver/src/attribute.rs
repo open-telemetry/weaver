@@ -706,7 +706,7 @@ impl AttributeLookup for V2Schema {
                         ),
                         sampling_relevant: None,
                         note: attr.common.note.clone(),
-                        stability: Some(attr.common.stability.clone()),
+                        stability: Some(attr.common.stability.clone().into()),
                         deprecated: attr.common.deprecated.clone(),
                         prefix: false,
                         tags: None,

@@ -28,7 +28,6 @@ schemars.workspace = true
 ureq.workspace = true
 log.workspace = true
 url.workspace = true
-sha2.workspace = true
 
 tempfile.workspace = true
 dirs.workspace = true

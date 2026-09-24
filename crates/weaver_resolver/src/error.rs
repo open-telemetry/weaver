@@ -17,7 +17,7 @@ pub enum Error {
     /// There was an issue resolving definition schema.
     #[error(transparent)]
     #[diagnostic(transparent)]
-    FailToResolveDefinition(#[from] weaver_semconv::Error),
+    FailToResolveDefinition(weaver_semconv::Error),
 
     /// Failed to access a virtual directory path.
     #[error(transparent)]
@@ -280,6 +280,20 @@ pub enum Error {
         attribute_id: String,
     },
 
+    /// An attribute used in a span name template is not referenced on the span.
+    #[error("Span `{span_id}` uses attribute `{attribute_key}` in its name templates, but the attribute is not declared or inherited on the span.\nProvenance: {provenance:?}")]
+    #[diagnostic(help(
+        "Add `{attribute_key}` to the span's `attributes` list, or remove it from the name template."
+    ))]
+    SpanNameAttributeNotOnSpan {
+        /// The id/type of the span.
+        span_id: String,
+        /// The attribute key referenced in the template.
+        attribute_key: String,
+        /// The provenance of the span.
+        provenance: Option<Box<Provenance>>,
+    },
+
     /// Invalid import wildcard.
     #[error("Invalid import wildcard: {error:?}")]
     #[diagnostic(help(
@@ -413,6 +427,15 @@ impl Error {
                 }
             }
             _ => log_error(self),
+        }
+    }
+}
+
+impl From<weaver_semconv::Error> for Error {
+    fn from(e: weaver_semconv::Error) -> Self {
+        match e {
+            weaver_semconv::Error::FailToResolveSchemaUrl {} => Error::FailToResolveSchemaUrl {},
+            other => Error::FailToResolveDefinition(other),
         }
     }
 }

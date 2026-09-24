@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: top_legacy_import
 description: >
   Imports the legacy `type: resource` entity of `legacy_resource` by the id that

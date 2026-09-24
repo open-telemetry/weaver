@@ -75,7 +75,6 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::fs::{create_dir_all, File};
@@ -379,15 +378,18 @@ fn git_cache_config() -> GitCacheConfig {
 /// The key is a function of `(url, refspec)` only — the sub-folder is applied
 /// after checkout, so registries that differ only by sub-folder share one clone.
 /// A short human-readable slug is prefixed for debuggability, and a truncated
-/// SHA-256 of the two fields makes the name unique. The digest is stable across
+/// SHA-1 of the two fields makes the name unique. The digest is stable across
 /// platforms and toolchain versions, so the key is reproducible in CI caches.
-fn git_cache_key(url: &str, refspec: &str) -> String {
-    let mut hasher = Sha256::new();
+///
+/// Returns `None` when Git's SHA-1 collision detection flags the input, so a
+/// crafted source cannot share another source's cache entry.
+fn git_cache_key(url: &str, refspec: &str) -> Option<String> {
+    let mut hasher = gix::hash::hasher(gix::hash::Kind::Sha1);
     hasher.update(url.as_bytes());
-    hasher.update([0u8]);
+    hasher.update(&[0]);
     hasher.update(refspec.as_bytes());
-    let digest = hasher.finalize();
-    let hash: String = digest.iter().take(8).map(|b| format!("{b:02x}")).collect();
+    let digest = hasher.try_finalize().ok()?;
+    let hash = digest.to_hex_with_len(16);
 
     let sanitize = |s: &str| -> String {
         s.chars()
@@ -410,7 +412,7 @@ fn git_cache_key(url: &str, refspec: &str) -> String {
     );
     let ref_slug = sanitize(refspec);
 
-    format!("{repo_slug}-{ref_slug}-{hash}")
+    Some(format!("{repo_slug}-{ref_slug}-{hash}"))
 }
 
 /// Strips a `user[:password]@` component from `url`, returning `None` when the
@@ -845,14 +847,19 @@ impl VirtualDirectory {
         refspec: &Option<String>,
         cache: &GitCacheConfig,
     ) -> Result<GitCheckout, Error> {
-        let (Some(cache_root), Some(pinned)) = (cache.root.as_ref(), refspec.as_ref()) else {
+        let cacheable = cache
+            .root
+            .as_ref()
+            .zip(refspec.as_ref())
+            .and_then(|(root, pinned)| git_cache_key(url, pinned).map(|key| (root, pinned, key)));
+        let Some((cache_root, pinned, key)) = cacheable else {
             let tmp_dir = Self::create_tmp_repo()?;
             let _ = Self::clone_into(url, refspec, tmp_dir.path())?;
             return Ok(GitCheckout::Throwaway(tmp_dir));
         };
 
         let git_root = cache_root.join("git");
-        let target = git_root.join(git_cache_key(url, pinned));
+        let target = git_root.join(key);
 
         // A refresh needs the network, so offline serves whatever is cached.
         let refresh = cache.refresh && !cache.offline;
@@ -2131,15 +2138,15 @@ mod tests {
         use super::git_cache_key;
 
         let url = "https://github.com/open-telemetry/semantic-conventions.git";
-        let key = git_cache_key(url, "v1.41.0");
+        let key = git_cache_key(url, "v1.41.0").unwrap();
 
         // Deterministic across calls.
-        assert_eq!(key, git_cache_key(url, "v1.41.0"));
+        assert_eq!(key, git_cache_key(url, "v1.41.0").unwrap());
         // Distinct per refspec and per URL.
-        assert_ne!(key, git_cache_key(url, "v1.40.0"));
+        assert_ne!(key, git_cache_key(url, "v1.40.0").unwrap());
         assert_ne!(
             key,
-            git_cache_key("https://github.com/other/repo.git", "v1.41.0")
+            git_cache_key("https://github.com/other/repo.git", "v1.41.0").unwrap()
         );
         // Filesystem-safe: only alphanumerics and `-`, `.`, `_` (no path separators).
         assert!(key
@@ -2152,13 +2159,13 @@ mod tests {
         );
 
         // A refspec holding path separators stays a single path segment.
-        let nested = git_cache_key(url, "refs/heads/my branch");
+        let nested = git_cache_key(url, "refs/heads/my branch").unwrap();
         assert!(
             !nested.contains('/') && !nested.contains(std::path::MAIN_SEPARATOR),
             "key must not contain a path separator: {nested}"
         );
         assert!(nested.starts_with("semantic-conventions-refs_heads_my_branch-"));
-        assert_ne!(nested, git_cache_key(url, "refs/heads/my-branch"));
+        assert_ne!(nested, git_cache_key(url, "refs/heads/my-branch").unwrap());
     }
 
     #[test]
@@ -2246,7 +2253,10 @@ mod tests {
         let refspec = "v1.26.0";
 
         // Pre-seed a cached clone so the resolve needs no network.
-        let entry = cache.path().join("git").join(git_cache_key(url, refspec));
+        let entry = cache
+            .path()
+            .join("git")
+            .join(git_cache_key(url, refspec).unwrap());
         let model = entry.join("model");
         std::fs::create_dir_all(&model).unwrap();
         std::fs::write(model.join("general.yaml"), "groups: []\n").unwrap();
@@ -2313,7 +2323,10 @@ mod tests {
         let (_repo, url) = make_local_git_repo();
         let refspec = "v0.0.1";
         let cache = tempfile::tempdir().unwrap();
-        let entry = cache.path().join("git").join(git_cache_key(&url, refspec));
+        let entry = cache
+            .path()
+            .join("git")
+            .join(git_cache_key(&url, refspec).unwrap());
         assert!(!entry.exists());
 
         // First call populates the cache by cloning the (local) repo.
@@ -2362,7 +2375,10 @@ mod tests {
         let cache = tempfile::tempdir().unwrap();
 
         // Pre-seed a stale entry under the real cache key.
-        let entry = cache.path().join("git").join(git_cache_key(&url, refspec));
+        let entry = cache
+            .path()
+            .join("git")
+            .join(git_cache_key(&url, refspec).unwrap());
         let model = entry.join("model");
         std::fs::create_dir_all(&model).unwrap();
         std::fs::write(model.join("general.yaml"), "stale: true\n").unwrap();
@@ -2411,7 +2427,10 @@ mod tests {
         let refspec = "v1.26.0";
 
         // Pre-seed a cached entry with sentinel content.
-        let entry = cache.path().join("git").join(git_cache_key(url, refspec));
+        let entry = cache
+            .path()
+            .join("git")
+            .join(git_cache_key(url, refspec).unwrap());
         let model = entry.join("model");
         std::fs::create_dir_all(&model).unwrap();
         std::fs::write(model.join("general.yaml"), "cached: true\n").unwrap();
@@ -2526,7 +2545,10 @@ mod tests {
             vdir.tmp_dir.is_some(),
             "a branch must resolve to a temp dir, not a cache entry"
         );
-        let entry = cache.path().join("git").join(git_cache_key(&url, "main"));
+        let entry = cache
+            .path()
+            .join("git")
+            .join(git_cache_key(&url, "main").unwrap());
         assert!(
             !entry.exists(),
             "a branch must not be installed in the cache"
@@ -2559,7 +2581,10 @@ mod tests {
             vdir.tmp_dir.is_none(),
             "a tag must resolve to a cache entry"
         );
-        let entry = cache.path().join("git").join(git_cache_key(&url, "v0.0.1"));
+        let entry = cache
+            .path()
+            .join("git")
+            .join(git_cache_key(&url, "v0.0.1").unwrap());
         assert!(entry.exists());
 
         drop(vdir);

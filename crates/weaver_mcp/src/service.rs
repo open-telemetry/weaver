@@ -24,7 +24,7 @@ use weaver_live_check::{
     VersionedRegistry,
 };
 use weaver_search::{SearchContext, SearchType};
-use weaver_semconv::stability::Stability;
+use weaver_semconv::v2::stability::Stability;
 
 use crate::McpConfig;
 
@@ -256,6 +256,8 @@ pub struct SearchParams {
     search_type: SearchTypeParam,
     /// Filter by stability level (development = experimental).
     stability: Option<StabilityParam>,
+    /// Filter by deprecation status: true = only deprecated, false = exclude deprecated, omit = all.
+    deprecated: Option<bool>,
     /// Maximum results to return (1-100, default 20).
     #[serde(default = "default_limit")]
     limit: usize,
@@ -403,7 +405,7 @@ impl WeaverMcpService {
             params.query.as_deref(),
             search_type,
             stability,
-            false, // hide_deprecated: not exposed via the MCP search tool
+            params.deprecated,
             limit,
             0, // offset
         );
@@ -567,11 +569,11 @@ mod tests {
     use weaver_forge::v2::registry::{ForgeResolvedRegistry, Refinements, Registry};
     use weaver_forge::v2::span::Span;
     use weaver_search::SearchType;
-    use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
-    use weaver_semconv::stability::Stability;
     use weaver_semconv::v2::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
     use weaver_semconv::v2::metric::InstrumentSpec;
+    use weaver_semconv::v2::signal_requirement_level::SignalRequirementLevel;
     use weaver_semconv::v2::span::{SpanKindSpec, SpanName};
+    use weaver_semconv::v2::stability::Stability;
     use weaver_semconv::v2::CommonFields;
 
     fn make_test_registry() -> ForgeResolvedRegistry {
@@ -613,7 +615,8 @@ mod tests {
                     r#type: "http.client".to_owned().into(),
                     kind: SpanKindSpec::Client,
                     name: SpanName {
-                        note: "HTTP client span".to_owned(),
+                        note: Some("HTTP client span".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![],
                     entity_associations: vec![],
@@ -753,6 +756,7 @@ mod tests {
             query: Some("http".to_owned()),
             search_type: SearchTypeParam::All,
             stability: None,
+            deprecated: None,
             limit: 20,
         };
 
@@ -773,6 +777,7 @@ mod tests {
             query: None,
             search_type: SearchTypeParam::All,
             stability: None,
+            deprecated: None,
             limit: 100,
         };
 
@@ -791,6 +796,7 @@ mod tests {
             query: None,
             search_type: SearchTypeParam::All,
             stability: None,
+            deprecated: None,
             limit: 200, // MCP should clamp this to 100
         };
 
