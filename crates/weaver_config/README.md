@@ -38,6 +38,7 @@ format = "ansi"   # ansi | json | gh_workflow_command
 # Shared template settings — applied on top of every template package's `weaver.yaml`.
 [template]
 acronyms = ["API", "HTTP", "SDK", "iOS"] 
+jq_modules = ["jq/common.jq", "jq/rust.jq"]
 
 [template.text_maps.namespace_mapping]
 CICD = "CI/CD"
@@ -89,6 +90,12 @@ exclude = ["missing_namespace"]
 ```
 
 See `schemas/weaver-config.json` for the full JSON schema (with VS Code / taplo completion support via the `#:schema` annotation above).
+
+`jq_modules` is appended to any modules declared by the template package's
+`weaver.yaml`. Paths are relative to the `.weaver.toml` file. Modules are
+loaded in list order; a later definition wins on a filter-name collision,
+including with Weaver's built-in JQ prelude. An empty list adds no modules and
+does not remove modules declared by the template package.
 
 ### Dependency Resolution Overrides (`[resolve]`)
 
