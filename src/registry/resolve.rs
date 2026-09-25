@@ -140,6 +140,7 @@ mod tests {
             future: false,
             allow_git_credentials: false,
             config: None,
+            namespace_separator: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Resolve(RegistryResolveArgs {
                     registry: RegistryArgs {
@@ -171,6 +172,7 @@ mod tests {
             future: false,
             allow_git_credentials: false,
             config: None,
+            namespace_separator: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Resolve(RegistryResolveArgs {
                     registry: RegistryArgs {

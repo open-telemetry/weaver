@@ -31,6 +31,8 @@ struct WeaverConfigSchema {
     pub resolve: ResolveConfig,
     pub template: TemplateConfig,
     pub auth: Vec<AuthEntry>,
+    /// Namespace separator in registry names, such as the `.` in `http.request.method`.
+    pub namespace_separator: Option<String>,
     pub check: super::check::CheckConfig,
     pub diff: super::diff::DiffConfig,
     pub emit: super::emit::EmitConfig,
@@ -160,6 +162,7 @@ mod tests {
                 future: false,
                 allow_git_credentials: false,
                 config: None,
+                namespace_separator: None,
                 command: Some(Commands::Registry(RegistryCommand {
                     command: RegistrySubCommand::JsonSchema(RegistryJsonSchemaArgs {
                         json_schema: json_schema_type.clone(),

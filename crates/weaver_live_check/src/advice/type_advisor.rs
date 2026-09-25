@@ -28,10 +28,13 @@ use weaver_semconv::v1::entity_association::EntityAssociation;
 
 use super::{emit_findings, Advisor, FindingBuilder};
 use crate::{
-    enum_name, live_checker::LiveChecker, otlp_logger::OtlpEmitter,
-    sample_attribute::SampleAttribute, sample_metric::SampleInstrument, Error, FindingId,
-    LiveCheckResult, Sample, SampleRef, VersionedAttribute, VersionedEntity, VersionedSignal,
-    ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY, ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY,
+    enum_name,
+    live_checker::{key_extends_template, LiveChecker},
+    otlp_logger::OtlpEmitter,
+    sample_attribute::SampleAttribute,
+    sample_metric::SampleInstrument,
+    Error, FindingId, LiveCheckResult, Sample, SampleRef, VersionedAttribute, VersionedEntity,
+    VersionedSignal, ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY, ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY,
     ENTITY_TYPE_ADVICE_CONTEXT_KEY, EXPECTED_VALUE_ADVICE_CONTEXT_KEY,
     INSTRUMENT_ADVICE_CONTEXT_KEY, SPAN_KIND_ADVICE_CONTEXT_KEY, UNIT_ADVICE_CONTEXT_KEY,
 };
@@ -639,12 +642,12 @@ pub(crate) fn check_attributes<'a, T: CheckableAttribute + 'a>(
         let key = semconv_attribute.key();
         let is_template = semconv_attribute.is_template();
 
-        // For template attributes, check if any sample attribute starts with the template prefix
+        // For template attributes, check if any sample attribute extends the template
         // For non-template attributes, check for exact match
         let is_present = if is_template {
             sample_attributes
                 .iter()
-                .any(|attr| attr.name.starts_with(key))
+                .any(|attr| key_extends_template(&attr.name, key))
         } else {
             attribute_set.contains(key)
         };
@@ -1229,5 +1232,57 @@ mod tests {
             advice.is_empty(),
             "Expected no advice when both template and regular attributes are present"
         );
+    }
+
+    #[test]
+    fn test_check_attributes_template_needs_the_namespace_separator() {
+        use weaver_semconv::v1::attribute::{AttributeType, TemplateTypeSpec};
+
+        let semconv_attributes = vec![Attribute {
+            name: "http.request.header".to_owned(),
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+            r#type: AttributeType::Template(TemplateTypeSpec::Strings),
+            brief: "HTTP request headers".to_owned(),
+            examples: None,
+            tag: None,
+            stability: None,
+            deprecated: None,
+            sampling_relevant: None,
+            note: "".to_owned(),
+            prefix: false,
+            annotations: None,
+            role: None,
+            tags: None,
+            value: None,
+        }];
+
+        let sample = Sample::Metric(SampleMetric {
+            name: "test_metric".to_owned(),
+            unit: "".to_owned(),
+            data_points: None,
+            instrument: SampleInstrument::Supported(
+                weaver_semconv::v1::group::InstrumentSpec::Counter,
+            ),
+            instrumentation_scope: None,
+            live_check_result: None,
+            resource: None,
+        });
+
+        // "http.request.headers.host" extends the template's name without the
+        // separator, so the template is still not present.
+        let advice = check_attributes(
+            &semconv_attributes,
+            &[create_sample_attribute("http.request.headers.host")],
+            &sample,
+        );
+        assert_eq!(advice.len(), 1, "got: {advice:?}");
+        assert_eq!(advice[0].id, "recommended_attribute_not_present");
+
+        let advice = check_attributes(
+            &semconv_attributes,
+            &[create_sample_attribute("http.request.header.host")],
+            &sample,
+        );
+        assert!(advice.is_empty(), "got: {advice:?}");
     }
 }
