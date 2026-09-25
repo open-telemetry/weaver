@@ -397,6 +397,44 @@ pub fn split_span_attributes_and_groups(
     (attribute_refs, groups)
 }
 
+/// Declares a link from this span to another span.
+///
+/// Span links model relations that do not fit the parent/child tree,
+/// for example a batch consumer span that links to the creation
+/// context of each message it processes.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub struct SpanLink {
+    /// The span type this link points to.
+    pub r#ref: SignalId,
+    /// The brief description of the link.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brief: Option<String>,
+    /// The more elaborate description of the link.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    /// List of attributes expected on the link itself.
+    /// Attribute-group references are not supported on links; each entry
+    /// is a single attribute reference.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub attributes: Vec<LinkAttributeRef>,
+}
+
+/// A reference to an attribute expected on a span link.
+///
+/// Links carry a dedicated reference type without sampling relevance:
+/// a link can be attached before or after the span starts.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub struct LinkAttributeRef {
+    /// Baseline attribute reference.
+    #[serde(flatten)]
+    pub base: AttributeRef,
+}
+
 /// Defines a new Span signal.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -420,6 +458,10 @@ pub struct Span {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<EntityAssociation>,
+    /// Declares links from this span to other spans.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub links: Vec<SpanLink>,
     /// The requirement level of the span. Defaults to 'recommended' when omitted.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub requirement_level: Option<SignalRequirementLevel>,
@@ -481,6 +523,97 @@ pub struct SpanRefinement {
 mod tests {
     use super::*;
     use crate::v2::attribute::AttributeRef;
+    use crate::v2::attribute::{BasicRequirementLevelSpec, RequirementLevel};
+
+    #[test]
+    fn test_span_links_deserialization() {
+        // A span with two links: one minimal, one full.
+        let span: Span = serde_yaml::from_str(
+            r#"type: messaging.consumer.process
+name:
+  note: "process {messaging.destination.name}"
+stability: stable
+kind: consumer
+brief: Processes a batch of messages.
+links:
+  - ref: messaging.producer.publish
+  - ref: messaging.producer.publish
+    brief: One link per message in the batch.
+    attributes:
+      - ref: messaging.message.id
+        requirement_level: required
+"#,
+        )
+        .expect("Failed to parse span with links");
+
+        assert_eq!(span.links.len(), 2);
+
+        // The minimal link: only `ref`; everything else defaults.
+        let minimal = &span.links[0];
+        assert_eq!(minimal.r#ref.to_string(), "messaging.producer.publish");
+        assert!(minimal.brief.is_none());
+        assert!(minimal.attributes.is_empty());
+
+        // The full link carries a brief and one attribute ref with a level.
+        let full = &span.links[1];
+        assert_eq!(
+            full.brief.as_deref(),
+            Some("One link per message in the batch.")
+        );
+        assert_eq!(full.attributes.len(), 1);
+        assert_eq!(
+            full.attributes[0].base.requirement_level,
+            Some(RequirementLevel::Basic(BasicRequirementLevelSpec::Required))
+        );
+
+        // A span without a `links` key parses to an empty list.
+        let without: Span = serde_yaml::from_str(
+            r#"type: my_span
+name:
+  note: "{some} {name}"
+stability: stable
+kind: client
+brief: Test span
+"#,
+        )
+        .expect("Failed to parse span without links");
+        assert!(without.links.is_empty());
+    }
+
+    #[test]
+    fn test_span_link_rejects_attribute_group_ref() {
+        // Both illegal shapes must fail at parse time: a bare group entry
+        // on the missing `ref`, a group key next to a valid `ref` as unknown.
+        let span_yaml = |attribute_entry: &str| {
+            format!(
+                r#"type: my_span
+name:
+  note: "{{some}} {{name}}"
+stability: stable
+kind: client
+brief: Test span
+links:
+  - ref: other_span
+    attributes:
+      - {attribute_entry}
+"#
+            )
+        };
+        let err = serde_yaml::from_str::<Span>(&span_yaml("ref_group: some.group"))
+            .expect_err("a bare ref_group entry must not parse");
+        assert!(
+            err.to_string().contains("missing field `ref`"),
+            "unexpected parse error: {err}"
+        );
+        let err = serde_yaml::from_str::<Span>(&span_yaml(
+            "ref: real.attr\n        ref_group: some.group",
+        ))
+        .expect_err("a ref_group key next to a ref must not parse");
+        assert!(
+            err.to_string().contains("unknown field `ref_group`"),
+            "unexpected parse error: {err}"
+        );
+    }
 
     #[test]
     fn test_span_attribute_ref_rejects_stability_and_deprecated() {

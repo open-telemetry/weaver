@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::Error::{
     AttributeNotFound, CompoundError, EntityAssociationNotFound, EventNameNotFound,
-    InvalidSchemaUrl, MissingMetricField, RefinementBaseNotFound,
+    InvalidSchemaUrl, MissingMetricField, RefinementBaseNotFound, SpanLinkAttributeNotFound,
+    SpanLinkTargetNotFound,
 };
 use crate::v1::attribute::AttributeRef;
 
@@ -64,6 +65,26 @@ pub enum Error {
         field: &'static str,
     },
 
+    /// A span link references a span type that does not exist in the registry.
+    #[error("Span '{link_ref}' (linked by {group_id}) not found among span definitions")]
+    SpanLinkTargetNotFound {
+        /// Group id of the span declaring the link.
+        group_id: String,
+        /// The link's target span type.
+        link_ref: String,
+    },
+
+    /// A span link attribute is missing from the catalog.
+    #[error("Attribute '{attribute}' on the link to '{link_ref}' (group: {group_id}) not found in the catalog")]
+    SpanLinkAttributeNotFound {
+        /// Group id of the span declaring the link.
+        group_id: String,
+        /// The link's target span type.
+        link_ref: String,
+        /// The attribute name the link references.
+        attribute: String,
+    },
+
     /// A generic container for multiple errors.
     #[error("Errors:\n{0:#?}")]
     CompoundError(Vec<Error>),
@@ -95,6 +116,8 @@ impl Error {
                     e @ EntityAssociationNotFound { .. } => vec![e],
                     e @ InvalidSchemaUrl { .. } => vec![e],
                     e @ MissingMetricField { .. } => vec![e],
+                    e @ SpanLinkTargetNotFound { .. } => vec![e],
+                    e @ SpanLinkAttributeNotFound { .. } => vec![e],
                 })
                 .collect(),
         )
