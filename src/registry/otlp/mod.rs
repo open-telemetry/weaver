@@ -202,9 +202,16 @@ pub struct OtlpListener {
 pub struct ListenerHandle {
     state: Arc<AppState>,
     thread: Option<JoinHandle<()>>,
+    grpc_addr: SocketAddr,
 }
 
 impl ListenerHandle {
+    /// The bound gRPC address. Shows the real port when `0` was requested.
+    #[must_use]
+    pub fn grpc_addr(&self) -> SocketAddr {
+        self.grpc_addr
+    }
+
     /// The run is over and the report went to stdout or a directory. A waiting
     /// `/stop` returns, the listeners stop, and this returns when the thread ends.
     pub fn finish(mut self) {
@@ -323,6 +330,7 @@ pub fn listen_otlp_requests(
         handle: ListenerHandle {
             state,
             thread: Some(thread),
+            grpc_addr,
         },
     })
 }

@@ -90,6 +90,14 @@ pub enum Error {
     /// Configuration error (loading or parsing `.weaver.toml`)
     #[error("{error}")]
     Config { error: String },
+
+    /// Finding logs would go to the run's own OTLP listener.
+    #[error(
+        "--emit-otlp-logs would send findings to `{endpoint}`, which is this run's own OTLP \
+         listener on {listener}. Each finding would be checked again and make new findings. \
+         Set --otlp-logs-endpoint (or OTEL_EXPORTER_OTLP_LOGS_ENDPOINT) to a different receiver."
+    )]
+    EmitLoop { endpoint: String, listener: String },
 }
 
 impl From<Error> for DiagnosticMessages {
