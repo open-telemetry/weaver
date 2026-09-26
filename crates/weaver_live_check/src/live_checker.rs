@@ -579,9 +579,9 @@ mod tests {
         span::{Span as V2Span, SpanAttribute},
     };
     use weaver_resolved_schema::v1::attribute::Attribute;
-    use weaver_semconv::entity_association::EntityAssociation;
-    use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
-    use weaver_semconv::stability::Stability;
+    use weaver_semconv::v1::entity_association::EntityAssociation;
+    use weaver_semconv::v1::signal_requirement_level::SignalRequirementLevel as V1SignalRequirementLevel;
+    use weaver_semconv::v1::stability::Stability as V1Stability;
     use weaver_semconv::v1::{
         attribute::{
             AttributeType, BasicRequirementLevelSpec, EnumEntriesSpec, Examples,
@@ -598,7 +598,9 @@ mod tests {
     };
     use weaver_semconv::v2::metric::InstrumentSpec as V2InstrumentSpec;
     use weaver_semconv::v2::signal_id::SignalId;
+    use weaver_semconv::v2::signal_requirement_level::SignalRequirementLevel;
     use weaver_semconv::v2::span::SpanKindSpec as V2SpanKindSpec;
+    use weaver_semconv::v2::stability::Stability;
     use weaver_semconv::v2::{span::SpanName, CommonFields};
     use weaver_semconv::YamlValue;
     fn get_all_advice(sample: &mut Sample) -> &mut [PolicyFinding] {
@@ -1048,7 +1050,7 @@ mod tests {
                     prefix: "".to_owned(),
                     entity_associations: vec![],
                     extends: None,
-                    stability: Some(Stability::Stable),
+                    stability: Some(V1Stability::Stable),
                     deprecated: None,
                     attributes: vec![
                         Attribute {
@@ -1067,7 +1069,7 @@ mod tests {
                             },
                             sampling_relevant: None,
                             note: "".to_owned(),
-                            stability: Some(Stability::Stable),
+                            stability: Some(V1Stability::Stable),
                             deprecated: None,
                             prefix: false,
                             tags: None,
@@ -1084,7 +1086,7 @@ mod tests {
                                         value: ValueSpec::String("example_variant1".to_owned()),
                                         brief: None,
                                         note: None,
-                                        stability: Some(Stability::Stable),
+                                        stability: Some(V1Stability::Stable),
                                         deprecated: None,
                                         annotations: None,
                                     },
@@ -1093,7 +1095,7 @@ mod tests {
                                         value: ValueSpec::String("example_variant2".to_owned()),
                                         brief: None,
                                         note: None,
-                                        stability: Some(Stability::Stable),
+                                        stability: Some(V1Stability::Stable),
                                         deprecated: None,
                                         annotations: None,
                                     },
@@ -1107,7 +1109,7 @@ mod tests {
                             },
                             sampling_relevant: None,
                             note: "".to_owned(),
-                            stability: Some(Stability::Stable),
+                            stability: Some(V1Stability::Stable),
                             deprecated: None,
                             prefix: false,
                             tags: None,
@@ -1131,7 +1133,7 @@ mod tests {
                             },
                             sampling_relevant: None,
                             note: "".to_owned(),
-                            stability: Some(Stability::Development),
+                            stability: Some(V1Stability::Development),
                             deprecated: Some(
                                 weaver_semconv::deprecated::Deprecated::Uncategorized {
                                     note: "note".to_owned(),
@@ -1157,7 +1159,7 @@ mod tests {
                             },
                             sampling_relevant: None,
                             note: "".to_owned(),
-                            stability: Some(Stability::Stable),
+                            stability: Some(V1Stability::Stable),
                             deprecated: None,
                             prefix: false,
                             tags: None,
@@ -1305,7 +1307,7 @@ mod tests {
                                         value: ValueSpec::String("used".to_owned()),
                                         brief: None,
                                         note: None,
-                                        stability: Some(Stability::Development),
+                                        stability: Some(V1Stability::Development),
                                         deprecated: None,
                                         annotations: None,
                                     },
@@ -1314,7 +1316,7 @@ mod tests {
                                         value: ValueSpec::String("free".to_owned()),
                                         brief: None,
                                         note: None,
-                                        stability: Some(Stability::Development),
+                                        stability: Some(V1Stability::Development),
                                         deprecated: None,
                                         annotations: None,
                                     },
@@ -1331,7 +1333,7 @@ mod tests {
                             },
                             sampling_relevant: None,
                             note: "".to_owned(),
-                            stability: Some(Stability::Development),
+                            stability: Some(V1Stability::Development),
                             deprecated: None,
                             prefix: false,
                             tags: None,
@@ -1360,7 +1362,7 @@ mod tests {
                         prefix: "".to_owned(),
                         entity_associations: vec![],
                         extends: None,
-                        stability: Some(Stability::Development),
+                        stability: Some(V1Stability::Development),
                         deprecated: None,
                         attributes: vec![],
                         span_kind: None,
@@ -1368,7 +1370,7 @@ mod tests {
                         metric_name: Some("system.uptime".to_owned()),
                         instrument: Some(InstrumentSpec::Gauge),
                         unit: Some("s".to_owned()),
-                        requirement_level: Some(SignalRequirementLevel::Recommended),
+                        requirement_level: Some(V1SignalRequirementLevel::Recommended),
                         name: None,
                         lineage: None,
                         display_name: None,
@@ -1384,7 +1386,7 @@ mod tests {
                         prefix: "".to_owned(),
                         entity_associations: vec![],
                         extends: None,
-                        stability: Some(Stability::Development),
+                        stability: Some(V1Stability::Development),
                         deprecated: None,
                         attributes: vec![Attribute {
                             name: "system.memory.state".to_owned(),
@@ -1399,7 +1401,7 @@ mod tests {
                             },
                             sampling_relevant: None,
                             note: "".to_owned(),
-                            stability: Some(Stability::Development),
+                            stability: Some(V1Stability::Development),
                             deprecated: None,
                             prefix: false,
                             tags: None,
@@ -1412,7 +1414,7 @@ mod tests {
                         metric_name: Some("system.memory.usage".to_owned()),
                         instrument: Some(InstrumentSpec::UpDownCounter),
                         unit: Some("By".to_owned()),
-                        requirement_level: Some(SignalRequirementLevel::Recommended),
+                        requirement_level: Some(V1SignalRequirementLevel::Recommended),
                         name: None,
                         lineage: None,
                         display_name: None,
@@ -1456,7 +1458,8 @@ mod tests {
                         r#type: "custom.comprehensive.internal".to_owned().into(),
                         kind: V2SpanKindSpec::Internal,
                         name: SpanName {
-                            note: "custom.comprehensive.internal".to_owned(),
+                            note: Some("custom.comprehensive.internal".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![SpanAttribute {
                             base: custom_string_attr.clone(),
@@ -1498,7 +1501,7 @@ mod tests {
                     prefix: "".to_owned(),
                     entity_associations: vec![],
                     extends: None,
-                    stability: Some(Stability::Stable),
+                    stability: Some(V1Stability::Stable),
                     deprecated: None,
                     attributes: vec![Attribute {
                         name: "custom.string".to_owned(),
@@ -1514,7 +1517,7 @@ mod tests {
                         },
                         sampling_relevant: None,
                         note: "".to_owned(),
-                        stability: Some(Stability::Stable),
+                        stability: Some(V1Stability::Stable),
                         deprecated: None,
                         prefix: false,
                         tags: None,
@@ -2098,7 +2101,7 @@ mod tests {
                         prefix: "".to_owned(),
                         entity_associations: vec![],
                         extends: None,
-                        stability: Some(Stability::Development),
+                        stability: Some(V1Stability::Development),
                         deprecated: Some(weaver_semconv::deprecated::Deprecated::Uncategorized {
                             note: "Use session.initialized event instead".to_owned(),
                         }),
@@ -2118,7 +2121,7 @@ mod tests {
                                 ),
                                 sampling_relevant: None,
                                 note: "".to_owned(),
-                                stability: Some(Stability::Development),
+                                stability: Some(V1Stability::Development),
                                 deprecated: None,
                                 prefix: false,
                                 tags: None,
@@ -2141,7 +2144,7 @@ mod tests {
                                 },
                                 sampling_relevant: None,
                                 note: "".to_owned(),
-                                stability: Some(Stability::Development),
+                                stability: Some(V1Stability::Development),
                                 deprecated: None,
                                 prefix: false,
                                 tags: None,
@@ -2177,7 +2180,7 @@ mod tests {
                         prefix: "".to_owned(),
                         entity_associations: vec![],
                         extends: None,
-                        stability: Some(Stability::Stable),
+                        stability: Some(V1Stability::Stable),
                         deprecated: None,
                         attributes: vec![],
                         span_kind: None,
@@ -2584,7 +2587,6 @@ mod tests {
         //                deployment.region       (ConditionallyRequired)
         if use_v2 {
             use weaver_forge::v2::entity::{Entity as V2Entity, EntityAttribute};
-            use weaver_semconv::v2::signal_id::SignalId;
 
             let deployment_name_attr = V2Attribute {
                 key: "deployment.name".to_owned(),
@@ -2730,7 +2732,7 @@ mod tests {
                         prefix: "".to_owned(),
                         entity_associations: vec![],
                         extends: None,
-                        stability: Some(Stability::Stable),
+                        stability: Some(V1Stability::Stable),
                         deprecated: None,
                         attributes: vec![
                             Attribute {
@@ -2746,7 +2748,7 @@ mod tests {
                                 ),
                                 sampling_relevant: None,
                                 note: "".to_owned(),
-                                stability: Some(Stability::Stable),
+                                stability: Some(V1Stability::Stable),
                                 deprecated: None,
                                 prefix: false,
                                 tags: None,
@@ -2767,7 +2769,7 @@ mod tests {
                                 },
                                 sampling_relevant: None,
                                 note: "".to_owned(),
-                                stability: Some(Stability::Stable),
+                                stability: Some(V1Stability::Stable),
                                 deprecated: None,
                                 prefix: false,
                                 tags: None,
@@ -2788,7 +2790,7 @@ mod tests {
                                 ),
                                 sampling_relevant: None,
                                 note: "".to_owned(),
-                                stability: Some(Stability::Stable),
+                                stability: Some(V1Stability::Stable),
                                 deprecated: None,
                                 prefix: false,
                                 tags: None,
@@ -2809,7 +2811,7 @@ mod tests {
                                 },
                                 sampling_relevant: None,
                                 note: "".to_owned(),
-                                stability: Some(Stability::Stable),
+                                stability: Some(V1Stability::Stable),
                                 deprecated: None,
                                 prefix: false,
                                 tags: None,
@@ -2839,7 +2841,7 @@ mod tests {
                         prefix: "".to_owned(),
                         entity_associations: vec![EntityAssociation::Ref("deployment".to_owned())],
                         extends: None,
-                        stability: Some(Stability::Stable),
+                        stability: Some(V1Stability::Stable),
                         deprecated: None,
                         attributes: vec![],
                         span_kind: None,
@@ -3225,7 +3227,7 @@ mod tests {
             requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
             sampling_relevant: None,
             note: String::new(),
-            stability: Some(Stability::Stable),
+            stability: Some(Stability::Stable.into()),
             deprecated: None,
             prefix: false,
             tags: None,
@@ -3245,7 +3247,7 @@ mod tests {
             prefix: String::new(),
             entity_associations: vec![],
             extends: None,
-            stability: Some(Stability::Stable),
+            stability: Some(Stability::Stable.into()),
             deprecated: None,
             attributes: vec![attr],
             span_kind: None,
@@ -3272,7 +3274,7 @@ mod tests {
             prefix: String::new(),
             entity_associations: associations,
             extends: None,
-            stability: Some(Stability::Stable),
+            stability: Some(Stability::Stable.into()),
             deprecated: None,
             attributes: vec![],
             span_kind: None,
@@ -3989,7 +3991,6 @@ mod tests {
         // A "host" entity with host.name (Required) associated with metric system.uptime
         if use_v2 {
             use weaver_forge::v2::entity::{Entity as V2Entity, EntityAttribute};
-            use weaver_semconv::v2::signal_id::SignalId;
 
             let host_name_attr = V2Attribute {
                 key: "host.name".to_owned(),
@@ -4073,7 +4074,7 @@ mod tests {
                         prefix: "".to_owned(),
                         entity_associations: vec![],
                         extends: None,
-                        stability: Some(Stability::Stable),
+                        stability: Some(V1Stability::Stable),
                         deprecated: None,
                         attributes: vec![Attribute {
                             name: "host.name".to_owned(),
@@ -4088,7 +4089,7 @@ mod tests {
                             ),
                             sampling_relevant: None,
                             note: "".to_owned(),
-                            stability: Some(Stability::Stable),
+                            stability: Some(V1Stability::Stable),
                             deprecated: None,
                             prefix: false,
                             tags: None,
@@ -4116,7 +4117,7 @@ mod tests {
                         prefix: "".to_owned(),
                         entity_associations: vec![EntityAssociation::Ref("host".to_owned())],
                         extends: None,
-                        stability: Some(Stability::Stable),
+                        stability: Some(V1Stability::Stable),
                         deprecated: None,
                         attributes: vec![],
                         span_kind: None,

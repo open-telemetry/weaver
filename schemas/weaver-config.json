@@ -169,40 +169,17 @@
       "description": "Infer a semantic convention registry by observing live OTLP telemetry.",
       "type": "object",
       "properties": {
-        "admin_port": {
-          "description": "Port used by the HTTP admin server (endpoints: /stop).\n[default: 8080]",
-          "type": "integer",
-          "format": "uint16",
-          "default": 8080,
-          "maximum": 65535,
-          "minimum": 0
-        },
-        "grpc_address": {
-          "description": "Address used by the gRPC OTLP listener.\n[default: 127.0.0.1]",
-          "type": "string",
-          "default": "127.0.0.1"
-        },
-        "grpc_port": {
-          "description": "Port used by the gRPC OTLP listener.\n[default: 4317]",
-          "type": "integer",
-          "format": "uint16",
-          "default": 4317,
-          "maximum": 65535,
-          "minimum": 0
-        },
-        "inactivity_timeout": {
-          "description": "Seconds of inactivity before auto-stop (0 = never).\n[default: 60]",
-          "type": "integer",
-          "format": "uint64",
-          "default": 60,
-          "minimum": 0
+        "otlp": {
+          "description": "OTLP listener settings.",
+          "$ref": "#/$defs/InferOtlpConfig"
         },
         "output": {
-          "description": "Output folder for generated YAML files.\n[default: ./inferred-registry/]",
+          "description": "Output folder for generated YAML files.",
           "type": "string",
           "default": "./inferred-registry/"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "live-check": {
       "description": "Validate live telemetry against a semantic convention registry.",
@@ -699,6 +676,41 @@
       "required": [
         "level"
       ]
+    },
+    "InferOtlpConfig": {
+      "description": "OTLP listener settings for infer.",
+      "type": "object",
+      "properties": {
+        "admin_port": {
+          "description": "Port used by the HTTP admin server (endpoints: `/stop`, `/health`).",
+          "type": "integer",
+          "format": "uint16",
+          "default": 8080,
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "grpc_address": {
+          "description": "Address used by the gRPC OTLP listener.",
+          "type": "string",
+          "default": "127.0.0.1"
+        },
+        "grpc_port": {
+          "description": "Port used by the gRPC OTLP listener.",
+          "type": "integer",
+          "format": "uint16",
+          "default": 4317,
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "inactivity_timeout": {
+          "description": "Seconds of inactivity before auto-stop (0 = never).",
+          "type": "integer",
+          "format": "uint64",
+          "default": 60,
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
     },
     "LiveCheckEmitConfig": {
       "description": "OTLP log emission settings for live-check.",

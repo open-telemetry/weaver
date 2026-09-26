@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: top_public_first
 description: >
   `top_private_first` with the two dependencies swapped, and nothing else

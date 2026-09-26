@@ -29,7 +29,11 @@ use weaver_config::{WeaverCommand, WeaverConfig};
 use weaver_macros::weaver_command;
 
 /// Infer a semantic convention registry by observing live OTLP telemetry.
-#[weaver_command(section = "infer", no_policy)]
+#[weaver_command(
+    section = "infer",
+    config_type = "::weaver_config::InferConfig",
+    no_policy
+)]
 #[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryInferArgs {
     /// Parameters to specify the diagnostic format.
@@ -42,24 +46,24 @@ pub struct RegistryInferArgs {
     #[config(default = "./inferred-registry/")]
     output: Option<PathBuf>,
 
-    /// Address used by the gRPC OTLP listener.
+    /// Address used by the gRPC OTLP listener. [default: 127.0.0.1]
     #[arg(long)]
-    #[config(default = "127.0.0.1")]
-    grpc_address: Option<String>,
+    #[config(path = "otlp.grpc_address")]
+    otlp_grpc_address: Option<String>,
 
-    /// Port used by the gRPC OTLP listener.
+    /// Port used by the gRPC OTLP listener. [default: 4317]
     #[arg(long)]
-    #[config(default = "4317")]
-    grpc_port: Option<u16>,
+    #[config(path = "otlp.grpc_port")]
+    otlp_grpc_port: Option<u16>,
 
-    /// Port used by the HTTP admin server (endpoints: /stop).
+    /// Port used by the HTTP admin server (endpoints: /stop). [default: 8080]
     #[arg(long)]
-    #[config(default = "8080")]
+    #[config(path = "otlp.admin_port")]
     admin_port: Option<u16>,
 
-    /// Seconds of inactivity before auto-stop (0 = never).
+    /// Seconds of inactivity before auto-stop (0 = never). [default: 60]
     #[arg(long)]
-    #[config(default = "60")]
+    #[config(path = "otlp.inactivity_timeout")]
     inactivity_timeout: Option<u64>,
 }
 
@@ -197,10 +201,10 @@ pub(crate) fn command(
     );
 
     let output = config.output;
-    let grpc_address = config.grpc_address;
-    let grpc_port = config.grpc_port;
-    let admin_port = config.admin_port;
-    let inactivity_timeout = config.inactivity_timeout;
+    let grpc_address = config.otlp.grpc_address;
+    let grpc_port = config.otlp.grpc_port;
+    let admin_port = config.otlp.admin_port;
+    let inactivity_timeout = config.otlp.inactivity_timeout;
 
     info!("Weaver Registry Infer");
     info!("Starting OTLP gRPC server on {grpc_address}:{grpc_port}");
