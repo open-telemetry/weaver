@@ -1,18 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! The live-check admin API and the state it shares with the OTLP receiver.
+//! Live-check admin HTTP API and the run state it shares with the OTLP receiver.
 //!
-//! A run has three phases. While it is *receiving*, exports flow to the checker.
-//! Once it is *stopped*, the report is final. With `--output http` it is served
-//! on `/report` until the run is *shutting down*, when the process exits.
-//! Reading the report is separate from exiting, so a large body is never cut
-//! off (#1657).
-//!
-//! The phase is the whole state of the run, and the one thing everyone waits on.
-//!
-//! Weaver acts on what it is told, a flag or a request, and never invents an
-//! exit of its own. There are no timers here. Every wait ends when the client
-//! acts, and `/shutdown` finishes the responses in flight and exits.
+//! A run moves through `Receiving`, `Stopped` and `ShuttingDown`. With
+//! `--output http` the report is served on `/report` until `/shutdown`, so
+//! fetching the report is separate from exiting and large bodies are not
+//! truncated (#1657).
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -29,35 +22,35 @@ use tokio::sync::{mpsc, watch};
 
 use super::{OtlpRequest, StopSignal};
 
-/// The rendered report, ready to serve.
+/// Rendered report served on `/report`.
 #[derive(Clone, Debug)]
 pub struct Report {
-    /// The `Content-Type` of the body, from the output format.
+    /// `Content-Type` of the body, set by the output format.
     pub content_type: String,
-    /// The whole report. `Bytes`, so serving it again is a refcount, not a copy.
+    /// Report body. `Bytes` so repeated responses share one buffer.
     pub body: Bytes,
 }
 
-/// The state of a run. Each phase carries the data that only exists in it.
+/// Run state. Each variant holds the data that is valid in that phase.
 #[derive(Clone, Debug)]
 pub enum Phase {
-    /// Exports are checked as they arrive.
+    /// Accepting exports and passing them to the checker.
     Receiving {
-        /// When the last export arrived, for the inactivity timeout.
+        /// Time of the most recent export, used by the inactivity timeout.
         last_export: Instant,
     },
-    /// The report is final and served on `/report`.
+    /// Report is final and served on `/report`.
     Stopped { report: Report },
-    /// The listeners are closing and the process is about to exit.
+    /// Listeners are closing before the process exits.
     ShuttingDown,
 }
 
-/// Everything the receiver and the admin handlers share.
+/// State shared by the OTLP receiver and the admin handlers.
 pub struct AppState {
-    /// Exports, and the `Stop` that ends them, in order.
+    /// Channel to the checker for exports and the final `Stop`.
     pub(super) exports: mpsc::Sender<OtlpRequest>,
-    /// The phase of the run, and the only state anyone waits on. `/stop` waits
-    /// for it to leave `Receiving`; the listeners wait for `ShuttingDown`.
+    /// Current phase. `/stop` waits for it to leave `Receiving`; the listeners
+    /// wait for `ShuttingDown`.
     pub(super) phase: watch::Sender<Phase>,
 }
 
@@ -75,7 +68,7 @@ impl AppState {
         matches!(*self.phase.borrow(), Phase::Receiving { .. })
     }
 
-    /// Time since the last export, while receiving.
+    /// Time since the last export, or `None` when not receiving.
     pub(super) fn since_last_export(&self) -> Option<Duration> {
         match &*self.phase.borrow() {
             Phase::Receiving { last_export } => Some(last_export.elapsed()),
@@ -83,7 +76,7 @@ impl AppState {
         }
     }
 
-    /// Restarts the inactivity clock.
+    /// Sets the last export time to now while receiving.
     pub(super) fn touch(&self) {
         self.phase.send_modify(|phase| {
             if let Phase::Receiving { last_export } = phase {
@@ -92,7 +85,7 @@ impl AppState {
         });
     }
 
-    /// Asks the checker to stop. A no-op once the channel is closed.
+    /// Sends a stop signal to the checker if still receiving.
     pub(super) async fn request_stop(&self) {
         if self.is_receiving() {
             let _ = self
@@ -102,8 +95,8 @@ impl AppState {
         }
     }
 
-    /// Publishes the report. Wakes a waiting `/stop`. Does nothing if shutdown
-    /// was already requested: nobody can fetch the report then.
+    /// Stores the report and moves to `Stopped`, waking any pending `/stop`.
+    /// Ignored after shutdown is requested, since the report can no longer be fetched.
     pub(super) fn stopped(&self, report: Report) {
         self.phase.send_modify(|phase| {
             if !matches!(phase, Phase::ShuttingDown) {
@@ -112,13 +105,12 @@ impl AppState {
         });
     }
 
-    /// Ends the run, whatever phase it is in. The listeners stop and the
-    /// process exits.
+    /// Moves to `ShuttingDown` from any phase, which stops the listeners.
     pub(super) fn request_shutdown(&self) {
         let _ = self.phase.send_replace(Phase::ShuttingDown);
     }
 
-    /// Resolves once shutdown has been requested.
+    /// Resolves when the phase becomes `ShuttingDown`.
     pub(super) async fn shutting_down(&self) {
         let mut phase = self.phase.subscribe();
         let _ = phase
@@ -127,11 +119,11 @@ impl AppState {
     }
 }
 
-/// The body of `/health`, `/stop` and `/shutdown`.
+/// Response body for `/stop` and `/shutdown`.
 #[derive(Serialize)]
 struct StateResponse {
     state: &'static str,
-    /// Whether `GET /report` has something to return. Only on `/stop`.
+    /// Whether `GET /report` has a report to return. Set only by `/stop`.
     #[serde(skip_serializing_if = "Option::is_none")]
     report: Option<bool>,
 }
@@ -150,7 +142,7 @@ struct ErrorResponse {
     error: &'static str,
 }
 
-/// `/health`, `/stop`, `/report` and `/shutdown`.
+/// Builds the admin router: `/health`, `/stop`, `/report` and `/shutdown`.
 pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/health", get(health))
@@ -161,15 +153,15 @@ pub fn router(state: Arc<AppState>) -> Router {
 }
 
 async fn health() -> impl IntoResponse {
-    // Scripts poll for this exact body. Keep it.
+    // Clients poll for this exact body; do not change it.
     Json(serde_json::json!({"status": "ready"}))
 }
 
-/// Stops receiving and waits until the report is ready. Idempotent once stopped.
+/// Stops receiving and waits for the report. Idempotent after the first call.
 ///
-/// There is no timeout. If the client disconnects, hyper drops this handler.
+/// Has no timeout; hyper drops the handler if the client disconnects.
 async fn stop(State(state): State<Arc<AppState>>) -> Response {
-    info!("POST /stop: stopping the run and waiting for the report");
+    info!("POST /stop: stopping, waiting for the report");
     state.request_stop().await;
 
     let mut phase = state.phase.subscribe();
@@ -186,9 +178,9 @@ async fn stop(State(state): State<Arc<AppState>>) -> Response {
         }
     };
     if has_report {
-        info!("POST /stop: the run has stopped; the report is ready at GET /report");
+        info!("POST /stop: stopped, report available at GET /report");
     } else {
-        info!("POST /stop: the run has stopped; the report was written, not served");
+        info!("POST /stop: stopped, report written to output, not served over HTTP");
     }
     Json(StateResponse {
         state: "stopped",
@@ -197,16 +189,16 @@ async fn stop(State(state): State<Arc<AppState>>) -> Response {
     .into_response()
 }
 
-/// The report of a stopped run. Available for as long as the process runs.
+/// Returns the report while the run is `Stopped`, otherwise `409 Conflict`.
 async fn report(State(state): State<Arc<AppState>>) -> Response {
     let phase = state.phase.borrow().clone();
     match phase {
         Phase::Receiving { .. } => {
-            info!("GET /report: refused, the run is still receiving");
+            info!("GET /report: rejected, still receiving");
             error(StatusCode::CONFLICT, "still receiving; POST /stop first")
         }
         Phase::ShuttingDown => {
-            info!("GET /report: refused, the process is shutting down");
+            info!("GET /report: rejected, shutting down");
             error(
                 StatusCode::CONFLICT,
                 "shutting down; a report is only served with --output http",
@@ -214,7 +206,7 @@ async fn report(State(state): State<Arc<AppState>>) -> Response {
         }
         Phase::Stopped { report } => {
             info!(
-                "GET /report: serving the report ({} bytes, {})",
+                "GET /report: serving {} bytes as {}",
                 report.body.len(),
                 report.content_type
             );
@@ -223,9 +215,9 @@ async fn report(State(state): State<Arc<AppState>>) -> Response {
     }
 }
 
-/// Ends the process. Stops the run first if it is still receiving.
+/// Stops the run if still receiving, then shuts down the process.
 async fn shutdown(State(state): State<Arc<AppState>>) -> Response {
-    info!("POST /shutdown: exiting");
+    info!("POST /shutdown: shutting down");
     state.request_stop().await;
     state.request_shutdown();
     Json(StateResponse::new("shutting_down")).into_response()
