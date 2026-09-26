@@ -179,9 +179,11 @@ pub struct RegistryLiveCheckArgs {
     #[config(path = "emit.otlp_logs")]
     emit_otlp_logs: Option<bool>,
 
-    /// OTLP endpoint for log emission.
+    /// OTLP endpoint for log emission. When not set here or in the config file,
+    /// `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`, then `OTEL_EXPORTER_OTLP_ENDPOINT`,
+    /// apply. The default is `http://localhost:4317`.
     #[arg(long)]
-    #[config(path = "emit.otlp_logs_endpoint")]
+    #[config(path = "emit.otlp_logs_endpoint", optional)]
     otlp_logs_endpoint: Option<String>,
 
     /// Use stdout for OTLP log emission (debug mode).
@@ -405,7 +407,9 @@ pub(crate) fn command(
         let emitter = if config.emit.otlp_logs_stdout {
             weaver_live_check::otlp_logger::OtlpEmitter::new_stdout()
         } else {
-            weaver_live_check::otlp_logger::OtlpEmitter::new_grpc(&config.emit.otlp_logs_endpoint)?
+            weaver_live_check::otlp_logger::OtlpEmitter::new_grpc(
+                config.emit.otlp_logs_endpoint.as_deref(),
+            )?
         };
         live_checker.otlp_emitter = Some(std::rc::Rc::new(emitter));
     }
