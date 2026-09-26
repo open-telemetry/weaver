@@ -210,7 +210,7 @@ pub(crate) fn command(
     info!("Starting OTLP gRPC server on {grpc_address}:{grpc_port}");
 
     // Start the OTLP gRPC server and get an iterator of requests
-    let (requests, _report_sender) = listen_otlp_requests(
+    let listener = listen_otlp_requests(
         &grpc_address,
         grpc_port,
         admin_port,
@@ -218,17 +218,24 @@ pub(crate) fn command(
     )
     .map_err(DiagnosticMessages::from)?;
 
-    info!("OTLP gRPC server started. Waiting for telemetry...");
-    info!("To stop: press CTRL+C, send SIGHUP, or POST to http://localhost:{admin_port}/stop");
+    info!(
+        "OTLP gRPC server started on {}. Waiting for telemetry...",
+        listener.grpc_addr
+    );
+    info!(
+        "To stop: press CTRL+C, send SIGHUP, or POST to http://{}/stop",
+        listener.admin_addr
+    );
 
     // Accumulate samples
     let mut accumulator = AccumulatedSamples::new();
 
-    for request in requests {
+    for request in listener.requests {
         if !process_otlp_request(request, &mut accumulator) {
             break;
         }
     }
+    listener.handle.finish();
 
     let (resources, spans, metrics, events) = accumulator.stats();
     info!(
