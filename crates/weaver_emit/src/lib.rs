@@ -200,7 +200,7 @@ pub fn emit(
         error: e.to_string(),
     })?;
     rt.block_on(async {
-        // Emit spans
+        // Build every provider first, so a bad endpoint fails before anything is sent.
         let tracer_provider = match exporter_config {
             ExporterConfig::Stdout => init_stdout_tracer_provider(),
             ExporterConfig::Otlp { endpoint } => init_tracer_provider(endpoint.as_deref())
@@ -208,6 +208,23 @@ pub fn emit(
                     error: e.to_string(),
                 })?,
         };
+        let meter_provider =
+            match exporter_config {
+                ExporterConfig::Stdout => init_stdout_meter_provider(),
+                ExporterConfig::Otlp { endpoint } => init_meter_provider(endpoint.as_deref())
+                    .map_err(|e| Error::MetricProviderError {
+                        error: e.to_string(),
+                    })?,
+            };
+        let logger_provider = match exporter_config {
+            ExporterConfig::Stdout => init_stdout_logger_provider(),
+            ExporterConfig::Otlp { endpoint } => init_logger_provider(endpoint.as_deref())
+                .map_err(|e| Error::LogProviderError {
+                    error: e.to_string(),
+                })?,
+        };
+
+        // Emit spans
         global::set_tracer_provider(tracer_provider.clone());
 
         match registry {
@@ -222,14 +239,6 @@ pub fn emit(
             })?;
 
         // Emit metrics
-        let meter_provider =
-            match exporter_config {
-                ExporterConfig::Stdout => init_stdout_meter_provider(),
-                ExporterConfig::Otlp { endpoint } => init_meter_provider(endpoint.as_deref())
-                    .map_err(|e| Error::MetricProviderError {
-                        error: e.to_string(),
-                    })?,
-            };
         global::set_meter_provider(meter_provider.clone());
 
         match registry {
@@ -244,14 +253,6 @@ pub fn emit(
             })?;
 
         // Emit logs
-        let logger_provider = match exporter_config {
-            ExporterConfig::Stdout => init_stdout_logger_provider(),
-            ExporterConfig::Otlp { endpoint } => init_logger_provider(endpoint.as_deref())
-                .map_err(|e| Error::LogProviderError {
-                    error: e.to_string(),
-                })?,
-        };
-
         match registry {
             RegistryVersion::V1(reg) => emit_logs_for_registry(reg, &logger_provider),
             RegistryVersion::V2(reg) => emit_logs_for_registry_v2(reg, &logger_provider),
@@ -269,6 +270,9 @@ pub fn emit(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use opentelemetry_otlp::{
+        OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+    };
     use weaver_forge::v1::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_resolved_schema::v1::attribute::Attribute;
     use weaver_semconv::v1::signal_requirement_level::SignalRequirementLevel;
@@ -564,6 +568,32 @@ mod tests {
             &ExporterConfig::Stdout,
         );
         assert!(result.is_ok());
+    }
+
+    /// Sets and clears process environment variables, so both signals are
+    /// checked in one test.
+    #[test]
+    fn an_invalid_signal_endpoint_variable_fails_that_signal() {
+        let registry = ResolvedRegistry {
+            registry_url: "TEST_OTLP_ENV".to_owned(),
+            groups: vec![],
+        };
+        let exporter_config = ExporterConfig::Otlp { endpoint: None };
+        let emit_with = |var: &str| {
+            std::env::set_var(var, "http:/invalid-endpoint:4317");
+            let result = emit(RegistryVersion::V1(&registry), "TEST", &exporter_config);
+            std::env::remove_var(var);
+            result
+        };
+
+        assert!(matches!(
+            emit_with(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT),
+            Err(Error::MetricProviderError { .. })
+        ));
+        assert!(matches!(
+            emit_with(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT),
+            Err(Error::LogProviderError { .. })
+        ));
     }
 
     #[test]
