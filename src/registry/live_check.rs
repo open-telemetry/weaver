@@ -4,8 +4,11 @@
 //! - Comparing it to a semantic convention registry.
 //! - Running built-in and custom policies to provide advice on how to improve the telemetry.
 
+use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Arc;
+
+use axum::http::Uri;
 
 use clap::Args;
 use include_dir::{include_dir, Dir};
@@ -14,8 +17,9 @@ use serde_yaml::Value;
 use log::info;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::http_auth::HttpAuthResolver;
-use weaver_common::{log_success, log_warn};
+use weaver_common::{log_info, log_success, log_warn};
 use weaver_config::{FailOnLevel, WeaverConfig};
+use weaver_emit::DEFAULT_OTLP_ENDPOINT;
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_live_check::advice::{
     Advisor, DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
@@ -179,9 +183,11 @@ pub struct RegistryLiveCheckArgs {
     #[config(path = "emit.otlp_logs")]
     emit_otlp_logs: Option<bool>,
 
-    /// OTLP endpoint for log emission.
+    /// OTLP endpoint for log emission. When not set here or in the config file,
+    /// `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`, then `OTEL_EXPORTER_OTLP_ENDPOINT`,
+    /// apply. The default is `http://localhost:4317`.
     #[arg(long)]
-    #[config(path = "emit.otlp_logs_endpoint")]
+    #[config(path = "emit.otlp_logs_endpoint", optional)]
     otlp_logs_endpoint: Option<String>,
 
     /// Use stdout for OTLP log emission (debug mode).
@@ -222,6 +228,48 @@ fn default_advisors() -> Vec<Box<dyn Advisor>> {
         Box::new(TypeAdvisor),
         Box::new(EnumAdvisor),
     ]
+}
+
+/// Where the OTLP SDK sends finding logs: the configured endpoint, then
+/// `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`, then `OTEL_EXPORTER_OTLP_ENDPOINT`, then
+/// the default. This mirrors the SDK, which does not expose the value it picks.
+fn logs_endpoint(configured: Option<&str>, env: impl Fn(&str) -> Option<String>) -> String {
+    let from_env = |var: &str| env(var).filter(|value| !value.is_empty());
+    configured
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+        .or_else(|| from_env("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT"))
+        .or_else(|| from_env("OTEL_EXPORTER_OTLP_ENDPOINT"))
+        .unwrap_or_else(|| DEFAULT_OTLP_ENDPOINT.to_owned())
+}
+
+/// True when `endpoint` reaches the `listener` of this process: the same port
+/// on a loopback or unspecified host, or on the listener's own address.
+/// Host names other than `localhost` are not resolved. An endpoint that does
+/// not parse is left to the exporter to report.
+fn is_own_listener(endpoint: &str, listener: SocketAddr) -> bool {
+    let Ok(uri) = endpoint.parse::<Uri>() else {
+        return false;
+    };
+    let Some(host) = uri.host() else {
+        return false;
+    };
+    // Without a scheme the SDK uses https.
+    let default_port = if uri.scheme_str() == Some("http") {
+        80
+    } else {
+        443
+    };
+    if uri.port_u16().unwrap_or(default_port) != listener.port() {
+        return false;
+    }
+    if host.eq_ignore_ascii_case("localhost") {
+        return true;
+    }
+    host.trim_start_matches('[')
+        .trim_end_matches(']')
+        .parse::<IpAddr>()
+        .is_ok_and(|ip| ip.is_loopback() || ip.is_unspecified() || ip == listener.ip())
 }
 
 /// Generate output for a complete report - handles line-oriented special case
@@ -405,7 +453,21 @@ pub(crate) fn command(
         let emitter = if config.emit.otlp_logs_stdout {
             weaver_live_check::otlp_logger::OtlpEmitter::new_stdout()
         } else {
-            weaver_live_check::otlp_logger::OtlpEmitter::new_grpc(&config.emit.otlp_logs_endpoint)?
+            let endpoint = logs_endpoint(config.emit.otlp_logs_endpoint.as_deref(), |var| {
+                std::env::var(var).ok()
+            });
+            // Checked before any sample is read, so a loop can never start.
+            if let Some(handle) = &listener {
+                if is_own_listener(&endpoint, handle.grpc_addr()) {
+                    return Err(crate::registry::Error::EmitLoop {
+                        endpoint,
+                        listener: handle.grpc_addr().to_string(),
+                    }
+                    .into());
+                }
+            }
+            log_info(format!("Emitting findings as OTLP logs to {endpoint}"));
+            weaver_live_check::otlp_logger::OtlpEmitter::new_grpc(Some(&endpoint))?
         };
         live_checker.otlp_emitter = Some(std::rc::Rc::new(emitter));
     }
@@ -559,7 +621,9 @@ mod tests {
         sample_instrumentation_scope::SampleInstrumentationScope, LiveCheckResult, Sample,
     };
 
-    use super::{RegistryLiveCheckArgs, DEFAULT_LIVE_CHECK_TEMPLATES};
+    use super::{
+        is_own_listener, logs_endpoint, RegistryLiveCheckArgs, DEFAULT_LIVE_CHECK_TEMPLATES,
+    };
     use crate::registry::tests::assert_config_cli_consistency;
 
     #[test]
@@ -612,5 +676,70 @@ mod tests {
             "{rendered}"
         );
         assert!(rendered.contains("scope.environment"), "{rendered}");
+    }
+
+    fn env_of<'a>(vars: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String> + 'a {
+        |var| {
+            vars.iter()
+                .find(|(name, _)| *name == var)
+                .map(|(_, value)| (*value).to_owned())
+        }
+    }
+
+    #[test]
+    fn the_logs_endpoint_follows_the_sdk_order() {
+        let both = [
+            ("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", "http://logs:4317"),
+            ("OTEL_EXPORTER_OTLP_ENDPOINT", "http://all:4317"),
+        ];
+        assert_eq!(
+            logs_endpoint(Some("http://flag:4317"), env_of(&both)),
+            "http://flag:4317"
+        );
+        assert_eq!(logs_endpoint(None, env_of(&both)), "http://logs:4317");
+        assert_eq!(logs_endpoint(None, env_of(&both[1..])), "http://all:4317");
+        let empty = [("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", "")];
+        assert_eq!(
+            logs_endpoint(Some(""), env_of(&empty)),
+            "http://localhost:4317"
+        );
+    }
+
+    #[test]
+    fn an_endpoint_on_the_listener_port_of_this_host_is_a_loop() {
+        let loopback = "127.0.0.1:4317".parse().expect("valid address");
+        for endpoint in [
+            "http://localhost:4317",
+            "http://LOCALHOST:4317",
+            "http://127.0.0.1:4317",
+            "http://127.0.0.2:4317",
+            "http://[::1]:4317",
+            "http://0.0.0.0:4317",
+            "localhost:4317",
+        ] {
+            assert!(is_own_listener(endpoint, loopback), "{endpoint}");
+        }
+        let lan = "192.168.1.10:4317".parse().expect("valid address");
+        assert!(is_own_listener("http://192.168.1.10:4317", lan));
+        let http_default = "127.0.0.1:80".parse().expect("valid address");
+        assert!(is_own_listener("http://localhost", http_default));
+    }
+
+    #[test]
+    fn an_endpoint_elsewhere_is_not_a_loop() {
+        let loopback = "127.0.0.1:4317".parse().expect("valid address");
+        for endpoint in [
+            "http://localhost:4318",
+            "http://collector:4317",
+            "http://192.168.1.10:4317",
+            "http://localhost",
+            "not a uri",
+        ] {
+            assert!(!is_own_listener(endpoint, loopback), "{endpoint}");
+        }
+        // A listener on every address is only reached through this host.
+        let any = "0.0.0.0:4317".parse().expect("valid address");
+        assert!(is_own_listener("http://localhost:4317", any));
+        assert!(!is_own_listener("http://collector:4317", any));
     }
 }

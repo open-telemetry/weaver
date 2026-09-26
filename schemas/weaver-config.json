@@ -133,9 +133,12 @@
       "type": "object",
       "properties": {
         "endpoint": {
-          "description": "Endpoint for the OTLP receiver. OTEL_EXPORTER_OTLP_ENDPOINT env var will override this.\n[default: http://localhost:4317]",
-          "type": "string",
-          "default": "http://localhost:4317"
+          "description": "Endpoint for the OTLP receiver. When not set here or in the config file,\n`OTEL_EXPORTER_OTLP_<SIGNAL>_ENDPOINT`, then `OTEL_EXPORTER_OTLP_ENDPOINT`,\napply. The default is `http://localhost:4317`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         },
         "stdout": {
           "description": "Write the telemetry to standard output\n[default: false]",
@@ -722,9 +725,12 @@
           "default": false
         },
         "otlp_logs_endpoint": {
-          "description": "OTLP endpoint for log emission.",
-          "type": "string",
-          "default": "http://localhost:4317"
+          "description": "OTLP endpoint for log emission. When not set, `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`,\nthen `OTEL_EXPORTER_OTLP_ENDPOINT`, apply. The default is `http://localhost:4317`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         },
         "otlp_logs_stdout": {
           "description": "Use stdout for OTLP log emission (debug mode).",

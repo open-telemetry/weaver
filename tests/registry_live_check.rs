@@ -9,6 +9,7 @@
 
 use assert_cmd::Command;
 use std::process::Output;
+use weaver_test_support::reserve_test_port;
 
 const REGISTRY: &str = "crates/weaver_live_check/model";
 const INPUT: &str = "crates/weaver_live_check/data/attributes.txt";
@@ -430,4 +431,87 @@ fn a_param_switches_the_ansi_label_to_the_finding_id() {
     let output = run_ansi(&["-D", "show_finding_id=true"]);
     assert!(output.contains("[missing_attribute]"), "got: {output}");
     assert!(!output.contains("[violation]"), "got: {output}");
+}
+
+/// Runs live-check on an OTLP listener with `--emit-otlp-logs`. Endpoint
+/// variables from the caller's environment are cleared, then `envs` are set.
+/// A run that starts stops after one second without exports.
+fn run_emitting_live_check(grpc_port: u16, extra_args: &[&str], envs: &[(&str, &str)]) -> Output {
+    let mut cmd = Command::cargo_bin("weaver").expect("weaver binary not found");
+    cmd.args([
+        "registry",
+        "live-check",
+        "-r",
+        REGISTRY,
+        "--input-source",
+        "otlp",
+    ])
+    .args(["--otlp-grpc-port", &grpc_port.to_string()])
+    .args(["--admin-port", &reserve_test_port().to_string()])
+    .args([
+        "--inactivity-timeout",
+        "1",
+        "--output",
+        "none",
+        "--fail-on",
+        "none",
+    ])
+    .arg("--emit-otlp-logs")
+    .args(extra_args)
+    .env_remove("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT")
+    .env_remove("OTEL_EXPORTER_OTLP_ENDPOINT")
+    .envs(envs.iter().copied())
+    .timeout(std::time::Duration::from_secs(60))
+    .output()
+    .expect("failed to execute weaver binary")
+}
+
+#[test]
+fn emitting_findings_to_the_own_listener_fails_startup() {
+    let port = reserve_test_port();
+    let endpoint = format!("http://localhost:{port}");
+    let out = run_emitting_live_check(port, &["--otlp-logs-endpoint", &endpoint], &[]);
+    assert_ne!(exit_code(&out), 0);
+    assert!(
+        combined(&out).contains("own OTLP listener"),
+        "{}",
+        combined(&out)
+    );
+}
+
+#[test]
+fn the_loop_check_sees_the_endpoint_variable() {
+    let port = reserve_test_port();
+    let endpoint = format!("http://127.0.0.1:{port}");
+    let out = run_emitting_live_check(port, &[], &[("OTEL_EXPORTER_OTLP_ENDPOINT", &endpoint)]);
+    assert_ne!(exit_code(&out), 0);
+    assert!(
+        combined(&out).contains("own OTLP listener"),
+        "{}",
+        combined(&out)
+    );
+}
+
+#[test]
+fn the_logs_endpoint_variable_is_used_and_logged() {
+    let port = reserve_test_port();
+    let endpoint = format!("http://127.0.0.1:{}", reserve_test_port());
+    let out = run_emitting_live_check(
+        port,
+        &[],
+        &[
+            ("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", &endpoint),
+            // The signal variable wins, so this loop is never reached.
+            (
+                "OTEL_EXPORTER_OTLP_ENDPOINT",
+                &format!("http://127.0.0.1:{port}"),
+            ),
+        ],
+    );
+    assert_eq!(exit_code(&out), 0, "{}", combined(&out));
+    assert!(
+        combined(&out).contains(&format!("Emitting findings as OTLP logs to {endpoint}")),
+        "{}",
+        combined(&out)
+    );
 }

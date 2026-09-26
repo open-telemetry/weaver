@@ -147,7 +147,7 @@ async fn test_livecheck_emit_roundtrip() {
 
     // 4. Create OtlpEmitter and emit diverse findings
     let endpoint = format!("http://localhost:{grpc_port}");
-    let emitter = OtlpEmitter::new_grpc(&endpoint).expect("Failed to create OtlpEmitter");
+    let emitter = OtlpEmitter::new_grpc(Some(&endpoint)).expect("Failed to create OtlpEmitter");
 
     // --- Finding 1: Violation with span sample ---
     {

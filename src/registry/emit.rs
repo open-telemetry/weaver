@@ -40,9 +40,11 @@ pub struct RegistryEmitArgs {
     #[config(default = "false")]
     stdout: Option<bool>,
 
-    /// Endpoint for the OTLP receiver. OTEL_EXPORTER_OTLP_ENDPOINT env var will override this.
+    /// Endpoint for the OTLP receiver. When not set here or in the config file,
+    /// `OTEL_EXPORTER_OTLP_<SIGNAL>_ENDPOINT`, then `OTEL_EXPORTER_OTLP_ENDPOINT`,
+    /// apply. The default is `http://localhost:4317`.
     #[arg(long)]
-    #[config(default = "http://localhost:4317")]
+    #[config]
     endpoint: Option<String>,
 }
 
