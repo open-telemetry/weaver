@@ -436,7 +436,12 @@ fn a_param_switches_the_ansi_label_to_the_finding_id() {
 /// Runs live-check on an OTLP listener with `--emit-otlp-logs`. Endpoint
 /// variables from the caller's environment are cleared, then `envs` are set.
 /// A run that starts stops after one second without exports.
-fn run_emitting_live_check(grpc_port: u16, extra_args: &[&str], envs: &[(&str, &str)]) -> Output {
+fn run_emitting_live_check(
+    grpc_port: u16,
+    admin_port: u16,
+    extra_args: &[&str],
+    envs: &[(&str, &str)],
+) -> Output {
     let mut cmd = Command::cargo_bin("weaver").expect("weaver binary not found");
     cmd.args([
         "registry",
@@ -447,7 +452,7 @@ fn run_emitting_live_check(grpc_port: u16, extra_args: &[&str], envs: &[(&str, &
         "otlp",
     ])
     .args(["--otlp-grpc-port", &grpc_port.to_string()])
-    .args(["--admin-port", &reserve_test_port().to_string()])
+    .args(["--admin-port", &admin_port.to_string()])
     .args([
         "--inactivity-timeout",
         "1",
@@ -470,10 +475,34 @@ fn run_emitting_live_check(grpc_port: u16, extra_args: &[&str], envs: &[(&str, &
 fn emitting_findings_to_the_own_listener_fails_startup() {
     let port = reserve_test_port();
     let endpoint = format!("http://localhost:{port}");
-    let out = run_emitting_live_check(port, &["--otlp-logs-endpoint", &endpoint], &[]);
+    let out = run_emitting_live_check(
+        port,
+        reserve_test_port(),
+        &["--otlp-logs-endpoint", &endpoint],
+        &[],
+    );
     assert_ne!(exit_code(&out), 0);
     assert!(
         combined(&out).contains("own OTLP listener"),
+        "{}",
+        combined(&out)
+    );
+}
+
+/// The admin port serves the full router, so it accepts OTLP too.
+#[test]
+fn emitting_findings_to_the_admin_port_fails_startup() {
+    let admin_port = reserve_test_port();
+    let endpoint = format!("http://localhost:{admin_port}");
+    let out = run_emitting_live_check(
+        reserve_test_port(),
+        admin_port,
+        &["--otlp-logs-endpoint", &endpoint],
+        &[],
+    );
+    assert_ne!(exit_code(&out), 0);
+    assert!(
+        combined(&out).contains(&format!("own OTLP listener on 127.0.0.1:{admin_port}")),
         "{}",
         combined(&out)
     );
@@ -483,7 +512,12 @@ fn emitting_findings_to_the_own_listener_fails_startup() {
 fn the_loop_check_sees_the_endpoint_variable() {
     let port = reserve_test_port();
     let endpoint = format!("http://127.0.0.1:{port}");
-    let out = run_emitting_live_check(port, &[], &[("OTEL_EXPORTER_OTLP_ENDPOINT", &endpoint)]);
+    let out = run_emitting_live_check(
+        port,
+        reserve_test_port(),
+        &[],
+        &[("OTEL_EXPORTER_OTLP_ENDPOINT", &endpoint)],
+    );
     assert_ne!(exit_code(&out), 0);
     assert!(
         combined(&out).contains("own OTLP listener"),
@@ -498,6 +532,7 @@ fn the_logs_endpoint_variable_is_used_and_logged() {
     let endpoint = format!("http://127.0.0.1:{}", reserve_test_port());
     let out = run_emitting_live_check(
         port,
+        reserve_test_port(),
         &[],
         &[
             ("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", &endpoint),

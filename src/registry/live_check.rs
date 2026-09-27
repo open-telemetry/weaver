@@ -457,14 +457,18 @@ pub(crate) fn command(
                 std::env::var(var).ok()
             });
             // Checked before any sample is read, so a loop can never start.
-            if let Some(handle) = &listener {
-                if is_own_listener(&endpoint, handle.grpc_addr()) {
-                    return Err(crate::registry::Error::EmitLoop {
-                        endpoint,
-                        listener: handle.grpc_addr().to_string(),
-                    }
-                    .into());
+            let own_listener = listener.as_ref().and_then(|handle| {
+                handle
+                    .addrs()
+                    .iter()
+                    .find(|addr| is_own_listener(&endpoint, **addr))
+            });
+            if let Some(addr) = own_listener {
+                return Err(crate::registry::Error::EmitLoop {
+                    endpoint,
+                    listener: addr.to_string(),
                 }
+                .into());
             }
             log_info(format!("Emitting findings as OTLP logs to {endpoint}"));
             weaver_live_check::otlp_logger::OtlpEmitter::new_grpc(Some(&endpoint))?
