@@ -201,25 +201,16 @@ impl Default for LiveCheckOtlpConfig {
 }
 
 /// OTLP log emission settings for live-check.
-#[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct LiveCheckEmitConfig {
     /// Enable OTLP log emission for live-check policy findings.
     pub otlp_logs: bool,
-    /// OTLP endpoint for log emission.
-    pub otlp_logs_endpoint: String,
+    /// OTLP endpoint for log emission. When not set, `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`,
+    /// then `OTEL_EXPORTER_OTLP_ENDPOINT`, apply. The default is `http://localhost:4317`.
+    pub otlp_logs_endpoint: Option<String>,
     /// Use stdout for OTLP log emission (debug mode).
     pub otlp_logs_stdout: bool,
-}
-
-impl Default for LiveCheckEmitConfig {
-    fn default() -> Self {
-        Self {
-            otlp_logs: false,
-            otlp_logs_endpoint: "http://localhost:4317".to_owned(),
-            otlp_logs_stdout: false,
-        }
-    }
 }
 
 /// A filter that drops findings by ID exclusion or minimum level.
@@ -616,7 +607,10 @@ otlp_logs_stdout = false
         assert_eq!(lc.otlp.inactivity_timeout, 30);
 
         assert!(lc.emit.otlp_logs);
-        assert_eq!(lc.emit.otlp_logs_endpoint, "http://localhost:4317");
+        assert_eq!(
+            lc.emit.otlp_logs_endpoint.as_deref(),
+            Some("http://localhost:4317")
+        );
         assert!(!lc.emit.otlp_logs_stdout);
     }
 

@@ -64,18 +64,21 @@ pub struct OtlpEmitter {
 }
 
 impl OtlpEmitter {
-    /// Create a new OTLP emitter with gRPC export
+    /// Create a new OTLP emitter with gRPC export. With no `endpoint`, the SDK
+    /// reads `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`, then `OTEL_EXPORTER_OTLP_ENDPOINT`,
+    /// then uses its default.
     ///
     /// NOTE: This must be called from within an active Tokio runtime context
     /// because the batch exporter spawns background tasks.
-    pub fn new_grpc(endpoint: &str) -> Result<Self, Error> {
-        let exporter = opentelemetry_otlp::LogExporter::builder()
-            .with_tonic()
-            .with_endpoint(endpoint)
-            .build()
-            .map_err(|e| Error::OutputError {
-                error: format!("Failed to create OTLP log exporter: {e}"),
-            })?;
+    pub fn new_grpc(endpoint: Option<&str>) -> Result<Self, Error> {
+        let builder = opentelemetry_otlp::LogExporter::builder().with_tonic();
+        let builder = match endpoint {
+            Some(endpoint) => builder.with_endpoint(endpoint),
+            None => builder,
+        };
+        let exporter = builder.build().map_err(|e| Error::OutputError {
+            error: format!("Failed to create OTLP log exporter: {e}"),
+        })?;
 
         let provider = SdkLoggerProvider::builder()
             .with_resource(build_resource())
@@ -564,9 +567,21 @@ mod tests {
     #[tokio::test]
     async fn test_otlp_emitter_new_grpc() {
         // Creates the emitter successfully but won't actually connect until we try to emit
-        let emitter =
-            OtlpEmitter::new_grpc("http://localhost:4317").expect("should create gRPC emitter");
+        let emitter = OtlpEmitter::new_grpc(Some("http://localhost:4317"))
+            .expect("should create gRPC emitter");
         assert!(emitter.shutdown().is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_otlp_emitter_new_grpc_without_endpoint() {
+        let emitter = OtlpEmitter::new_grpc(None).expect("should create gRPC emitter");
+        assert!(emitter.shutdown().is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_otlp_emitter_new_grpc_invalid_endpoint() {
+        let result = OtlpEmitter::new_grpc(Some("http:/invalid-endpoint:4317"));
+        assert!(matches!(result, Err(Error::OutputError { .. })));
     }
 
     #[test]
