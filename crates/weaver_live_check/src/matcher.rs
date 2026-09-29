@@ -741,11 +741,11 @@ mod tests {
     use weaver_forge::v2::provenance::Provenance;
     use weaver_forge::v2::registry::ForgeDependency;
     use weaver_forge::v2::span::SpanAttribute;
-    use weaver_semconv::stability::Stability;
     use weaver_semconv::v2::attribute::{
         AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
         TemplateTypeSpec,
     };
+    use weaver_semconv::v2::stability::Stability;
     use weaver_semconv::v2::CommonFields;
 
     use crate::advice::{Advisor, TypeAdvisor};
@@ -1673,7 +1673,7 @@ signal = "myapp.checkout"
                 prefix: String::new(),
                 entity_associations: Vec::new(),
                 extends: None,
-                stability: Some(Stability::Stable),
+                stability: Some(weaver_semconv::v1::stability::Stability::Stable),
                 deprecated: None,
                 attributes: Vec::new(),
                 span_kind: None,

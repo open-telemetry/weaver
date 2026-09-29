@@ -5,8 +5,8 @@
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use weaver_resolved_schema::v2::stats::Stats;
-use weaver_search::{SearchResult, SearchType};
-use weaver_semconv::stability::Stability;
+use weaver_search::{SearchResult, SearchSort, SearchType};
+use weaver_semconv::v2::stability::Stability;
 
 /// Registry stats response.
 ///
@@ -35,7 +35,14 @@ pub struct SearchParams {
     pub search_type: SearchType,
     /// Filter by stability level.
     pub stability: Option<Stability>,
-    /// Exclude deprecated items, independent of the stability filter (default: false).
+    /// Filter by deprecation status: `true` for only deprecated, `false` to exclude deprecated, omitted for all.
+    pub deprecated: Option<bool>,
+    /// Sort order for search results (`default`, `name`, `stability`, or `deprecated`).
+    #[serde(default)]
+    pub sort: SearchSort,
+    /// Legacy alias to exclude deprecated items when `deprecated` is omitted (default: false).
+    /// If `deprecated` is explicitly provided, it takes precedence over `hide_deprecated`.
+    #[deprecated(note = "Use `deprecated=false` instead")]
     #[serde(default)]
     pub hide_deprecated: bool,
     /// Maximum number of results (default: 50).

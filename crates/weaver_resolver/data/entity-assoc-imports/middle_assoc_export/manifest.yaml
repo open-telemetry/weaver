@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: middle
 description: >
   Defines one metric, associated with the `host` entity of base, and imports

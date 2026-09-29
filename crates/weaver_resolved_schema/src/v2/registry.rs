@@ -233,14 +233,12 @@ impl Registry {
 
 #[cfg(test)]
 mod test {
-    use weaver_semconv::{
+    use weaver_semconv::v2::{
+        attribute::{BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel},
+        metric::InstrumentSpec,
+        span::{SpanKindSpec, SpanName},
         stability::Stability,
-        v2::{
-            attribute::{BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel},
-            metric::InstrumentSpec,
-            span::{SpanKindSpec, SpanName},
-            CommonFields,
-        },
+        CommonFields,
     };
 
     use crate::v2::{attribute::Attribute, entity::EntityAttributeRef};
@@ -300,7 +298,8 @@ mod test {
                 r#type: "test.span".to_owned().into(),
                 kind: SpanKindSpec::Client,
                 name: SpanName {
-                    note: "test".to_owned(),
+                    note: Some("test".to_owned()),
+                    ..Default::default()
                 },
                 attributes: vec![],
                 entity_associations: vec![],

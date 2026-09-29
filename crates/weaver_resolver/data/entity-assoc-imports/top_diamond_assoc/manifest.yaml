@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: top_diamond_assoc
 description: >
   `host` is reachable by two paths, and both lead to the one definition in

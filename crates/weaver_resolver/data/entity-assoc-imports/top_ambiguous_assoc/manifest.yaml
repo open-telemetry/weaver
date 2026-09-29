@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: top_ambiguous
 description: >
   Depends on two unrelated registries that each publish their own `host`, and

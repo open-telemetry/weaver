@@ -19,7 +19,7 @@
       ]
     },
     "file_format": {
-      "description": "The file format version of this publication manifest.\nAlways `\"manifest/2.0\"`in this version.",
+      "description": "The file format version of this publication manifest.\nAlways `\"manifest/2.0\"` in this version.",
       "type": "string",
       "const": "manifest/2.0"
     },
@@ -44,7 +44,7 @@
   ],
   "$defs": {
     "Dependency": {
-      "description": "Represents a dependency of a semantic convention registry.",
+      "description": "Represents a dependency of a semantic convention registry (version 2).",
       "type": "object",
       "properties": {
         "registry_path": {
@@ -59,7 +59,7 @@
           ]
         },
         "schema_url": {
-          "description": "The schema URL for the dependency (required).\nIt must follow OTel schema URL format, which is: `http[s]://server[:port]/path/<version>`.\nThis is not necessarily the URL registry can be accessed at, but it provides\na unique identifier for the dependency registry and its version.\n\nWhen registry is not published yet, this field should be populated with a placeholder URL,\nbut it must follow the URL format and include a version segment.\nThe actual registry files can be provided in `registry_path` field.",
+          "description": "The schema URL for the dependency (required).\nIt must follow OTel schema URL format, which is: `http[s]://server[:port]/path/<version>`.\nThis is not necessarily the URL a registry can be accessed at, but it provides\na unique identifier for the dependency registry and its version.",
           "$ref": "#/$defs/SchemaUrl"
         }
       },
@@ -83,12 +83,6 @@
     "Stability": {
       "description": "The level of stability for a definition. Defined in [OTEP-232](https://github.com/open-telemetry/oteps/blob/main/text/0232-maturity-of-otel.md)",
       "oneOf": [
-        {
-          "description": "A deprecated definition.",
-          "type": "string",
-          "const": "deprecated",
-          "deprecated": true
-        },
         {
           "description": "A stable definition.",
           "type": "string",

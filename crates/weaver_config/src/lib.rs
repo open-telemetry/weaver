@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 
 pub mod auth;
 pub mod effective;
+pub mod infer;
 pub mod live_check;
 mod overrides;
 pub mod registry;
@@ -24,6 +25,7 @@ pub use effective::{
     EffectiveResolveConfig, DEFAULT_DIAGNOSTIC_FORMAT, DEFAULT_DIAGNOSTIC_TEMPLATE,
     DEFAULT_REGISTRY,
 };
+pub use infer::{InferConfig, InferOtlpConfig};
 pub use live_check::{
     FailOnLevel, FindingFilter, FindingLevelOverride, LiveCheckConfig, LiveCheckEmitConfig,
     LiveCheckOtlpConfig,

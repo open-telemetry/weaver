@@ -21,12 +21,13 @@ use weaver_forge::v2::{
     attribute::Attribute, entity::Entity, event::Event, metric::Metric,
     registry::ForgeResolvedRegistry, span::Span,
 };
-use weaver_semconv::stability::Stability;
+use weaver_semconv::deprecated::Deprecated;
+use weaver_semconv::v2::stability::Stability;
 
 use super::handlers;
 use super::types::SearchResponse;
 use super::ui::UI_DIST;
-use weaver_search::{ScoredResult, SearchContext, SearchResult, SearchType};
+use weaver_search::{ScoredResult, SearchContext, SearchResult, SearchSort, SearchType};
 
 /// Shared application state for all request handlers.
 pub struct AppState {
@@ -102,6 +103,7 @@ impl From<serde_json::Error> for Error {
     components(
         schemas(
             SearchType,
+            SearchSort,
             SearchResponse,
             SearchResult,
             ScoredResult<Attribute>,
@@ -115,6 +117,7 @@ impl From<serde_json::Error> for Error {
             Event,
             Entity,
             Stability,
+            Deprecated,
         )
     ),
     tags(

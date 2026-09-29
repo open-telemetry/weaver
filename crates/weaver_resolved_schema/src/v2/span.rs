@@ -2,14 +2,12 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_semconv::{
+use weaver_semconv::v2::{
+    attribute::RequirementLevel,
+    signal_id::SignalId,
     signal_requirement_level::SignalRequirementLevel,
-    v2::{
-        attribute::RequirementLevel,
-        signal_id::SignalId,
-        span::{SpanKindSpec, SpanName},
-        CommonFields,
-    },
+    span::{SpanKindSpec, SpanName},
+    CommonFields,
 };
 
 use crate::v2::{
@@ -115,7 +113,8 @@ mod tests {
             r#type: SignalId::from("http.client"),
             kind: SpanKindSpec::Client,
             name: SpanName {
-                note: "HTTP {http.request.method}".to_owned(),
+                note: Some("HTTP {http.request.method}".to_owned()),
+                ..Default::default()
             },
             attributes: vec![],
             entity_associations: vec![],

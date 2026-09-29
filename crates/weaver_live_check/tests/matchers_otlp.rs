@@ -3,8 +3,8 @@
 //! End-to-end tests for matchers.
 //!
 //! Each test emits telemetry with the OpenTelemetry SDK to a `weaver registry
-//! live-check` child process that reads OTLP. The child returns its report on
-//! `POST /stop`, and the test asserts on that report.
+//! live-check` child process that reads OTLP. The test stops the child with
+//! `POST /stop`, reads its report from `GET /report`, and asserts on it.
 //!
 //! The fixture registry is `data/model/matchers`. It depends on
 //! `data/model/matchers_dep`. The matchers are in `data/matchers/livecheck.toml`.
@@ -35,6 +35,8 @@
 //! cargo nextest run -p weaver_live_check emit_to_a_running_live_check \
 //!   --run-ignored ignored-only
 //! curl -X POST http://localhost:4320/stop
+//! curl http://localhost:4320/report
+//! curl -X POST http://localhost:4320/shutdown
 //! ```
 
 mod common;

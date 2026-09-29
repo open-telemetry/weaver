@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: middle
 description: >
   The same as `middle`, but this registry imports the `host` entity from base.

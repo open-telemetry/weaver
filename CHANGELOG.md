@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 # Unreleased
 
 - Support virtual-directory format for `--advice-policies` and `--advice-data` in live-check. ([#1760](https://github.com/open-telemetry/weaver/pull/1760) by @lmolkova)
+- 💥 BREAKING CHANGE 💥 `registry live-check --output http`: `POST /stop` no longer returns the report. It stops the run and returns once the report is ready. Read the report with the new `GET /report`, then end the process with the new `POST /shutdown`. Reading the report is no longer tied to the process exiting, so large reports are never truncated. In this mode `--inactivity-timeout` is ignored: the client owns the run. Fixes [#1657](https://github.com/open-telemetry/weaver/issues/1657). ([#1770](https://github.com/open-telemetry/weaver/pull/1770) by @jerbly)
 - Live-check reports now retain OTLP context on their samples, including span and log trace IDs, timestamps, span-event and link context, and metric data-point timing. OTLP finding logs are correlated with their source spans. ([#1749](https://github.com/open-telemetry/weaver/pull/1749) by @clarsen)
 - Live-check matchers ([#1721](https://github.com/open-telemetry/weaver/pull/1721) by @jerbly)
   - Added `[[live-check.matchers]]`. A matcher uses a CEL expression to select samples, and names the v2 signal and attribute groups they are checked against. v2 registries only.
@@ -16,6 +17,9 @@ All notable changes to this project will be documented in this file.
   - Added `-D`/`--param` and `--params` to pass parameters to the output template. The ansi format reads `show_finding_id`, which labels a finding with its id instead of its level.
   - Added [Matchers](crates/weaver_live_check/docs/matchers.md), a guide with a worked example for each sample type. Corrected the config section in the live-check and config READMEs from `[live_check]` to `[live-check]`. The underscore form was silently ignored.
 - Config sections are checked when they are read. A command section in `.weaver.toml` that does not deserialize, or an unknown key under `[live-check]`, now stops the run instead of being ignored. ([#1721](https://github.com/open-telemetry/weaver/pull/1721) by @jerbly)
+- 💥 BREAKING CHANGE 💥 Fixes [#1741](https://github.com/open-telemetry/weaver/issues/1741) `registry infer` renames `--grpc-address` and `--grpc-port` to `--otlp-grpc-address` and `--otlp-grpc-port` to match `registry live-check`. Its listener settings move from `[infer]` to `[infer.otlp]` (`grpc_address`, `grpc_port`, `admin_port`, `inactivity_timeout`), the same shape as `[live-check.otlp]`, and an unknown key under `[infer]` now stops the run. ([#1780](https://github.com/open-telemetry/weaver/pull/1780) by @jerbly)
+- Fix findings on resource samples being emitted without the resource's attributes. ([#1612](https://github.com/open-telemetry/weaver/pull/1612) by @fabiovincenzi)
+- Fix: a `ref` to an attribute of a published (packaged) dependency resolving as `required` when it sets no `requirement_level`. It now takes the default, `recommended`, as it already did when the dependency is resolved from source. A new signal, an attribute group, or a refinement adding an attribute its parent does not carry were all affected. ([#1789](https://github.com/open-telemetry/weaver/pull/1789) by @jerbly)
 
 # [0.26.1] - 2026-09-02
 

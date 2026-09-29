@@ -12,8 +12,8 @@ use std::path::PathBuf;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_config::{
-    AuthEntry, DiagnosticsConfig, LiveCheckConfig, PolicyConfig, RegistryConfig, ResolveConfig,
-    TemplateConfig, WeaverConfig,
+    AuthEntry, DiagnosticsConfig, InferConfig, LiveCheckConfig, PolicyConfig, RegistryConfig,
+    ResolveConfig, TemplateConfig, WeaverConfig,
 };
 use weaver_forge::config::Params;
 use weaver_forge::v1::registry::ResolvedRegistry;
@@ -35,7 +35,7 @@ struct WeaverConfigSchema {
     pub diff: super::diff::DiffConfig,
     pub emit: super::emit::EmitConfig,
     pub generate: super::generate::GenerateConfig,
-    pub infer: super::infer::InferConfig,
+    pub infer: InferConfig,
     #[serde(rename = "live-check")]
     pub live_check: LiveCheckConfig,
     pub mcp: super::mcp::McpConfig,
@@ -110,10 +110,10 @@ pub(crate) fn command(
         JsonSchemaType::Diff => schema_for!(weaver_version::schema_changes::SchemaChanges),
         JsonSchemaType::DiffV2 => schema_for!(weaver_version::v2::SchemaChanges),
         JsonSchemaType::DefinitionManifestV2 => {
-            schema_for!(weaver_semconv::manifest::DefinitionRegistryManifest)
+            schema_for!(weaver_semconv::v2::manifest::DefinitionRegistryManifest)
         }
         JsonSchemaType::PublicationManifestV2 => {
-            schema_for!(weaver_semconv::manifest::PublicationRegistryManifest)
+            schema_for!(weaver_semconv::v2::manifest::PublicationRegistryManifest)
         }
         JsonSchemaType::PolicyFinding => schema_for!(weaver_checker::PolicyFinding),
         JsonSchemaType::WeaverConfig => schema_for!(WeaverConfigSchema),
