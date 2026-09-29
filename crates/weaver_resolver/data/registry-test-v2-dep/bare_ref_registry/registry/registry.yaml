@@ -1,0 +1,27 @@
+file_format: definition/2
+# Every `ref` below names an attribute of the published dependency and sets no
+# `requirement_level`, so each must resolve to the default, `recommended`.
+metrics:
+  - name: bare.request.count
+    requirement_level: recommended
+    brief: Count of requests.
+    instrument: counter
+    unit: "{request}"
+    stability: stable
+    attributes:
+      - ref: server.port
+attribute_groups:
+  - id: bare.host
+    visibility: public
+    brief: Host attributes.
+    stability: stable
+    attributes:
+      - ref: host.name
+metric_refinements:
+  # `host.arch` is not on the parent metric, so the refinement introduces it
+  # rather than overriding an inherited copy.
+  - id: bare.duration
+    ref: server.request.duration
+    brief: Server request duration with the host architecture.
+    attributes:
+      - ref: host.arch

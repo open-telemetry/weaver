@@ -13,7 +13,7 @@ use weaver_resolved_schema::v1::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::v1::ResolvedTelemetrySchema as V1Schema;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_semconv::schema_url::SchemaUrl;
-use weaver_semconv::v1::attribute::AttributeSpec;
+use weaver_semconv::v1::attribute::{AttributeSpec, RequirementLevel};
 
 use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 use crate::dependency::ResolvedDependency;
@@ -701,9 +701,9 @@ impl AttributeLookup for V2Schema {
                             .clone()
                             .map(weaver_semconv::convert::v2_examples_to_v1),
                         tag: None,
-                        requirement_level: weaver_semconv::v1::attribute::RequirementLevel::Basic(
-                            weaver_semconv::v1::attribute::BasicRequirementLevelSpec::Required,
-                        ),
+                        // A catalog attribute carries no requirement level; that belongs
+                        // to each reference. A `ref` that sets none takes the default.
+                        requirement_level: RequirementLevel::default(),
                         sampling_relevant: None,
                         note: attr.common.note.clone(),
                         stability: Some(attr.common.stability.clone().into()),
