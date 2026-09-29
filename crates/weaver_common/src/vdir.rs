@@ -77,13 +77,13 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::fs::{create_dir_all, File};
+use std::fs::{create_dir_all, remove_dir_all, rename, File};
 use std::io;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use tempfile::TempDir;
 use ureq::config::{Config, RedirectAuthHeaders};
 use ureq::tls::{RootCerts, TlsConfig};
@@ -292,6 +292,126 @@ const ZIP_EXT: &str = ".zip";
 /// indistinguishable from an object id and will be treated as a SHA.
 fn is_commit_sha(s: &str) -> bool {
     gix::ObjectId::from_hex(s.as_bytes()).is_ok()
+}
+
+/// Configuration for the on-disk registry cache, set from the CLI at startup.
+#[derive(Debug, Clone, Default)]
+struct GitCacheConfig {
+    /// Cache root directory, or `None` when caching is disabled.
+    root: Option<PathBuf>,
+    /// When true, a cache miss for a cacheable source errors instead of fetching.
+    offline: bool,
+    /// When true, re-fetch and replace a cached entry even on a hit.
+    refresh: bool,
+}
+
+/// Whether a cloned refspec can later point at different content.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RefStability {
+    /// A commit SHA or a tag.
+    Immutable,
+    /// A branch, or the remote default branch when no refspec is given.
+    Moving,
+}
+
+/// A cloned repository on disk, either a cache entry that outlives the process
+/// or a directory deleted when it is dropped.
+#[derive(Debug)]
+enum GitCheckout {
+    /// A cache entry, kept after the command exits.
+    Cached(PathBuf),
+    /// A directory deleted when the returned [`VirtualDirectory`] is dropped.
+    Throwaway(TempDir),
+}
+
+impl GitCheckout {
+    /// The repository root on disk.
+    fn path(&self) -> &Path {
+        match self {
+            GitCheckout::Cached(path) => path,
+            GitCheckout::Throwaway(tmp_dir) => tmp_dir.path(),
+        }
+    }
+
+    /// The directory to delete on drop, if this checkout owns one.
+    fn into_tmp_dir(self) -> Option<TempDir> {
+        match self {
+            GitCheckout::Cached(_) => None,
+            GitCheckout::Throwaway(tmp_dir) => Some(tmp_dir),
+        }
+    }
+}
+
+/// Process-wide git-registry cache configuration, set once at startup by the CLI
+/// layer via [`configure_git_cache`]. Defaults to disabled (`root: None`).
+static GIT_CACHE_CONFIG: Lazy<RwLock<GitCacheConfig>> =
+    Lazy::new(|| RwLock::new(GitCacheConfig::default()));
+
+/// Configures the on-disk registry cache for this process.
+///
+/// Called once from the CLI layer, mirroring [`enable_git_credentials`].
+/// `cache_dir = None` leaves the cache disabled, the default.
+pub fn configure_git_cache(cache_dir: Option<PathBuf>, offline: bool, refresh: bool) {
+    let mut cfg = GIT_CACHE_CONFIG
+        .write()
+        .expect("git cache config lock poisoned");
+    *cfg = GitCacheConfig {
+        root: cache_dir,
+        offline,
+        refresh,
+    };
+}
+
+/// Returns a snapshot of the current git-registry cache configuration.
+fn git_cache_config() -> GitCacheConfig {
+    GIT_CACHE_CONFIG
+        .read()
+        .expect("git cache config lock poisoned")
+        .clone()
+}
+
+/// Derives the cache directory name for `url`@`refspec`, or `None` when Git's
+/// SHA-1 collision detection flags the input.
+fn git_cache_key(url: &str, refspec: &str) -> Option<String> {
+    let mut hasher = gix::hash::hasher(gix::hash::Kind::Sha1);
+    hasher.update(url.as_bytes());
+    hasher.update(&[0]);
+    hasher.update(refspec.as_bytes());
+    let digest = hasher.try_finalize().ok()?;
+    let hash = digest.to_hex_with_len(16);
+
+    let sanitize = |s: &str| -> String {
+        s.chars()
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || c == '-' || c == '.' {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .take(32)
+            .collect()
+    };
+
+    let repo_slug = sanitize(
+        url.rsplit('/')
+            .find(|segment| !segment.is_empty())
+            .unwrap_or("registry")
+            .trim_end_matches(".git"),
+    );
+    let ref_slug = sanitize(refspec);
+
+    Some(format!("{repo_slug}-{ref_slug}-{hash}"))
+}
+
+/// Names a sibling of `staged` under `git_root`, with `prefix` in place of `.staging-`.
+fn sibling_cache_path(git_root: &Path, staged: &Path, prefix: &str) -> PathBuf {
+    let name = staged
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("staging");
+    let suffix = name.strip_prefix(".staging-").unwrap_or(name);
+    git_root.join(format!("{prefix}{suffix}"))
 }
 
 /// Regex to parse a virtual directory path string.
@@ -554,10 +674,12 @@ impl Display for VirtualDirectoryPath {
 /// This struct is created from a [`VirtualDirectoryPath`]. Depending on the source type,
 /// it might involve:
 /// - Simply pointing to an existing local directory.
-/// - Cloning a Git repository into a temporary cache directory.
+/// - Cloning a Git repository into a temporary directory, or reusing an entry in
+///   the on-disk registry cache when one is configured.
 /// - Downloading and extracting an archive into a temporary cache directory.
 ///
-/// Temporary directories are managed and automatically cleaned up when this struct goes out of scope.
+/// Temporary directories are cleaned up when this struct goes out of scope;
+/// registry cache entries persist across runs.
 #[derive(Default, Debug, Clone)]
 pub struct VirtualDirectory {
     /// The original string representation used to create this virtual directory.
@@ -652,33 +774,172 @@ impl VirtualDirectory {
         vdir
     }
 
-    /// Clones a Git repository from the specified URL into a temporary directory.
-    ///
-    /// Performs a shallow clone (depth=1) to optimize disk usage and clone speed.
-    /// Optionally selects a sub-folder within the repository as the virtual directory root.
+    /// Resolves a Git repository source into a [`VirtualDirectory`].
     ///
     /// # Errors
     ///
     /// Returns [`Error::GitError`] if:
     /// - The repository URL is invalid or inaccessible.
     /// - The sub-folder does not exist within the cloned repository.
+    ///
+    /// Returns [`Error::RegistryOffline`] if offline mode is enabled and the
+    /// source is not already present in the cache.
     fn try_from_git_url(
         url: &str,
         sub_folder: &Option<String>,
         refspec: &Option<String>,
         vdir_path: String,
     ) -> Result<Self, Error> {
-        let tmp_dir = Self::create_tmp_repo()?;
-        let tmp_path = tmp_dir.path().to_path_buf();
+        Self::try_from_git_url_with_cache(url, sub_folder, refspec, vdir_path, &git_cache_config())
+    }
 
-        // Clones the repo into the temporary directory.
-        // Use shallow clone to save time and space when no specific refspec is given.
-        // When a refspec is provided, we skip shallow clone because gix's shallow+single-branch
-        // code path assumes the ref is a branch (refs/heads/), which breaks for tags (refs/tags/).
-        // See upstream issue: https://github.com/GitoxideLabs/gitoxide/issues/2554
+    /// Resolves a Git source into a [`VirtualDirectory`] backed by `cache`.
+    fn try_from_git_url_with_cache(
+        url: &str,
+        sub_folder: &Option<String>,
+        refspec: &Option<String>,
+        vdir_path: String,
+        cache: &GitCacheConfig,
+    ) -> Result<Self, Error> {
+        let checkout = Self::checkout_git_repo(url, refspec, cache)?;
+        let path = Self::resolve_git_sub_folder(checkout.path(), sub_folder, url)?;
+        Ok(Self {
+            vdir_path,
+            path,
+            tmp_dir: Arc::new(checkout.into_tmp_dir()),
+        })
+    }
+
+    /// Materializes `url` on disk: in the cache for a commit or tag refspec,
+    /// otherwise in a throwaway directory.
+    fn checkout_git_repo(
+        url: &str,
+        refspec: &Option<String>,
+        cache: &GitCacheConfig,
+    ) -> Result<GitCheckout, Error> {
+        let cacheable = cache
+            .root
+            .as_ref()
+            .zip(refspec.as_ref())
+            .and_then(|(root, pinned)| git_cache_key(url, pinned).map(|key| (root, pinned, key)));
+        let Some((cache_root, pinned, key)) = cacheable else {
+            let tmp_dir = Self::create_tmp_repo()?;
+            let _ = Self::clone_into(url, refspec, tmp_dir.path())?;
+            return Ok(GitCheckout::Throwaway(tmp_dir));
+        };
+
+        let git_root = cache_root.join("git");
+        let target = git_root.join(key);
+
+        // A refresh needs the network, so offline serves whatever is cached.
+        let refresh = cache.refresh && !cache.offline;
+
+        if !refresh && target.exists() {
+            return Ok(GitCheckout::Cached(target));
+        }
+        if cache.offline {
+            return Err(Error::RegistryOffline {
+                registry: format!("{url}@{pinned}"),
+            });
+        }
+
+        Ok(
+            match Self::populate_git_cache(url, pinned, &git_root, &target, refresh)? {
+                None => GitCheckout::Cached(target),
+                Some(tmp_dir) => GitCheckout::Throwaway(tmp_dir),
+            },
+        )
+    }
+
+    /// Clones `url`@`refspec` into staging under `git_root` and installs it at
+    /// `target`, or returns the staging directory when the refspec is
+    /// [`RefStability::Moving`].
+    fn populate_git_cache(
+        url: &str,
+        refspec: &str,
+        git_root: &Path,
+        target: &Path,
+        refresh: bool,
+    ) -> Result<Option<TempDir>, Error> {
+        create_dir_all(git_root).map_err(|e| Error::CacheDirNotCreated {
+            message: e.to_string(),
+        })?;
+
+        let staging = tempfile::Builder::new()
+            .prefix(".staging-")
+            .tempdir_in(git_root)
+            .map_err(|e| Error::CacheDirNotCreated {
+                message: e.to_string(),
+            })?;
+        let stability = Self::clone_into(url, &Some(refspec.to_owned()), staging.path())?;
+        if stability == RefStability::Moving {
+            return Ok(Some(staging));
+        }
+
+        let staged = staging.keep();
+        let installed = if refresh {
+            Self::replace_cache_entry(git_root, &staged, target)
+        } else {
+            Self::install_cache_entry(&staged, target)
+        };
+        installed
+            .map(|()| None)
+            .map_err(|e| Error::CacheEntryNotInstalled {
+                registry: format!("{url}@{refspec}"),
+                message: e.to_string(),
+            })
+    }
+
+    /// Moves `staged` to `target`, keeping the entry instead when a concurrent
+    /// process installed one first.
+    fn install_cache_entry(staged: &Path, target: &Path) -> io::Result<()> {
+        rename(staged, target).or_else(|e| {
+            let _ = remove_dir_all(staged);
+            if target.exists() {
+                Ok(())
+            } else {
+                Err(e)
+            }
+        })
+    }
+
+    /// Replaces the entry at `target` with `staged`, restoring the previous
+    /// entry if the swap fails.
+    fn replace_cache_entry(git_root: &Path, staged: &Path, target: &Path) -> io::Result<()> {
+        let aside = sibling_cache_path(git_root, staged, ".old-");
+        if let Err(e) = rename(target, &aside) {
+            if target.exists() {
+                let _ = remove_dir_all(staged);
+                return Err(e);
+            }
+            return Self::install_cache_entry(staged, target);
+        }
+        match rename(staged, target) {
+            Ok(()) => {
+                let _ = remove_dir_all(&aside);
+                Ok(())
+            }
+            Err(e) => {
+                let _ = remove_dir_all(staged);
+                let _ = rename(&aside, target);
+                Err(e)
+            }
+        }
+    }
+
+    /// Clones `url` (optionally at `refspec`) into the existing empty directory
+    /// `dest`, checking out the requested worktree, and reports whether the
+    /// checked-out ref is immutable.
+    ///
+    /// Performs a shallow clone (depth=1) when no specific refspec is given.
+    /// When a refspec is provided, we skip shallow clone because gix's
+    /// shallow+single-branch code path assumes the ref is a branch
+    /// (refs/heads/), which breaks for tags (refs/tags/).
+    /// See upstream issue: <https://github.com/GitoxideLabs/gitoxide/issues/2554>
+    fn clone_into(url: &str, refspec: &Option<String>, dest: &Path) -> Result<RefStability, Error> {
         let prepare = PrepareFetch::new(
             url,
-            tmp_path.clone(),
+            dest,
             Kind::WithWorktree,
             create::Options {
                 destination_must_be_empty: Some(true),
@@ -732,44 +993,56 @@ impl VirtualDirectory {
                 repo_url: url.to_owned(),
                 message: format!("failed to checkout commit {sha}: {e}"),
             })?;
-        } else {
-            // Call purely for its side effect: `main_worktree` checks out the
-            // default branch onto disk at `tmp_path`, which is what the returned
-            // `VirtualDirectory` points at. We don't need the resulting
-            // `Repository` — and dropping it is safe: `main_worktree` mutates `checkout`
-            // disarming its delete-clone-on-drop guard, so the worktree files
-            // persist. Temp-dir will be cleaned up separately.
-            let _ = checkout
-                .main_worktree(progress::Discard, &AtomicBool::new(false))
-                .map_err(|e| GitError {
-                    repo_url: url.to_owned(),
-                    message: e.to_string(),
-                })?;
+            return Ok(RefStability::Immutable);
         }
 
-        // Determines the final path to the repo taking into account the sub_folder.
-        let path = if let Some(sub_folder) = sub_folder {
-            let path_to_repo = tmp_path.join(sub_folder);
+        // `main_worktree` checks out the requested ref (or the default branch)
+        // onto disk at `dest`, and mutates `checkout` to disarm its
+        // delete-clone-on-drop guard, so the worktree files persist.
+        let (repo, _) = checkout
+            .main_worktree(progress::Discard, &AtomicBool::new(false))
+            .map_err(|e| GitError {
+                repo_url: url.to_owned(),
+                message: e.to_string(),
+            })?;
 
-            // Checks the existence of the path in the repo.
-            // If the path doesn't exist, returns an error.
-            if !path_to_repo.exists() {
-                return Err(GitError {
-                    repo_url: url.to_owned(),
-                    message: format!("Path `{sub_folder}` not found in repo"),
-                });
-            }
-
-            path_to_repo
+        if refspec.is_none() {
+            return Ok(RefStability::Moving);
+        }
+        // A refspec resolves to exactly one ref, which `main_worktree` points
+        // HEAD at: `refs/tags/…` for a tag, `refs/heads/…` for a branch.
+        let checked_out_tag = repo
+            .head()
+            .ok()
+            .and_then(|head| head.referent_name().map(|name| name.as_bstr().to_string()))
+            .is_some_and(|name| name.starts_with("refs/tags/"));
+        Ok(if checked_out_tag {
+            RefStability::Immutable
         } else {
-            tmp_path
-        };
-
-        Ok(Self {
-            vdir_path,
-            path,
-            tmp_dir: Arc::new(Some(tmp_dir)),
+            RefStability::Moving
         })
+    }
+
+    /// Resolves the final content path within a cloned repository at `base`,
+    /// applying `sub_folder` if present and verifying it exists.
+    fn resolve_git_sub_folder(
+        base: &Path,
+        sub_folder: &Option<String>,
+        url: &str,
+    ) -> Result<PathBuf, Error> {
+        match sub_folder {
+            Some(sub_folder) => {
+                let path_to_repo = base.join(sub_folder);
+                if !path_to_repo.exists() {
+                    return Err(GitError {
+                        repo_url: url.to_owned(),
+                        message: format!("Path `{sub_folder}` not found in repo"),
+                    });
+                }
+                Ok(path_to_repo)
+            }
+            None => Ok(base.to_path_buf()),
+        }
     }
 
     /// Checkout a specific commit SHA in a cloned repository using gix APIs.
@@ -1146,6 +1419,7 @@ impl VirtualDirectory {
 
 #[cfg(test)]
 mod tests {
+    use super::GitCacheConfig;
     use crate::test::ServeStaticFiles;
     use crate::vdir::{VirtualDirectory, VirtualDirectoryPath};
     use crate::Error::GitError;
@@ -1799,5 +2073,561 @@ mod tests {
         assert!(!is_commit_sha("main"));
         assert!(!is_commit_sha("v1.0.0"));
         assert!(!is_commit_sha("refs/heads/main"));
+    }
+
+    #[test]
+    fn test_git_cache_key_is_stable_and_distinct() {
+        use super::git_cache_key;
+
+        let url = "https://github.com/open-telemetry/semantic-conventions.git";
+        let key = git_cache_key(url, "v1.41.0").unwrap();
+
+        // Deterministic across calls.
+        assert_eq!(key, git_cache_key(url, "v1.41.0").unwrap());
+        // Distinct per refspec and per URL.
+        assert_ne!(key, git_cache_key(url, "v1.40.0").unwrap());
+        assert_ne!(
+            key,
+            git_cache_key("https://github.com/other/repo.git", "v1.41.0").unwrap()
+        );
+        // Filesystem-safe: only alphanumerics and `-`, `.`, `_` (no path separators).
+        assert!(key
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '.' || c == '_'));
+        // Human-readable prefix aids debugging.
+        assert!(
+            key.starts_with("semantic-conventions-v1.41.0-"),
+            "unexpected key: {key}"
+        );
+
+        // A refspec holding path separators stays a single path segment.
+        let nested = git_cache_key(url, "refs/heads/my branch").unwrap();
+        assert!(
+            !nested.contains('/') && !nested.contains(std::path::MAIN_SEPARATOR),
+            "key must not contain a path separator: {nested}"
+        );
+        assert!(nested.starts_with("semantic-conventions-refs_heads_my_branch-"));
+        assert_ne!(nested, git_cache_key(url, "refs/heads/my-branch").unwrap());
+    }
+
+    #[test]
+    fn test_resolve_git_sub_folder() {
+        let base = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(base.path().join("model")).unwrap();
+
+        assert_eq!(
+            VirtualDirectory::resolve_git_sub_folder(base.path(), &None, "url").unwrap(),
+            base.path()
+        );
+        assert_eq!(
+            VirtualDirectory::resolve_git_sub_folder(base.path(), &Some("model".to_owned()), "url")
+                .unwrap(),
+            base.path().join("model")
+        );
+
+        let missing = VirtualDirectory::resolve_git_sub_folder(
+            base.path(),
+            &Some("nope".to_owned()),
+            "https://example.com/repo.git",
+        );
+        assert!(
+            matches!(&missing, Err(GitError { repo_url, .. }) if repo_url == "https://example.com/repo.git"),
+            "expected GitError, got {missing:?}"
+        );
+    }
+
+    #[test]
+    fn test_git_cache_population_fails_when_root_is_not_a_directory() {
+        use crate::Error::CacheDirNotCreated;
+
+        let cache = tempfile::tempdir().unwrap();
+        // `<cache>/git` is where entries live; a regular file there makes the
+        // cache unusable, and that must surface rather than be ignored.
+        std::fs::write(cache.path().join("git"), "not a directory").unwrap();
+
+        let result = VirtualDirectory::try_from_git_url_with_cache(
+            "https://example.com/repo.git",
+            &Some("model".to_owned()),
+            &Some("v1.0.0".to_owned()),
+            "vdir".to_owned(),
+            &GitCacheConfig {
+                root: Some(cache.path().to_path_buf()),
+                offline: false,
+                refresh: false,
+            },
+        );
+        assert!(
+            matches!(result, Err(CacheDirNotCreated { .. })),
+            "expected CacheDirNotCreated, got {result:?}"
+        );
+    }
+
+    #[test]
+    fn test_git_cache_offline_miss_errors() {
+        use crate::Error::RegistryOffline;
+
+        let cache = tempfile::tempdir().unwrap();
+        // Offline + empty cache must fail fast with `RegistryOffline` and never
+        // touch the network.
+        let result = VirtualDirectory::try_from_git_url_with_cache(
+            "https://github.com/open-telemetry/semantic-conventions.git",
+            &Some("model".to_owned()),
+            &Some("v1.26.0".to_owned()),
+            "vdir".to_owned(),
+            &GitCacheConfig {
+                root: Some(cache.path().to_path_buf()),
+                offline: true,
+                refresh: false,
+            },
+        );
+        assert!(
+            matches!(result, Err(RegistryOffline { .. })),
+            "expected RegistryOffline, got {result:?}"
+        );
+    }
+
+    #[test]
+    fn test_git_cache_hit_serves_without_network() {
+        use super::git_cache_key;
+
+        let cache = tempfile::tempdir().unwrap();
+        let url = "https://github.com/open-telemetry/semantic-conventions.git";
+        let refspec = "v1.26.0";
+
+        // Pre-seed a cached clone so the resolve needs no network.
+        let entry = cache
+            .path()
+            .join("git")
+            .join(git_cache_key(url, refspec).unwrap());
+        let model = entry.join("model");
+        std::fs::create_dir_all(&model).unwrap();
+        std::fs::write(model.join("general.yaml"), "groups: []\n").unwrap();
+
+        let vdir = VirtualDirectory::try_from_git_url_with_cache(
+            url,
+            &Some("model".to_owned()),
+            &Some(refspec.to_owned()),
+            "vdir".to_owned(),
+            &GitCacheConfig {
+                root: Some(cache.path().to_path_buf()),
+                offline: true,
+                refresh: false,
+            },
+        )
+        .expect("cache hit should succeed offline");
+
+        let path = vdir.path().to_path_buf();
+        assert_eq!(path, model);
+        assert!(path.join("general.yaml").exists());
+
+        // A cached entry must survive the virtual directory going out of scope.
+        drop(vdir);
+        assert!(path.exists(), "cached registry must not be deleted on drop");
+    }
+
+    /// Creates a tiny local git repository containing `model/general.yaml` tagged
+    /// `v0.0.1`, so the cache populate path can be exercised via a `file://` URL
+    /// with no network access (and fast enough for coverage instrumentation).
+    /// Returns the repo dir (kept alive by the caller) and its `file://` URL.
+    fn make_local_git_repo() -> (tempfile::TempDir, String) {
+        use std::process::Command;
+
+        let repo = tempfile::tempdir().unwrap();
+        let git = |args: &[&str]| {
+            let ok = Command::new("git")
+                .args(args)
+                .current_dir(repo.path())
+                .env("GIT_CONFIG_GLOBAL", "/dev/null")
+                .env("GIT_CONFIG_SYSTEM", "/dev/null")
+                .status()
+                .expect("failed to run git")
+                .success();
+            assert!(ok, "git {args:?} failed");
+        };
+
+        git(&["init", "-q", "-b", "main"]);
+        git(&["config", "user.email", "test@example.com"]);
+        git(&["config", "user.name", "Test"]);
+        std::fs::create_dir_all(repo.path().join("model")).unwrap();
+        std::fs::write(repo.path().join("model/general.yaml"), "groups: []\n").unwrap();
+        git(&["add", "."]);
+        git(&["commit", "-q", "-m", "init"]);
+        git(&["tag", "v0.0.1"]);
+
+        let url = format!("file://{}", repo.path().display());
+        (repo, url)
+    }
+
+    #[test]
+    fn test_git_cache_populates_and_reuses() {
+        use super::git_cache_key;
+
+        let (_repo, url) = make_local_git_repo();
+        let refspec = "v0.0.1";
+        let cache = tempfile::tempdir().unwrap();
+        let entry = cache
+            .path()
+            .join("git")
+            .join(git_cache_key(&url, refspec).unwrap());
+        assert!(!entry.exists());
+
+        // First call populates the cache by cloning the (local) repo.
+        let first = VirtualDirectory::try_from_git_url_with_cache(
+            &url,
+            &Some("model".to_owned()),
+            &Some(refspec.to_owned()),
+            "vdir".to_owned(),
+            &GitCacheConfig {
+                root: Some(cache.path().to_path_buf()),
+                offline: false,
+                refresh: false,
+            },
+        )
+        .expect("first call should populate the cache");
+        let first_path = first.path().to_path_buf();
+        assert!(first_path.join("general.yaml").exists());
+
+        // The populated entry must persist after drop (it is not a temp dir).
+        drop(first);
+        assert!(entry.exists());
+        assert!(first_path.exists());
+
+        // Second call is served from the cache with no fetch.
+        let second = VirtualDirectory::try_from_git_url_with_cache(
+            &url,
+            &Some("model".to_owned()),
+            &Some(refspec.to_owned()),
+            "vdir".to_owned(),
+            &GitCacheConfig {
+                root: Some(cache.path().to_path_buf()),
+                offline: true,
+                refresh: false,
+            },
+        )
+        .expect("second call should hit the cache offline");
+        assert_eq!(second.path(), first_path);
+    }
+
+    #[test]
+    fn test_git_cache_refresh_replaces_entry() {
+        use super::git_cache_key;
+
+        let (_repo, url) = make_local_git_repo();
+        let refspec = "v0.0.1";
+        let cache = tempfile::tempdir().unwrap();
+
+        // Pre-seed a stale entry under the real cache key.
+        let entry = cache
+            .path()
+            .join("git")
+            .join(git_cache_key(&url, refspec).unwrap());
+        let model = entry.join("model");
+        std::fs::create_dir_all(&model).unwrap();
+        std::fs::write(model.join("general.yaml"), "stale: true\n").unwrap();
+
+        // Refresh re-clones and atomically replaces the stale entry.
+        let refreshed = VirtualDirectory::try_from_git_url_with_cache(
+            &url,
+            &Some("model".to_owned()),
+            &Some(refspec.to_owned()),
+            "vdir".to_owned(),
+            &GitCacheConfig {
+                root: Some(cache.path().to_path_buf()),
+                offline: false,
+                refresh: true,
+            },
+        )
+        .expect("refresh should re-clone and replace the entry");
+
+        assert_eq!(
+            std::fs::read_to_string(refreshed.path().join("general.yaml")).unwrap(),
+            "groups: []\n",
+            "refresh must replace the stale content with the freshly cloned copy"
+        );
+        // No retired/staging siblings should be left behind.
+        let leftovers: Vec<_> = std::fs::read_dir(cache.path().join("git"))
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                let n = e.file_name();
+                let n = n.to_string_lossy();
+                n.starts_with(".old-") || n.starts_with(".staging-")
+            })
+            .collect();
+        assert!(
+            leftovers.is_empty(),
+            "refresh left temp dirs: {leftovers:?}"
+        );
+    }
+
+    #[test]
+    fn test_git_cache_offline_wins_over_refresh() {
+        use super::git_cache_key;
+
+        let cache = tempfile::tempdir().unwrap();
+        let url = "https://github.com/open-telemetry/semantic-conventions.git";
+        let refspec = "v1.26.0";
+
+        // Pre-seed a cached entry with sentinel content.
+        let entry = cache
+            .path()
+            .join("git")
+            .join(git_cache_key(url, refspec).unwrap());
+        let model = entry.join("model");
+        std::fs::create_dir_all(&model).unwrap();
+        std::fs::write(model.join("general.yaml"), "cached: true\n").unwrap();
+
+        // offline + refresh: offline must win, so the cached entry is served
+        // untouched with no network access instead of a re-fetch.
+        let vdir = VirtualDirectory::try_from_git_url_with_cache(
+            url,
+            &Some("model".to_owned()),
+            &Some(refspec.to_owned()),
+            "vdir".to_owned(),
+            &GitCacheConfig {
+                root: Some(cache.path().to_path_buf()),
+                offline: true,
+                refresh: true,
+            },
+        )
+        .expect("offline should override refresh and serve the cache");
+
+        assert_eq!(vdir.path(), model);
+        assert_eq!(
+            std::fs::read_to_string(model.join("general.yaml")).unwrap(),
+            "cached: true\n",
+            "cached content must be served unmodified when offline overrides refresh"
+        );
+    }
+
+    #[test]
+    fn test_git_cache_offline_refresh_miss_errors() {
+        use crate::Error::RegistryOffline;
+
+        let cache = tempfile::tempdir().unwrap();
+        let result = VirtualDirectory::try_from_git_url_with_cache(
+            "https://github.com/open-telemetry/semantic-conventions.git",
+            &Some("model".to_owned()),
+            &Some("v1.26.0".to_owned()),
+            "vdir".to_owned(),
+            &GitCacheConfig {
+                root: Some(cache.path().to_path_buf()),
+                offline: true,
+                refresh: true,
+            },
+        );
+        assert!(
+            matches!(result, Err(RegistryOffline { .. })),
+            "expected RegistryOffline, got {result:?}"
+        );
+    }
+
+    #[test]
+    fn test_source_without_refspec_is_never_cached() {
+        let (_repo, url) = make_local_git_repo();
+        let cache = tempfile::tempdir().unwrap();
+        let config = GitCacheConfig {
+            root: Some(cache.path().to_path_buf()),
+            offline: false,
+            refresh: false,
+        };
+
+        let vdir = VirtualDirectory::try_from_git_url_with_cache(
+            &url,
+            &Some("model".to_owned()),
+            &None,
+            "vdir".to_owned(),
+            &config,
+        )
+        .expect("an unpinned source should resolve through a throwaway clone");
+
+        let path = vdir.path().to_path_buf();
+        assert!(path.join("general.yaml").exists());
+        assert!(
+            vdir.tmp_dir.is_some(),
+            "an unpinned source must resolve to a temp dir, not a cache entry"
+        );
+        assert!(
+            !cache.path().join("git").exists(),
+            "an unpinned source must not create a cache entry"
+        );
+
+        drop(vdir);
+        assert!(
+            !path.exists(),
+            "the throwaway clone must be deleted on drop"
+        );
+    }
+
+    #[test]
+    fn test_branch_refspec_is_never_cached() {
+        use super::git_cache_key;
+
+        let (_repo, url) = make_local_git_repo();
+        let cache = tempfile::tempdir().unwrap();
+        let config = GitCacheConfig {
+            root: Some(cache.path().to_path_buf()),
+            offline: false,
+            refresh: false,
+        };
+
+        // `main` is a branch: it resolves to different content over time, so it
+        // must be served fresh rather than cached.
+        let vdir = VirtualDirectory::try_from_git_url_with_cache(
+            &url,
+            &Some("model".to_owned()),
+            &Some("main".to_owned()),
+            "vdir".to_owned(),
+            &config,
+        )
+        .expect("a branch refspec should resolve through a throwaway clone");
+
+        assert!(vdir.path().join("general.yaml").exists());
+        assert!(
+            vdir.tmp_dir.is_some(),
+            "a branch must resolve to a temp dir, not a cache entry"
+        );
+        let entry = cache
+            .path()
+            .join("git")
+            .join(git_cache_key(&url, "main").unwrap());
+        assert!(
+            !entry.exists(),
+            "a branch must not be installed in the cache"
+        );
+    }
+
+    #[test]
+    fn test_tag_refspec_is_cached() {
+        use super::git_cache_key;
+
+        let (_repo, url) = make_local_git_repo();
+        let cache = tempfile::tempdir().unwrap();
+        let config = GitCacheConfig {
+            root: Some(cache.path().to_path_buf()),
+            offline: false,
+            refresh: false,
+        };
+
+        let vdir = VirtualDirectory::try_from_git_url_with_cache(
+            &url,
+            &Some("model".to_owned()),
+            &Some("v0.0.1".to_owned()),
+            "vdir".to_owned(),
+            &config,
+        )
+        .expect("a tag refspec should populate the cache");
+
+        let path = vdir.path().to_path_buf();
+        assert!(
+            vdir.tmp_dir.is_none(),
+            "a tag must resolve to a cache entry"
+        );
+        let entry = cache
+            .path()
+            .join("git")
+            .join(git_cache_key(&url, "v0.0.1").unwrap());
+        assert!(entry.exists());
+
+        drop(vdir);
+        assert!(path.exists(), "a cache entry must survive drop");
+    }
+
+    #[test]
+    fn test_disabled_cache_uses_throwaway_clone() {
+        let (_repo, url) = make_local_git_repo();
+        let vdir = VirtualDirectory::try_from_git_url_with_cache(
+            &url,
+            &Some("model".to_owned()),
+            &Some("v0.0.1".to_owned()),
+            "vdir".to_owned(),
+            &GitCacheConfig::default(),
+        )
+        .expect("the default config disables the cache");
+
+        let path = vdir.path().to_path_buf();
+        assert!(vdir.tmp_dir.is_some());
+        drop(vdir);
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn test_configure_git_cache_round_trip() {
+        use super::{configure_git_cache, git_cache_config};
+
+        assert!(git_cache_config().root.is_none());
+        // A `None` root leaves the cache disabled, so this cannot change how any
+        // concurrently running test resolves a git source.
+        configure_git_cache(None, true, true);
+        let config = git_cache_config();
+        assert!(config.root.is_none());
+        assert!(config.offline);
+        assert!(config.refresh);
+
+        configure_git_cache(None, false, false);
+        assert!(!git_cache_config().offline);
+        assert!(!git_cache_config().refresh);
+    }
+
+    #[test]
+    fn test_populate_keeps_entry_installed_by_a_concurrent_process() {
+        use super::git_cache_key;
+
+        let (_repo, url) = make_local_git_repo();
+        let cache = tempfile::tempdir().unwrap();
+        let git_root = cache.path().join("git");
+        let target = git_root.join(git_cache_key(&url, "v0.0.1").unwrap());
+        // Another process finished its clone between our cache miss and our install.
+        std::fs::create_dir_all(target.join("model")).unwrap();
+        std::fs::write(target.join("model/general.yaml"), "winner: true\n").unwrap();
+
+        let staging =
+            VirtualDirectory::populate_git_cache(&url, "v0.0.1", &git_root, &target, false)
+                .expect("losing the install race must not fail");
+
+        assert!(staging.is_none());
+        assert_eq!(
+            std::fs::read_to_string(target.join("model/general.yaml")).unwrap(),
+            "winner: true\n",
+            "the winner's entry must be kept, not swapped out"
+        );
+        let leftovers: Vec<_> = std::fs::read_dir(&git_root)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path != &target)
+            .collect();
+        assert!(leftovers.is_empty(), "staging left behind: {leftovers:?}");
+    }
+
+    #[test]
+    fn test_replace_installs_when_entry_is_already_gone() {
+        let git_root = tempfile::tempdir().unwrap();
+        let staged = git_root.path().join(".staging-abc");
+        std::fs::create_dir_all(&staged).unwrap();
+        std::fs::write(staged.join("general.yaml"), "fresh: true\n").unwrap();
+        let target = git_root.path().join("entry");
+
+        VirtualDirectory::replace_cache_entry(git_root.path(), &staged, &target)
+            .expect("a refresh racing another refresh must still install");
+
+        assert_eq!(
+            std::fs::read_to_string(target.join("general.yaml")).unwrap(),
+            "fresh: true\n"
+        );
+        assert!(!staged.exists());
+    }
+
+    #[test]
+    fn test_sibling_cache_path_is_unique_and_prefixed() {
+        use super::sibling_cache_path;
+        use std::path::Path;
+
+        let git_root = Path::new("/tmp/weaver-cache/git");
+        let staged = git_root.join(".staging-abc123");
+        let aside = sibling_cache_path(git_root, &staged, ".old-");
+
+        // Sibling under the same root, `.old-` prefix, reusing the unique suffix.
+        assert_eq!(aside, git_root.join(".old-abc123"));
+        assert_ne!(aside, staged);
     }
 }

@@ -44,6 +44,9 @@ Manage semantic convention registry and telemetry schema workflows (OpenTelemetr
 * `--future` — Enable the most recent validation rules for the semconv registry. It is recommended to enable this flag when checking a new registry. Note: `semantic_conventions` main branch should always enable this flag
 * `--allow-git-credentials` — Allow git credential helpers when cloning registries from private repositories. By default, git operations are isolated and cannot access global git config or credential helpers. Enable this flag to authenticate with private registries using your system's configured git credential helpers (e.g., osxkeychain, git-credential-manager)
 * `--config <CONFIG>` — Path to a `.weaver.toml` project config file. When set, skips the upward-walk discovery from the current working directory
+* `--registry-cache-dir <PATH>` — Directory in which to cache Git registries so they are cloned once and reused across invocations, instead of re-cloned on every command. Only a source pinned with `@<refspec>` that resolves to a commit or a tag is cached; a branch, and a URL with no refspec, keep tracking the remote. When omitted, git registries are cloned into a throwaway temporary directory (the default behavior)
+* `--registry-cache-offline` — Serve cached Git registries without network access: a cache miss becomes an error instead of a clone. A branch refspec is never cached, so it always fails. Does not restrict any other download
+* `--registry-cache-refresh` — Re-fetch and atomically replace a cached Git registry entry even on a cache hit. Ignored when `--registry-cache-offline` is set
 
 
 
