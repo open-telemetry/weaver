@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Support virtual-directory format for `--advice-policies` and `--advice-data` in live-check. ([#1760](https://github.com/open-telemetry/weaver/pull/1760) by @lmolkova)
 - 💥 BREAKING CHANGE 💥 `registry live-check --output http`: `POST /stop` no longer returns the report. It stops the run and returns once the report is ready. Read the report with the new `GET /report`, then end the process with the new `POST /shutdown`. Reading the report is no longer tied to the process exiting, so large reports are never truncated. In this mode `--inactivity-timeout` is ignored: the client owns the run. Fixes [#1657](https://github.com/open-telemetry/weaver/issues/1657). ([#1770](https://github.com/open-telemetry/weaver/pull/1770) by @jerbly)
 - Live-check reports now retain OTLP context on their samples, including span and log trace IDs, timestamps, span-event and link context, and metric data-point timing. OTLP finding logs are correlated with their source spans. ([#1749](https://github.com/open-telemetry/weaver/pull/1749) by @clarsen)
 - Live-check matchers ([#1721](https://github.com/open-telemetry/weaver/pull/1721) by @jerbly)
