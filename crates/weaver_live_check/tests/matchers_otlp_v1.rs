@@ -23,6 +23,8 @@
 //! cargo nextest run -p weaver_live_check emit_to_a_running_live_check \
 //!   --run-ignored ignored-only
 //! curl -X POST http://localhost:4320/stop
+//! curl http://localhost:4320/report
+//! curl -X POST http://localhost:4320/shutdown
 //! ```
 
 mod common;

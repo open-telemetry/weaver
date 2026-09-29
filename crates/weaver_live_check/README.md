@@ -72,12 +72,19 @@ OTLP live-check is particularly useful in CI/CD pipelines to evaluate the qualit
 
 This `Ingester` starts an OTLP listener and streams each received OTLP message to the `Advisors`. The currently supported stop conditions are: CTRL+C (SIGINT), SIGHUP, the HTTP /stop endpoint, and a maximum duration of no OTLP message reception. See the usage examples later in this document.
 
+The admin port serves a small HTTP API, described in [Driving live-check over HTTP](docs/http-api.md):
+
+- `GET /health`: `200` once the listener is up.
+- `POST /stop`: stops receiving and returns once the report is ready, as `{"state":"stopped","report":true|false}`. `report` is `true` when `--output=http` is set.
+- `GET /report`: the report, with `--output=http`. `409` while still receiving, or once the process is shutting down.
+- `POST /shutdown`: ends the process. Stops the run first if it is still receiving.
+
 Options for OTLP ingest:
 
 - `--otlp-grpc-address`: Address the gRPC OTLP listener binds to. Defaults to `127.0.0.1` (loopback only); set it to a specific interface address, or to `0.0.0.0` to listen on all of them. The admin listener binds to the same address.
-- `--otlp-grpc-port`: Port used by the gRPC OTLP listener
-- `--admin-port`: Port used by the HTTP admin port (endpoints: /stop)
-- `--inactivity-timeout`: Max inactivity time in seconds before stopping the listener
+- `--otlp-grpc-port`: Port used by the gRPC OTLP listener. `0` picks a free port, which the startup log reports.
+- `--admin-port`: Port used by the HTTP admin port (endpoints: /health, /stop, /report, /shutdown). Must differ from the gRPC port.
+- `--inactivity-timeout`: Max inactivity time in seconds before stopping the listener. Ignored with `--output=http`, where the client stops the run.
 
 ## Matchers
 
@@ -304,7 +311,13 @@ The output follows existing Weaver paradigms providing overridable jinja templat
 
 By default the output is streamed (when available) to an `ansi` template. Use the `--format` option to pick one of the builtin standard formats: `json`, `jsonl` and `yaml` or a template name. To override streaming and only produce a report when the input is closed, use `--no-stream`. Streaming is automatically disabled if your `--output` is a path to a directory; by default, output is printed to stdout.
 
-Set `--output=http` to have the report sent as the response to the `/stop` endpoint on the admin port.
+Set `--output=http` to serve the report over the admin API instead of writing it:
+
+1. `POST /stop` ends the run and returns once the report is ready.
+2. `GET /report` returns the report, as often as you like.
+3. `POST /shutdown` ends the process.
+
+The process stays up until step 3, so a client can read a large report at its own pace. See [Driving live-check over HTTP](docs/http-api.md) for the sequence diagram and a worked script. In this mode the client owns the run: `--inactivity-timeout` is ignored (with a warning if set) and weaver never stops or exits on its own. A signal still stops the run, and a second signal ends the process. The report is only ever served from `/report`; if the process exits before anyone reads it, the report is gone.
 
 To provide your own custom templates use the `--templates` option.
 
