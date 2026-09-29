@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 - Config sections are checked when they are read. A command section in `.weaver.toml` that does not deserialize, or an unknown key under `[live-check]`, now stops the run instead of being ignored. ([#1721](https://github.com/open-telemetry/weaver/pull/1721) by @jerbly)
 - 💥 BREAKING CHANGE 💥 Fixes [#1741](https://github.com/open-telemetry/weaver/issues/1741) `registry infer` renames `--grpc-address` and `--grpc-port` to `--otlp-grpc-address` and `--otlp-grpc-port` to match `registry live-check`. Its listener settings move from `[infer]` to `[infer.otlp]` (`grpc_address`, `grpc_port`, `admin_port`, `inactivity_timeout`), the same shape as `[live-check.otlp]`, and an unknown key under `[infer]` now stops the run. ([#1780](https://github.com/open-telemetry/weaver/pull/1780) by @jerbly)
 - Fix findings on resource samples being emitted without the resource's attributes. ([#1612](https://github.com/open-telemetry/weaver/pull/1612) by @fabiovincenzi)
+- Fix: a `ref` to an attribute of a published (packaged) dependency resolving as `required` when it sets no `requirement_level`. It now takes the default, `recommended`, as it already did when the dependency is resolved from source. A new signal, an attribute group, or a refinement adding an attribute its parent does not carry were all affected. ([#1789](https://github.com/open-telemetry/weaver/pull/1789) by @jerbly)
 
 # [0.26.1] - 2026-09-02
 

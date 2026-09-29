@@ -1034,6 +1034,17 @@ mod tests {
         assert_resolved_v2_schema("data/registry-test-v2-dep/deep_registry")
     }
 
+    /// A `ref` to an attribute of a published dependency that sets no
+    /// `requirement_level` takes the default, `recommended` - on a new signal,
+    /// on an attribute group, and on a refinement that introduces an attribute
+    /// its parent does not carry. Resolving the dependency from source already
+    /// does this; a published dependency must not differ.
+    #[test]
+    fn test_v2_published_dependency_bare_ref_defaults_to_recommended(
+    ) -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/bare_ref_registry")
+    }
+
     /// An attribute a dependency inherited rather than defined reaches this
     /// registry only through the signals that carry it. Refining such a signal
     /// must not turn the attribute into something a bare `ref` can resolve
