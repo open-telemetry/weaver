@@ -56,10 +56,7 @@ impl WeaverMcpService {
     /// Create a new MCP service with the given registry and configuration.
     #[must_use]
     pub fn new(registry: Arc<ForgeResolvedRegistry>, config: McpConfig) -> Self {
-        let search_context = Arc::new(SearchContext::from_registry_with_separator(
-            &registry,
-            config.namespace_separator.clone(),
-        ));
+        let search_context = Arc::new(SearchContext::from_registry(&registry));
 
         // Create versioned registry wrapper once for live check
         let versioned_registry = Arc::new(VersionedRegistry::V2(Box::new((*registry).clone())));

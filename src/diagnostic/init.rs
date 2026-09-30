@@ -96,7 +96,6 @@ mod tests {
             future: false,
             allow_git_credentials: false,
             config: None,
-            namespace_separator: None,
             command: Some(Commands::Diagnostic(DiagnosticCommand {
                 command: DiagnosticSubCommand::Init(DiagnosticInitArgs {
                     target: "".to_owned(),
@@ -124,7 +123,6 @@ mod tests {
             future: false,
             allow_git_credentials: false,
             config: None,
-            namespace_separator: None,
             command: Some(Commands::Diagnostic(DiagnosticCommand {
                 command: DiagnosticSubCommand::Init(DiagnosticInitArgs {
                     target: "json".to_owned(),

@@ -245,7 +245,6 @@ mod tests {
             future: false,
             allow_git_credentials: false,
             config: None,
-            namespace_separator: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
                     target: Some("rust".to_owned()),
@@ -322,7 +321,6 @@ mod tests {
             future: false,
             allow_git_credentials: false,
             config: None,
-            namespace_separator: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
                     target: Some("rust".to_owned()),
@@ -362,7 +360,6 @@ mod tests {
             future: false,
             allow_git_credentials: false,
             config: None,
-            namespace_separator: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
                     target: Some("rust".to_owned()),
@@ -476,7 +473,6 @@ mod tests {
                 future: false,
                 allow_git_credentials: false,
                 config: None,
-                namespace_separator: None,
                 command: Some(Commands::Registry(RegistryCommand {
                     command: RegistrySubCommand::Generate(RegistryGenerateArgs {
                         target: Some("rust".to_owned()),
@@ -552,7 +548,6 @@ mod tests {
             future: false,
             allow_git_credentials: false,
             config: None,
-            namespace_separator: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
                     target: Some("markdown".to_owned()),

@@ -246,7 +246,6 @@ mod tests {
             future: false,
             allow_git_credentials: false,
             config: None,
-            namespace_separator: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
                     markdown_dir: Some("data/update_markdown/markdown".to_owned()),
@@ -291,7 +290,6 @@ mod tests {
             future: false,
             allow_git_credentials: false,
             config: None,
-            namespace_separator: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
                     markdown_dir: Some("data/update_markdown/markdown".to_owned()),
@@ -335,7 +333,6 @@ mod tests {
             future: false,
             allow_git_credentials: false,
             config: None,
-            namespace_separator: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
                     markdown_dir: Some(markdown_dir.to_owned()),
@@ -407,7 +404,6 @@ mod tests {
             future: false,
             allow_git_credentials: false,
             config: None,
-            namespace_separator: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
                     markdown_dir: Some(markdown_dir.to_str().unwrap().to_owned()),
@@ -437,7 +433,6 @@ mod tests {
             future: false,
             allow_git_credentials: false,
             config: None,
-            namespace_separator: None,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
                     markdown_dir: Some(markdown_dir.to_str().unwrap().to_owned()),

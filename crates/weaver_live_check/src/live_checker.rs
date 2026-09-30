@@ -10,8 +10,6 @@ use std::sync::Arc;
 use weaver_semconv::v1::{attribute::AttributeType, group::GroupType};
 use weaver_semconv::v2::attribute::AttributeType as V2AttributeType;
 
-use weaver_common::namespace::namespace_separator;
-
 use crate::cel::Matchable;
 use crate::{
     advice::Advisor,
@@ -34,16 +32,19 @@ type AttributeIndex = HashMap<String, Rc<VersionedAttribute>>;
 /// Signal attributes, keyed by signal id and then by attribute key.
 type RefinedAttributes = HashMap<String, AttributeIndex>;
 
+/// The separator between an attribute key's namespaces.
+const NAMESPACE_SEPARATOR: &str = ".";
+
 /// Whether `key` is an instance of the template attribute named `template_key`:
 /// the template name, the namespace separator, then a non-empty remainder. A
 /// template name that already ends with the separator does not need a second
 /// one.
-#[must_use]
-pub fn key_extends_template(key: &str, template_key: &str) -> bool {
-    let separator = namespace_separator();
-    let template_key = template_key.strip_suffix(separator).unwrap_or(template_key);
+pub(crate) fn key_extends_template(key: &str, template_key: &str) -> bool {
+    let template_key = template_key
+        .strip_suffix(NAMESPACE_SEPARATOR)
+        .unwrap_or(template_key);
     key.strip_prefix(template_key)
-        .and_then(|rest| rest.strip_prefix(separator))
+        .and_then(|rest| rest.strip_prefix(NAMESPACE_SEPARATOR))
         .is_some_and(|rest| !rest.is_empty())
 }
 

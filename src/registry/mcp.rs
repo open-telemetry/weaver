@@ -49,12 +49,6 @@ pub struct RegistryMcpArgs {
     #[arg(long)]
     #[config]
     pub advice_data: Option<VirtualDirectoryPath>,
-
-    /// Namespace separator used in attribute keys. Defaults to ".".
-    /// Used by namespace browsing and search token splitting.
-    #[arg(long)]
-    #[config(default = ".")]
-    pub namespace_separator: Option<String>,
 }
 
 /// Run the MCP server for the semantic convention registry.
@@ -104,7 +98,6 @@ pub(crate) fn command(
             .transpose()
             .map_err(DiagnosticMessages::from_error)?,
         advice_preprocessor: cmd_config.config.advice_preprocessor,
-        namespace_separator: namespace_separator().to_owned(),
     };
 
     // Run the MCP server
