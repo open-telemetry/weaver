@@ -1,0 +1,163 @@
+file_format: resolved/2.0
+schema_url: https://signal-import-consumer.example.com/schemas/1.0.0
+attribute_catalog:
+- key: host.arch
+  type: string
+  examples:
+  - amd64
+  brief: Host architecture.
+  stability: stable
+  provenance:
+    source: 0
+- key: host.id
+  type: string
+  examples:
+  - fdbf79e8af94cb7f9e8df36789187052
+  brief: Unique host ID.
+  stability: stable
+  provenance:
+    source: 0
+- key: host.name
+  type: string
+  examples:
+  - opentelemetry-test
+  brief: Name of the host.
+  stability: stable
+  provenance:
+    source: 0
+- key: server.address
+  type: string
+  examples:
+  - example.com
+  brief: Different brief
+  note: Different note
+  stability: stable
+  provenance:
+    source: 0
+- key: server.port
+  type: int
+  examples:
+  - 80
+  - 443
+  brief: Server port.
+  stability: stable
+  provenance:
+    source: 0
+registry:
+  # Every attribute arrived with an imported signal and is defined by the
+  # dependency (see each catalog entry's provenance), so none is listed here.
+  attributes: []
+  attribute_groups: []
+  spans:
+  - type: server.request
+    kind: server
+    name:
+      note: Server request span name.
+    attributes:
+    - base: 3
+      requirement_level: required
+      sampling_relevant: true
+    - base: 4
+      requirement_level: recommended
+    brief: A server request span.
+    stability: stable
+    provenance:
+      source: 0
+  metrics:
+  - name: server.request.duration
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 3
+      requirement_level: required
+    - base: 4
+      requirement_level: recommended
+    brief: Duration of server requests.
+    stability: stable
+    provenance:
+      source: 0
+  events:
+  - name: server.error
+    attributes:
+    - base: 3
+      requirement_level: required
+    - base: 4
+      requirement_level: recommended
+    brief: A server error event.
+    stability: stable
+    provenance:
+      source: 0
+  entities:
+  - type: host
+    identity:
+    - base: 0
+      requirement_level: recommended
+    - base: 1
+      requirement_level: required
+    description:
+    - base: 2
+      requirement_level: recommended
+    brief: A host.
+    stability: stable
+    provenance:
+      source: 0
+refinements:
+  spans:
+  - id: server.request
+    type: server.request
+    kind: server
+    name:
+      note: Server request span name.
+    attributes:
+    - base: 3
+      requirement_level: required
+      sampling_relevant: true
+    - base: 4
+      requirement_level: recommended
+    brief: A server request span.
+    stability: stable
+    provenance:
+      source: 0
+  metrics:
+  - id: server.request.duration
+    name: server.request.duration
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 3
+      requirement_level: required
+    - base: 4
+      requirement_level: recommended
+    brief: Duration of server requests.
+    stability: stable
+    provenance:
+      source: 0
+  events:
+  - id: server.error
+    name: server.error
+    attributes:
+    - base: 3
+      requirement_level: required
+    - base: 4
+      requirement_level: recommended
+    brief: A server error event.
+    stability: stable
+    provenance:
+      source: 0
+  entities:
+  - id: host
+    type: host
+    identity:
+    - base: 0
+      requirement_level: recommended
+    - base: 1
+      requirement_level: required
+    description:
+    - base: 2
+      requirement_level: recommended
+    brief: A host.
+    stability: stable
+    provenance:
+      source: 0
+dependencies:
+- https://server.example.com/schemas/1.0.0
