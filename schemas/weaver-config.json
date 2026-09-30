@@ -332,11 +332,6 @@
             "null"
           ],
           "default": null
-        },
-        "namespace_separator": {
-          "description": "Namespace separator used in attribute keys. Defaults to \".\".\nUsed by namespace browsing and search token splitting.\n[default: .]",
-          "type": "string",
-          "default": "."
         }
       }
     },

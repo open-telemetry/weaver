@@ -585,7 +585,6 @@ The server communicates over stdio using JSON-RPC.
 * `--advice-policies <ADVICE_POLICIES>` — Advice policies directory or virtual directory. Set this to override the default policies
 * `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego
 * `--advice-data <ADVICE_DATA>` — Virtual directory, file, or glob pattern pointing to additional JSON/YAML files to load into OPA rego data. Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user)
-* `--namespace-separator <NAMESPACE_SEPARATOR>` — Namespace separator used in attribute keys. Defaults to ".". Used by namespace browsing and search token splitting. [default: .]
 
 
 
