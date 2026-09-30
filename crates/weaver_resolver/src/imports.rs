@@ -868,6 +868,11 @@ fn import_v2_attributes<'a, C: crate::SchemaCacheLookup>(
 /// resolving the same dependency from source does. Without it, the importing
 /// registry would take the attribute for one of its own definitions. The
 /// catalog supplies the descriptive fields; the signal's ref sets the rest.
+///
+/// The fields are recorded with the same `AttributeLineage` methods that resolve
+/// a ref from source, so the two agree. Each method returns the merged field
+/// value rather than `self`, so they can't be chained; only the lineage they
+/// record is needed here.
 fn imported_attribute_lineage(schema_url: &SchemaUrl, attr: &Attribute) -> AttributeLineage {
     let mut lineage = AttributeLineage::new(&format!("v2_dependency.{}", schema_url.name()));
     _ = lineage.brief(&None, &attr.brief);
@@ -1743,6 +1748,49 @@ mod tests {
             .expect("attribute_group should be upgraded");
         assert_eq!(upgraded_ag.id, "attribute_group.e");
         assert_eq!(upgraded_ag.attributes.len(), 1);
+
+        // Every other signal type is rebuilt from the chosen version too, and
+        // keeps its attributes recorded as references to the registry that
+        // defines them, as a fresh import does.
+        let mut upgraded_groups = vec![upgraded, upgraded_ag];
+        for (id, r#type) in [
+            ("event.b", weaver_semconv::v1::group::GroupType::Event),
+            ("entity.c", weaver_semconv::v1::group::GroupType::Entity),
+            ("span.d", weaver_semconv::v1::group::GroupType::Span),
+        ] {
+            let old = Group {
+                id: id.to_owned(),
+                r#type,
+                name: Some(id.to_owned()),
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                ..group.clone()
+            };
+            let upgraded = upgrade_imported_group(&old, &old_url, &mut catalog, &lookup)?
+                .unwrap_or_else(|| panic!("{id} should be upgraded"));
+            assert_eq!(upgraded.id, id);
+            upgraded_groups.push(upgraded);
+        }
+        for upgraded in &upgraded_groups {
+            let lineage = upgraded
+                .lineage
+                .as_ref()
+                .unwrap_or_else(|| panic!("{} should carry its lineage", upgraded.id));
+            for ar in &upgraded.attributes {
+                let attr = catalog
+                    .attribute(ar)
+                    .expect("upgraded attribute should exist in the catalog");
+                assert!(
+                    lineage
+                        .attribute(&attr.name)
+                        .is_some_and(|l| l.source_group.starts_with("v2_dependency.")),
+                    "{} should record `{}` as a reference to its dependency",
+                    upgraded.id,
+                    attr.name
+                );
+            }
+        }
 
         Ok(())
     }
