@@ -20,9 +20,9 @@ attribute_catalog:
   provenance:
     source: 0
 registry:
-  attributes:
-  - 0
-  - 1
+  # Both attributes arrived with the imported span and are defined by the
+  # dependency, so neither is listed here.
+  attributes: []
   attribute_groups: []
   spans:
   - type: server.request
