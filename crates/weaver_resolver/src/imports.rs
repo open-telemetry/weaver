@@ -26,7 +26,9 @@ use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::v2::Signal;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v1::attribute::{AttributeRole, RequirementLevel};
-use weaver_semconv::v1::group::{GroupType, GroupWildcard, ImportsWithProvenance};
+use weaver_semconv::v1::group::{
+    AttributeGroupVisibilitySpec, GroupType, GroupWildcard, ImportsWithProvenance,
+};
 use weaver_semconv::v1::semconv::Imports;
 
 use crate::{
@@ -903,6 +905,10 @@ fn imported_v2_group(
     for (name, attr_lineage) in attributes.lineage {
         lineage.add_attribute_lineage(name, attr_lineage);
     }
+    // A published registry holds only public attribute groups, so an imported
+    // one is public; without it, the group is left out of the resolved registry.
+    let visibility =
+        matches!(r#type, GroupType::AttributeGroup).then_some(AttributeGroupVisibilitySpec::Public);
     Group {
         id,
         r#type,
@@ -925,7 +931,7 @@ fn imported_v2_group(
         body: None,
         annotations: Some(common.annotations.clone()),
         entity_associations: vec![],
-        visibility: None,
+        visibility,
         is_v2: true,
         span_name: None,
     }
@@ -1556,6 +1562,14 @@ mod tests {
             }
         }
 
+        // A published attribute group is public, so the import keeps it public;
+        // visibility means nothing on a signal.
+        assert_eq!(
+            group("attribute_group.e").visibility,
+            Some(weaver_semconv::v1::group::AttributeGroupVisibilitySpec::Public)
+        );
+        assert!(group("metric.a").visibility.is_none());
+
         Ok(())
     }
 
@@ -1748,6 +1762,10 @@ mod tests {
             .expect("attribute_group should be upgraded");
         assert_eq!(upgraded_ag.id, "attribute_group.e");
         assert_eq!(upgraded_ag.attributes.len(), 1);
+        assert_eq!(
+            upgraded_ag.visibility,
+            Some(weaver_semconv::v1::group::AttributeGroupVisibilitySpec::Public)
+        );
 
         // Every other signal type is rebuilt from the chosen version too, and
         // keeps its attributes recorded as references to the registry that

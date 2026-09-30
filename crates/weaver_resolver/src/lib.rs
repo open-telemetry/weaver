@@ -1024,6 +1024,16 @@ mod tests {
         assert_resolved_v2_schema("data/registry-test-v2-dep/signal_import_registry")
     }
 
+    /// Importing an attribute group from a published dependency keeps it in the
+    /// resolved `attribute_groups`, with its requirement levels. Every group in a
+    /// published registry is public; resolving the dependency from source already
+    /// keeps the imported group.
+    #[test]
+    fn test_v2_published_dependency_import_keeps_attribute_group(
+    ) -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/group_import_registry")
+    }
+
     /// End-to-end test for an event refinement over a v2 dependency
     #[test]
     fn test_v2_dependency_event_refinement_inherits_attributes() -> Result<(), weaver_semconv::Error>

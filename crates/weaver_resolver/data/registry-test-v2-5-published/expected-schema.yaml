@@ -22,6 +22,18 @@ registry:
   - 0
   - 1
   attribute_groups:
+  # Imported from the published dependency by `imports: attribute_groups:
+  # [imported.*]`. A published group is public, so it stays in the resolved
+  # registry, as it does when the dependency is resolved from source.
+  - id: imported.group.a
+    attributes:
+    - base: 2
+      requirement_level: recommended
+    brief: a fun group
+    note: a group note
+    stability: stable
+    provenance:
+      source: 0
   - id: local.group
     attributes:
     - base: 1
