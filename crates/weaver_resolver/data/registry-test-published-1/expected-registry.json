@@ -113,7 +113,7 @@
       "note": "my fun span",
       "stability": "beta",
       "attributes": [
-        0
+        2
       ],
       "span_kind": "client",
       "name": "my-span",

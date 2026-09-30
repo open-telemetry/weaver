@@ -32,7 +32,6 @@
 //!
 //! - `source`: Can be a local path (`/path/to/dir`, `./archive.zip`) or a URL (`https://...`).
 //! - `@refspec`: (Optional) For Git repositories, specifies a tag, branch, or commit hash.
-//!   *(Note: Currently, fetching specific refspecs is not fully implemented)*.
 //! - `[sub_folder]`: (Optional) Specifies a directory *within* the source (archive or Git repo)
 //!   that should become the root of the virtual directory.
 //!
@@ -321,10 +320,11 @@ static REGISTRY_REGEX: Lazy<Regex> = Lazy::new(|| {
 ///
 /// Paths may optionally specify:
 /// - A sub-folder within the archive or repository via `[sub_folder]`
-/// - [Not Yet Implemented] A specific Git refspec (branch, tag, or commit) via `@refspec`
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+/// - A specific Git refspec (branch, tag, or commit) via `@refspec`
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(try_from = "String")]
 #[serde(into = "String")]
+#[schemars(with = "String")]
 pub enum VirtualDirectoryPath {
     /// A virtual directory representing a local folder.
     LocalFolder {
@@ -600,8 +600,23 @@ enum CheckoutError {
     #[error(transparent)]
     WriteIndex(#[from] gix::index::file::write::Error),
 }
-
 impl VirtualDirectory {
+    /// Resolve an optional [`VirtualDirectoryPath`] with no HTTP credentials configured.
+    pub fn try_from_opt(vdir_path: Option<&VirtualDirectoryPath>) -> Result<Option<Self>, Error> {
+        Self::try_from_opt_with_auth(vdir_path, &HttpAuthResolver::empty())
+    }
+
+    /// Resolve an optional [`VirtualDirectoryPath`], using `auth` to look up Bearer
+    /// credentials for any remote HTTP fetches.
+    pub fn try_from_opt_with_auth(
+        vdir_path: Option<&VirtualDirectoryPath>,
+        auth: &HttpAuthResolver,
+    ) -> Result<Option<Self>, Error> {
+        vdir_path
+            .map(|p| Self::try_new_with_auth(p, auth))
+            .transpose()
+    }
+
     /// Resolve a [`VirtualDirectoryPath`] with no HTTP credentials configured.
     /// For remote paths behind private registries, use [`Self::try_new_with_auth`].
     pub fn try_new(vdir_path: &VirtualDirectoryPath) -> Result<Self, Error> {
@@ -1104,6 +1119,26 @@ impl VirtualDirectory {
         self.path.as_path()
     }
 
+    /// Returns the local filesystem path as a `PathBuf`.
+    #[must_use]
+    pub fn path_buf(&self) -> PathBuf {
+        self.path.clone()
+    }
+
+    /// Returns the local filesystem path as a string slice.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidVirtualDirectory`] if the path is not valid UTF-8.
+    pub fn path_str(&self) -> Result<&str, Error> {
+        self.path
+            .to_str()
+            .ok_or_else(|| Error::InvalidVirtualDirectory {
+                path: self.vdir_path.clone(),
+                error: "resolved path is not valid UTF-8".to_owned(),
+            })
+    }
+
     /// Returns the original string representation that was used to create this `VirtualDirectory`.
     #[must_use]
     pub fn vdir_path_str(&self) -> &str {
@@ -1148,8 +1183,44 @@ impl VirtualDirectory {
 mod tests {
     use crate::test::ServeStaticFiles;
     use crate::vdir::{VirtualDirectory, VirtualDirectoryPath};
-    use crate::Error::GitError;
-    use std::path::Path;
+    use crate::Error::{GitError, InvalidVirtualDirectory};
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn test_optional_virtual_directory() {
+        assert!(VirtualDirectory::try_from_opt(None).unwrap().is_none());
+
+        let vdir_path = VirtualDirectoryPath::LocalFolder {
+            path: "path/to/registry".to_owned(),
+        };
+        let vdir = VirtualDirectory::try_from_opt(Some(&vdir_path))
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(vdir.path(), Path::new("path/to/registry"));
+        assert_eq!(vdir.path_buf(), PathBuf::from("path/to/registry"));
+        assert_eq!(vdir.path_str().unwrap(), "path/to/registry");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_non_utf8_virtual_directory_path() {
+        use std::ffi::OsString;
+        use std::os::unix::ffi::OsStringExt;
+        use std::sync::Arc;
+
+        let vdir = VirtualDirectory {
+            vdir_path: "invalid-path".to_owned(),
+            path: PathBuf::from(OsString::from_vec(vec![0xff])),
+            tmp_dir: Arc::new(None),
+        };
+
+        assert!(matches!(
+            vdir.path_str(),
+            Err(InvalidVirtualDirectory { path, error })
+                if path == "invalid-path" && error == "resolved path is not valid UTF-8"
+        ));
+    }
 
     #[test]
     fn test_virtual_directory_path() {
