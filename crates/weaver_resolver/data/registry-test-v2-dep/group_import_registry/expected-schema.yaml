@@ -19,11 +19,9 @@ attribute_catalog:
   provenance:
     source: 0
 registry:
-  # Imported attributes are still listed here until #1790 lands; after it,
-  # this list is empty.
-  attributes:
-  - 0
-  - 1
+  # Both attributes arrived with the imported group and are defined by the
+  # dependency, so neither is listed here.
+  attributes: []
   attribute_groups:
   # Imported from the published dependency, with its requirement levels.
   - id: server.common
