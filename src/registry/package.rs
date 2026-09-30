@@ -11,8 +11,8 @@ use log::info;
 use weaver_common::log_success;
 
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
-use weaver_semconv::manifest::{PublicationRegistryManifest, RegistryManifest};
 use weaver_semconv::registry_repo::RegistryRepo;
+use weaver_semconv::v2::manifest::{PublicationRegistryManifest, RegistryManifest};
 
 use crate::registry::{load_config, Error, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
@@ -105,12 +105,12 @@ pub(crate) fn command(
     diag_msgs.extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
 
     // we require a definition manifest file to be present for packaging
-    let manifest = repo
-        .manifest()
-        .ok_or_else(|| Error::PackagingRequiresManifest {
-            registry: registry_path.to_string(),
-        })?
-        .clone();
+    let manifest =
+        repo.v2_manifest()
+            .transpose()?
+            .ok_or_else(|| Error::PackagingRequiresManifest {
+                registry: registry_path.to_string(),
+            })?;
 
     let definition_manifest = match manifest {
         RegistryManifest::Definition(m) => m,
@@ -161,7 +161,7 @@ pub(crate) fn command(
 mod tests {
     use super::*;
     use weaver_common::vdir::VirtualDirectoryPath;
-    use weaver_semconv::manifest::PUBLICATION_MANIFEST_FILE_FORMAT;
+    use weaver_semconv::v2::manifest::PUBLICATION_MANIFEST_FILE_FORMAT;
 
     use crate::registry::{PolicyArgs, RegistryArgs};
 

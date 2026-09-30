@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: base
 description: >
   Defines the `host` entity and a refinement of it. A dependent may associate

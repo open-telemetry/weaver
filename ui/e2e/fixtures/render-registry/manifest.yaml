@@ -1,4 +1,4 @@
-name: weaver-render-fixture
+file_format: definition_manifest/2.0
 description: >
   Dependency-free registry for the UI e2e tests. Exercises every field and enum
   variant the detail pages render. Keep in sync with e2e/render.spec.ts.

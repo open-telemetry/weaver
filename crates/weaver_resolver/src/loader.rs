@@ -13,11 +13,11 @@ use walkdir::DirEntry;
 use weaver_common::result::WResult;
 use weaver_resolved_schema::v1::ResolvedTelemetrySchema as V1Schema;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
-use weaver_semconv::manifest::Dependency;
-use weaver_semconv::registry_repo::{RegistryRepo, LEGACY_REGISTRY_MANIFEST, REGISTRY_MANIFEST};
+use weaver_semconv::registry_repo::{is_semantic_convention_file, RegistryRepo};
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::semconv::SemConvSpecWithProvenance;
 use weaver_semconv::v1::group::ImportsWithProvenance;
+use weaver_semconv::v2::manifest::Dependency;
 
 use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 use crate::Error;
@@ -359,7 +359,8 @@ fn load_semconv_repository_recursive(
             let mut seen_dependencies: std::collections::HashMap<String, &Dependency> =
                 std::collections::HashMap::new();
 
-            for d in manifest.dependencies().iter() {
+            let dependencies = manifest.dependencies();
+            for d in dependencies.iter() {
                 let dep_name = d.schema_url.name().to_owned();
                 if let Some(prev) = seen_dependencies.get(&dep_name) {
                     if let Err(e) = check_version_compatibility(prev, d) {
@@ -468,16 +469,6 @@ fn load_definition_repository(
             .map(|s| s.starts_with('.'))
             .unwrap_or(false)
     }
-    fn is_semantic_convention_file(entry: &DirEntry) -> bool {
-        let path = entry.path();
-        let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
-        let file_name = path.file_name().unwrap_or_else(|| std::ffi::OsStr::new(""));
-        path.is_file()
-            && (extension == "yaml" || extension == "yml")
-            && file_name != "schema-next.yaml"
-            && file_name != REGISTRY_MANIFEST
-            && file_name != LEGACY_REGISTRY_MANIFEST
-    }
     let local_path = registry_repo.path().to_path_buf();
     let registry_path_repr = registry_repo.registry_path_repr();
 
@@ -492,7 +483,7 @@ fn load_definition_repository(
         .flat_map(|entry| {
             match entry {
                 Ok(entry) => {
-                    if !is_semantic_convention_file(&entry) {
+                    if !is_semantic_convention_file(entry.path()) {
                         return vec![].into_par_iter();
                     }
 

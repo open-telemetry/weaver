@@ -24,7 +24,7 @@ use weaver_semconv::v2::attribute::{
     RequirementLevel as V2RequirementLevel,
 };
 
-use weaver_semconv::entity_association::EntityAssociation;
+use weaver_semconv::v1::entity_association::EntityAssociation;
 
 use super::{emit_findings, Advisor, FindingBuilder};
 use crate::{
