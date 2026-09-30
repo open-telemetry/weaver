@@ -16,10 +16,11 @@ attribute_catalog:
   provenance:
     source: 0
 registry:
+  # `my.attr.1` arrives with the imported span and is defined by the dependency,
+  # so only the two local definitions are listed.
   attributes:
   - 0
   - 1
-  - 2
   attribute_groups:
   - id: local.group
     attributes:

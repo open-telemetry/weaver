@@ -1013,6 +1013,17 @@ mod tests {
         assert_resolved_v2_schema("data/registry-test-v2-dep/span_import_registry")
     }
 
+    /// Importing a signal from a published dependency does not make its
+    /// attributes this registry's own. `registry.attributes` lists only what a
+    /// registry defines - it is what a dependent's bare `ref` resolves against -
+    /// so an imported span, metric, event or entity must leave it empty, as it
+    /// does when the dependency is resolved from source.
+    #[test]
+    fn test_v2_published_dependency_import_defines_no_attributes(
+    ) -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/signal_import_registry")
+    }
+
     /// End-to-end test for an event refinement over a v2 dependency
     #[test]
     fn test_v2_dependency_event_refinement_inherits_attributes() -> Result<(), weaver_semconv::Error>
