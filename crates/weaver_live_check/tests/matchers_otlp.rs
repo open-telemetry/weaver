@@ -82,36 +82,49 @@ async fn matchers_check_telemetry_from_the_sdk() {
     the_statistics_count_every_finding(&report, &findings);
 }
 
-/// A matcher's `signal` decides which registry signal a metric or log counts
-/// toward. The registry signal takes the coverage, and the name on the wire is
-/// not reported as unknown.
+/// A matcher's `signal` decides which registry signal a metric, log or span
+/// event counts toward. The registry signal takes the coverage, and the name on
+/// the wire is not reported as unknown. `acme.checkout.abandoned` is counted
+/// twice: once for the `acme.checkout.dropped` log and once for the
+/// `acme.checkout.step` span event.
 fn the_coverage_credits_the_signal_the_match_resolved(report: &Value) {
     let statistics = &report["statistics"];
-    for (seen, unseen, signal, wire_name) in [
+    for (seen, unseen, signal, count, wire_names) in [
         (
             "seen_registry_metrics",
             "seen_non_registry_metrics",
             "acme.checkout.attempts",
-            "acme.legacy.checkout.attempts",
+            1,
+            &["acme.legacy.checkout.attempts"][..],
         ),
         (
             "seen_registry_events",
             "seen_non_registry_events",
             "acme.checkout.abandoned",
-            "acme.checkout.dropped",
+            2,
+            &["acme.checkout.dropped", "acme.checkout.step"][..],
         ),
     ] {
         assert_eq!(
-            statistics[seen][signal], 1,
-            "`{signal}` is the signal the matcher named: {}",
+            statistics[seen][signal], count,
+            "`{signal}` is the signal the matchers named: {}",
             statistics[seen]
         );
-        assert!(
-            statistics[unseen][wire_name].is_null(),
-            "`{wire_name}` resolved a registry signal: {}",
-            statistics[unseen]
-        );
+        for wire_name in wire_names {
+            assert!(
+                statistics[unseen][wire_name].is_null(),
+                "`{wire_name}` resolved a registry signal: {}",
+                statistics[unseen]
+            );
+        }
     }
+    // A span event's name does not resolve a signal, so the unmatched
+    // `acme.checkout.note` counts toward no event, known or unknown.
+    assert!(
+        statistics["seen_non_registry_events"]["acme.checkout.note"].is_null(),
+        "an unmatched span event is not an unknown event: {}",
+        statistics["seen_non_registry_events"]
+    );
 }
 
 /// The attribute advisors read the definition that the match resolved. The

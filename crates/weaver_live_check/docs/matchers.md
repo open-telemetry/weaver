@@ -394,6 +394,10 @@ Matchers are a v2 feature. A matcher configured against a v1 registry stops the 
 
 Live-check looks the id up in your registry at startup. A name that is not there stops the run before any sample is read.
 
+A log's `event_name` identifies an event type, so a log finds its event without a matcher. A span event's name does not. The OpenTelemetry specification gives it no such meaning. A span event is compared with an event only when a matcher names one in `signal`.
+
+Coverage follows the same rule. A span event counts toward the event its matcher names. Without a matcher, it counts toward no event, even one with the same name.
+
 An attribute group never goes in `signal`. A group adds to the comparison rather than replacing it, so it always goes in one of the two group lists.
 
 If any applied matcher names a group in `strict_attribute_groups`, the group is strict, even when an earlier matcher named it as permitted.

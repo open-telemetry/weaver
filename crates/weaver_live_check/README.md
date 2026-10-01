@@ -406,8 +406,8 @@ These should be self-explanatory, but:
 - `seen_non_registry_attributes` is a record of how many times each non-registry attribute was seen in the samples
 - `seen_registry_metrics` is a record of how many times each metric in the registry was seen in the samples
 - `seen_non_registry_metrics` is a record of how many times each non-registry metric was seen in the samples
-- `seen_registry_events` is a record of how many times each event in the registry was seen in the samples
-- `seen_non_registry_events` is a record of how many times each non-registry event was seen in the samples
+- `seen_registry_events` is a record of how many times each event in the registry was seen in the samples. A log counts toward the event it resolves, by `event_name` or through a matcher. A span event counts only when a matcher resolves it to an event, because a span event's name does not identify an event type (see [Matchers](docs/matchers.md#what-signal-can-name))
+- `seen_non_registry_events` is a record of how many times each non-registry event was seen in the samples. It lists log event names that resolve no registry event. A span event that no matcher resolves is not listed
 - `registry_coverage` is the fraction of seen registry entities over the total registry entities
 
 This could be parsed for a more sophisticated way to determine pass/fail in CI for example.
