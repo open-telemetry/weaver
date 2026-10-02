@@ -1,0 +1,14 @@
+groups:
+  - id: shared.attributes
+    type: attribute_group
+    brief: Attributes shared between our signals.
+    attributes:
+      - id: auction.id
+        type: int
+        brief: >
+          The id of the auction.
+        stability: stable
+
+imports:
+  spans:
+    - server.request
