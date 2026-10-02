@@ -123,6 +123,57 @@ segments across multiple targets.
 
 ### JQ Filters
 
+#### User-provided modules: paths and trust
+
+`jq_modules` is an ordered list of additional JQ definition files. Relative
+entries are resolved from the `weaver.yaml` or `.weaver.toml` that declares
+them, including inherited configurations. Project entries are appended after
+package entries; an empty list does not clear inherited entries. Later
+definitions can override earlier ones, including Weaver's built-in prelude.
+
+Entry paths may be absolute or contain `..`. Nested `include` and `import`
+paths resolve from the importing file's directory. The loader replaces the
+extension with `.jq` (so `helpers`, `helpers.jq`, and `helpers.txt` all request
+`helpers.jq`), canonicalizes paths, and follows filesystem symlinks. It reads
+UTF-8 files from the filesystem, not from embedded template resources. It does
+not expand `~`, environment variables, `$ORIGIN`, or JQ import search metadata.
+Configured entry paths are passed directly to the filesystem; string literals
+inside JQ imports remain subject to Jaq's syntax limitations (use `/` in
+Windows import strings rather than escaped backslashes).
+
+Only enable modules for trusted configurations and trusted module files,
+including their transitive imports. Module loading is not a sandbox: it can
+read `.jq` files anywhere accessible to the Weaver process, including outside
+the template or project directory. JQ definitions can change generated output
+and consume CPU and memory. Review downloaded template configurations before
+running them. Without configured modules, ordinary filters, including the
+HTTP filter endpoint, retain the existing disabled file-loading behavior.
+
+Each filter or `when` evaluation loads, parses, and compiles its definitions
+again. Within one evaluation Jaq reuses the parsed identity of a canonical
+module, but repeated imports can still read the file again. There is no cache
+across evaluations; file changes are visible on the next call. A `when` clause
+runs before its template's filter; a false result skips that filter. It is not
+re-evaluated for every item in `application_mode: each`. Template sets with many
+filters or conditions therefore multiply compilation costs. Keep module sets
+focused on the definitions the template package needs.
+
+#### Rust API and error compatibility
+
+`FilterErrorDetail` retains its existing `error` and `source` fields, so existing
+Rust struct literals and no-module error serialization remain valid. Module
+syntax and compilation errors with file locations use the new
+`Error::ModuleFilterError` variant and `ModuleFilterErrorDetail`; the `Error`
+enum is already non-exhaustive. Its serialized details include `file` when
+known and retain module-local line/column spans. Runtime JQ errors continue to
+use `FilterError` and do not provide a module stack trace.
+
+Adding `jq_modules` to `weaver_config::TemplateConfig` does affect Rust
+callers that enumerate every field in a struct literal. Such callers must
+provide the new field or use `..Default::default()`; YAML/TOML configurations
+without the setting keep their existing behavior. This is a configuration API
+extension, not a claim of universal Rust source compatibility.
+
 JQ filters are a powerful tool integrated into Weaver to preprocess the data before it is passed
 to the templates. Each template in the `templates/registry/<target>` directory can be associated
 with a JQ filter, defined in the `weaver.yaml` configuration file. These filters are applied to
@@ -322,6 +373,24 @@ applied to each object in the array, i.e., to each group of attributes for a giv
 
 A series of JQ filters dedicated to the manipulation of semantic conventions registries is
 available to template authors. They can be found [here](/defaults/jq/semconv.jq)
+
+### User-provided JQ modules
+
+Template packages can add reusable JQ definitions in `weaver.yaml`:
+
+```yaml
+jq_modules:
+  - jq/common.jq
+  - jq/rust.jq
+```
+
+Projects can add modules to every template package with the `.weaver.toml`
+`[template].jq_modules` setting. Paths are resolved relative to the config file
+that declares them, and are loaded in declaration order after Weaver's built-in
+prelude. A later module definition takes precedence on a filter-name collision;
+the built-in filters remain available unless intentionally overridden. Module
+lists are additive: an empty list adds nothing and does not clear earlier modules.
+An `include` inside a module is resolved relative to that module's file.
 
 **Process Registry Attributes**
 
