@@ -271,6 +271,20 @@ pub enum Error {
         provenance: Option<Box<Provenance>>,
     },
 
+    /// Entity refinement whose base entity has no identity attributes.
+    #[error("Entity refinement `{refinement_id}` cannot refine `{ref}`: `{ref}` does not declare any `identity` attributes and is not valid under the v2 schema.\nProvenance: {provenance:?}")]
+    #[diagnostic(help(
+        "The base entity must declare at least one `identity` attribute before it can be refined."
+    ))]
+    EntityRefinementWithoutIdentity {
+        /// The id of the refinement with the issue.
+        refinement_id: String,
+        /// The entity being refined, as written in the refinement's `ref`.
+        r#ref: String,
+        /// The provenance of the refinement (URL or path).
+        provenance: Option<Box<Provenance>>,
+    },
+
     /// A duplicate attribute id error.
     #[error("The attribute id `{attribute_id}` is declared multiple times in the following groups:\n{group_ids:?}")]
     DuplicateAttributeId {
