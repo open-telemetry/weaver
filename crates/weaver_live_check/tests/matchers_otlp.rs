@@ -112,6 +112,15 @@ fn the_coverage_credits_the_signal_the_match_resolved(report: &Value) {
             statistics[unseen]
         );
     }
+    // A span event names no signal, so neither span event counts toward an
+    // event, known or unknown.
+    for span_event in ["acme.checkout.step", "acme.checkout.note"] {
+        assert!(
+            statistics["seen_non_registry_events"][span_event].is_null(),
+            "a span event is not an event: {}",
+            statistics["seen_non_registry_events"]
+        );
+    }
 }
 
 /// The attribute advisors read the definition that the match resolved. The
@@ -342,7 +351,8 @@ fn the_findings_name_the_telemetry_that_caused_them(findings: &[&Value]) {
         })
         .collect();
     missing.sort_unstable();
-    // The second is on the span event, from the event its matcher names.
+    // The second is on the span event, from the strict attribute group its
+    // matcher names.
     assert_eq!(
         missing,
         [
@@ -450,15 +460,15 @@ fn every_sample_records_its_match(report: &Value) {
     assert_eq!(renamed["signal"], "acme.checkout.duration");
     assert_eq!(renamed["signal_matcher"], "acme.metric.mismatched");
 
-    // A span event resolves a signal only through a matcher. No matcher claimed
-    // this one, so it expects a signal and has none.
+    // A span event names no signal, so one that no matcher claimed is not
+    // expected to have one.
     let note = &span(report, "checkout")["span_events"]
         .as_array()
         .expect("the span events")
         .iter()
         .find(|event| event["name"] == "acme.checkout.note")
         .expect("the span event")["live_check_result"]["match_info"];
-    assert_eq!(note["signal_expected"], true);
+    assert_eq!(note["signal_expected"], false);
     assert_eq!(note["unmatched"], true);
 
     // A log with no event name is not a typed signal, so it is not expected to

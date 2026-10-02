@@ -19,7 +19,7 @@ Here's a table of the current Samples and Signals and description of how they ar
 | Exemplar                                              | Metric (inherited) | None                   | The same as data points. It uses the metric that its parent matched.                                                                                                                                                                                                |
 | Log                                                   | Event              | `event_name`           | Look up the event name in the registry. If there is nothing, and no matcher names a signal for it, we get a `missing_event` finding. A log with an empty `event_name` is not matched at all, so its attributes are only compared against the registry as a whole. |
 | Span                                                  | Span               | None                   | Not matched. The span name is free-form so no span signal is chosen, and every attribute is matched on its own key against the whole registry.                                                                                                                      |
-| Span event                                            | Event              | `name`                 | Not matched. Unlike a log, the name is never looked up as an event. The attributes are matched on their own keys.                                                                                                                                                   |
+| Span event                                            | None               | `name`                 | Not matched, and a matcher cannot name a signal for it. A semantic convention event is a log-based event, and a span event has a different data model, so the two are not comparable. The attributes are checked against a matcher's attribute groups, or matched on their own keys. |
 | Span link                                             | None               | None                   | Not matched. The attributes are matched on their own keys.                                                                                                                                                                                                          |
 | Resource                                              | None               | None                   | Not matched on its own, so its attributes are checked against a matcher's attribute groups, or with `search_all_attributes`. When a metric or event declares `entity_associations` we look up those entities and check the attributes they ask for against the resource, but that check belongs to the metric or event. |
 | Instrumentation scope                                 | None               | Scope name and version | Not matched. There is no scope signal in semconv. The attributes are matched on their own keys.                                                                                                                                                                     |
@@ -328,7 +328,7 @@ References are plain ids. What `signal` names is decided by the `sample_type`.
 | `sample_type` | What `signal` names | The natural match, if `signal` is left out |
 |---|---|---|
 | `span` | The `type` of a span | None |
-| `span_event` | The `name` of an event | None |
+| `span_event` | Nothing, `signal` is not allowed | None |
 | `span_link` | Nothing, `signal` is not allowed | None |
 | `log` | The `name` of an event | The event, by `event_name` |
 | `metric` | The `name` of a metric | The metric, by name |
@@ -431,7 +431,7 @@ Metric acme.cart.items `counter`, `{item}`
   none -> signal: acme.cart.items
 ```
 
-`none` means the sample's own name resolved the signal, or that nothing set one. `no match` is yellow on a sample that resolves a signal and has none: a span, a span event, a metric, or a log with an `event_name`. It is grey on a resource, a scope, a span link, a profile and a log with no `event_name`, none of which name a signal. `(conflict, ignored)` is red.
+`none` means the sample's own name resolved the signal, or that nothing set one. `no match` is yellow on a sample that resolves a signal and has none: a span, a metric, or a log with an `event_name`. It is grey on a span event, a resource, a scope, a span link, a profile and a log with no `event_name`, none of which name a signal. `(conflict, ignored)` is red.
 
 It is not a finding, so it does not reach `finding_filters`, `fail_on` or the emitted OTLP logs. A v1 registry takes no matchers and has no `match_info`.
 

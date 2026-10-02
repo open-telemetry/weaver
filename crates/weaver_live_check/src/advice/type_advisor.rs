@@ -904,26 +904,6 @@ impl Advisor for TypeAdvisor {
                 );
                 Ok(advice_list)
             }
-            SampleRef::SpanEvent(sample_span_event) => {
-                let Some(semconv_event) = registry_group else {
-                    return Ok(Vec::new());
-                };
-                let VersionedSignal::Event(event) = &*semconv_event else {
-                    return Ok(Vec::new());
-                };
-                let advice_list = check_attributes(
-                    &event.attributes,
-                    &sample_span_event.attributes,
-                    parent_signal,
-                );
-                emit_findings(
-                    &advice_list,
-                    &sample,
-                    otlp_emitter.as_deref(),
-                    parent_signal,
-                );
-                Ok(advice_list)
-            }
             SampleRef::Log(sample_log) => {
                 if let Some(semconv_event) = registry_group {
                     let advice_list = match &*semconv_event {
