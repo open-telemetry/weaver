@@ -82,49 +82,45 @@ async fn matchers_check_telemetry_from_the_sdk() {
     the_statistics_count_every_finding(&report, &findings);
 }
 
-/// A matcher's `signal` decides which registry signal a metric, log or span
-/// event counts toward. The registry signal takes the coverage, and the name on
-/// the wire is not reported as unknown. `acme.checkout.abandoned` is counted
-/// twice: once for the `acme.checkout.dropped` log and once for the
-/// `acme.checkout.step` span event.
+/// A matcher's `signal` decides which registry signal a metric or log counts
+/// toward. The registry signal takes the coverage, and the name on the wire is
+/// not reported as unknown.
 fn the_coverage_credits_the_signal_the_match_resolved(report: &Value) {
     let statistics = &report["statistics"];
-    for (seen, unseen, signal, count, wire_names) in [
+    for (seen, unseen, signal, wire_name) in [
         (
             "seen_registry_metrics",
             "seen_non_registry_metrics",
             "acme.checkout.attempts",
-            1,
-            &["acme.legacy.checkout.attempts"][..],
+            "acme.legacy.checkout.attempts",
         ),
         (
             "seen_registry_events",
             "seen_non_registry_events",
             "acme.checkout.abandoned",
-            2,
-            &["acme.checkout.dropped", "acme.checkout.step"][..],
+            "acme.checkout.dropped",
         ),
     ] {
         assert_eq!(
-            statistics[seen][signal], count,
-            "`{signal}` is the signal the matchers named: {}",
+            statistics[seen][signal], 1,
+            "`{signal}` is the signal the matcher named: {}",
             statistics[seen]
         );
-        for wire_name in wire_names {
-            assert!(
-                statistics[unseen][wire_name].is_null(),
-                "`{wire_name}` resolved a registry signal: {}",
-                statistics[unseen]
-            );
-        }
+        assert!(
+            statistics[unseen][wire_name].is_null(),
+            "`{wire_name}` resolved a registry signal: {}",
+            statistics[unseen]
+        );
     }
-    // A span event's name does not resolve a signal, so the unmatched
-    // `acme.checkout.note` counts toward no event, known or unknown.
-    assert!(
-        statistics["seen_non_registry_events"]["acme.checkout.note"].is_null(),
-        "an unmatched span event is not an unknown event: {}",
-        statistics["seen_non_registry_events"]
-    );
+    // A span event names no signal, so neither span event counts toward an
+    // event, known or unknown.
+    for span_event in ["acme.checkout.step", "acme.checkout.note"] {
+        assert!(
+            statistics["seen_non_registry_events"][span_event].is_null(),
+            "a span event is not an event: {}",
+            statistics["seen_non_registry_events"]
+        );
+    }
 }
 
 /// The attribute advisors read the definition that the match resolved. The
@@ -355,7 +351,8 @@ fn the_findings_name_the_telemetry_that_caused_them(findings: &[&Value]) {
         })
         .collect();
     missing.sort_unstable();
-    // The second is on the span event, from the event its matcher names.
+    // The second is on the span event, from the strict attribute group its
+    // matcher names.
     assert_eq!(
         missing,
         [
@@ -463,15 +460,15 @@ fn every_sample_records_its_match(report: &Value) {
     assert_eq!(renamed["signal"], "acme.checkout.duration");
     assert_eq!(renamed["signal_matcher"], "acme.metric.mismatched");
 
-    // A span event resolves a signal only through a matcher. No matcher claimed
-    // this one, so it expects a signal and has none.
+    // A span event names no signal, so one that no matcher claimed is not
+    // expected to have one.
     let note = &span(report, "checkout")["span_events"]
         .as_array()
         .expect("the span events")
         .iter()
         .find(|event| event["name"] == "acme.checkout.note")
         .expect("the span event")["live_check_result"]["match_info"];
-    assert_eq!(note["signal_expected"], true);
+    assert_eq!(note["signal_expected"], false);
     assert_eq!(note["unmatched"], true);
 
     // A log with no event name is not a typed signal, so it is not expected to

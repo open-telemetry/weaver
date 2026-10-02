@@ -18,7 +18,7 @@ use crate::{
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_resource::SampleResource,
     Advisable, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
-    SampleType, VersionedSignal,
+    SampleType,
 };
 
 /// The status code of the span
@@ -219,12 +219,6 @@ impl LiveCheckRunner for SampleSpanEvent {
         );
         self.live_check_result = Some(result);
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
-        // Unlike a log's `event_name`, a span event's name does not identify an
-        // event type, so it has no natural match. It counts toward the coverage
-        // of the event a matcher resolved it to, and toward nothing otherwise.
-        if let Some(VersionedSignal::Event(event)) = sample_match.signal.as_deref() {
-            stats.add_event_name_to_coverage(event.name.to_string());
-        }
         self.attributes
             .run_live_check(live_checker, stats, Some(sample_match), parent_signal)
     }
@@ -399,96 +393,5 @@ mod tests {
         };
         let when = r#"attributes["myapp.link.kind"] == "parent""#;
         assert!(evaluate(when, &link).expect("it evaluates"));
-    }
-
-    /// Live checks the fixture checkout span carrying one span event named
-    /// `event_name`, under `matchers`, and returns the statistics.
-    fn event_coverage(matchers: &str, event_name: &str) -> crate::CumulativeStatistics {
-        use crate::matcher::fixture::{matcher_configs, v2_live_checker};
-        use crate::CumulativeStatistics;
-
-        let mut live_checker = v2_live_checker();
-        live_checker
-            .set_matchers(&matcher_configs(matchers))
-            .expect("they check out");
-
-        let mut span: SampleSpan = parse(include_str!(
-            "../fixtures/cel/span-checkout/span-checkout-payment.json"
-        ));
-        span.span_events.push(SampleSpanEvent {
-            name: event_name.to_owned(),
-            attributes: vec![],
-            live_check_result: None,
-            timestamp: None,
-            resource: None,
-            instrumentation_scope: None,
-        });
-
-        let mut stats =
-            LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
-        let parent = Sample::Span(span.clone());
-        span.run_live_check(&mut live_checker, &mut stats, None, &parent)
-            .expect("the check runs");
-        let LiveCheckStatistics::Cumulative(stats) = stats else {
-            panic!("cumulative statistics");
-        };
-        stats
-    }
-
-    /// A span event that a matcher pairs with a registry event counts toward
-    /// that event's coverage, as a log does, and its own name is not reported
-    /// as an unknown event.
-    #[test]
-    fn a_matched_span_event_counts_toward_the_event_coverage() {
-        let stats = event_coverage(
-            r#"
-[[live-check.matchers]]
-id = "myapp.order.step"
-sample_type = "span_event"
-when = 'name == "myapp.order.step"'
-signal = "myapp.order.placed"
-"#,
-            "myapp.order.step",
-        );
-        assert_eq!(
-            stats.seen_registry_events.get("myapp.order.placed"),
-            Some(&1),
-            "the matched event takes the coverage: {:?}",
-            stats.seen_registry_events
-        );
-        assert!(
-            !stats
-                .seen_non_registry_events
-                .contains_key("myapp.order.step"),
-            "the span event resolved a registry event: {:?}",
-            stats.seen_non_registry_events
-        );
-    }
-
-    /// A span event's name does not identify an event type, as a log's
-    /// `event_name` does, so it has no natural match. Without a matcher it
-    /// counts toward no event, even one that shares its name.
-    #[test]
-    fn an_unmatched_span_event_counts_toward_no_event() {
-        let stats = event_coverage(
-            r#"
-[[live-check.matchers]]
-id = "myapp.never"
-sample_type = "span_event"
-when = 'name == "no-such-event"'
-"#,
-            "myapp.order.placed",
-        );
-        assert_eq!(
-            stats.seen_registry_events.get("myapp.order.placed"),
-            Some(&0),
-            "an unmatched span event was not checked against the event: {:?}",
-            stats.seen_registry_events
-        );
-        assert!(
-            stats.seen_non_registry_events.is_empty(),
-            "an unmatched span event is not an unknown event either: {:?}",
-            stats.seen_non_registry_events
-        );
     }
 }

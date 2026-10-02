@@ -384,7 +384,7 @@ Matchers are a v2 feature. A matcher configured against a v1 registry stops the 
 | `sample_type`           | What `signal` names              | The natural match, if `signal` is left out |
 | ----------------------- | -------------------------------- | ------------------------------------------ |
 | `span`                  | The `type` of a span             | None                                       |
-| `span_event`            | The `name` of an event           | None                                       |
+| `span_event`            | Nothing, `signal` is not allowed | None                                       |
 | `span_link`             | Nothing, `signal` is not allowed | None                                       |
 | `log`                   | The `name` of an event           | The event, by `event_name`                 |
 | `metric`                | The `name` of a metric           | The metric, by name                        |
@@ -394,9 +394,7 @@ Matchers are a v2 feature. A matcher configured against a v1 registry stops the 
 
 Live-check looks the id up in your registry at startup. A name that is not there stops the run before any sample is read.
 
-A log's `event_name` identifies an event type, so a log finds its event without a matcher. A span event's name does not. The OpenTelemetry specification gives it no such meaning. A span event is compared with an event only when a matcher names one in `signal`.
-
-Coverage follows the same rule. A span event counts toward the event its matcher names. Without a matcher, it counts toward no event, even one with the same name.
+A span event is never checked against an event. A semantic convention event is a log-based event. A span event has a different data model, so the two are not comparable. Check a span event's attributes with `attribute_groups` or `strict_attribute_groups`, or with a Rego policy. A span event does not count toward event coverage.
 
 An attribute group never goes in `signal`. A group adds to the comparison rather than replacing it, so it always goes in one of the two group lists.
 
@@ -497,7 +495,7 @@ Span unknown-op `internal`
   none -> signal: no match
 ```
 
-`none` means the sample's own name resolved the signal, or that nothing set one. `no match` is yellow on a sample that is expected to resolve a signal and has not: a span, a span event, a metric, or a log with an `event_name`. It is gray on a resource, a scope, a span link, a profile and a log with no `event_name`, because none of those name a signal. `(conflict, ignored)` is red.
+`none` means the sample's own name resolved the signal, or that nothing set one. `no match` is yellow on a sample that is expected to resolve a signal and has not: a span, a metric, or a log with an `event_name`. It is gray on a span event, a resource, a scope, a span link, a profile and a log with no `event_name`, because none of those name a signal. `(conflict, ignored)` is red.
 
 `match_info` is not a finding, so it does not reach `finding_filters`, `fail_on` or the emitted OTLP logs.
 

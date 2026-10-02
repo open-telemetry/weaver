@@ -667,11 +667,16 @@ pub enum SignalKind {
 impl SignalKind {
     /// What a matcher of this sample type can name in `signal`. Returns
     /// `None` when `signal` is not allowed.
+    ///
+    /// A span event names no signal. A semantic convention event is a
+    /// log-based event, and a span event has a different data model, so the two
+    /// are not comparable. A span event's attributes are checked against
+    /// attribute groups instead.
     #[must_use]
     pub fn for_sample_type(sample_type: SampleType) -> Option<Self> {
         match sample_type {
             SampleType::Span => Some(Self::SpanType),
-            SampleType::SpanEvent | SampleType::Log => Some(Self::EventName),
+            SampleType::Log => Some(Self::EventName),
             SampleType::Metric => Some(Self::MetricName),
             _ => None,
         }
@@ -1093,10 +1098,17 @@ attribute_groups = ["myapp.common", "myapp.absent"]
         );
     }
 
-    /// A resource, a scope, a span link and a profile have no signal to name.
+    /// A span event, a resource, a scope, a span link and a profile have no
+    /// signal to name.
     #[test]
     fn a_signal_on_a_sample_type_without_one_is_rejected() {
-        for sample_type in ["resource", "instrumentation_scope", "span_link", "profile"] {
+        for sample_type in [
+            "span_event",
+            "resource",
+            "instrumentation_scope",
+            "span_link",
+            "profile",
+        ] {
             let error = check(&format!(
                 r#"
 [[live-check.matchers]]
