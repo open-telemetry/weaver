@@ -255,6 +255,81 @@ fn convert_attribute_ref<'a>(
     Ok((attr, v2_ref))
 }
 
+/// Resolves one link attribute by name to a v2 catalog reference. The
+/// resolver already placed the (possibly overridden) attribute in the
+/// catalog, so a miss here is a broken registry and fails loudly.
+fn convert_span_link_attribute(
+    ar: &weaver_semconv::v2::span::LinkAttributeRef,
+    g: &V1Group,
+    link: &weaver_semconv::v2::span::SpanLink,
+    c: &V1Catalog,
+    v2_catalog: &V2CatalogBuilder,
+) -> Result<span::LinkAttributeRef, crate::error::Error> {
+    let not_found = || crate::error::Error::SpanLinkAttributeNotFound {
+        group_id: g.id.clone(),
+        link_ref: link.r#ref.to_string(),
+        attribute: ar.base.r#ref.clone(),
+    };
+    let (root, _) = c.root_attribute(&ar.base.r#ref).ok_or_else(not_found)?;
+    // Overrides produce their own catalog entry during resolution; rebuild
+    // the overridden value to find that entry.
+    let mut merged = root.clone();
+    if let Some(brief) = &ar.base.brief {
+        merged.brief = brief.clone();
+    }
+    if let Some(note) = &ar.base.note {
+        merged.note = note.clone();
+    }
+    if let Some(examples) = &ar.base.examples {
+        merged.examples = Some(weaver_semconv::convert::v2_examples_to_v1(examples.clone()));
+    }
+    if !ar.base.annotations.is_empty() {
+        merged.annotations = Some(ar.base.annotations.clone());
+    }
+    let base = v2_catalog.convert_ref(&merged).ok_or_else(not_found)?;
+    Ok(span::LinkAttributeRef {
+        base,
+        requirement_level: ar.base.requirement_level.clone().unwrap_or_else(|| {
+            weaver_semconv::convert::v1_requirement_level_to_v2(merged.requirement_level.clone())
+        }),
+    })
+}
+
+/// Converts the span links carried on a v1 group into resolved links;
+/// link attributes map by name to the catalog entries the resolver placed.
+fn convert_span_links(
+    g: &V1Group,
+    span_types: &HashSet<SignalId>,
+    validate_targets: bool,
+    c: &V1Catalog,
+    v2_catalog: &V2CatalogBuilder,
+    provenance: &V2Provenance,
+) -> Result<Vec<span::SpanLink>, crate::error::Error> {
+    let mut links = Vec::new();
+    for link in g.span_links.iter() {
+        // The caller scopes validation: refinements and imported spans skip
+        // it, because their link targets may live in a dependency.
+        if validate_targets && !span_types.contains(&link.r#ref) {
+            return Err(crate::error::Error::SpanLinkTargetNotFound {
+                group_id: g.id.clone(),
+                link_ref: link.r#ref.to_string(),
+            });
+        }
+        let mut attributes = Vec::new();
+        for ar in link.attributes.iter() {
+            attributes.push(convert_span_link_attribute(ar, g, link, c, v2_catalog)?);
+        }
+        links.push(span::SpanLink {
+            r#ref: link.r#ref.clone(),
+            brief: link.brief.clone(),
+            note: link.note.clone(),
+            attributes,
+            provenance: provenance.clone(),
+        });
+    }
+    Ok(links)
+}
+
 /// Converts a V1 registry + catalog to V2.
 pub fn convert_v1_to_v2(
     c: V1Catalog,
@@ -441,6 +516,15 @@ pub fn convert_v1_to_v2(
         origins: &r.entity_association_origins,
     };
 
+    // Span link targets are validated against this set. Refinements are
+    // excluded: a link targets a span type, not a refinement id.
+    let span_types: HashSet<SignalId> = r
+        .groups
+        .iter()
+        .filter(|g| g.r#type == GroupType::Span && !is_refinement_of(g))
+        .map(|g| fix_span_group_id(&g.id))
+        .collect();
+
     for g in r.groups.iter() {
         match g.r#type {
             GroupType::Span => {
@@ -471,6 +555,16 @@ pub fn convert_v1_to_v2(
                         note: g.name.clone(),
                     });
                 if !is_refinement {
+                    let provenance = get_provenance(g);
+                    let validate_targets = provenance.source.is_none();
+                    let links = convert_span_links(
+                        g,
+                        &span_types,
+                        validate_targets,
+                        &c,
+                        &v2_catalog,
+                        &provenance,
+                    )?;
                     let span = V2Span {
                         r#type: fix_span_group_id(&g.id),
                         kind: span_kind,
@@ -480,10 +574,11 @@ pub fn convert_v1_to_v2(
                             &entity_refs,
                             &g.id,
                         )?,
+                        links,
                         requirement_level: g.requirement_level.clone().map(Into::into),
                         common: group_common_fields(g),
                         attributes: span_attributes,
-                        provenance: get_provenance(g),
+                        provenance,
                     };
                     spans.push(span.clone());
                     span_refinements.push(V2SpanRefinement {
@@ -499,6 +594,9 @@ pub fn convert_v1_to_v2(
                         });
                     };
                     let span_type = fix_span_group_id(extends_group);
+                    let provenance = get_provenance(g);
+                    let links =
+                        convert_span_links(g, &span_types, false, &c, &v2_catalog, &provenance)?;
                     span_refinements.push(V2SpanRefinement {
                         id: fix_span_group_id(&g.id),
                         span: V2Span {
@@ -510,10 +608,11 @@ pub fn convert_v1_to_v2(
                                 &entity_refs,
                                 &g.id,
                             )?,
+                            links,
                             requirement_level: g.requirement_level.clone().map(Into::into),
                             common: group_common_fields(g),
                             attributes: span_attributes,
-                            provenance: get_provenance(g),
+                            provenance,
                         },
                     });
                 }
@@ -700,6 +799,237 @@ mod tests {
     use weaver_semconv::provenance::Provenance;
     use weaver_semconv::v1::group::InstrumentSpec as V1InstrumentSpec;
     use weaver_semconv::v1::stability::Stability;
+    use weaver_semconv::v2::attribute::AttributeRef as AttributeRefSpec;
+    use weaver_semconv::v2::span::{LinkAttributeRef as LinkAttributeRefSpec, SpanLink};
+
+    /// Builds a minimal v1 span group carrying the given span links.
+    fn span_group_with_links(id: &str, links: Vec<SpanLink>) -> V1Group {
+        V1Group {
+            id: id.to_owned(),
+            r#type: GroupType::Span,
+            brief: "".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            attributes: vec![],
+            span_kind: Some(weaver_semconv::v1::group::SpanKindSpec::Client),
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            requirement_level: None,
+            name: Some("span name".to_owned()),
+            lineage: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: true,
+            span_name: None,
+            span_links: links,
+        }
+    }
+
+    /// Runs the conversion over the given groups and returns the error it
+    /// must produce.
+    fn convert_links_err(
+        v1_catalog: crate::v1::catalog::Catalog,
+        groups: Vec<V1Group>,
+    ) -> crate::error::Error {
+        let v1_registry = V1Registry {
+            registry_url: "my.schema.url".to_owned(),
+            entity_association_origins: Default::default(),
+            groups,
+        };
+        convert_v1_to_v2(v1_catalog, v1_registry, BTreeSet::new())
+            .expect_err("conversion must fail")
+    }
+
+    /// Builds a minimal string attribute with the given name.
+    fn test_attribute(name: &str) -> crate::v1::attribute::Attribute {
+        use weaver_semconv::v1::attribute::{
+            AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
+        };
+        crate::v1::attribute::Attribute {
+            name: name.to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            brief: "a test attribute".to_owned(),
+            examples: None,
+            tag: None,
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+            sampling_relevant: None,
+            note: "".to_owned(),
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            prefix: false,
+            tags: None,
+            annotations: None,
+            value: None,
+            role: None,
+        }
+    }
+
+    /// Builds a minimal span link to the given target type.
+    fn link_to(target: &str) -> SpanLink {
+        SpanLink {
+            r#ref: target.to_owned().into(),
+            brief: None,
+            note: None,
+            attributes: vec![],
+        }
+    }
+
+    /// Builds a minimal link attribute reference with the given overrides.
+    fn link_attribute(name: &str, brief: Option<&str>) -> LinkAttributeRefSpec {
+        LinkAttributeRefSpec {
+            base: AttributeRefSpec {
+                r#ref: name.to_owned(),
+                brief: brief.map(str::to_owned),
+                examples: None,
+                requirement_level: None,
+                note: None,
+                annotations: Default::default(),
+            },
+        }
+    }
+
+    #[test]
+    fn test_span_link_target_not_found() {
+        let err = convert_links_err(
+            crate::v1::catalog::test_utils::CatalogBuilder::default().build(),
+            vec![span_group_with_links("span.a", vec![link_to("missing")])],
+        );
+        assert!(matches!(
+            err,
+            crate::error::Error::SpanLinkTargetNotFound { .. }
+        ));
+    }
+
+    #[test]
+    fn test_imported_span_link_target_in_dependency_not_imported() {
+        use weaver_semconv::schema_url::SchemaUrl;
+
+        let dep_url = SchemaUrl::try_from("https://dep.example.com/schemas/1.0.0").unwrap();
+        let mut imported_span = span_group_with_links(
+            "dep.consumer",
+            // The target is defined in the dependency, not imported locally.
+            vec![link_to("dep.producer")],
+        );
+        imported_span.lineage = Some(crate::v1::lineage::GroupLineage::new(Provenance::new(
+            dep_url.clone(),
+            "dep.yaml",
+        )));
+
+        let v1_catalog = crate::v1::catalog::test_utils::CatalogBuilder::default().build();
+        let v1_registry = V1Registry {
+            registry_url: "https://my.schema.url".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![imported_span],
+        };
+        let mut deps = BTreeSet::new();
+        _ = deps.insert(dep_url);
+
+        let result = convert_v1_to_v2(v1_catalog, v1_registry, deps);
+        assert!(
+            result.is_ok(),
+            "an imported span that links an unimported dependency span must not fail target validation: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_span_link_attribute_override_variant_missing_from_catalog() {
+        // The resolver places one catalog entry per override combination; a
+        // conversion that finds the root but not the overridden variant
+        // fails loudly.
+        let mut builder = crate::v1::catalog::test_utils::CatalogBuilder::default();
+        _ = builder.add(test_attribute("test.key"), Some("registry.test"));
+        let mut link = link_to("b");
+        link.attributes = vec![link_attribute("test.key", Some("an override"))];
+        let err = convert_links_err(
+            builder.build(),
+            vec![
+                span_group_with_links("span.a", vec![link]),
+                span_group_with_links("span.b", vec![]),
+            ],
+        );
+        assert!(matches!(
+            err,
+            crate::error::Error::SpanLinkAttributeNotFound { .. }
+        ));
+    }
+
+    #[test]
+    fn test_span_link_annotation_override_binds_variant() {
+        // An annotations-only override must bind the overridden catalog
+        // entry, not the root that differs only in annotations.
+        let mut annotations = BTreeMap::new();
+        _ = annotations.insert(
+            "code_generation".to_owned(),
+            serde_json::from_str::<weaver_semconv::YamlValue>("\"exclude\"").unwrap(),
+        );
+
+        let mut builder = crate::v1::catalog::test_utils::CatalogBuilder::default();
+        let root = test_attribute("test.key");
+        let mut variant = root.clone();
+        variant.annotations = Some(annotations.clone());
+        _ = builder.add(root, Some("registry.test"));
+        _ = builder.add(variant, None);
+
+        let mut link = link_to("b");
+        link.attributes = vec![LinkAttributeRefSpec {
+            base: AttributeRefSpec {
+                r#ref: "test.key".to_owned(),
+                brief: None,
+                examples: None,
+                requirement_level: None,
+                note: None,
+                annotations: annotations.clone(),
+            },
+        }];
+        let v1_registry = V1Registry {
+            registry_url: "my.schema.url".to_owned(),
+            entity_association_origins: Default::default(),
+            groups: vec![
+                span_group_with_links("span.a", vec![link]),
+                span_group_with_links("span.b", vec![]),
+            ],
+        };
+        let (v2_catalog, registry, _, _) =
+            convert_v1_to_v2(builder.build(), v1_registry, BTreeSet::new())
+                .expect("conversion must succeed");
+
+        let span = registry
+            .spans
+            .iter()
+            .find(|s| &*s.r#type == "a")
+            .expect("span.a must be in the output");
+        let base = span.links[0].attributes[0].base;
+        assert_eq!(
+            v2_catalog[base.0 as usize].common.annotations, annotations,
+            "the link must bind the annotated variant, not the root"
+        );
+    }
+
+    #[test]
+    fn test_span_link_attribute_unknown_name_not_found() {
+        let mut link = link_to("b");
+        link.attributes = vec![link_attribute("nope.key", None)];
+        let err = convert_links_err(
+            crate::v1::catalog::test_utils::CatalogBuilder::default().build(),
+            vec![
+                span_group_with_links("span.a", vec![link]),
+                span_group_with_links("span.b", vec![]),
+            ],
+        );
+        assert!(matches!(
+            err,
+            crate::error::Error::SpanLinkAttributeNotFound { .. }
+        ));
+    }
 
     #[test]
     fn test_convert_span_v1_to_v2() {
@@ -782,6 +1112,7 @@ mod tests {
                 visibility: None,
                 is_v2: false,
                 span_name: None,
+                span_links: Vec::new(),
             }],
         };
 
@@ -908,6 +1239,7 @@ mod tests {
                     visibility: None,
                     is_v2: false,
                     span_name: None,
+                    span_links: Vec::new(),
                 },
                 V1Group {
                     id: "metric.http.server.duration.refined".to_owned(),
@@ -934,6 +1266,7 @@ mod tests {
                     visibility: None,
                     is_v2: false,
                     span_name: None,
+                    span_links: Vec::new(),
                 },
             ],
         };
@@ -989,6 +1322,7 @@ mod tests {
                     visibility: None,
                     is_v2: false,
                     span_name: None,
+                    span_links: Vec::new(),
                 },
                 V1Group {
                     id: "event.exception.refined".to_owned(),
@@ -1015,6 +1349,7 @@ mod tests {
                     visibility: None,
                     is_v2: false,
                     span_name: None,
+                    span_links: Vec::new(),
                 },
             ],
         };
@@ -1113,6 +1448,7 @@ mod tests {
                     visibility: None,
                     is_v2: false,
                     span_name: None,
+                    span_links: Vec::new(),
                 },
                 V1Group {
                     id: "entity.k8s.pod.refined".to_owned(),
@@ -1139,6 +1475,7 @@ mod tests {
                     visibility: None,
                     is_v2: false,
                     span_name: None,
+                    span_links: Vec::new(),
                 },
             ],
         };
@@ -1211,6 +1548,7 @@ mod tests {
                     ),
                     is_v2: false,
                     span_name: None,
+                    span_links: Vec::new(),
                 },
                 V1Group {
                     id: "attribute_group.internal_grp".to_owned(),
@@ -1239,6 +1577,7 @@ mod tests {
                     ),
                     is_v2: false,
                     span_name: None,
+                    span_links: Vec::new(),
                 },
             ],
         };
@@ -1287,6 +1626,7 @@ mod tests {
                 visibility: None,
                 is_v2: false,
                 span_name: None,
+                span_links: Vec::new(),
             }
         };
 
@@ -1412,6 +1752,7 @@ mod tests {
                 visibility: None,
                 is_v2: false,
                 span_name: None,
+                span_links: Vec::new(),
             }],
         };
         let err = convert_v1_to_v2(
@@ -1456,6 +1797,7 @@ mod tests {
                 visibility: None,
                 is_v2: false,
                 span_name: None,
+                span_links: Vec::new(),
             }],
         };
         let err = convert_v1_to_v2(V1Catalog::default(), registry_no_span_base, BTreeSet::new())
@@ -1498,6 +1840,7 @@ mod tests {
                 visibility: None,
                 is_v2: false,
                 span_name: None,
+                span_links: Vec::new(),
             }],
         };
         let err = convert_v1_to_v2(V1Catalog::default(), registry_bad_assoc, BTreeSet::new())
@@ -1568,6 +1911,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
 
         let span_group = V1Group {
@@ -1605,6 +1949,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
 
         let registry = V1Registry {
@@ -1698,6 +2043,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
 
         let registry = V1Registry {
@@ -1793,6 +2139,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
 
         let registry = V1Registry {
@@ -1815,6 +2162,7 @@ mod tests {
     #[test]
     fn test_span_refinement_name_note_propagates() {
         let span_refinement_group = V1Group {
+            span_links: Vec::new(),
             id: "span.http.client.refinement".to_owned(),
             r#type: GroupType::Span,
             brief: "HTTP client span refinement".to_owned(),
@@ -1921,6 +2269,7 @@ mod tests {
             visibility: Some(weaver_semconv::v1::group::AttributeGroupVisibilitySpec::Public),
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
 
         let registry = V1Registry {
@@ -1979,6 +2328,7 @@ mod tests {
             visibility: None,
             is_v2: true,
             span_name: None,
+            span_links: Vec::new(),
         };
 
         let registry = V1Registry {
@@ -2022,6 +2372,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
 
         let registry = V1Registry {
@@ -2067,6 +2418,7 @@ mod tests {
                 visibility: None,
                 is_v2: false,
                 span_name: None,
+                span_links: Vec::new(),
             },
             V1Group {
                 id: "scope.test".to_owned(),
@@ -2093,6 +2445,7 @@ mod tests {
                 visibility: None,
                 is_v2: false,
                 span_name: None,
+                span_links: Vec::new(),
             },
         ];
         let registry = V1Registry {
@@ -2171,6 +2524,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
 
         let registry = V1Registry {
@@ -2242,6 +2596,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
 
         let mut latest_group = baseline_group.clone();
@@ -2348,6 +2703,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
 
         let v1_schema = V1ResolvedSchema {
@@ -2595,6 +2951,7 @@ mod tests {
                 visibility: None,
                 is_v2: false,
                 span_name: None,
+                span_links: Vec::new(),
             }],
             entity_association_origins: Default::default(),
         };

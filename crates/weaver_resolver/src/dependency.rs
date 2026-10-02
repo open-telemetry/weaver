@@ -62,6 +62,9 @@ pub(crate) struct GroupSummary {
     /// The v2 span name specification, inherited by refinements that do not
     /// override it.
     pub span_name: Option<weaver_semconv::v1::group::SpanName>,
+    /// The v2 span links, inherited by refinements that do not
+    /// declare their own.
+    pub span_links: Vec<weaver_semconv::v2::span::SpanLink>,
     /// The attributes from this group before being completely resolved to a catalog.
     pub attributes: Vec<UnresolvedAttribute>,
     /// The annotations of the group.
@@ -87,6 +90,7 @@ impl GroupSummary {
             requirement_level: group.requirement_level.clone(),
             span_kind: group.span_kind.clone(),
             span_name: group.span_name.clone(),
+            span_links: group.span_links.clone(),
             attributes: vec![], // Will be set during the dependency or registry loops.
             annotations: group.annotations.clone(),
             source,
@@ -401,6 +405,7 @@ fn signal_summary(
         requirement_level: requirement_level.map(Into::into),
         span_kind: None,
         span_name: None,
+        span_links: Vec::new(),
         attributes,
         annotations: Some(common.annotations.clone()),
         source: GroupSource::Dependency,
@@ -636,6 +641,7 @@ pub(crate) mod tests {
                         visibility: Default::default(),
                         is_v2: Default::default(),
                         span_name: None,
+                        span_links: Vec::new(),
                     },
                     weaver_resolved_schema::v1::registry::Group {
                         id: "span.v1".to_owned(),
@@ -662,6 +668,7 @@ pub(crate) mod tests {
                         visibility: Default::default(),
                         is_v2: Default::default(),
                         span_name: None,
+                        span_links: Vec::new(),
                     },
                 ],
             },
@@ -752,6 +759,20 @@ pub(crate) mod tests {
                     },
                     attributes: vec![],
                     entity_associations: vec![],
+                    // A link with a link attribute; both the normal import
+                    // path and the upgrade path must carry it over.
+                    links: vec![weaver_resolved_schema::v2::span::SpanLink {
+                        r#ref: "span.d".to_owned().into(),
+                        brief: Some("test link".to_owned()),
+                        note: None,
+                        attributes: vec![weaver_resolved_schema::v2::span::LinkAttributeRef {
+                            base: weaver_resolved_schema::v2::attribute::AttributeRef(3),
+                            requirement_level: weaver_semconv::v2::attribute::RequirementLevel::Basic(
+                                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
+                            ),
+                        }],
+                        provenance: Default::default(),
+                    }],
                     requirement_level: None,
                     common: Default::default(),
                     provenance: Default::default(),
@@ -800,6 +821,20 @@ pub(crate) mod tests {
                     ),
                     examples: None,
                     common: Default::default(),
+                    provenance: Default::default(),
+                },
+                // An overridden variant of attr.in.group, referenced by the
+                // span link; importing must preserve the override.
+                weaver_resolved_schema::v2::attribute::Attribute {
+                    key: "attr.in.group".to_owned(),
+                    r#type: weaver_semconv::v2::attribute::AttributeType::PrimitiveOrArray(
+                        weaver_semconv::v2::attribute::PrimitiveOrArrayTypeSpec::String,
+                    ),
+                    examples: None,
+                    common: weaver_semconv::v2::CommonFields {
+                        brief: "the id, as carried on the link".to_owned(),
+                        ..Default::default()
+                    },
                     provenance: Default::default(),
                 },
             ],

@@ -173,13 +173,19 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
         return WResult::FatalErr(e);
     }
 
+    // After the imports, because imported spans carry links of their own.
+    let link_attr_refs = match resolve_span_link_attributes(&ureg, attr_catalog, cache_lookup) {
+        Ok(refs) => refs,
+        Err(e) => return WResult::FatalErr(e),
+    };
+
     // Now we do validations.
 
     // Note: this will remove all the `groups` from UnresolvedRegistry and create
     // a complete `Registry` that is returned.
     //
     // This will also "taint" that attribute catalog so it cannot be used for creating new attribute refs.
-    let result = cleanup_and_stabilize_catalog_and_registry(attr_catalog, ureg);
+    let result = cleanup_and_stabilize_catalog_and_registry(attr_catalog, ureg, link_attr_refs);
     let attr_name_index = attr_catalog.attribute_name_index();
 
     // Other complementary checks.
@@ -452,6 +458,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             visibility: group.spec.visibility.clone(),
             is_v2: group.spec.is_v2,
             span_name: group.spec.span_name,
+            span_links: group.spec.span_links,
         },
         attributes: attrs,
         provenance: Some(group.provenance),
@@ -943,6 +950,9 @@ fn inherit_v2_refinement_fields(
     if refinement.group.span_name.is_none() {
         refinement.group.span_name = parent.span_name.clone();
     }
+    if refinement.group.span_links.is_empty() {
+        refinement.group.span_links = parent.span_links.clone();
+    }
 
     let mut merged_annotations = parent.annotations.clone().unwrap_or_default();
     if let Some(child_annotations) = &refinement.group.annotations {
@@ -1401,19 +1411,94 @@ fn excluded_parent_error(
     })
 }
 
+/// Resolves the attributes referenced by span links into the catalog, like
+/// any other attribute reference.
+///
+/// Returns the resolved refs so the catalog gc keeps the entries alive:
+/// links hold attribute names, not indices, so nothing else references them.
+fn resolve_span_link_attributes<C: crate::SchemaCacheLookup>(
+    ureg: &UnresolvedRegistry,
+    attr_catalog: &mut AttributeCatalog,
+    cache_lookup: &C,
+) -> Result<HashSet<AttributeRef>, Error> {
+    let mut link_attr_refs = HashSet::new();
+    let mut errors = vec![];
+    for unresolved_group in ureg.groups.iter() {
+        if unresolved_group.group.span_links.is_empty() {
+            continue;
+        }
+        let group_excluded = is_group_excluded(
+            &unresolved_group.group.annotations,
+            unresolved_group.visibility.as_ref(),
+            &unresolved_group.group.r#type,
+        );
+        for link in unresolved_group.group.span_links.iter() {
+            for la in link.attributes.iter() {
+                let spec = AttributeSpec::Ref {
+                    r#ref: la.base.r#ref.clone(),
+                    brief: la.base.brief.clone(),
+                    examples: la
+                        .base
+                        .examples
+                        .clone()
+                        .map(weaver_semconv::convert::v2_examples_to_v1),
+                    tag: None,
+                    requirement_level: None,
+                    sampling_relevant: None,
+                    note: la.base.note.clone(),
+                    stability: None,
+                    deprecated: None,
+                    prefix: false,
+                    annotations: (!la.base.annotations.is_empty())
+                        .then(|| la.base.annotations.clone()),
+                    role: None,
+                };
+                match attr_catalog.resolve(
+                    &unresolved_group.group.id,
+                    &unresolved_group.group.prefix,
+                    group_excluded,
+                    &spec,
+                    None,
+                    None,
+                    &ureg.dependencies,
+                    cache_lookup,
+                )? {
+                    Some(attr_ref) => {
+                        _ = link_attr_refs.insert(attr_ref);
+                    }
+                    None => errors.push(Error::UnresolvedAttributeRef {
+                        group_id: unresolved_group.group.id.clone(),
+                        attribute_ref: la.base.r#ref.clone(),
+                        provenance: unresolved_group.provenance.clone().map(Box::new),
+                    }),
+                }
+            }
+        }
+    }
+    if errors.is_empty() {
+        Ok(link_attr_refs)
+    } else {
+        Err(Error::CompoundError(errors))
+    }
+}
+
 /// This will sort the clean and sort the attribute catalog and registry.
 ///
 /// This helps with idempotent/stable resolved schemas.
 pub(crate) fn cleanup_and_stabilize_catalog_and_registry(
     attr_catalog: &mut AttributeCatalog,
     mut ureg: UnresolvedRegistry,
+    link_attr_refs: HashSet<AttributeRef>,
 ) -> Registry {
     // Clean up the attribute registry and groups to have consistent ordering.
-    let attr_refs: HashSet<AttributeRef> = ureg
+    let mut attr_refs: HashSet<AttributeRef> = ureg
         .groups
         .iter()
         .flat_map(|g| g.group.attributes.iter().cloned())
         .collect();
+    // Link attributes are referenced by name, not by index; keep their
+    // catalog entries alive.
+    attr_refs.extend(link_attr_refs);
     let mapping = attr_catalog.gc_unreferenced_attribute_refs_and_sort(attr_refs);
     for g in ureg.groups.iter_mut() {
         for a in g.group.attributes.iter_mut() {
@@ -1517,6 +1602,7 @@ mod tests {
             visibility: Default::default(),
             is_v2: true,
             span_name: None,
+            span_links: Vec::new(),
         }
     }
 
@@ -2025,6 +2111,7 @@ groups:
                     visibility: Default::default(),
                     is_v2: false,
                     span_name: None,
+                    span_links: Vec::new(),
                 },
                 attributes: Default::default(),
                 include_groups: Default::default(),
@@ -2039,7 +2126,7 @@ groups:
             dependencies: vec![],
         };
 
-        let _ = cleanup_and_stabilize_catalog_and_registry(&mut catalog, ureg);
+        let _ = cleanup_and_stabilize_catalog_and_registry(&mut catalog, ureg, Default::default());
         let attrs = catalog.drain_attributes();
 
         // We should only have 10 attributes.
@@ -2126,6 +2213,7 @@ groups:
                         visibility: Default::default(),
                         is_v2: false,
                         span_name: None,
+                        span_links: Vec::new(),
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
@@ -2162,6 +2250,7 @@ groups:
                         visibility: Default::default(),
                         is_v2: false,
                         span_name: None,
+                        span_links: Vec::new(),
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
@@ -2198,6 +2287,7 @@ groups:
                         visibility: Default::default(),
                         is_v2: false,
                         span_name: None,
+                        span_links: Vec::new(),
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
@@ -2227,7 +2317,8 @@ groups:
                 (g.group.id.clone(), attr_names)
             })
             .collect();
-        let registry = cleanup_and_stabilize_catalog_and_registry(&mut catalog, ureg);
+        let registry =
+            cleanup_and_stabilize_catalog_and_registry(&mut catalog, ureg, Default::default());
         let attrs = catalog.drain_attributes();
 
         // Check catalog for sorting.
@@ -2378,6 +2469,7 @@ groups:
                 ],
                 note: None,
             }),
+            span_links: Vec::new(),
             requirement_level: None,
         };
 

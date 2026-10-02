@@ -943,6 +943,25 @@
         }
       ]
     },
+    "LinkAttributeRef": {
+      "description": "A resolved reference to an attribute expected on a span link.",
+      "type": "object",
+      "properties": {
+        "base": {
+          "description": "Reference, by index, to the attribute catalog.",
+          "$ref": "#/$defs/AttributeRef"
+        },
+        "requirement_level": {
+          "description": "Specifies if the attribute is mandatory. Can be \"required\",\n\"conditionally_required\", \"recommended\" or \"opt_in\". When omitted,\nthe referenced attribute's requirement level applies.",
+          "$ref": "#/$defs/RequirementLevel"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "base",
+        "requirement_level"
+      ]
+    },
     "Metric": {
       "description": "The definition of a metric signal.",
       "type": "object",
@@ -1425,6 +1444,13 @@
           "description": "Specifies the kind of the span.",
           "$ref": "#/$defs/SpanKindSpec"
         },
+        "links": {
+          "description": "Declares links from this span to other spans.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpanLink"
+          }
+        },
         "name": {
           "description": "The name pattern for the span.",
           "$ref": "#/$defs/SpanName"
@@ -1520,6 +1546,45 @@
           "type": "string",
           "const": "consumer"
         }
+      ]
+    },
+    "SpanLink": {
+      "description": "A resolved link from this span to another span.\n\nSpan links model relations that do not fit the parent/child tree,\nfor example a batch consumer span that links to the creation\ncontext of each message it processes.",
+      "type": "object",
+      "properties": {
+        "attributes": {
+          "description": "List of attributes expected on the link itself.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LinkAttributeRef"
+          }
+        },
+        "brief": {
+          "description": "The brief description of the link.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "note": {
+          "description": "The more elaborate description of the link.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "provenance": {
+          "description": "The provenance of the registry that declared the link.",
+          "$ref": "#/$defs/Provenance"
+        },
+        "ref": {
+          "description": "The span type this link points to.",
+          "$ref": "#/$defs/SignalId"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "ref"
       ]
     },
     "SpanName": {
@@ -1621,6 +1686,13 @@
         "kind": {
           "description": "Specifies the kind of the span.",
           "$ref": "#/$defs/SpanKindSpec"
+        },
+        "links": {
+          "description": "Declares links from this span to other spans.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpanLink"
+          }
         },
         "name": {
           "description": "The name pattern for the span.",

@@ -41,6 +41,11 @@ pub struct Span {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<EntityAssociation>,
 
+    /// Declares links from this span to other spans.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub links: Vec<SpanLink>,
+
     /// The requirement level of the span. Defaults to 'recommended' when omitted.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub requirement_level: Option<SignalRequirementLevel>,
@@ -53,6 +58,46 @@ pub struct Span {
     #[serde(default)]
     #[serde(skip_serializing_if = "Provenance::is_empty")]
     pub provenance: Provenance,
+}
+
+/// A resolved link from this span to another span.
+///
+/// Span links model relations that do not fit the parent/child tree,
+/// for example a batch consumer span that links to the creation
+/// context of each message it processes.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(deny_unknown_fields)]
+pub struct SpanLink {
+    /// The span type this link points to.
+    pub r#ref: SignalId,
+    /// The brief description of the link.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brief: Option<String>,
+    /// The more elaborate description of the link.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    /// List of attributes expected on the link itself.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub attributes: Vec<LinkAttributeRef>,
+    /// The provenance of the registry that declared the link.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Provenance::is_empty")]
+    pub provenance: Provenance,
+}
+
+/// A resolved reference to an attribute expected on a span link.
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(deny_unknown_fields)]
+pub struct LinkAttributeRef {
+    /// Reference, by index, to the attribute catalog.
+    pub base: AttributeRef,
+    /// Specifies if the attribute is mandatory. Can be "required",
+    /// "conditionally_required", "recommended" or "opt_in". When omitted,
+    /// the referenced attribute's requirement level applies.
+    pub requirement_level: RequirementLevel,
 }
 
 /// A special type of reference to attributes that remembers span-specicific information.
@@ -110,6 +155,7 @@ mod tests {
     #[test]
     fn test_span_signal() {
         let span = Span {
+            links: vec![],
             r#type: SignalId::from("http.client"),
             kind: SpanKindSpec::Client,
             name: SpanName {
