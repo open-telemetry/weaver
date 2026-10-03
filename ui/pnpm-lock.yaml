@@ -67,8 +67,8 @@ importers:
         specifier: 6.1.1
         version: 6.1.1(vite@8.3.1(@types/node@25.9.8)(jiti@2.7.0)(yaml@2.9.1))
       daisyui:
-        specifier: 5.7.46
-        version: 5.7.46
+        specifier: 5.7.47
+        version: 5.7.47
       eslint:
         specifier: 10.10.0
         version: 10.10.0(jiti@2.7.0)
@@ -999,8 +999,8 @@ packages:
     resolution: {integrity: sha512-ndfJ/JxxMd3nw31uyKoY2naivF+r29V+Lc0svZxe1JvvIRmi8hUsrMvdOwgS1o6uBHmiz91geQ0ylPP0aj1VUA==}
     engines: {node: '>=12'}
 
-  daisyui@5.7.46:
-    resolution: {integrity: sha512-z/tfVXLpLRe1ojGeokzxauHA9Ij5CGfk+83EdatQbFSVr02h5mUcp4nkgQJOw68wH1wAAPu/SY+MWbDdJG2R4w==}
+  daisyui@5.7.47:
+    resolution: {integrity: sha512-NOl4vPifelRqB3CMzoU751zc44KCDD9HdHMTTqQ30uiYVpIyK7+s94/ySDWgYqjdl1tQCaCrgGBx4KCizm+a3Q==}
 
   debug@4.4.3:
     resolution: {integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==}
@@ -3290,7 +3290,7 @@ snapshots:
 
   d3-timer@3.0.1: {}
 
-  daisyui@5.7.46: {}
+  daisyui@5.7.47: {}
 
   debug@4.4.3:
     dependencies:
