@@ -315,43 +315,43 @@
       ]
     },
     "AttributeRefinement": {
+      "description": "An attribute inclusion, override, or removal within a signal refinement.",
       "anyOf": [
         {
-          "$ref": "#/$defs/AttributeRef",
-          "description": "An attribute or group reference supported by the signal."
+          "description": "An attribute or group reference supported by the signal.",
+          "$ref": "#/$defs/AttributeRef"
         },
         {
-          "$ref": "#/$defs/AttributeUnref",
-          "description": "An inherited attribute to remove."
+          "description": "An inherited attribute to remove.",
+          "$ref": "#/$defs/AttributeUnref"
         }
-      ],
-      "description": "An attribute inclusion, override, or removal within a signal refinement."
+      ]
     },
     "AttributeRefinement2": {
+      "description": "An attribute inclusion, override, or removal within a signal refinement.",
       "anyOf": [
         {
-          "$ref": "#/$defs/AttributeOrGroupRef",
-          "description": "An attribute or group reference supported by the signal."
+          "description": "An attribute or group reference supported by the signal.",
+          "$ref": "#/$defs/AttributeOrGroupRef"
         },
         {
-          "$ref": "#/$defs/AttributeUnref",
-          "description": "An inherited attribute to remove."
+          "description": "An inherited attribute to remove.",
+          "$ref": "#/$defs/AttributeUnref"
         }
-      ],
-      "description": "An attribute inclusion, override, or removal within a signal refinement."
+      ]
     },
     "AttributeRefinement3": {
+      "description": "An attribute inclusion, override, or removal within a signal refinement.",
       "anyOf": [
         {
-          "$ref": "#/$defs/SpanAttributeOrGroupRef",
-          "description": "An attribute or group reference supported by the signal."
+          "description": "An attribute or group reference supported by the signal.",
+          "$ref": "#/$defs/SpanAttributeOrGroupRef"
         },
         {
-          "$ref": "#/$defs/AttributeUnref",
-          "description": "An inherited attribute to remove."
+          "description": "An inherited attribute to remove.",
+          "$ref": "#/$defs/AttributeUnref"
         }
-      ],
-      "description": "An attribute inclusion, override, or removal within a signal refinement."
+      ]
     },
     "AttributeType": {
       "description": "The different types of attributes (specification).",
@@ -383,18 +383,18 @@
       ]
     },
     "AttributeUnref": {
-      "additionalProperties": false,
       "description": "Removes an attribute inherited by a signal refinement.\n\nResolution must fail if the attribute is not inherited or is also included\nlocally. Policies should reject removing required attributes.",
+      "type": "object",
       "properties": {
         "unref": {
           "description": "The inherited attribute key to remove.",
           "type": "string"
         }
       },
+      "additionalProperties": false,
       "required": [
         "unref"
-      ],
-      "type": "object"
+      ]
     },
     "BasicRequirementLevelSpec": {
       "description": "The different types of basic requirement levels.",
