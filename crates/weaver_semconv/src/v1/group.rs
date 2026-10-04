@@ -150,6 +150,11 @@ pub struct GroupSpec {
     #[schemars(skip)]
     pub include_groups: Vec<String>,
 
+    /// Inherited attributes removed by a v2 refinement; not part of v1 syntax.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub attribute_unrefs: Vec<String>,
+
     /// Visibility of the attribute group.
     /// This parameter must not be provided in yaml, it's only used to convert v2 schema into v1
     #[serde(default)]
@@ -789,6 +794,7 @@ mod tests {
             prefix: "".to_owned(),
             extends: None,
             include_groups: vec![],
+            attribute_unrefs: vec![],
             stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
@@ -959,6 +965,7 @@ mod tests {
             prefix: "".to_owned(),
             extends: None,
             include_groups: vec![],
+            attribute_unrefs: vec![],
             stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
@@ -1266,6 +1273,7 @@ mod tests {
             prefix: "".to_owned(),
             extends: None,
             include_groups: vec![],
+            attribute_unrefs: vec![],
             stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
@@ -1488,6 +1496,7 @@ mod tests {
             prefix: "".to_owned(),
             extends: None,
             include_groups: vec![],
+            attribute_unrefs: vec![],
             stability: Some(Stability::Stable),
             deprecated: None,
             span_kind: None,
@@ -1632,6 +1641,7 @@ mod tests {
             prefix: "".to_owned(),
             extends: None,
             include_groups: vec![],
+            attribute_unrefs: vec![],
             stability: None,
             deprecated: None,
             attributes: vec![AttributeSpec::Id {
@@ -1822,6 +1832,7 @@ mod tests {
             prefix: "".to_owned(),
             extends: None,
             include_groups: vec![],
+            attribute_unrefs: vec![],
             stability: Some(Stability::Stable),
             deprecated: None,
             attributes: vec![],
@@ -1979,6 +1990,7 @@ mod tests {
             prefix: "".to_owned(),
             extends: None,
             include_groups: vec![],
+            attribute_unrefs: vec![],
             stability: Some(Stability::Stable),
             deprecated: None,
             attributes: vec![],
@@ -2029,6 +2041,7 @@ mod tests {
             prefix: "".to_owned(),
             extends: None,
             include_groups: vec![],
+            attribute_unrefs: vec![],
             stability: Some(Stability::Stable),
             deprecated: None,
             attributes: vec![AttributeSpec::Id {

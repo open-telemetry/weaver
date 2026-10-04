@@ -12,7 +12,11 @@ use crate::{
     entity_association::EntityAssociation,
     signal_requirement_level::SignalRequirementLevel,
     stability::Stability,
-    v2::{attribute::AttributeOrGroupRef, signal_id::SignalId, CommonFields},
+    v2::{
+        attribute::{AttributeOrGroupRef, AttributeRefinement},
+        signal_id::SignalId,
+        CommonFields,
+    },
     YamlValue,
 };
 
@@ -49,10 +53,10 @@ pub struct EventRefinement {
     pub id: SignalId,
     /// The name of the event being refined.
     pub r#ref: SignalId,
-    /// List of attributes that belong to the semantic convention.
+    /// Attribute and group references, overrides, or inherited attribute removals.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<AttributeOrGroupRef>,
+    pub attributes: Vec<AttributeRefinement>,
     /// Which resources this event should be associated with.
     ///
     /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an

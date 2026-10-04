@@ -252,6 +252,19 @@ pub enum Error {
         signal_type: String,
     },
 
+    /// A refinement cannot remove the requested attribute.
+    #[error("Refinement `{refinement_id}` cannot unref attribute `{attribute_key}`: {reason}.\nProvenance: {provenance:?}")]
+    InvalidAttributeUnref {
+        /// The refinement requesting the removal.
+        refinement_id: String,
+        /// The attribute key to remove.
+        attribute_key: String,
+        /// Why the removal is invalid.
+        reason: String,
+        /// The source of the refinement.
+        provenance: Option<Box<Provenance>>,
+    },
+
     /// Entity refinement changes identity.
     #[error("Entity refinement `{refinement_id}` changes the identity of `{ref}` by referencing `{attribute_id}` under `{role:?}`.\nProvenance: {provenance:?}")]
     #[diagnostic(help(

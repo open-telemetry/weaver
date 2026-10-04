@@ -13,7 +13,11 @@ use crate::{
     entity_association::EntityAssociation,
     signal_requirement_level::SignalRequirementLevel,
     stability::Stability,
-    v2::{attribute::AttributeRef, signal_id::SignalId, CommonFields},
+    v2::{
+        attribute::{AttributeRef, AttributeRefinement},
+        signal_id::SignalId,
+        CommonFields,
+    },
     YamlValue,
 };
 
@@ -91,6 +95,21 @@ pub enum SpanAttributeOrGroupRef {
     Group(SpanGroupRef),
 }
 
+impl From<SpanAttributeRef> for SpanAttributeOrGroupRef {
+    fn from(attribute: SpanAttributeRef) -> Self {
+        Self::Attribute(attribute)
+    }
+}
+
+impl From<SpanGroupRef> for SpanAttributeOrGroupRef {
+    fn from(group: SpanGroupRef) -> Self {
+        Self::Group(group)
+    }
+}
+
+/// An attribute reference or removal in a span refinement.
+pub type SpanAttributeRefinement = AttributeRefinement<SpanAttributeOrGroupRef>;
+
 /// Helper function to split a vector of SpanAttributeOrGroupRef into separate vectors
 /// of SpanAttributeRef and group reference strings
 #[must_use]
@@ -158,10 +177,10 @@ pub struct SpanRefinement {
     /// base span's `name`; otherwise, the base span's `name` is inherited.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<SpanName>,
-    /// List of attributes that belong to the semantic convention.
+    /// Attribute and group references, overrides, or inherited attribute removals.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<SpanAttributeOrGroupRef>,
+    pub attributes: Vec<SpanAttributeRefinement>,
     /// Which resources this span should be associated with.
     ///
     /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an

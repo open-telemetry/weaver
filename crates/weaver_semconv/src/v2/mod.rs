@@ -16,9 +16,9 @@ use crate::{
     stability::Stability,
     v2::{
         attribute::AttributeDef, attribute::AttributeRef, attribute_group::AttributeGroup,
-        entity::Entity, entity::EntityRefinement, event::Event, event::EventRefinement,
-        metric::Metric, metric::MetricRefinement, signal_id::SignalId, span::Span,
-        span::SpanRefinement,
+        entity::Entity, entity::EntityAttributeRefinement, entity::EntityRefinement, event::Event,
+        event::EventRefinement, metric::Metric, metric::MetricRefinement, signal_id::SignalId,
+        span::Span, span::SpanRefinement,
     },
     Error, YamlValue,
 };
@@ -294,25 +294,12 @@ impl SemConvSpecV2 {
             );
         }
 
-        let check_identity_overlap =
-            |identity: &[AttributeRef], description: &[AttributeRef], group_id: &SignalId| {
-                let mut overlaps = vec![];
-                for attr in description {
-                    if identity.iter().any(|i| i.r#ref == attr.r#ref) {
-                        overlaps.push(Error::AttributeInIdentityAndDescription {
-                            path_or_url: provenance.to_owned(),
-                            group_id: group_id.to_string(),
-                            attribute_id: attr.r#ref.clone(),
-                        });
-                    }
-                }
-                overlaps
-            };
         for e in &self.entities {
             fatal_errors.extend(check_identity_overlap(
                 &e.identity,
-                &e.description,
+                e.description.iter(),
                 &e.r#type,
+                provenance,
             ));
             if e.identity.is_empty() {
                 fatal_errors.push(Error::EntityMissingIdentity {
@@ -322,7 +309,16 @@ impl SemConvSpecV2 {
             }
         }
         for r in &self.entity_refinements {
-            fatal_errors.extend(check_identity_overlap(&r.identity, &r.description, &r.id));
+            let description = r.description.iter().filter_map(|attr| match attr {
+                EntityAttributeRefinement::Ref(attr) => Some(attr),
+                EntityAttributeRefinement::Unref(_) => None,
+            });
+            fatal_errors.extend(check_identity_overlap(
+                &r.identity,
+                description,
+                &r.id,
+                provenance,
+            ));
         }
 
         if !fatal_errors.is_empty() {
@@ -345,6 +341,22 @@ impl SemConvSpecV2 {
             && self.metric_refinements.is_empty()
             && self.span_refinements.is_empty()
     }
+}
+
+fn check_identity_overlap<'a>(
+    identity: &[AttributeRef],
+    description: impl Iterator<Item = &'a AttributeRef>,
+    group_id: &SignalId,
+    provenance: &str,
+) -> Vec<Error> {
+    description
+        .filter(|attr| identity.iter().any(|i| i.r#ref == attr.r#ref))
+        .map(|attr| Error::AttributeInIdentityAndDescription {
+            path_or_url: provenance.to_owned(),
+            group_id: group_id.to_string(),
+            attribute_id: attr.r#ref.clone(),
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -747,3 +759,6 @@ mod tests {
         assert!(matches!(result, WResult::FatalErr(_)));
     }
 }
+
+#[cfg(test)]
+mod unref_tests;

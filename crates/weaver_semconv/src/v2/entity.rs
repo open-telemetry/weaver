@@ -11,7 +11,11 @@ use crate::{
     deprecated::Deprecated,
     signal_requirement_level::SignalRequirementLevel,
     stability::Stability,
-    v2::{attribute::AttributeRef, signal_id::SignalId, CommonFields},
+    v2::{
+        attribute::{AttributeRef, AttributeRefinement},
+        signal_id::SignalId,
+        CommonFields,
+    },
     YamlValue,
 };
 
@@ -35,6 +39,9 @@ pub struct Entity {
     pub common: CommonFields,
 }
 
+/// An attribute reference or removal in an entity refinement.
+pub type EntityAttributeRefinement = AttributeRefinement<AttributeRef>;
+
 /// A refinement of an existing entity.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -43,20 +50,16 @@ pub struct EntityRefinement {
     pub id: SignalId,
     /// The name of the entity being refined.
     pub r#ref: SignalId,
-    /// Refinements of the base entity's identity attributes.
-    ///
-    /// A refinement must not change *which* attributes identify the entity: it
-    /// may only refine attributes the base entity already lists under
-    /// `identity`.
+    /// Overrides of the base entity's identity attributes; identity cannot be removed.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub identity: Vec<AttributeRef>,
-    /// Refinements or additional attributes to describe the Entity.
+    /// References, overrides, or removals of descriptive attributes.
     ///
     /// Attributes listed here have the descriptive role.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub description: Vec<AttributeRef>,
+    pub description: Vec<EntityAttributeRefinement>,
     /// Refines the brief description of the signal.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub brief: Option<String>,
