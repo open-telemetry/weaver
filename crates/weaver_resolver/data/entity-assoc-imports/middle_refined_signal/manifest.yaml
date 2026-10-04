@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: middle
 description: >
   Refines a metric of base. The refinement declares its own association, naming

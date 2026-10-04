@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: local_shapes
 description: >
   Every expression shape in one registry, over entities it defines itself: a

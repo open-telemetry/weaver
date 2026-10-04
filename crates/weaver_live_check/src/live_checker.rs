@@ -3,19 +3,96 @@
 //! Holds the registry, helper structs, and the advisors for the live check
 
 use serde::Serialize;
+use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 use weaver_semconv::v1::{attribute::AttributeType, group::GroupType};
+use weaver_semconv::v2::attribute::AttributeType as V2AttributeType;
 
+use crate::cel::Matchable;
 use crate::{
-    advice::Advisor, finding_modifier::FindingModifier, otlp_logger::OtlpEmitter,
-    VersionedAttribute, VersionedEntity, VersionedRegistry, VersionedSignal,
+    advice::Advisor,
+    finding_modifier::FindingModifier,
+    matcher::{Matchers, SampleMatch, SignalKind},
+    otlp_logger::OtlpEmitter,
+    Error, SampleType, VersionedAttribute, VersionedEntity, VersionedRegistry, VersionedSignal,
 };
+use weaver_config::live_check::MatcherConfig;
+use weaver_forge::v2::attribute::Attribute as V2Attribute;
+use weaver_forge::v2::attribute_group::AttributeGroup;
 use weaver_forge::v2::entity::{Entity as V2Entity, EntityRef};
 
 #[cfg(test)]
 use crate::CumulativeStatistics;
+
+/// Attributes of one signal or attribute group, keyed by attribute key.
+type AttributeIndex = HashMap<String, Rc<VersionedAttribute>>;
+
+/// Signal attributes, keyed by signal id and then by attribute key.
+type RefinedAttributes = HashMap<String, AttributeIndex>;
+
+/// The separator between an attribute key's namespaces.
+const NAMESPACE_SEPARATOR: &str = ".";
+
+/// Whether `key` is an instance of the template attribute named `template_key`:
+/// the template name, the namespace separator, then a non-empty remainder. A
+/// template name that already ends with the separator does not need a second
+/// one.
+pub(crate) fn key_extends_template(key: &str, template_key: &str) -> bool {
+    let template_key = template_key
+        .strip_suffix(NAMESPACE_SEPARATOR)
+        .unwrap_or(template_key);
+    key.strip_prefix(template_key)
+        .and_then(|rest| rest.strip_prefix(NAMESPACE_SEPARATOR))
+        .is_some_and(|rest| !rest.is_empty())
+}
+
+/// The longest template attribute in `index` that `key` extends.
+fn find_template_in(index: &AttributeIndex, key: &str) -> Option<Rc<VersionedAttribute>> {
+    index
+        .iter()
+        .filter(|(name, attribute)| {
+            matches!(*attribute.r#type(), AttributeType::Template(_))
+                && key_extends_template(key, name)
+        })
+        .max_by_key(|(name, _)| name.len())
+        .map(|(_, attribute)| Rc::clone(attribute))
+}
+
+/// A base attribute definition, and the schema urls of every registry that
+/// declares it.
+#[derive(Debug, Clone)]
+pub struct BaseAttribute {
+    /// The definition from the first registry that declares it.
+    pub attribute: Rc<VersionedAttribute>,
+    /// The schema urls that declare it, this registry first.
+    pub schema_urls: Vec<String>,
+    /// Whether this registry declares it, rather than only a dependency.
+    pub declared_here: bool,
+}
+
+impl BaseAttribute {
+    /// The schema urls, as `a, b`.
+    #[must_use]
+    pub fn schema_urls(&self) -> String {
+        self.schema_urls.join(", ")
+    }
+}
+
+/// Indexes a signal's attributes by key.
+fn index_attributes<'a>(
+    attributes: impl Iterator<Item = &'a V2Attribute>,
+) -> HashMap<String, Rc<VersionedAttribute>> {
+    attributes
+        .map(|attribute| {
+            (
+                attribute.key.clone(),
+                Rc::new(VersionedAttribute::V2(attribute.clone())),
+            )
+        })
+        .collect()
+}
 
 /// Holds the registry, helper structs, and the advisors for the live check
 #[derive(Serialize)]
@@ -26,6 +103,35 @@ pub struct LiveChecker {
     semconv_templates: HashMap<String, Rc<VersionedAttribute>>,
     semconv_metrics: HashMap<String, Rc<VersionedSignal>>,
     semconv_events: HashMap<String, Rc<VersionedSignal>>,
+    /// v2 spans keyed by type, and v2 attribute groups keyed by id. Both are
+    /// empty for a v1 registry, which has neither.
+    #[serde(skip)]
+    semconv_spans: HashMap<String, Rc<VersionedSignal>>,
+    #[serde(skip)]
+    semconv_attribute_groups: HashMap<String, Rc<AttributeGroup>>,
+    /// The attributes each v2 signal declares, which hold its refinements.
+    /// Empty for a v1 registry.
+    #[serde(skip)]
+    refined_span_attributes: RefinedAttributes,
+    #[serde(skip)]
+    refined_metric_attributes: RefinedAttributes,
+    #[serde(skip)]
+    refined_event_attributes: RefinedAttributes,
+    /// The attributes each v2 attribute group declares, keyed by the attribute
+    /// group's id.
+    #[serde(skip)]
+    attribute_group_attributes: RefinedAttributes,
+    /// The base attributes of this registry and its dependencies, keyed by
+    /// attribute key. Empty unless `search_all_attributes` is called.
+    #[serde(skip)]
+    base_attributes: HashMap<String, BaseAttribute>,
+    /// The keys of the template attributes in `base_attributes`, longest
+    /// first.
+    #[serde(skip)]
+    base_template_keys: Vec<String>,
+    /// Whether `search_all_attributes` was called.
+    #[serde(skip)]
+    searching_all_attributes: bool,
     #[serde(skip)]
     semconv_entities: HashMap<String, VersionedEntity>,
     /// The advisors to run
@@ -39,6 +145,9 @@ pub struct LiveChecker {
     /// Optional finding modifier for overriding/filtering findings
     #[serde(skip)]
     pub finding_modifier: Option<FindingModifier>,
+    /// The configured matchers, compiled and checked against the registry
+    #[serde(skip)]
+    matchers: Matchers,
 }
 
 impl LiveChecker {
@@ -55,6 +164,14 @@ impl LiveChecker {
         let mut semconv_events = HashMap::new();
         // Hashmap of entities by type name
         let mut semconv_entities = HashMap::new();
+        // Hashmap of v2 spans by type, and v2 attribute groups by id
+        let mut semconv_spans = HashMap::new();
+        let mut semconv_attribute_groups = HashMap::new();
+        // The attributes each v2 signal declares, by signal id
+        let mut refined_span_attributes = RefinedAttributes::new();
+        let mut refined_metric_attributes = RefinedAttributes::new();
+        let mut refined_event_attributes = RefinedAttributes::new();
+        let mut attribute_group_attributes = RefinedAttributes::new();
 
         match registry.as_ref() {
             VersionedRegistry::V1(registry) => {
@@ -99,13 +216,39 @@ impl LiveChecker {
             VersionedRegistry::V2(registry) => {
                 for metric in &registry.registry.metrics {
                     let metric_name = metric.name.to_string();
+                    let _ = refined_metric_attributes.insert(
+                        metric_name.clone(),
+                        index_attributes(metric.attributes.iter().map(|a| &a.base)),
+                    );
                     let metric_rc = Rc::new(VersionedSignal::Metric(metric.clone()));
                     let _ = semconv_metrics.insert(metric_name, metric_rc);
                 }
                 for event in &registry.registry.events {
                     let event_name = event.name.to_string();
+                    let _ = refined_event_attributes.insert(
+                        event_name.clone(),
+                        index_attributes(event.attributes.iter().map(|a| &a.base)),
+                    );
                     let event_rc = Rc::new(VersionedSignal::Event(event.clone()));
                     let _ = semconv_events.insert(event_name, event_rc);
+                }
+                for span in &registry.registry.spans {
+                    let span_type = span.r#type.to_string();
+                    let _ = refined_span_attributes.insert(
+                        span_type.clone(),
+                        index_attributes(span.attributes.iter().map(|a| &a.base)),
+                    );
+                    let span_rc = Rc::new(VersionedSignal::Span(span.clone()));
+                    let _ = semconv_spans.insert(span_type, span_rc);
+                }
+                for attribute_group in &registry.registry.attribute_groups {
+                    let attribute_group_id = attribute_group.id.to_string();
+                    let _ = attribute_group_attributes.insert(
+                        attribute_group_id.clone(),
+                        index_attributes(attribute_group.attributes.iter().map(|a| &a.base)),
+                    );
+                    let _ = semconv_attribute_groups
+                        .insert(attribute_group_id, Rc::new(attribute_group.clone()));
                 }
                 for entity in &registry.registry.entities {
                     let entity_type = entity.r#type.to_string();
@@ -128,7 +271,7 @@ impl LiveChecker {
         }
 
         // Sort templates by name length in descending order
-        templates_by_length.sort_by_key(|(b, _)| std::cmp::Reverse(b.len()));
+        templates_by_length.sort_by_key(|(b, _)| Reverse(b.len()));
 
         LiveChecker {
             registry,
@@ -136,12 +279,71 @@ impl LiveChecker {
             semconv_templates,
             semconv_metrics,
             semconv_events,
+            semconv_spans,
+            semconv_attribute_groups,
+            refined_span_attributes,
+            refined_metric_attributes,
+            refined_event_attributes,
+            attribute_group_attributes,
+            base_attributes: HashMap::new(),
+            base_template_keys: Vec::new(),
+            searching_all_attributes: false,
             semconv_entities,
             advisors,
             templates_by_length,
             otlp_emitter: None,
             finding_modifier: None,
+            matchers: Matchers::default(),
         }
+    }
+
+    /// Compile the configured matchers and check them against the registry
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a matcher does not compile, or when it names a
+    /// signal or attribute group that is not in the registry. Matchers need
+    /// a v2 registry.
+    pub fn set_matchers(&mut self, configs: &[MatcherConfig]) -> Result<(), Error> {
+        self.matchers = Matchers::compile(configs, self)?;
+        Ok(())
+    }
+
+    /// The configured matchers
+    #[must_use]
+    pub fn matchers(&self) -> &Matchers {
+        &self.matchers
+    }
+
+    /// Find the signal a matcher's `signal` names for this sample type
+    ///
+    /// Returns `None` for a sample type that has no signal.
+    #[must_use]
+    pub fn find_signal(
+        &self,
+        signal: &str,
+        sample_type: SampleType,
+    ) -> Option<Rc<VersionedSignal>> {
+        match SignalKind::for_sample_type(sample_type)? {
+            SignalKind::SpanType => self.find_span(signal),
+            SignalKind::EventName => self.find_event(signal),
+            SignalKind::MetricName => self.find_metric(signal),
+        }
+    }
+
+    /// Adds a match to the counts of the matchers that produced it
+    pub fn record_match(&mut self, sample_match: &SampleMatch) {
+        self.matchers.record_match(sample_match);
+    }
+
+    /// The signal and attribute groups to compare a sample with
+    #[must_use]
+    pub fn match_for(
+        &self,
+        sample: &dyn Matchable,
+        natural: Option<Rc<VersionedSignal>>,
+    ) -> SampleMatch {
+        self.matchers.match_for(sample, natural)
     }
 
     /// Add an advisor
@@ -165,6 +367,160 @@ impl LiveChecker {
     #[must_use]
     pub fn find_event(&self, name: &str) -> Option<Rc<VersionedSignal>> {
         self.semconv_events.get(name).map(Rc::clone)
+    }
+
+    /// Find an attribute as a v2 signal declares it, with its refinements
+    ///
+    /// Returns `None` for a v1 group, and for an attribute the signal does not
+    /// declare.
+    #[must_use]
+    pub fn find_refined_attribute(
+        &self,
+        signal: &VersionedSignal,
+        key: &str,
+    ) -> Option<Rc<VersionedAttribute>> {
+        self.refined_index(signal)?.get(key).map(Rc::clone)
+    }
+
+    /// Find a template attribute of a signal that this key extends
+    #[must_use]
+    pub fn find_refined_template(
+        &self,
+        signal: &VersionedSignal,
+        key: &str,
+    ) -> Option<Rc<VersionedAttribute>> {
+        find_template_in(self.refined_index(signal)?, key)
+    }
+
+    /// The attributes a signal declares, keyed by attribute key
+    fn refined_index(&self, signal: &VersionedSignal) -> Option<&AttributeIndex> {
+        let (index, id) = match signal {
+            VersionedSignal::Span(span) => (&self.refined_span_attributes, &*span.r#type),
+            VersionedSignal::Metric(metric) => (&self.refined_metric_attributes, &*metric.name),
+            VersionedSignal::Event(event) => (&self.refined_event_attributes, &*event.name),
+            VersionedSignal::Group(_) => return None,
+        };
+        index.get(id)
+    }
+
+    /// Find an attribute in the base definitions of this registry and its
+    /// dependencies
+    ///
+    /// Always `None` unless `search_all_attributes` was called.
+    #[must_use]
+    pub fn find_base_attribute(&self, key: &str) -> Option<&BaseAttribute> {
+        self.base_attributes.get(key)
+    }
+
+    /// Whether the base definitions are being searched
+    #[must_use]
+    pub fn is_searching_all_attributes(&self) -> bool {
+        self.searching_all_attributes
+    }
+
+    /// Whether the registry under check is v2
+    #[must_use]
+    pub fn is_v2(&self) -> bool {
+        matches!(self.registry.as_ref(), VersionedRegistry::V2(_))
+    }
+
+    /// Index the base attributes of this registry and its dependencies
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for a v1 registry, which has no dependencies to search.
+    pub fn search_all_attributes(&mut self) -> Result<(), Error> {
+        let VersionedRegistry::V2(registry) = self.registry.as_ref() else {
+            return Err(Error::SearchAllAttributesRequiresV2Registry);
+        };
+        self.searching_all_attributes = true;
+        // Search this registry first, then the nearest dependencies. A definition
+        // here wins over one in a dependency, and a direct dependency wins over a
+        // transitive one.
+        let sources = std::iter::once((&registry.schema_url, &registry.registry)).chain(
+            registry
+                .dependencies_nearest_first()
+                .into_iter()
+                .map(|(url, dependency)| (url, &dependency.registry)),
+        );
+        let mut template_keys = Vec::new();
+        for (index, (url, source)) in sources.enumerate() {
+            let schema_url = url.to_string();
+            let declared_here = index == 0;
+            for attribute in &source.attributes {
+                let _ = self
+                    .base_attributes
+                    .entry(attribute.key.clone())
+                    .and_modify(|held| held.schema_urls.push(schema_url.clone()))
+                    .or_insert_with(|| {
+                        if matches!(attribute.r#type, V2AttributeType::Template(_)) {
+                            template_keys.push(attribute.key.clone());
+                        }
+                        BaseAttribute {
+                            attribute: Rc::new(VersionedAttribute::V2(attribute.clone())),
+                            schema_urls: vec![schema_url.clone()],
+                            declared_here,
+                        }
+                    });
+            }
+        }
+        template_keys.sort_by_key(|key| Reverse(key.len()));
+        self.base_template_keys = template_keys;
+        Ok(())
+    }
+
+    /// Find the longest base template attribute that `key` extends, in this
+    /// registry or a dependency
+    ///
+    /// Always `None` unless `search_all_attributes` was called.
+    #[must_use]
+    pub fn find_base_template(&self, key: &str) -> Option<&BaseAttribute> {
+        self.base_template_keys
+            .iter()
+            .find(|template| key_extends_template(key, template))
+            .and_then(|template| self.base_attributes.get(template))
+    }
+
+    /// Find an attribute that a v2 attribute group declares
+    #[must_use]
+    pub fn find_attribute_group_attribute(
+        &self,
+        attribute_group_id: &str,
+        key: &str,
+    ) -> Option<Rc<VersionedAttribute>> {
+        self.attribute_group_attributes
+            .get(attribute_group_id)?
+            .get(key)
+            .map(Rc::clone)
+    }
+
+    /// Find a template attribute of a v2 attribute group that this key extends
+    #[must_use]
+    pub fn find_attribute_group_template(
+        &self,
+        attribute_group_id: &str,
+        key: &str,
+    ) -> Option<Rc<VersionedAttribute>> {
+        find_template_in(
+            self.attribute_group_attributes.get(attribute_group_id)?,
+            key,
+        )
+    }
+
+    /// Find a span in the registry by its type
+    ///
+    /// Always `None` for a v1 registry, which has no span types.
+    #[must_use]
+    pub fn find_span(&self, span_type: &str) -> Option<Rc<VersionedSignal>> {
+        self.semconv_spans.get(span_type).map(Rc::clone)
+    }
+
+    /// Find an attribute group in the registry by its id
+    ///
+    /// Always `None` for a v1 registry, which has no attribute groups.
+    #[must_use]
+    pub fn find_attribute_group(&self, id: &str) -> Option<Rc<AttributeGroup>> {
+        self.semconv_attribute_groups.get(id).map(Rc::clone)
     }
 
     /// Find an entity in the registry by type name
@@ -195,7 +551,7 @@ impl LiveChecker {
     pub fn find_template(&self, attribute_name: &str) -> Option<Rc<VersionedAttribute>> {
         // Use the pre-sorted list to find the first (longest) matching template
         for (template_name, attribute) in &self.templates_by_length {
-            if attribute_name.starts_with(template_name) {
+            if key_extends_template(attribute_name, template_name) {
                 return Some(Rc::clone(attribute));
             }
         }
@@ -206,6 +562,7 @@ impl LiveChecker {
 #[cfg(test)]
 mod tests {
     use std::fs::File;
+    use std::path::Path;
 
     use crate::{
         advice::{DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor},
@@ -239,9 +596,9 @@ mod tests {
         span::{Span as V2Span, SpanAttribute},
     };
     use weaver_resolved_schema::v1::attribute::Attribute;
-    use weaver_semconv::entity_association::EntityAssociation;
-    use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
-    use weaver_semconv::stability::Stability;
+    use weaver_semconv::v1::entity_association::EntityAssociation;
+    use weaver_semconv::v1::signal_requirement_level::SignalRequirementLevel as V1SignalRequirementLevel;
+    use weaver_semconv::v1::stability::Stability as V1Stability;
     use weaver_semconv::v1::{
         attribute::{
             AttributeType, BasicRequirementLevelSpec, EnumEntriesSpec, Examples,
@@ -258,7 +615,9 @@ mod tests {
     };
     use weaver_semconv::v2::metric::InstrumentSpec as V2InstrumentSpec;
     use weaver_semconv::v2::signal_id::SignalId;
+    use weaver_semconv::v2::signal_requirement_level::SignalRequirementLevel;
     use weaver_semconv::v2::span::SpanKindSpec as V2SpanKindSpec;
+    use weaver_semconv::v2::stability::Stability;
     use weaver_semconv::v2::{span::SpanName, CommonFields};
     use weaver_semconv::YamlValue;
     fn get_all_advice(sample: &mut Sample) -> &mut [PolicyFinding] {
@@ -310,6 +669,11 @@ mod tests {
         ];
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
             .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
@@ -321,7 +685,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
 
         let all_advice = get_all_advice(&mut samples[0]);
         assert!(all_advice.is_empty());
@@ -578,6 +942,56 @@ mod tests {
         }
     }
 
+    /// A key that extends a template's name without the namespace separator
+    /// between them is not an instance of that template.
+    #[test]
+    fn test_template_match_requires_the_namespace_separator() {
+        for use_v2 in [false, true] {
+            let mut live_checker =
+                LiveChecker::new(Arc::new(make_registry(use_v2)), vec![Box::new(TypeAdvisor)]);
+            if use_v2 {
+                live_checker
+                    .search_all_attributes()
+                    .expect("the fixture registry is v2");
+            }
+            let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
+                .expect("Failed to create Rego advisor");
+            live_checker.add_advisor(Box::new(rego_advisor));
+
+            assert!(live_checker.find_template("test.template.my.key").is_some());
+            assert!(live_checker
+                .find_template("test.templates.my.key")
+                .is_none());
+            if use_v2 {
+                assert!(live_checker
+                    .find_base_template("test.template.my.key")
+                    .is_some());
+                assert!(live_checker
+                    .find_base_template("test.templates.my.key")
+                    .is_none());
+            }
+
+            let mut stats =
+                LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+            let mut sample = Sample::Attribute(
+                SampleAttribute::try_from("test.templates.my.key=42").expect("a valid attribute"),
+            );
+            sample
+                .run_live_check(&mut live_checker, &mut stats, None, &sample.clone())
+                .expect("the live check runs");
+
+            let advice = get_all_advice(&mut sample);
+            assert!(
+                advice.iter().all(|a| a.id != "template_attribute"),
+                "v2 = {use_v2}, got: {advice:?}"
+            );
+            assert!(
+                advice.iter().any(|a| a.id == "missing_attribute"),
+                "v2 = {use_v2}, got: {advice:?}"
+            );
+        }
+    }
+
     fn make_registry(use_v2: bool) -> VersionedRegistry {
         if use_v2 {
             VersionedRegistry::V2(Box::new(ForgeResolvedRegistry {
@@ -703,7 +1117,7 @@ mod tests {
                     prefix: "".to_owned(),
                     entity_associations: vec![],
                     extends: None,
-                    stability: Some(Stability::Stable),
+                    stability: Some(V1Stability::Stable),
                     deprecated: None,
                     attributes: vec![
                         Attribute {
@@ -722,7 +1136,7 @@ mod tests {
                             },
                             sampling_relevant: None,
                             note: "".to_owned(),
-                            stability: Some(Stability::Stable),
+                            stability: Some(V1Stability::Stable),
                             deprecated: None,
                             prefix: false,
                             tags: None,
@@ -739,7 +1153,7 @@ mod tests {
                                         value: ValueSpec::String("example_variant1".to_owned()),
                                         brief: None,
                                         note: None,
-                                        stability: Some(Stability::Stable),
+                                        stability: Some(V1Stability::Stable),
                                         deprecated: None,
                                         annotations: None,
                                     },
@@ -748,7 +1162,7 @@ mod tests {
                                         value: ValueSpec::String("example_variant2".to_owned()),
                                         brief: None,
                                         note: None,
-                                        stability: Some(Stability::Stable),
+                                        stability: Some(V1Stability::Stable),
                                         deprecated: None,
                                         annotations: None,
                                     },
@@ -762,7 +1176,7 @@ mod tests {
                             },
                             sampling_relevant: None,
                             note: "".to_owned(),
-                            stability: Some(Stability::Stable),
+                            stability: Some(V1Stability::Stable),
                             deprecated: None,
                             prefix: false,
                             tags: None,
@@ -786,7 +1200,7 @@ mod tests {
                             },
                             sampling_relevant: None,
                             note: "".to_owned(),
-                            stability: Some(Stability::Development),
+                            stability: Some(V1Stability::Development),
                             deprecated: Some(
                                 weaver_semconv::deprecated::Deprecated::Uncategorized {
                                     note: "note".to_owned(),
@@ -812,7 +1226,7 @@ mod tests {
                             },
                             sampling_relevant: None,
                             note: "".to_owned(),
-                            stability: Some(Stability::Stable),
+                            stability: Some(V1Stability::Stable),
                             deprecated: None,
                             prefix: false,
                             tags: None,
@@ -960,7 +1374,7 @@ mod tests {
                                         value: ValueSpec::String("used".to_owned()),
                                         brief: None,
                                         note: None,
-                                        stability: Some(Stability::Development),
+                                        stability: Some(V1Stability::Development),
                                         deprecated: None,
                                         annotations: None,
                                     },
@@ -969,7 +1383,7 @@ mod tests {
                                         value: ValueSpec::String("free".to_owned()),
                                         brief: None,
                                         note: None,
-                                        stability: Some(Stability::Development),
+                                        stability: Some(V1Stability::Development),
                                         deprecated: None,
                                         annotations: None,
                                     },
@@ -986,7 +1400,7 @@ mod tests {
                             },
                             sampling_relevant: None,
                             note: "".to_owned(),
-                            stability: Some(Stability::Development),
+                            stability: Some(V1Stability::Development),
                             deprecated: None,
                             prefix: false,
                             tags: None,
@@ -1015,7 +1429,7 @@ mod tests {
                         prefix: "".to_owned(),
                         entity_associations: vec![],
                         extends: None,
-                        stability: Some(Stability::Development),
+                        stability: Some(V1Stability::Development),
                         deprecated: None,
                         attributes: vec![],
                         span_kind: None,
@@ -1023,7 +1437,7 @@ mod tests {
                         metric_name: Some("system.uptime".to_owned()),
                         instrument: Some(InstrumentSpec::Gauge),
                         unit: Some("s".to_owned()),
-                        requirement_level: Some(SignalRequirementLevel::Recommended),
+                        requirement_level: Some(V1SignalRequirementLevel::Recommended),
                         name: None,
                         lineage: None,
                         display_name: None,
@@ -1039,7 +1453,7 @@ mod tests {
                         prefix: "".to_owned(),
                         entity_associations: vec![],
                         extends: None,
-                        stability: Some(Stability::Development),
+                        stability: Some(V1Stability::Development),
                         deprecated: None,
                         attributes: vec![Attribute {
                             name: "system.memory.state".to_owned(),
@@ -1054,7 +1468,7 @@ mod tests {
                             },
                             sampling_relevant: None,
                             note: "".to_owned(),
-                            stability: Some(Stability::Development),
+                            stability: Some(V1Stability::Development),
                             deprecated: None,
                             prefix: false,
                             tags: None,
@@ -1067,7 +1481,7 @@ mod tests {
                         metric_name: Some("system.memory.usage".to_owned()),
                         instrument: Some(InstrumentSpec::UpDownCounter),
                         unit: Some("By".to_owned()),
-                        requirement_level: Some(SignalRequirementLevel::Recommended),
+                        requirement_level: Some(V1SignalRequirementLevel::Recommended),
                         name: None,
                         lineage: None,
                         display_name: None,
@@ -1111,7 +1525,8 @@ mod tests {
                         r#type: "custom.comprehensive.internal".to_owned().into(),
                         kind: V2SpanKindSpec::Internal,
                         name: SpanName {
-                            note: "custom.comprehensive.internal".to_owned(),
+                            note: Some("custom.comprehensive.internal".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![SpanAttribute {
                             base: custom_string_attr.clone(),
@@ -1153,7 +1568,7 @@ mod tests {
                     prefix: "".to_owned(),
                     entity_associations: vec![],
                     extends: None,
-                    stability: Some(Stability::Stable),
+                    stability: Some(V1Stability::Stable),
                     deprecated: None,
                     attributes: vec![Attribute {
                         name: "custom.string".to_owned(),
@@ -1169,7 +1584,7 @@ mod tests {
                         },
                         sampling_relevant: None,
                         note: "".to_owned(),
-                        stability: Some(Stability::Stable),
+                        stability: Some(V1Stability::Stable),
                         deprecated: None,
                         prefix: false,
                         tags: None,
@@ -1214,9 +1629,14 @@ mod tests {
         let advisors: Vec<Box<dyn Advisor>> = vec![];
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/live_check_advice/".into()),
+            &Some(Path::new("data/policies/live_check_advice/").into()),
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -1230,7 +1650,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
 
         let all_advice = get_all_advice(&mut samples[0]);
         assert!(all_advice.is_empty());
@@ -1304,6 +1724,11 @@ mod tests {
         ];
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
             .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
@@ -1315,7 +1740,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
 
         // Check the statistics
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
@@ -1366,9 +1791,14 @@ mod tests {
                 .expect("Unable to parse JSON");
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/live_check_advice/".into()),
+            &Some(Path::new("data/policies/live_check_advice/").into()),
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -1382,7 +1812,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
 
         // Check the statistics
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
@@ -1424,6 +1854,11 @@ mod tests {
         ];
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
             .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
@@ -1435,7 +1870,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
 
         // Check the statistics
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
@@ -1506,9 +1941,14 @@ mod tests {
                 .expect("Unable to parse JSON");
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/live_check_advice/".into()),
+            &Some(Path::new("data/policies/live_check_advice/").into()),
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -1523,7 +1963,7 @@ mod tests {
 
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
                 cumulative_stats
@@ -1556,9 +1996,14 @@ mod tests {
                 .expect("Unable to parse JSON");
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/live_check_advice/".into()),
+            &Some(Path::new("data/policies/live_check_advice/").into()),
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -1573,7 +2018,7 @@ mod tests {
 
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
 
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
@@ -1723,7 +2168,7 @@ mod tests {
                         prefix: "".to_owned(),
                         entity_associations: vec![],
                         extends: None,
-                        stability: Some(Stability::Development),
+                        stability: Some(V1Stability::Development),
                         deprecated: Some(weaver_semconv::deprecated::Deprecated::Uncategorized {
                             note: "Use session.initialized event instead".to_owned(),
                         }),
@@ -1743,7 +2188,7 @@ mod tests {
                                 ),
                                 sampling_relevant: None,
                                 note: "".to_owned(),
-                                stability: Some(Stability::Development),
+                                stability: Some(V1Stability::Development),
                                 deprecated: None,
                                 prefix: false,
                                 tags: None,
@@ -1766,7 +2211,7 @@ mod tests {
                                 },
                                 sampling_relevant: None,
                                 note: "".to_owned(),
-                                stability: Some(Stability::Development),
+                                stability: Some(V1Stability::Development),
                                 deprecated: None,
                                 prefix: false,
                                 tags: None,
@@ -1802,7 +2247,7 @@ mod tests {
                         prefix: "".to_owned(),
                         entity_associations: vec![],
                         extends: None,
-                        stability: Some(Stability::Stable),
+                        stability: Some(V1Stability::Stable),
                         deprecated: None,
                         attributes: vec![],
                         span_kind: None,
@@ -1856,6 +2301,11 @@ mod tests {
         ];
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
             .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
@@ -1867,7 +2317,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
 
         // Check the statistics
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
@@ -1937,9 +2387,14 @@ mod tests {
         let advisors: Vec<Box<dyn Advisor>> = vec![];
 
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/bad_advice/".into()),
+            &Some(Path::new("data/policies/bad_advice/").into()),
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -2005,6 +2460,11 @@ mod tests {
         let mut samples = vec![sample];
         let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
 
         let mut stats =
             LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
@@ -2013,7 +2473,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
                 cumulative_stats
@@ -2084,10 +2544,15 @@ mod tests {
         });
         let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
 
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/live_check_advice/".into()),
+            &Some(Path::new("data/policies/live_check_advice/").into()),
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -2099,7 +2564,7 @@ mod tests {
         let result = sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
 
         assert!(result.is_ok());
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
                 cumulative_stats.advice_type_counts.get("low_value"),
@@ -2145,6 +2610,11 @@ mod tests {
         ];
         let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
 
         let mut stats =
             LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
@@ -2153,7 +2623,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize();
+        stats.finalize(live_checker.matchers());
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
                 cumulative_stats
@@ -2184,7 +2654,6 @@ mod tests {
         //                deployment.region       (ConditionallyRequired)
         if use_v2 {
             use weaver_forge::v2::entity::{Entity as V2Entity, EntityAttribute};
-            use weaver_semconv::v2::signal_id::SignalId;
 
             let deployment_name_attr = V2Attribute {
                 key: "deployment.name".to_owned(),
@@ -2330,7 +2799,7 @@ mod tests {
                         prefix: "".to_owned(),
                         entity_associations: vec![],
                         extends: None,
-                        stability: Some(Stability::Stable),
+                        stability: Some(V1Stability::Stable),
                         deprecated: None,
                         attributes: vec![
                             Attribute {
@@ -2346,7 +2815,7 @@ mod tests {
                                 ),
                                 sampling_relevant: None,
                                 note: "".to_owned(),
-                                stability: Some(Stability::Stable),
+                                stability: Some(V1Stability::Stable),
                                 deprecated: None,
                                 prefix: false,
                                 tags: None,
@@ -2367,7 +2836,7 @@ mod tests {
                                 },
                                 sampling_relevant: None,
                                 note: "".to_owned(),
-                                stability: Some(Stability::Stable),
+                                stability: Some(V1Stability::Stable),
                                 deprecated: None,
                                 prefix: false,
                                 tags: None,
@@ -2388,7 +2857,7 @@ mod tests {
                                 ),
                                 sampling_relevant: None,
                                 note: "".to_owned(),
-                                stability: Some(Stability::Stable),
+                                stability: Some(V1Stability::Stable),
                                 deprecated: None,
                                 prefix: false,
                                 tags: None,
@@ -2409,7 +2878,7 @@ mod tests {
                                 },
                                 sampling_relevant: None,
                                 note: "".to_owned(),
-                                stability: Some(Stability::Stable),
+                                stability: Some(V1Stability::Stable),
                                 deprecated: None,
                                 prefix: false,
                                 tags: None,
@@ -2439,7 +2908,7 @@ mod tests {
                         prefix: "".to_owned(),
                         entity_associations: vec![EntityAssociation::Ref("deployment".to_owned())],
                         extends: None,
-                        stability: Some(Stability::Stable),
+                        stability: Some(V1Stability::Stable),
                         deprecated: None,
                         attributes: vec![],
                         span_kind: None,
@@ -2486,6 +2955,11 @@ mod tests {
         let registry = make_entity_registry(use_v2);
         let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let mut stats =
             LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
 
@@ -2711,18 +3185,24 @@ mod tests {
                 advice_context := {"scope_name": null}
                 message := "Missing instrumentation scope is explicitly null"
             }
+
+            deny contains make_advice(advice_type, advice_level, advice_context, message) if {
+                input.instrumentation_scope.name == "framework"
+                input.instrumentation_scope.version == null
+                input.instrumentation_scope.schema_url == null
+                advice_type := "instrumentation_scope_missing_values"
+                advice_level := "information"
+                advice_context := {"scope_name": "framework"}
+                message := "Missing instrumentation scope values are explicitly null"
+            }
         "#;
         std::fs::write(&policy_path, rego_content).expect("Failed to write custom policy");
 
         let registry = make_registry(false);
         let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
-        let rego_advisor = RegoAdvisor::new(
-            &live_checker,
-            &Some(temp_dir.path().to_path_buf()),
-            &None,
-            &None,
-        )
-        .expect("Failed to create Rego advisor");
+        let rego_advisor =
+            RegoAdvisor::new(&live_checker, &Some(temp_dir.path().into()), &None, &None)
+                .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
         let mut sample = Sample::Span(SampleSpan {
@@ -2734,8 +3214,8 @@ mod tests {
             span_links: vec![],
             instrumentation_scope: Some(Rc::new(SampleInstrumentationScope {
                 name: "framework".to_owned(),
-                version: "1.2.3".to_owned(),
-                schema_url: "https://opentelemetry.io/schemas/1.32.0".to_owned(),
+                version: Some("1.2.3".to_owned()),
+                schema_url: Some("https://opentelemetry.io/schemas/1.32.0".to_owned()),
                 attributes: vec![SampleAttribute {
                     name: "scope.environment".to_owned(),
                     value: Some(json!("test")),
@@ -2807,6 +3287,40 @@ mod tests {
                 .any(|finding| finding.id == "instrumentation_scope_absent"),
             "expected missing scope to be explicitly null for Rego: {unscoped_advice:?}"
         );
+
+        let mut missing_values_sample = sample.clone();
+        match &mut missing_values_sample {
+            Sample::Span(span) => {
+                span.instrumentation_scope = Some(Rc::new(SampleInstrumentationScope {
+                    name: "framework".to_owned(),
+                    version: None,
+                    schema_url: None,
+                    attributes: vec![],
+                    dropped_attributes_count: 0,
+                    live_check_result: None,
+                }));
+                span.live_check_result = None;
+            }
+            _ => unreachable!("test constructs a span"),
+        }
+        missing_values_sample
+            .run_live_check(
+                &mut live_checker,
+                &mut stats,
+                None,
+                &missing_values_sample.clone(),
+            )
+            .expect("missing values live check should not error");
+        let missing_values_advice = match &missing_values_sample {
+            Sample::Span(span) => &span.live_check_result.as_ref().unwrap().all_advice,
+            _ => unreachable!("test constructs a span"),
+        };
+        assert!(
+            missing_values_advice
+                .iter()
+                .any(|finding| finding.id == "instrumentation_scope_missing_values"),
+            "expected missing scope values to be explicitly null for Rego: {missing_values_advice:?}"
+        );
     }
 
     /// Builds a minimal required-only string attribute for entity-association tests.
@@ -2820,7 +3334,7 @@ mod tests {
             requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
             sampling_relevant: None,
             note: String::new(),
-            stability: Some(Stability::Stable),
+            stability: Some(Stability::Stable.into()),
             deprecated: None,
             prefix: false,
             tags: None,
@@ -2840,7 +3354,7 @@ mod tests {
             prefix: String::new(),
             entity_associations: vec![],
             extends: None,
-            stability: Some(Stability::Stable),
+            stability: Some(Stability::Stable.into()),
             deprecated: None,
             attributes: vec![attr],
             span_kind: None,
@@ -2857,7 +3371,7 @@ mod tests {
         }
     }
 
-    /// Builds a V1 event group carrying the given entity associations.
+    /// Builds a V1 event group with the given entity associations.
     fn assoc_event_group(name: &str, associations: Vec<EntityAssociation>) -> ResolvedGroup {
         ResolvedGroup {
             id: format!("event.{name}"),
@@ -2867,7 +3381,7 @@ mod tests {
             prefix: String::new(),
             entity_associations: associations,
             extends: None,
-            stability: Some(Stability::Stable),
+            stability: Some(Stability::Stable.into()),
             deprecated: None,
             attributes: vec![],
             span_kind: None,
@@ -3146,7 +3660,7 @@ mod tests {
         }
     }
 
-    /// The same entity, carrying one annotation.
+    /// The same entity, with one annotation.
     fn annotated(mut entity: V2Entity, key: &str, value: &str) -> V2Entity {
         let _ = entity.common.annotations.insert(
             key.to_owned(),
@@ -3155,7 +3669,7 @@ mod tests {
         entity
     }
 
-    /// Builds a v2 event carrying the given entity associations.
+    /// Builds a v2 event with the given entity associations.
     fn v2_assoc_event(name: &str, associations: Vec<V2EntityAssociation>) -> V2Event {
         V2Event {
             requirement_level: None,
@@ -3477,8 +3991,8 @@ mod tests {
         // End to end: the default jq preprocessor hands the entity view to a
         // policy, which reads an annotation from the definition of an entity that
         // a dependency holds, and checks the resource against it. Nothing in the
-        // input carries that definition. This registry defines a rival `host`, so
-        // the leaf's provenance is what decides which annotation applies.
+        // input holds that definition. This registry also defines `host`, so the
+        // provenance of the leaf decides which annotation applies.
         const DEP_URL: &str = "https://example.com/base/1.0.0";
         let dependency = v2_dependency(
             vec![annotated(
@@ -3510,7 +4024,7 @@ mod tests {
         let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/entity_advice/".into()),
+            &Some(Path::new("data/policies/entity_advice/").into()),
             &None,
             &None,
         )
@@ -3519,7 +4033,7 @@ mod tests {
         let mut stats =
             LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
 
-        // The resource carries the identity attribute with the wrong prefix.
+        // The resource sets the identity attribute with the wrong prefix.
         let advice = run_event_check(
             &mut live_checker,
             &mut stats,
@@ -3584,7 +4098,6 @@ mod tests {
         // A "host" entity with host.name (Required) associated with metric system.uptime
         if use_v2 {
             use weaver_forge::v2::entity::{Entity as V2Entity, EntityAttribute};
-            use weaver_semconv::v2::signal_id::SignalId;
 
             let host_name_attr = V2Attribute {
                 key: "host.name".to_owned(),
@@ -3668,7 +4181,7 @@ mod tests {
                         prefix: "".to_owned(),
                         entity_associations: vec![],
                         extends: None,
-                        stability: Some(Stability::Stable),
+                        stability: Some(V1Stability::Stable),
                         deprecated: None,
                         attributes: vec![Attribute {
                             name: "host.name".to_owned(),
@@ -3683,7 +4196,7 @@ mod tests {
                             ),
                             sampling_relevant: None,
                             note: "".to_owned(),
-                            stability: Some(Stability::Stable),
+                            stability: Some(V1Stability::Stable),
                             deprecated: None,
                             prefix: false,
                             tags: None,
@@ -3711,7 +4224,7 @@ mod tests {
                         prefix: "".to_owned(),
                         entity_associations: vec![EntityAssociation::Ref("host".to_owned())],
                         extends: None,
-                        stability: Some(Stability::Stable),
+                        stability: Some(V1Stability::Stable),
                         deprecated: None,
                         attributes: vec![],
                         span_kind: None,
@@ -3738,6 +4251,11 @@ mod tests {
         let registry = make_metric_entity_registry(use_v2);
         let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
         let mut live_checker = LiveChecker::new(Arc::new(registry), advisors);
+        if use_v2 {
+            live_checker
+                .search_all_attributes()
+                .expect("the fixture registry is v2");
+        }
         let mut stats =
             LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
 
@@ -4039,6 +4557,6 @@ mod tests {
             &None,
             &Some("/non/existent/path/*.json".to_owned()),
         );
-        assert!(matches!(result, Err(crate::Error::AdviceError { .. })));
+        assert!(matches!(result, Err(Error::AdviceError { .. })));
     }
 }

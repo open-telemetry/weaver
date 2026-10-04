@@ -10,11 +10,11 @@ use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::result::WResult;
 use weaver_resolved_schema::v1::ResolvedTelemetrySchema;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
-use weaver_semconv::manifest::Dependency;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::semconv::SemConvSpecWithProvenance;
 use weaver_semconv::v1::group::ImportsWithProvenance;
+use weaver_semconv::v2::manifest::Dependency;
 
 use crate::attribute::AttributeCatalog;
 use crate::dependency::ResolvedDependency;
@@ -210,14 +210,11 @@ impl WeaverResolver {
     ) -> WResult<ResolvedDependency, Error> {
         let schema_url = match &loaded {
             LoadedSemconvRegistry::Unresolved { repo, .. } => {
-                if let Some(m) = repo.manifest() {
-                    m.schema_url().clone()
-                } else {
-                    match SchemaUrl::try_from_name_version(repo.name(), repo.version()) {
-                        Ok(url) => url,
-                        Err(_) => return WResult::FatalErr(Error::FailToResolveSchemaUrl {}),
-                    }
-                }
+                let manifest = match repo.to_v2_manifest() {
+                    Ok(m) => m,
+                    Err(e) => return WResult::FatalErr(e.into()),
+                };
+                manifest.schema_url().clone()
             }
             LoadedSemconvRegistry::Resolved { schema, .. } => {
                 match SchemaUrl::try_from(schema.schema_url.as_str()) {
@@ -428,7 +425,7 @@ impl WeaverResolver {
             }
         }
 
-        let manifest = repo.manifest().cloned();
+        let manifest = repo.v1_manifest();
         let schema_url = if let Some(m) = manifest.as_ref() {
             m.schema_url().clone()
         } else {
@@ -1016,6 +1013,27 @@ mod tests {
         assert_resolved_v2_schema("data/registry-test-v2-dep/span_import_registry")
     }
 
+    /// Importing a signal from a published dependency does not make its
+    /// attributes this registry's own. `registry.attributes` lists only what a
+    /// registry defines - it is what a dependent's bare `ref` resolves against -
+    /// so an imported span, metric, event or entity must leave it empty, as it
+    /// does when the dependency is resolved from source.
+    #[test]
+    fn test_v2_published_dependency_import_defines_no_attributes(
+    ) -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/signal_import_registry")
+    }
+
+    /// Importing an attribute group from a published dependency keeps it in the
+    /// resolved `attribute_groups`, with its requirement levels. Every group in a
+    /// published registry is public; resolving the dependency from source already
+    /// keeps the imported group.
+    #[test]
+    fn test_v2_published_dependency_import_keeps_attribute_group(
+    ) -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/group_import_registry")
+    }
+
     /// End-to-end test for an event refinement over a v2 dependency
     #[test]
     fn test_v2_dependency_event_refinement_inherits_attributes() -> Result<(), weaver_semconv::Error>
@@ -1035,6 +1053,17 @@ mod tests {
     #[test]
     fn test_v2_transitive_dependency_attribute_provenance() -> Result<(), weaver_semconv::Error> {
         assert_resolved_v2_schema("data/registry-test-v2-dep/deep_registry")
+    }
+
+    /// A `ref` to an attribute of a published dependency that sets no
+    /// `requirement_level` takes the default, `recommended` - on a new signal,
+    /// on an attribute group, and on a refinement that introduces an attribute
+    /// its parent does not carry. Resolving the dependency from source already
+    /// does this; a published dependency must not differ.
+    #[test]
+    fn test_v2_published_dependency_bare_ref_defaults_to_recommended(
+    ) -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/bare_ref_registry")
     }
 
     /// An attribute a dependency inherited rather than defined reaches this

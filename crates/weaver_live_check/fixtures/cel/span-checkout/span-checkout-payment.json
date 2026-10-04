@@ -1,0 +1,12 @@
+{
+  "name": "checkout payment",
+  "kind": "internal",
+  "status": null,
+  "attributes": [
+    { "name": "myapp.checkout.id", "value": "3f9a1c" },
+    { "name": "myapp.checkout.stage", "value": "payment" }
+  ],
+  "span_events": [],
+  "span_links": [],
+  "live_check_result": null
+}

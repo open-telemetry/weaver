@@ -1,0 +1,5 @@
+description: Consumer registry that references attributes of the server V2 package without a requirement level.
+schema_url: https://bare-ref-consumer.example.com/schemas/1.0.0
+dependencies:
+  - schema_url: https://server.example.com/schemas/1.0.0
+    registry_path: data/registry-test-v2-dep/published

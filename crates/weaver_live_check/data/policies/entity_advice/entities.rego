@@ -6,11 +6,11 @@ import rego.v1
 # from the registry. The entity a signal is associated with may be defined in a
 # dependency, so its definition is not in the input: it comes from
 # `data.entities`, keyed by the schema url of the registry that defines it and
-# then by entity type or refinement id. An association leaf carries that same
+# then by entity type or refinement id. An association leaf holds that same
 # pair, so the definition is read directly and never searched for by name.
 #
 # The definition is reference data, and the sample is what is checked. Here an
-# entity annotates the prefix its identity values carry, and the resource of the
+# entity annotates the prefix its identity values use, and the resource of the
 # sample is checked against it.
 #
 # The dependency defines the entity, and nothing imports it:

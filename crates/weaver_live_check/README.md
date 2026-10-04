@@ -72,12 +72,40 @@ OTLP live-check is particularly useful in CI/CD pipelines to evaluate the qualit
 
 This `Ingester` starts an OTLP listener and streams each received OTLP message to the `Advisors`. The currently supported stop conditions are: CTRL+C (SIGINT), SIGHUP, the HTTP /stop endpoint, and a maximum duration of no OTLP message reception. See the usage examples later in this document.
 
+The admin port serves a small HTTP API, described in [Driving live-check over HTTP](docs/http-api.md):
+
+- `GET /health`: `200` once the listener is up.
+- `POST /stop`: stops receiving and returns once the report is ready, as `{"state":"stopped","report":true|false}`. `report` is `true` when `--output=http` is set.
+- `GET /report`: the report, with `--output=http`. `409` while still receiving, or once the process is shutting down.
+- `POST /shutdown`: ends the process. Stops the run first if it is still receiving.
+
 Options for OTLP ingest:
 
 - `--otlp-grpc-address`: Address the gRPC OTLP listener binds to. Defaults to `127.0.0.1` (loopback only); set it to a specific interface address, or to `0.0.0.0` to listen on all of them. The admin listener binds to the same address.
-- `--otlp-grpc-port`: Port used by the gRPC OTLP listener
-- `--admin-port`: Port used by the HTTP admin port (endpoints: /stop)
-- `--inactivity-timeout`: Max inactivity time in seconds before stopping the listener
+- `--otlp-grpc-port`: Port used by the gRPC OTLP listener. `0` picks a free port, which the startup log reports.
+- `--admin-port`: Port used by the HTTP admin port (endpoints: /health, /stop, /report, /shutdown). Must differ from the gRPC port.
+- `--inactivity-timeout`: Max inactivity time in seconds before stopping the listener. Ignored with `--output=http`, where the client stops the run.
+
+## Matchers
+
+Before live-check can check a sample, it has to pair the sample with a signal in the registry. A metric has its name and an event has its `event_name`, so those resolve themselves. A span name is free-form and a resource is a bare set of attributes, so nothing in them says which definition they belong to.
+
+A matcher supplies that missing identifier. You describe a signature that your telemetry has, and you name the signal, or the attribute groups, to compare a matching sample with:
+
+```toml
+[[live-check.matchers]]
+id = "match.checkout"
+sample_type = "span"
+when = '"myapp.checkout.id" in attributes'
+signal = "myapp.checkout"
+attribute_groups = ["myapp.common"]
+```
+
+`when` is a [CEL](https://cel.dev) expression. Live-check compiles it at startup. A matcher never changes the checks themselves. It only decides what a sample is compared with. Matchers need a v2 registry.
+
+`attribute_groups` names the attributes that are _permitted_ on the sample. They are checked against their definitions, but an attribute missing from the sample is not reported. Use `strict_attribute_groups` for a group whose requirement levels must be enforced.
+
+See [Matchers](docs/matchers.md) for the guide: worked examples for each sample type, the expression variables, the resolution order and the diagnostics.
 
 ## Advisors
 
@@ -124,7 +152,7 @@ As mentioned, a list of `PolicyFinding` is returned in the report for each sampl
 
 ### Custom advisors
 
-Use the `--advice-policies` command line option to provide a path to a directory containing Rego policies with the `live_check_advice` package name. Here's a very simple example that rejects any attribute name containing the string "test":
+Use the `--advice-policies` command line option to provide a path to a directory or virtual directory (such as a Git repository or archive) containing Rego policies with the `live_check_advice` package name. Here's a very simple example that rejects any attribute name containing the string "test":
 
 ```rego
 package live_check_advice
@@ -172,7 +200,7 @@ The default preprocessor produces these keys:
 - `data.schema_url`: the schema url of the registry under check. `null` for a v1 registry.
 - `data.entities`: the entity definitions, keyed by the schema url of the registry that defines them, and then by entity type or refinement id. Empty for a v1 registry.
 
-A signal declares the entities it belongs to with `entity_associations`, and an entity may be defined in a dependency rather than in the registry under check, so its definition is not in the input. Each association leaf carries the entity type and the provenance of the definition, which is the pair `data.entities` is keyed by, so a policy reads one definition rather than searching for it by name:
+A signal declares the entities it belongs to with `entity_associations`, and an entity may be defined in a dependency rather than in the registry under check, so its definition is not in the input. Each association leaf holds the entity type and the provenance of the definition, which is the pair `data.entities` is keyed by, so a policy reads one definition rather than searching for it by name:
 
 ```rego
 some assoc in input.registry_group.entity_associations
@@ -182,7 +210,7 @@ source := object.get(assoc, ["provenance", "source"], data.schema_url)
 entity := data.entities[source][assoc.type]
 ```
 
-An element of `entity_associations` can also be a `one_of` or `all_of` group rather than a direct reference. A group carries no `type`, so a policy that must cover those walks the tree itself. `data/policies/entity_advice/entities.rego` is a complete example of reading an entity definition.
+An element of `entity_associations` can also be a `one_of` or `all_of` group rather than a direct reference. A group has no `type`, so a policy that must cover those walks the tree itself. `data/policies/entity_advice/entities.rego` is a complete example of reading an entity definition.
 
 To override the default Otel jq preprocessor provide a path to the jq file through the `--advice-preprocessor` option.
 
@@ -199,7 +227,7 @@ weaver registry json-schema --json-schema weaver-config -o weaver-config.schema.
 ### Live-check settings
 
 ```toml
-[live_check]
+[live-check]
 input_source = "otlp"
 input_format = "json"
 format = "ansi"
@@ -211,19 +239,21 @@ output = "reports"
 advice_policies = "policies"
 advice_preprocessor = "preprocessor.jq"
 
-[live_check.otlp]
+[live-check.otlp]
 grpc_address = "127.0.0.1"
 grpc_port = 4317
 admin_port = 4320
 inactivity_timeout = 10
 
-[live_check.emit]
+[live-check.emit]
 otlp_logs = false
 otlp_logs_endpoint = "http://localhost:4317"
 otlp_logs_stdout = false
 ```
 
 Every key is optional: omit anything you want to leave at its default (or set on the CLI).
+
+`search_all_attributes` and the `[[live-check.matchers]]` array also go in this section. See [Matchers](docs/matchers.md).
 
 ### Finding filters
 
@@ -259,7 +289,7 @@ The `exclude_samples` and `sample_names` fields match by sample name: attribute 
 
 Level overrides are applied before finding filters, so a `min_level` filter evaluated afterwards sees the overridden level rather than the original one.
 
-Note that `signal_type` scopes by the _parent_ signal, not by what the finding is about — an attribute finding like `undefined_enum_variant` (which only ever fires on attribute values) still carries the `signal_type` of the span/metric/log/resource that attribute belongs to.
+Note that `signal_type` scopes by the _parent_ signal, not by what the finding is about — an attribute finding like `undefined_enum_variant` (which only ever fires on attribute values) still reports the `signal_type` of the span/metric/log/resource that attribute belongs to.
 
 ```toml
 # undefined_enum_variant is information by default; treat it as a violation everywhere
@@ -281,7 +311,13 @@ The output follows existing Weaver paradigms providing overridable jinja templat
 
 By default the output is streamed (when available) to an `ansi` template. Use the `--format` option to pick one of the builtin standard formats: `json`, `jsonl` and `yaml` or a template name. To override streaming and only produce a report when the input is closed, use `--no-stream`. Streaming is automatically disabled if your `--output` is a path to a directory; by default, output is printed to stdout.
 
-Set `--output=http` to have the report sent as the response to the `/stop` endpoint on the admin port.
+Set `--output=http` to serve the report over the admin API instead of writing it:
+
+1. `POST /stop` ends the run and returns once the report is ready.
+2. `GET /report` returns the report, as often as you like.
+3. `POST /shutdown` ends the process.
+
+The process stays up until step 3, so a client can read a large report at its own pace. See [Driving live-check over HTTP](docs/http-api.md) for the sequence diagram and a worked script. In this mode the client owns the run: `--inactivity-timeout` is ignored (with a warning if set) and weaver never stops or exits on its own. A signal still stops the run, and a second signal ends the process. The report is only ever served from `/report`; if the process exits before anyone reads it, the report is gone.
 
 To provide your own custom templates use the `--templates` option.
 
@@ -370,7 +406,7 @@ These should be self-explanatory, but:
 - `seen_non_registry_attributes` is a record of how many times each non-registry attribute was seen in the samples
 - `seen_registry_metrics` is a record of how many times each metric in the registry was seen in the samples
 - `seen_non_registry_metrics` is a record of how many times each non-registry metric was seen in the samples
-- `seen_registry_events` is a record of how many times each event in the registry was seen in the samples
+- `seen_registry_events` is a record of how many times each event in the registry was seen in the samples. Only logs count toward events; span events do not (see [Matchers](docs/matchers.md#what-signal-can-name))
 - `seen_non_registry_events` is a record of how many times each non-registry event was seen in the samples
 - `registry_coverage` is the fraction of seen registry entities over the total registry entities
 

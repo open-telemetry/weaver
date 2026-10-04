@@ -7,32 +7,43 @@ use std::{collections::HashSet, rc::Rc};
 use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_forge::v1::registry::ResolvedGroup;
 use weaver_forge::v2::{
+    attribute_group::AttributeGroupAttribute,
     entity::{Entity as V2Entity, EntityAssociation as V2EntityAssociation, EntityRef},
     event::EventAttribute,
     metric::MetricAttribute,
+    span::SpanAttribute,
 };
 use weaver_resolved_schema::v1::attribute::Attribute;
+use weaver_semconv::convert::v2_span_kind_to_v1;
 use weaver_semconv::v1::attribute::{
     AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
     TemplateTypeSpec,
 };
+use weaver_semconv::v2::attribute::{
+    AttributeType as V2AttributeType, BasicRequirementLevelSpec as V2BasicRequirementLevelSpec,
+    RequirementLevel as V2RequirementLevel,
+};
 
-use weaver_semconv::entity_association::EntityAssociation;
+use weaver_semconv::v1::entity_association::EntityAssociation;
 
 use super::{emit_findings, Advisor, FindingBuilder};
 use crate::{
-    live_checker::LiveChecker, otlp_logger::OtlpEmitter, sample_attribute::SampleAttribute,
-    sample_metric::SampleInstrument, Error, FindingId, Sample, SampleRef, VersionedAttribute,
-    VersionedEntity, VersionedSignal, ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY,
-    ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY, ENTITY_TYPE_ADVICE_CONTEXT_KEY,
-    EXPECTED_VALUE_ADVICE_CONTEXT_KEY, INSTRUMENT_ADVICE_CONTEXT_KEY, UNIT_ADVICE_CONTEXT_KEY,
+    enum_name,
+    live_checker::{key_extends_template, LiveChecker},
+    otlp_logger::OtlpEmitter,
+    sample_attribute::SampleAttribute,
+    sample_metric::SampleInstrument,
+    Error, FindingId, LiveCheckResult, Sample, SampleRef, VersionedAttribute, VersionedEntity,
+    VersionedSignal, ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY, ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY,
+    ENTITY_TYPE_ADVICE_CONTEXT_KEY, EXPECTED_VALUE_ADVICE_CONTEXT_KEY,
+    INSTRUMENT_ADVICE_CONTEXT_KEY, SPAN_KIND_ADVICE_CONTEXT_KEY, UNIT_ADVICE_CONTEXT_KEY,
 };
 
 /// An advisor that checks if a sample has the correct type
 pub struct TypeAdvisor;
 
 /// Trait to abstract over different attribute types for checking
-trait CheckableAttribute {
+pub(crate) trait CheckableAttribute {
     fn key(&self) -> &str;
     fn is_template(&self) -> bool;
     fn requirement_finding(&self, key: &str) -> (FindingId, FindingLevel, String);
@@ -75,49 +86,67 @@ impl CheckableAttribute for Attribute {
     }
 }
 
+/// Whether a v2 attribute type is a template.
+fn v2_is_template(attribute_type: &V2AttributeType) -> bool {
+    matches!(attribute_type, V2AttributeType::Template(_))
+}
+
+/// The finding for a v2 attribute that a sample does not set.
+fn v2_requirement_finding(
+    requirement_level: &V2RequirementLevel,
+    key: &str,
+) -> (FindingId, FindingLevel, String) {
+    match requirement_level {
+        V2RequirementLevel::Basic(V2BasicRequirementLevelSpec::Required) => (
+            FindingId::RequiredAttributeNotPresent,
+            FindingLevel::Violation,
+            format!("Required attribute '{key}' is not present."),
+        ),
+        V2RequirementLevel::Basic(V2BasicRequirementLevelSpec::Recommended)
+        | V2RequirementLevel::Recommended { .. } => (
+            FindingId::RecommendedAttributeNotPresent,
+            FindingLevel::Improvement,
+            format!("Recommended attribute '{key}' is not present."),
+        ),
+        V2RequirementLevel::Basic(V2BasicRequirementLevelSpec::OptIn)
+        | V2RequirementLevel::OptIn { .. } => (
+            FindingId::OptInAttributeNotPresent,
+            FindingLevel::Information,
+            format!("Opt-in attribute '{key}' is not present."),
+        ),
+        V2RequirementLevel::ConditionallyRequired { .. } => (
+            FindingId::ConditionallyRequiredAttributeNotPresent,
+            FindingLevel::Information,
+            format!("Conditionally required attribute '{key}' is not present."),
+        ),
+    }
+}
+
 impl CheckableAttribute for MetricAttribute {
     fn key(&self) -> &str {
         &self.base.key
     }
 
     fn is_template(&self) -> bool {
-        matches!(
-            self.base.r#type,
-            weaver_semconv::v2::attribute::AttributeType::Template(_)
-        )
+        v2_is_template(&self.base.r#type)
     }
 
     fn requirement_finding(&self, key: &str) -> (FindingId, FindingLevel, String) {
-        match &self.requirement_level {
-            weaver_semconv::v2::attribute::RequirementLevel::Basic(
-                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
-            ) => (
-                FindingId::RequiredAttributeNotPresent,
-                FindingLevel::Violation,
-                format!("Required attribute '{key}' is not present."),
-            ),
-            weaver_semconv::v2::attribute::RequirementLevel::Basic(
-                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Recommended,
-            )
-            | weaver_semconv::v2::attribute::RequirementLevel::Recommended { .. } => (
-                FindingId::RecommendedAttributeNotPresent,
-                FindingLevel::Improvement,
-                format!("Recommended attribute '{key}' is not present."),
-            ),
-            weaver_semconv::v2::attribute::RequirementLevel::Basic(
-                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::OptIn,
-            )
-            | weaver_semconv::v2::attribute::RequirementLevel::OptIn { .. } => (
-                FindingId::OptInAttributeNotPresent,
-                FindingLevel::Information,
-                format!("Opt-in attribute '{key}' is not present."),
-            ),
-            weaver_semconv::v2::attribute::RequirementLevel::ConditionallyRequired { .. } => (
-                FindingId::ConditionallyRequiredAttributeNotPresent,
-                FindingLevel::Information,
-                format!("Conditionally required attribute '{key}' is not present."),
-            ),
-        }
+        v2_requirement_finding(&self.requirement_level, key)
+    }
+}
+
+impl CheckableAttribute for SpanAttribute {
+    fn key(&self) -> &str {
+        &self.base.key
+    }
+
+    fn is_template(&self) -> bool {
+        v2_is_template(&self.base.r#type)
+    }
+
+    fn requirement_finding(&self, key: &str) -> (FindingId, FindingLevel, String) {
+        v2_requirement_finding(&self.requirement_level, key)
     }
 }
 
@@ -127,43 +156,25 @@ impl CheckableAttribute for EventAttribute {
     }
 
     fn is_template(&self) -> bool {
-        matches!(
-            self.base.r#type,
-            weaver_semconv::v2::attribute::AttributeType::Template(_)
-        )
+        v2_is_template(&self.base.r#type)
     }
 
     fn requirement_finding(&self, key: &str) -> (FindingId, FindingLevel, String) {
-        match &self.requirement_level {
-            weaver_semconv::v2::attribute::RequirementLevel::Basic(
-                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
-            ) => (
-                FindingId::RequiredAttributeNotPresent,
-                FindingLevel::Violation,
-                format!("Required attribute '{key}' is not present."),
-            ),
-            weaver_semconv::v2::attribute::RequirementLevel::Basic(
-                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Recommended,
-            )
-            | weaver_semconv::v2::attribute::RequirementLevel::Recommended { .. } => (
-                FindingId::RecommendedAttributeNotPresent,
-                FindingLevel::Improvement,
-                format!("Recommended attribute '{key}' is not present."),
-            ),
-            weaver_semconv::v2::attribute::RequirementLevel::Basic(
-                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::OptIn,
-            )
-            | weaver_semconv::v2::attribute::RequirementLevel::OptIn { .. } => (
-                FindingId::OptInAttributeNotPresent,
-                FindingLevel::Information,
-                format!("Opt-in attribute '{key}' is not present."),
-            ),
-            weaver_semconv::v2::attribute::RequirementLevel::ConditionallyRequired { .. } => (
-                FindingId::ConditionallyRequiredAttributeNotPresent,
-                FindingLevel::Information,
-                format!("Conditionally required attribute '{key}' is not present."),
-            ),
-        }
+        v2_requirement_finding(&self.requirement_level, key)
+    }
+}
+
+impl CheckableAttribute for AttributeGroupAttribute {
+    fn key(&self) -> &str {
+        &self.base.key
+    }
+
+    fn is_template(&self) -> bool {
+        v2_is_template(&self.base.r#type)
+    }
+
+    fn requirement_finding(&self, key: &str) -> (FindingId, FindingLevel, String) {
+        v2_requirement_finding(&self.requirement_level, key)
     }
 }
 
@@ -437,6 +448,58 @@ pub(crate) fn check_entity_associations<A: AssocExpr>(
     }
 }
 
+/// Adds the findings a signal's `entity_associations` raise against the resource.
+pub(crate) fn add_entity_association_findings(
+    signal: Option<&VersionedSignal>,
+    sample_ref: &SampleRef<'_>,
+    result: &mut LiveCheckResult,
+    live_checker: &LiveChecker,
+    parent_signal: &Sample,
+) {
+    let resource_attributes: &[SampleAttribute] = parent_signal
+        .resource()
+        .map(|resource| resource.attributes.as_slice())
+        .unwrap_or(&[]);
+    // A v1 group and a v2 signal store the same expression in different shapes.
+    let findings = match signal {
+        Some(VersionedSignal::Group(group)) => check_entity_associations(
+            &group.entity_associations,
+            live_checker,
+            resource_attributes,
+            parent_signal,
+        ),
+        Some(VersionedSignal::Span(span)) => check_entity_associations(
+            &span.entity_associations,
+            live_checker,
+            resource_attributes,
+            parent_signal,
+        ),
+        Some(VersionedSignal::Metric(metric)) => check_entity_associations(
+            &metric.entity_associations,
+            live_checker,
+            resource_attributes,
+            parent_signal,
+        ),
+        Some(VersionedSignal::Event(event)) => check_entity_associations(
+            &event.entity_associations,
+            live_checker,
+            resource_attributes,
+            parent_signal,
+        ),
+        None => Vec::new(),
+    };
+    if findings.is_empty() {
+        return;
+    }
+    emit_findings(
+        &findings,
+        sample_ref,
+        live_checker.otlp_emitter.as_deref(),
+        parent_signal,
+    );
+    result.add_advice_list(findings, live_checker.finding_modifier.as_ref(), sample_ref);
+}
+
 /// Recursively evaluates a single entity association expression.
 fn evaluate_association<A: AssocExpr>(
     assoc: &A,
@@ -563,8 +626,8 @@ fn entity_association_not_satisfied<A: AssocExpr>(
 /// | Recommended            | Improvement             |
 /// | Opt-In                 | Information             |
 /// | Conditionally Required | Information             |
-fn check_attributes<T: CheckableAttribute>(
-    semconv_attributes: &[T],
+pub(crate) fn check_attributes<'a, T: CheckableAttribute + 'a>(
+    semconv_attributes: impl IntoIterator<Item = &'a T>,
     sample_attributes: &[SampleAttribute],
     sample: &Sample,
 ) -> Vec<PolicyFinding> {
@@ -579,12 +642,12 @@ fn check_attributes<T: CheckableAttribute>(
         let key = semconv_attribute.key();
         let is_template = semconv_attribute.is_template();
 
-        // For template attributes, check if any sample attribute starts with the template prefix
+        // For template attributes, check if any sample attribute extends the template
         // For non-template attributes, check for exact match
         let is_present = if is_template {
             sample_attributes
                 .iter()
-                .any(|attr| attr.name.starts_with(key))
+                .any(|attr| key_extends_template(&attr.name, key))
         } else {
             attribute_set.contains(key)
         };
@@ -806,6 +869,40 @@ impl Advisor for TypeAdvisor {
                 } else {
                     Ok(Vec::new())
                 }
+            }
+            SampleRef::Span(sample_span) => {
+                let Some(semconv_span) = registry_group else {
+                    return Ok(Vec::new());
+                };
+                let VersionedSignal::Span(span) = &*semconv_span else {
+                    return Ok(Vec::new());
+                };
+                let mut advice_list =
+                    check_attributes(&span.attributes, &sample_span.attributes, parent_signal);
+                if sample_span.kind != v2_span_kind_to_v1(span.kind) {
+                    advice_list.push(PolicyFinding {
+                        id: FindingId::KindMismatch.into(),
+                        context: Some(json!({
+                            SPAN_KIND_ADVICE_CONTEXT_KEY: sample_span.kind,
+                            EXPECTED_VALUE_ADVICE_CONTEXT_KEY: span.kind,
+                        })),
+                        message: format!(
+                            "Span kind '{}' does not match the registry kind '{}'.",
+                            enum_name(&sample_span.kind),
+                            enum_name(&span.kind)
+                        ),
+                        level: FindingLevel::Violation,
+                        signal_type: parent_signal.signal_type(),
+                        signal_name: parent_signal.signal_name(),
+                    });
+                }
+                emit_findings(
+                    &advice_list,
+                    &sample,
+                    otlp_emitter.as_deref(),
+                    parent_signal,
+                );
+                Ok(advice_list)
             }
             SampleRef::Log(sample_log) => {
                 if let Some(semconv_event) = registry_group {
@@ -1115,5 +1212,57 @@ mod tests {
             advice.is_empty(),
             "Expected no advice when both template and regular attributes are present"
         );
+    }
+
+    #[test]
+    fn test_check_attributes_template_needs_the_namespace_separator() {
+        use weaver_semconv::v1::attribute::{AttributeType, TemplateTypeSpec};
+
+        let semconv_attributes = vec![Attribute {
+            name: "http.request.header".to_owned(),
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+            r#type: AttributeType::Template(TemplateTypeSpec::Strings),
+            brief: "HTTP request headers".to_owned(),
+            examples: None,
+            tag: None,
+            stability: None,
+            deprecated: None,
+            sampling_relevant: None,
+            note: "".to_owned(),
+            prefix: false,
+            annotations: None,
+            role: None,
+            tags: None,
+            value: None,
+        }];
+
+        let sample = Sample::Metric(SampleMetric {
+            name: "test_metric".to_owned(),
+            unit: "".to_owned(),
+            data_points: None,
+            instrument: SampleInstrument::Supported(
+                weaver_semconv::v1::group::InstrumentSpec::Counter,
+            ),
+            instrumentation_scope: None,
+            live_check_result: None,
+            resource: None,
+        });
+
+        // "http.request.headers.host" extends the template's name without the
+        // separator, so the template is still not present.
+        let advice = check_attributes(
+            &semconv_attributes,
+            &[create_sample_attribute("http.request.headers.host")],
+            &sample,
+        );
+        assert_eq!(advice.len(), 1, "got: {advice:?}");
+        assert_eq!(advice[0].id, "recommended_attribute_not_present");
+
+        let advice = check_attributes(
+            &semconv_attributes,
+            &[create_sample_attribute("http.request.header.host")],
+            &sample,
+        );
+        assert!(advice.is_empty(), "got: {advice:?}");
     }
 }

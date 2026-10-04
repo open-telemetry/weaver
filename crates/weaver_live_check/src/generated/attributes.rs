@@ -73,6 +73,10 @@ pub enum FindingId {
     UnexpectedInstrument,
     /// An enum attribute value is not in the set of allowed members
     UndefinedEnumVariant,
+    /// A matched sample has an attribute that is not on its signal or attribute groups
+    UnexpectedAttribute,
+    /// A span kind does not match the kind defined in the registry
+    KindMismatch,
     /// A required attribute is absent from the sample
     RequiredAttributeNotPresent,
     /// A recommended attribute is absent from the sample

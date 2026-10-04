@@ -67,3 +67,22 @@ export function EyeSlashIcon() {
     </svg>
   )
 }
+
+export function DeprecatedOnlyIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="h-4 w-4 shrink-0"
+    >
+      <path d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495Z" />
+      <path d="M10 7.5v3.75" />
+      <circle cx="10" cy="13.75" r="0.5" fill="currentColor" />
+    </svg>
+  )
+}

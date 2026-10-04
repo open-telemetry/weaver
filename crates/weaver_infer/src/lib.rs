@@ -11,7 +11,7 @@ use weaver_live_check::sample_metric::{SampleInstrument, SampleMetric};
 use weaver_live_check::sample_resource::SampleResource;
 use weaver_live_check::sample_span::SampleSpan;
 use weaver_live_check::Sample;
-use weaver_semconv::stability::Stability;
+use weaver_semconv::v2::stability::Stability;
 use weaver_semconv::v2::{
     attribute::{
         AttributeDef, AttributeOrGroupRef, AttributeRef, AttributeType, Examples,
@@ -246,7 +246,8 @@ impl AccumulatedSamples {
                     r#type: SignalId::from(span.name.clone()),
                     kind: span.kind,
                     name: SpanName {
-                        note: span.name.clone(),
+                        templates: Vec::new(),
+                        note: Some(span.name.clone()),
                     },
                     attributes,
                     entity_associations: vec![],
@@ -1013,6 +1014,8 @@ mod tests {
             status: None,
             attributes: vec![],
             span_events: vec![SampleSpanEvent {
+                resource: None,
+                instrumentation_scope: None,
                 name: "exception".to_owned(),
                 attributes: vec![SampleAttribute {
                     name: "exception.type".to_owned(),
@@ -1141,12 +1144,16 @@ mod tests {
             timestamp: None,
         }));
         acc.add_sample(Sample::SpanEvent(SampleSpanEvent {
+            resource: None,
+            instrumentation_scope: None,
             name: "ignored".to_owned(),
             attributes: vec![],
             live_check_result: None,
             timestamp: None,
         }));
         acc.add_sample(Sample::SpanLink(SampleSpanLink {
+            resource: None,
+            instrumentation_scope: None,
             attributes: vec![],
             live_check_result: None,
             trace_id: None,
@@ -1349,7 +1356,7 @@ mod tests {
         assert_eq!(registry.spans().len(), 1);
         assert_eq!(registry.spans()[0].r#type.to_string(), "HTTP GET");
         assert_eq!(registry.spans()[0].kind, SpanKindSpec::Client);
-        assert_eq!(registry.spans()[0].name.note, "HTTP GET");
+        assert_eq!(registry.spans()[0].name.note.as_deref(), Some("HTTP GET"));
         assert_eq!(registry.spans()[0].attributes.len(), 1);
         match &registry.spans()[0].attributes[0] {
             SpanAttributeOrGroupRef::Attribute(attribute) => {
@@ -1438,6 +1445,8 @@ mod tests {
             status: None,
             attributes: vec![],
             span_events: vec![SampleSpanEvent {
+                resource: None,
+                instrumentation_scope: None,
                 name: "exception".to_owned(),
                 attributes: vec![
                     SampleAttribute {
@@ -1578,6 +1587,8 @@ mod tests {
             status: None,
             attributes: vec![],
             span_events: vec![SampleSpanEvent {
+                resource: None,
+                instrumentation_scope: None,
                 name: "exception".to_owned(),
                 attributes: vec![SampleAttribute {
                     name: "span.attr".to_owned(),

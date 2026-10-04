@@ -1,0 +1,6 @@
+file_format: definition/2
+# A group in a published registry is public, so importing it keeps it in this
+# registry's resolved `attribute_groups`, with the dependency's requirement levels.
+imports:
+  attribute_groups:
+    - server.common
