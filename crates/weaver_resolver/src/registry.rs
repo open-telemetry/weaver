@@ -64,7 +64,7 @@ pub struct UnresolvedGroup {
     /// List of groups to include in the semantic convention group.
     pub include_groups: Vec<String>,
 
-    /// Inherited attributes to remove before merging local references.
+    /// Inherited attributes to unreference before merging local references.
     #[serde(default)]
     pub attribute_unrefs: Vec<String>,
 

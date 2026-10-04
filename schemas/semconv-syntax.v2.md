@@ -316,7 +316,7 @@ spans:
 
 #### Removing inherited attributes
 
-Use `unref` to remove an attribute inherited from a base signal:
+Use `unref` to unreference an attribute inherited from a base signal:
 
 ```yaml
 span_refinements:
@@ -328,21 +328,11 @@ span_refinements:
 
 Use it in `attributes` on span, metric, and event refinements, or in `description`
 on entity refinements. Base signals and attribute groups cannot use `unref`.
-Entity refinements cannot remove identity attributes, even through `description`.
 
-The attribute must come from the base signal, directly or through an attribute
-group. The base can belong to another registry. Resolution fails if the attribute
-is not inherited, appears in duplicate `unref` entries, or is also included by the
-refinement's `ref` or `ref_group`. Declaration order does not matter.
+Resolution fails if the attribute
+is not inherited, appears in duplicate `unref` entries, or is also included explicitly or via a group.
+
 An `unref` entry accepts no other fields.
-
-Removal affects only this refinement. Resolved output lists its remaining
-attributes, with no `unref` entries. Consumers must use that list without merging
-the base attributes back in.
-
-Policies should reject removal of required attributes; the resolver allows it.
-Compatibility policies should compare resolved refinements against the previous
-version to detect breaking removals.
 
 ### `spans` definition
 

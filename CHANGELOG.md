@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
-- Add `unref` to v2 signal refinements to remove inherited attributes. Entity identity attributes cannot be removed. ([#1799](https://github.com/open-telemetry/weaver/pull/1799) by @lmolkova)
+- Add `unref` to v2 signal refinements to unreference inherited attributes. ([#1799](https://github.com/open-telemetry/weaver/pull/1799) by @lmolkova)
 
 # [0.27.0] - 2026-10-02
 

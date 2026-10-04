@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     deprecated::Deprecated,
     v2::{
-        attribute::{AttributeOrGroupRef, AttributeRefinement},
+        attribute::{AttributeOrGroupRef, RefinementAttributeOrGroupRef},
         entity_association::EntityAssociation,
         signal_id::SignalId,
         signal_requirement_level::SignalRequirementLevel,
@@ -96,7 +96,7 @@ pub struct MetricRefinement {
     /// Attribute and group references, overrides, or inherited attribute removals.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<AttributeRefinement>,
+    pub attributes: Vec<RefinementAttributeOrGroupRef>,
     /// Which resources this metric should be associated with.
     ///
     /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an

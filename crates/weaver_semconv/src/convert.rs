@@ -29,10 +29,10 @@ use crate::v1::{
 };
 use crate::v2::{
     attribute::{
-        AttributeDef, AttributeOrGroupRef, AttributeRef, AttributeRefinement,
-        AttributeType as V2AttributeType, BasicRequirementLevelSpec as V2BasicRequirementLevelSpec,
+        AttributeDef, AttributeOrGroupRef, AttributeRef, AttributeType as V2AttributeType,
+        BasicRequirementLevelSpec as V2BasicRequirementLevelSpec,
         EnumEntriesSpec as V2EnumEntriesSpec, Examples as V2Examples,
-        PrimitiveOrArrayTypeSpec as V2PrimitiveOrArrayTypeSpec,
+        PrimitiveOrArrayTypeSpec as V2PrimitiveOrArrayTypeSpec, RefinementAttributeOrGroupRef,
         RequirementLevel as V2RequirementLevel, TemplateTypeSpec as V2TemplateTypeSpec,
         ValueSpec as V2ValueSpec,
     },
@@ -47,9 +47,9 @@ use crate::v2::{
     metric::{InstrumentSpec as V2InstrumentSpec, Metric, MetricRefinement},
     signal_requirement_level::SignalRequirementLevel as V2SignalRequirementLevel,
     span::{
-        Span, SpanAttributeOrGroupRef, SpanAttributeRef, SpanAttributeRefinement,
-        SpanKindSpec as V2SpanKindSpec, SpanName as V2SpanName,
-        SpanNameTemplate as V2SpanNameTemplate, SpanRefinement, TemplatePart as V2TemplatePart,
+        Span, SpanAttributeOrGroupRef, SpanAttributeRef, SpanKindSpec as V2SpanKindSpec,
+        SpanName as V2SpanName, SpanNameTemplate as V2SpanNameTemplate, SpanRefinement,
+        SpanRefinementAttributeOrGroupRef, TemplatePart as V2TemplatePart,
     },
     stability::Stability as V2Stability,
     Imports as V2Imports, SemConvSpecV2,
@@ -319,33 +319,43 @@ pub(crate) fn split_span_attributes_and_groups_to_v1(
     (attribute_refs, groups)
 }
 
-fn split_attribute_refinements<T>(
-    refinements: Vec<AttributeRefinement<T>>,
-) -> (Vec<T>, Vec<String>) {
-    let mut references = Vec::new();
+fn split_attribute_refinements_to_v1(
+    refinements: Vec<RefinementAttributeOrGroupRef>,
+) -> (Vec<V1AttributeSpec>, Vec<String>, Vec<String>) {
+    let mut attributes = Vec::new();
+    let mut groups = Vec::new();
     let mut unrefs = Vec::new();
     for refinement in refinements {
         match refinement {
-            AttributeRefinement::Ref(reference) => references.push(reference),
-            AttributeRefinement::Unref(attr) => unrefs.push(attr.unref),
+            RefinementAttributeOrGroupRef::Attribute(attr) => {
+                attributes.push(v2_attribute_ref_to_v1(attr));
+            }
+            RefinementAttributeOrGroupRef::Group(group) => {
+                groups.push(group.ref_group.into_v1());
+            }
+            RefinementAttributeOrGroupRef::Unref(attr) => unrefs.push(attr.unref),
         }
     }
-    (references, unrefs)
-}
-
-fn split_attribute_refinements_to_v1(
-    refinements: Vec<AttributeRefinement>,
-) -> (Vec<V1AttributeSpec>, Vec<String>, Vec<String>) {
-    let (references, unrefs) = split_attribute_refinements(refinements);
-    let (attributes, groups) = split_attributes_and_groups_to_v1(references);
     (attributes, groups, unrefs)
 }
 
 fn split_span_attribute_refinements_to_v1(
-    refinements: Vec<SpanAttributeRefinement>,
+    refinements: Vec<SpanRefinementAttributeOrGroupRef>,
 ) -> (Vec<V1AttributeSpec>, Vec<String>, Vec<String>) {
-    let (references, unrefs) = split_attribute_refinements(refinements);
-    let (attributes, groups) = split_span_attributes_and_groups_to_v1(references);
+    let mut attributes = Vec::new();
+    let mut groups = Vec::new();
+    let mut unrefs = Vec::new();
+    for refinement in refinements {
+        match refinement {
+            SpanRefinementAttributeOrGroupRef::Attribute(attr) => {
+                attributes.push(v2_span_attribute_ref_to_v1(attr));
+            }
+            SpanRefinementAttributeOrGroupRef::Group(group) => {
+                groups.push(group.ref_group);
+            }
+            SpanRefinementAttributeOrGroupRef::Unref(attr) => unrefs.push(attr.unref),
+        }
+    }
     (attributes, groups, unrefs)
 }
 
@@ -1903,7 +1913,7 @@ attributes:
             note: Some("Refined note".to_owned()),
             stability: Some(V2Stability::Stable),
             deprecated: None,
-            attributes: vec![AttributeRefinement::reference(AttributeRef {
+            attributes: vec![RefinementAttributeOrGroupRef::reference(AttributeRef {
                 r#ref: "extra_attr".to_owned(),
                 brief: None,
                 examples: None,

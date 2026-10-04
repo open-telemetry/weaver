@@ -483,25 +483,31 @@ pub struct AttributeDef {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct AttributeUnref {
-    /// The inherited attribute key to remove.
+    /// The inherited attribute key to unreference.
     pub unref: String,
 }
 
 /// An attribute inclusion, override, or removal within a signal refinement.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(untagged)]
-pub enum AttributeRefinement<T = AttributeOrGroupRef> {
-    /// An attribute or group reference supported by the signal.
-    Ref(T),
-    /// An inherited attribute to remove.
+#[schemars(inline)]
+pub enum RefinementAttributeOrGroupRef {
+    /// Reference to an attribute.
+    Attribute(AttributeRef),
+    /// Reference to an attribute group.
+    Group(GroupRef),
+    /// An inherited attribute to unreference.
     Unref(AttributeUnref),
 }
 
-impl<T> AttributeRefinement<T> {
+impl RefinementAttributeOrGroupRef {
     /// Includes or overrides an attribute or group.
     #[must_use]
-    pub fn reference(reference: impl Into<T>) -> Self {
-        Self::Ref(reference.into())
+    pub fn reference(reference: impl Into<AttributeOrGroupRef>) -> Self {
+        match reference.into() {
+            AttributeOrGroupRef::Attribute(attribute) => Self::Attribute(attribute),
+            AttributeOrGroupRef::Group(group) => Self::Group(group),
+        }
     }
 
     /// Removes an inherited attribute by key.

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     deprecated::Deprecated,
     v2::{
-        attribute::{AttributeRef, AttributeRefinement},
+        attribute::{AttributeRef, AttributeUnref},
         signal_id::SignalId,
         signal_requirement_level::SignalRequirementLevel,
         stability::Stability,
@@ -40,7 +40,29 @@ pub struct Entity {
 }
 
 /// An attribute reference or removal in an entity refinement.
-pub type EntityAttributeRefinement = AttributeRefinement<AttributeRef>;
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[serde(untagged)]
+#[schemars(inline)]
+pub enum EntityAttributeRefinement {
+    /// An attribute reference supported by the signal.
+    Ref(AttributeRef),
+    /// An inherited attribute to unreference.
+    Unref(AttributeUnref),
+}
+
+impl EntityAttributeRefinement {
+    /// Includes or overrides an attribute reference.
+    #[must_use]
+    pub fn reference(reference: impl Into<AttributeRef>) -> Self {
+        Self::Ref(reference.into())
+    }
+
+    /// Removes an inherited attribute by key.
+    #[must_use]
+    pub fn unref(key: impl Into<String>) -> Self {
+        Self::Unref(AttributeUnref { unref: key.into() })
+    }
+}
 
 /// A refinement of an existing entity.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]

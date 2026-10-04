@@ -257,7 +257,7 @@ pub enum Error {
     InvalidAttributeUnref {
         /// The refinement requesting the removal.
         refinement_id: String,
-        /// The attribute key to remove.
+        /// The attribute key to unreference.
         attribute_key: String,
         /// Why the removal is invalid.
         reason: String,

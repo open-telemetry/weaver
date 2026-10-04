@@ -314,45 +314,6 @@
         "ref"
       ]
     },
-    "AttributeRefinement": {
-      "description": "An attribute inclusion, override, or removal within a signal refinement.",
-      "anyOf": [
-        {
-          "description": "An attribute or group reference supported by the signal.",
-          "$ref": "#/$defs/AttributeRef"
-        },
-        {
-          "description": "An inherited attribute to remove.",
-          "$ref": "#/$defs/AttributeUnref"
-        }
-      ]
-    },
-    "AttributeRefinement2": {
-      "description": "An attribute inclusion, override, or removal within a signal refinement.",
-      "anyOf": [
-        {
-          "description": "An attribute or group reference supported by the signal.",
-          "$ref": "#/$defs/AttributeOrGroupRef"
-        },
-        {
-          "description": "An inherited attribute to remove.",
-          "$ref": "#/$defs/AttributeUnref"
-        }
-      ]
-    },
-    "AttributeRefinement3": {
-      "description": "An attribute inclusion, override, or removal within a signal refinement.",
-      "anyOf": [
-        {
-          "description": "An attribute or group reference supported by the signal.",
-          "$ref": "#/$defs/SpanAttributeOrGroupRef"
-        },
-        {
-          "description": "An inherited attribute to remove.",
-          "$ref": "#/$defs/AttributeUnref"
-        }
-      ]
-    },
     "AttributeType": {
       "description": "The different types of attributes (specification).",
       "anyOf": [
@@ -387,7 +348,7 @@
       "type": "object",
       "properties": {
         "unref": {
-          "description": "The inherited attribute key to remove.",
+          "description": "The inherited attribute key to unreference.",
           "type": "string"
         }
       },
@@ -646,7 +607,17 @@
           "description": "References, overrides, or removals of descriptive attributes.\n\nAttributes listed here have the descriptive role.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/AttributeRefinement"
+            "description": "An attribute reference or removal in an entity refinement.",
+            "anyOf": [
+              {
+                "description": "An attribute reference supported by the signal.",
+                "$ref": "#/$defs/AttributeRef"
+              },
+              {
+                "description": "An inherited attribute to unreference.",
+                "$ref": "#/$defs/AttributeUnref"
+              }
+            ]
           }
         },
         "id": {
@@ -846,7 +817,21 @@
           "description": "Attribute and group references, overrides, or inherited attribute removals.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/AttributeRefinement2"
+            "description": "An attribute inclusion, override, or removal within a signal refinement.",
+            "anyOf": [
+              {
+                "description": "Reference to an attribute.",
+                "$ref": "#/$defs/AttributeRef"
+              },
+              {
+                "description": "Reference to an attribute group.",
+                "$ref": "#/$defs/GroupRef"
+              },
+              {
+                "description": "An inherited attribute to unreference.",
+                "$ref": "#/$defs/AttributeUnref"
+              }
+            ]
           }
         },
         "brief": {
@@ -1209,7 +1194,21 @@
           "description": "Attribute and group references, overrides, or inherited attribute removals.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/AttributeRefinement2"
+            "description": "An attribute inclusion, override, or removal within a signal refinement.",
+            "anyOf": [
+              {
+                "description": "Reference to an attribute.",
+                "$ref": "#/$defs/AttributeRef"
+              },
+              {
+                "description": "Reference to an attribute group.",
+                "$ref": "#/$defs/GroupRef"
+              },
+              {
+                "description": "An inherited attribute to unreference.",
+                "$ref": "#/$defs/AttributeUnref"
+              }
+            ]
           }
         },
         "brief": {
@@ -1656,7 +1655,21 @@
           "description": "Attribute and group references, overrides, or inherited attribute removals.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/AttributeRefinement3"
+            "description": "An attribute reference or removal in a span refinement.",
+            "anyOf": [
+              {
+                "description": "Reference to a span attribute.",
+                "$ref": "#/$defs/SpanAttributeRef"
+              },
+              {
+                "description": "Reference to an attribute group.",
+                "$ref": "#/$defs/SpanGroupRef"
+              },
+              {
+                "description": "An inherited attribute to unreference.",
+                "$ref": "#/$defs/AttributeUnref"
+              }
+            ]
           }
         },
         "brief": {

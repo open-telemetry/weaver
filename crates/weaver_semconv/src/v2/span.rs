@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     deprecated::Deprecated,
     v2::{
-        attribute::{AttributeRef, AttributeRefinement},
+        attribute::{AttributeRef, AttributeUnref},
         entity_association::EntityAssociation,
         signal_id::SignalId,
         signal_requirement_level::SignalRequirementLevel,
@@ -391,7 +391,34 @@ impl From<SpanGroupRef> for SpanAttributeOrGroupRef {
 }
 
 /// An attribute reference or removal in a span refinement.
-pub type SpanAttributeRefinement = AttributeRefinement<SpanAttributeOrGroupRef>;
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[serde(untagged)]
+#[schemars(inline)]
+pub enum SpanRefinementAttributeOrGroupRef {
+    /// Reference to a span attribute.
+    Attribute(SpanAttributeRef),
+    /// Reference to an attribute group.
+    Group(SpanGroupRef),
+    /// An inherited attribute to unreference.
+    Unref(AttributeUnref),
+}
+
+impl SpanRefinementAttributeOrGroupRef {
+    /// Includes or overrides an attribute or group.
+    #[must_use]
+    pub fn reference(reference: impl Into<SpanAttributeOrGroupRef>) -> Self {
+        match reference.into() {
+            SpanAttributeOrGroupRef::Attribute(attribute) => Self::Attribute(attribute),
+            SpanAttributeOrGroupRef::Group(group) => Self::Group(group),
+        }
+    }
+
+    /// Removes an inherited attribute by key.
+    #[must_use]
+    pub fn unref(key: impl Into<String>) -> Self {
+        Self::Unref(AttributeUnref { unref: key.into() })
+    }
+}
 
 /// Helper function to split a vector of SpanAttributeOrGroupRef into separate vectors
 /// of SpanAttributeRef and group reference strings
@@ -463,7 +490,7 @@ pub struct SpanRefinement {
     /// Attribute and group references, overrides, or inherited attribute removals.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<SpanAttributeRefinement>,
+    pub attributes: Vec<SpanRefinementAttributeOrGroupRef>,
     /// Which resources this span should be associated with.
     ///
     /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
