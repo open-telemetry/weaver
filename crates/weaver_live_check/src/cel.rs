@@ -74,8 +74,8 @@ struct ResourceVariable<'a> {
 #[derive(Serialize)]
 struct ScopeVariable<'a> {
     name: &'a str,
-    version: &'a str,
-    schema_url: &'a str,
+    version: &'a Option<String>,
+    schema_url: &'a Option<String>,
     attributes: AttributeMap<'a>,
 }
 

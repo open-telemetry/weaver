@@ -32,13 +32,29 @@ type AttributeIndex = HashMap<String, Rc<VersionedAttribute>>;
 /// Signal attributes, keyed by signal id and then by attribute key.
 type RefinedAttributes = HashMap<String, AttributeIndex>;
 
+/// The separator between an attribute key's namespaces.
+const NAMESPACE_SEPARATOR: &str = ".";
+
+/// Whether `key` is an instance of the template attribute named `template_key`:
+/// the template name, the namespace separator, then a non-empty remainder. A
+/// template name that already ends with the separator does not need a second
+/// one.
+pub(crate) fn key_extends_template(key: &str, template_key: &str) -> bool {
+    let template_key = template_key
+        .strip_suffix(NAMESPACE_SEPARATOR)
+        .unwrap_or(template_key);
+    key.strip_prefix(template_key)
+        .and_then(|rest| rest.strip_prefix(NAMESPACE_SEPARATOR))
+        .is_some_and(|rest| !rest.is_empty())
+}
+
 /// The longest template attribute in `index` that `key` extends.
 fn find_template_in(index: &AttributeIndex, key: &str) -> Option<Rc<VersionedAttribute>> {
     index
         .iter()
         .filter(|(name, attribute)| {
             matches!(*attribute.r#type(), AttributeType::Template(_))
-                && key.starts_with(name.as_str())
+                && key_extends_template(key, name)
         })
         .max_by_key(|(name, _)| name.len())
         .map(|(_, attribute)| Rc::clone(attribute))
@@ -461,7 +477,7 @@ impl LiveChecker {
     pub fn find_base_template(&self, key: &str) -> Option<&BaseAttribute> {
         self.base_template_keys
             .iter()
-            .find(|template| key.starts_with(template.as_str()))
+            .find(|template| key_extends_template(key, template))
             .and_then(|template| self.base_attributes.get(template))
     }
 
@@ -535,7 +551,7 @@ impl LiveChecker {
     pub fn find_template(&self, attribute_name: &str) -> Option<Rc<VersionedAttribute>> {
         // Use the pre-sorted list to find the first (longest) matching template
         for (template_name, attribute) in &self.templates_by_length {
-            if attribute_name.starts_with(template_name) {
+            if key_extends_template(attribute_name, template_name) {
                 return Some(Rc::clone(attribute));
             }
         }
@@ -546,6 +562,7 @@ impl LiveChecker {
 #[cfg(test)]
 mod tests {
     use std::fs::File;
+    use std::path::Path;
 
     use crate::{
         advice::{DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor},
@@ -922,6 +939,56 @@ mod tests {
             assert_eq!(cumulative_stats.registry_coverage, 1.0);
         } else {
             panic!("Expected Cumulative statistics");
+        }
+    }
+
+    /// A key that extends a template's name without the namespace separator
+    /// between them is not an instance of that template.
+    #[test]
+    fn test_template_match_requires_the_namespace_separator() {
+        for use_v2 in [false, true] {
+            let mut live_checker =
+                LiveChecker::new(Arc::new(make_registry(use_v2)), vec![Box::new(TypeAdvisor)]);
+            if use_v2 {
+                live_checker
+                    .search_all_attributes()
+                    .expect("the fixture registry is v2");
+            }
+            let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
+                .expect("Failed to create Rego advisor");
+            live_checker.add_advisor(Box::new(rego_advisor));
+
+            assert!(live_checker.find_template("test.template.my.key").is_some());
+            assert!(live_checker
+                .find_template("test.templates.my.key")
+                .is_none());
+            if use_v2 {
+                assert!(live_checker
+                    .find_base_template("test.template.my.key")
+                    .is_some());
+                assert!(live_checker
+                    .find_base_template("test.templates.my.key")
+                    .is_none());
+            }
+
+            let mut stats =
+                LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+            let mut sample = Sample::Attribute(
+                SampleAttribute::try_from("test.templates.my.key=42").expect("a valid attribute"),
+            );
+            sample
+                .run_live_check(&mut live_checker, &mut stats, None, &sample.clone())
+                .expect("the live check runs");
+
+            let advice = get_all_advice(&mut sample);
+            assert!(
+                advice.iter().all(|a| a.id != "template_attribute"),
+                "v2 = {use_v2}, got: {advice:?}"
+            );
+            assert!(
+                advice.iter().any(|a| a.id == "missing_attribute"),
+                "v2 = {use_v2}, got: {advice:?}"
+            );
         }
     }
 
@@ -1569,7 +1636,7 @@ mod tests {
         }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/live_check_advice/".into()),
+            &Some(Path::new("data/policies/live_check_advice/").into()),
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -1731,7 +1798,7 @@ mod tests {
         }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/live_check_advice/".into()),
+            &Some(Path::new("data/policies/live_check_advice/").into()),
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -1881,7 +1948,7 @@ mod tests {
         }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/live_check_advice/".into()),
+            &Some(Path::new("data/policies/live_check_advice/").into()),
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -1936,7 +2003,7 @@ mod tests {
         }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/live_check_advice/".into()),
+            &Some(Path::new("data/policies/live_check_advice/").into()),
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -2327,7 +2394,7 @@ mod tests {
         }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/bad_advice/".into()),
+            &Some(Path::new("data/policies/bad_advice/").into()),
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -2485,7 +2552,7 @@ mod tests {
 
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/live_check_advice/".into()),
+            &Some(Path::new("data/policies/live_check_advice/").into()),
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -3118,18 +3185,24 @@ mod tests {
                 advice_context := {"scope_name": null}
                 message := "Missing instrumentation scope is explicitly null"
             }
+
+            deny contains make_advice(advice_type, advice_level, advice_context, message) if {
+                input.instrumentation_scope.name == "framework"
+                input.instrumentation_scope.version == null
+                input.instrumentation_scope.schema_url == null
+                advice_type := "instrumentation_scope_missing_values"
+                advice_level := "information"
+                advice_context := {"scope_name": "framework"}
+                message := "Missing instrumentation scope values are explicitly null"
+            }
         "#;
         std::fs::write(&policy_path, rego_content).expect("Failed to write custom policy");
 
         let registry = make_registry(false);
         let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
-        let rego_advisor = RegoAdvisor::new(
-            &live_checker,
-            &Some(temp_dir.path().to_path_buf()),
-            &None,
-            &None,
-        )
-        .expect("Failed to create Rego advisor");
+        let rego_advisor =
+            RegoAdvisor::new(&live_checker, &Some(temp_dir.path().into()), &None, &None)
+                .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
         let mut sample = Sample::Span(SampleSpan {
@@ -3141,8 +3214,8 @@ mod tests {
             span_links: vec![],
             instrumentation_scope: Some(Rc::new(SampleInstrumentationScope {
                 name: "framework".to_owned(),
-                version: "1.2.3".to_owned(),
-                schema_url: "https://opentelemetry.io/schemas/1.32.0".to_owned(),
+                version: Some("1.2.3".to_owned()),
+                schema_url: Some("https://opentelemetry.io/schemas/1.32.0".to_owned()),
                 attributes: vec![SampleAttribute {
                     name: "scope.environment".to_owned(),
                     value: Some(json!("test")),
@@ -3213,6 +3286,40 @@ mod tests {
                 .iter()
                 .any(|finding| finding.id == "instrumentation_scope_absent"),
             "expected missing scope to be explicitly null for Rego: {unscoped_advice:?}"
+        );
+
+        let mut missing_values_sample = sample.clone();
+        match &mut missing_values_sample {
+            Sample::Span(span) => {
+                span.instrumentation_scope = Some(Rc::new(SampleInstrumentationScope {
+                    name: "framework".to_owned(),
+                    version: None,
+                    schema_url: None,
+                    attributes: vec![],
+                    dropped_attributes_count: 0,
+                    live_check_result: None,
+                }));
+                span.live_check_result = None;
+            }
+            _ => unreachable!("test constructs a span"),
+        }
+        missing_values_sample
+            .run_live_check(
+                &mut live_checker,
+                &mut stats,
+                None,
+                &missing_values_sample.clone(),
+            )
+            .expect("missing values live check should not error");
+        let missing_values_advice = match &missing_values_sample {
+            Sample::Span(span) => &span.live_check_result.as_ref().unwrap().all_advice,
+            _ => unreachable!("test constructs a span"),
+        };
+        assert!(
+            missing_values_advice
+                .iter()
+                .any(|finding| finding.id == "instrumentation_scope_missing_values"),
+            "expected missing scope values to be explicitly null for Rego: {missing_values_advice:?}"
         );
     }
 
@@ -3917,7 +4024,7 @@ mod tests {
         let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/entity_advice/".into()),
+            &Some(Path::new("data/policies/entity_advice/").into()),
             &None,
             &None,
         )
