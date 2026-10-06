@@ -18,7 +18,7 @@ attribute_groups:
         brief: Shared brief
         requirement_level: opt_in
       - ref: test.remove
-        requirement_level: required
+        requirement_level: recommended
   - id: nested
     visibility: internal
     attributes:
@@ -61,7 +61,7 @@ entities:
     description:
       - ref: test.keep
       - ref: test.remove
-        requirement_level: required
+        requirement_level: recommended
 "#;
 
 fn resolve(yaml: &str) -> Result<ResolvedTelemetrySchema, Error> {
@@ -199,6 +199,21 @@ fn unref_identity_through_description_is_an_error() {
     ))
     .unwrap_err();
     assert!(unref_error(&error).2.contains("must preserve identity"));
+}
+
+#[test]
+fn unref_required_attribute_is_an_error() {
+    let base = BASE.replace(
+        "        requirement_level: recommended",
+        "        requirement_level: required",
+    );
+    for kind in ["span", "metric", "event", "entity"] {
+        let yaml = format!("{base}{}", refinement(kind, "      - unref: test.remove"));
+        let error = resolve(&yaml).unwrap_err();
+        let (_, attr, reason) = unref_error(&error);
+        assert_eq!(attr, "test.remove");
+        assert!(reason.contains("is required by"), "{reason}");
+    }
 }
 
 #[test]

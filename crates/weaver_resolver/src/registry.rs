@@ -1146,6 +1146,8 @@ fn attribute_unref_errors(
             };
             if group.group.r#type == GroupType::Entity && *role == Some(AttributeRole::Identifying) {
                 format!("the attribute identifies entity `{parent_ref}`; refinements must preserve identity")
+            } else if spec.is_required() {
+                format!("the attribute is required by `{parent_ref}`")
             } else {
                 return None;
             }

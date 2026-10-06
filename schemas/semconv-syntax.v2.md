@@ -330,7 +330,8 @@ Use it in `attributes` on span, metric, and event refinements, or in `descriptio
 on entity refinements. Base signals and attribute groups cannot use `unref`.
 
 Resolution fails if the attribute
-is not inherited, appears in duplicate `unref` entries, or is also included explicitly or via a group.
+is not inherited, is `required` in the base signal, appears in duplicate `unref` entries,
+or is also included explicitly or via a group.
 
 An `unref` entry accepts no other fields.
 
