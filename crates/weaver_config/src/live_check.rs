@@ -9,6 +9,7 @@ use std::str::FromStr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_checker::FindingLevel;
+use weaver_common::vdir::VirtualDirectoryPath;
 
 /// Severity gate controlling when `registry live-check` exits non-zero.
 ///
@@ -130,15 +131,15 @@ pub struct LiveCheckConfig {
 
     /// Path to the directory where the generated artifacts will be saved.
     /// `none` disables all template output rendering.
-    /// `http` sends the report as the response to the `/stop` request on the admin port.
+    /// `http` serves the report at `GET /report` on the admin port until `POST /shutdown`.
     pub output: Option<PathBuf>,
 
-    /// Advice policies directory. Overrides the built-in default policies.
-    pub advice_policies: Option<PathBuf>,
+    /// Advice policies directory or virtual directory. Overrides the built-in default policies.
+    pub advice_policies: Option<VirtualDirectoryPath>,
 
-    /// Glob pattern pointing to additional JSON/YAML files to load into OPA rego data.
+    /// Virtual directory, file, or glob pattern pointing to additional JSON/YAML files to load into OPA rego data.
     /// Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).
-    pub advice_data: Option<String>,
+    pub advice_data: Option<VirtualDirectoryPath>,
 
     /// Advice preprocessor — a jq script run once over the registry data before
     /// being passed to rego policies.
@@ -181,9 +182,9 @@ impl Default for LiveCheckConfig {
 pub struct LiveCheckOtlpConfig {
     /// Address used by the gRPC OTLP listener.
     pub grpc_address: String,
-    /// Port used by the gRPC OTLP listener.
+    /// Port used by the gRPC OTLP listener. `0` picks a free port.
     pub grpc_port: u16,
-    /// Port used by the HTTP admin port (endpoints: `/stop`, `/health`).
+    /// Port used by the HTTP admin port (endpoints: `/health`, `/stop`, `/report`, `/shutdown`).
     pub admin_port: u16,
     /// Max inactivity time in seconds before stopping the listener.
     pub inactivity_timeout: u64,
@@ -606,8 +607,18 @@ otlp_logs_stdout = false
         assert!(lc.no_stats);
         assert_eq!(lc.fail_on, FailOnLevel::Improvement);
         assert_eq!(lc.output.as_deref(), Some(Path::new("reports")));
-        assert_eq!(lc.advice_policies.as_deref(), Some(Path::new("policies")));
-        assert_eq!(lc.advice_data.as_deref(), Some("data"));
+        assert_eq!(
+            lc.advice_policies,
+            Some(VirtualDirectoryPath::LocalFolder {
+                path: "policies".to_owned()
+            })
+        );
+        assert_eq!(
+            lc.advice_data,
+            Some(VirtualDirectoryPath::LocalFolder {
+                path: "data".to_owned()
+            })
+        );
         assert_eq!(lc.advice_preprocessor.as_deref(), Some(Path::new("pre.jq")));
 
         assert_eq!(lc.otlp.grpc_address, "127.0.0.1");
