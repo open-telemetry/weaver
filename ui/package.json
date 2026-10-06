@@ -28,7 +28,7 @@
     "@eslint/js": "10.0.1",
     "@playwright/test": "^1.60.0",
     "@tailwindcss/vite": "4.3.3",
-    "@types/node": "25.9.8",
+    "@types/node": "25.9.9",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
     "@types/swagger-ui-react": "^5.18.0",
@@ -37,11 +37,11 @@
     "eslint": "10.11.0",
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.7",
-    "globals": "17.12.0",
+    "globals": "17.13.0",
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",
     "typescript-eslint": "8.70.1",
-    "vite": "8.3.1"
+    "vite": "8.3.2"
   },
   "overrides-notes": {
     "monaco-dompurify": "monaco-editor 0.55.1 hard-pins dompurify 3.2.7 which has multiple XSS CVEs; remove when monaco-editor updates its dompurify pin to >=3.4.0"
