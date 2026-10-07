@@ -1435,22 +1435,17 @@ fn resolve_span_link_attributes<C: crate::SchemaCacheLookup>(
         for link in unresolved_group.group.span_links.iter() {
             for la in link.attributes.iter() {
                 let spec = AttributeSpec::Ref {
-                    r#ref: la.base.r#ref.clone(),
-                    brief: la.base.brief.clone(),
-                    examples: la
-                        .base
-                        .examples
-                        .clone()
-                        .map(weaver_semconv::convert::v2_examples_to_v1),
+                    r#ref: la.r#ref.clone(),
+                    brief: la.brief.clone(),
+                    examples: la.examples.clone(),
                     tag: None,
                     requirement_level: None,
                     sampling_relevant: None,
-                    note: la.base.note.clone(),
+                    note: la.note.clone(),
                     stability: None,
                     deprecated: None,
                     prefix: false,
-                    annotations: (!la.base.annotations.is_empty())
-                        .then(|| la.base.annotations.clone()),
+                    annotations: (!la.annotations.is_empty()).then(|| la.annotations.clone()),
                     role: None,
                 };
                 match attr_catalog.resolve(
@@ -1468,7 +1463,7 @@ fn resolve_span_link_attributes<C: crate::SchemaCacheLookup>(
                     }
                     None => errors.push(Error::UnresolvedAttributeRef {
                         group_id: unresolved_group.group.id.clone(),
-                        attribute_ref: la.base.r#ref.clone(),
+                        attribute_ref: la.r#ref.clone(),
                         provenance: unresolved_group.provenance.clone().map(Box::new),
                     }),
                 }

@@ -1578,7 +1578,7 @@
           "$ref": "#/$defs/Provenance"
         },
         "ref": {
-          "description": "The span type this link points to.",
+          "description": "The type of the span this link points at (the link's target),\nnot the type of the span that declares the link.",
           "$ref": "#/$defs/SignalId"
         }
       },

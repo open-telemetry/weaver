@@ -29,12 +29,9 @@ use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v1::attribute::{AttributeRole, RequirementLevel};
 use weaver_semconv::v1::group::{
     AttributeGroupVisibilitySpec, GroupType, GroupWildcard, ImportsWithProvenance,
+    LinkAttributeRef as V1LinkAttributeRef, SpanLink as V1SpanLink,
 };
 use weaver_semconv::v1::semconv::Imports;
-use weaver_semconv::v2::attribute::AttributeRef as AttributeRefSpec;
-use weaver_semconv::v2::span::{
-    LinkAttributeRef as LinkAttributeRefSpec, SpanLink as SpanLinkSpec,
-};
 
 use crate::{
     attribute::{AttributeCatalog, AttributeSource},
@@ -634,7 +631,7 @@ fn upgrade_imported_group_v2<C: crate::SchemaCacheLookup>(
             );
             upgraded.span_kind = Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
             upgraded.span_name = Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
-            upgraded.span_links = v2_span_links_to_spec(chosen_v2, &s.links)?;
+            upgraded.span_links = v2_span_links_to_v1(chosen_v2, &s.links)?;
             upgraded.name = Some(s.r#type.to_string());
             upgraded.entity_associations = to_named_associations(&s.entity_associations);
             upgraded.requirement_level = s.requirement_level.clone().map(Into::into);
@@ -944,14 +941,10 @@ fn imported_v2_group(
     }
 }
 
-/// Converts a resolved v2 span's links back into the definition shape the
-/// carrier holds: catalog indices become attribute names via the owning
-/// schema's catalog.
-fn v2_span_links_to_spec(
-    schema: &V2Schema,
-    links: &[V2SpanLink],
-) -> Result<Vec<SpanLinkSpec>, Error> {
-    let mut spec_links = Vec::new();
+/// Converts a resolved v2 span's links into the v1 carrier shape: catalog
+/// indices become attribute names via the owning schema's catalog.
+fn v2_span_links_to_v1(schema: &V2Schema, links: &[V2SpanLink]) -> Result<Vec<V1SpanLink>, Error> {
+    let mut v1_links = Vec::new();
     for link in links {
         let mut link_attributes = Vec::new();
         for la in link.attributes.iter() {
@@ -963,25 +956,28 @@ fn v2_span_links_to_spec(
             )?;
             // The catalog entry may be an overridden variant; carry its
             // metadata as explicit overrides so it survives re-resolution.
-            link_attributes.push(LinkAttributeRefSpec {
-                base: AttributeRefSpec {
-                    r#ref: attr.key.clone(),
-                    brief: Some(attr.common.brief.clone()),
-                    examples: attr.examples.clone(),
-                    requirement_level: Some(la.requirement_level.clone()),
-                    note: Some(attr.common.note.clone()),
-                    annotations: attr.common.annotations.clone(),
-                },
+            link_attributes.push(V1LinkAttributeRef {
+                r#ref: attr.key.clone(),
+                brief: Some(attr.common.brief.clone()),
+                examples: attr
+                    .examples
+                    .clone()
+                    .map(weaver_semconv::convert::v2_examples_to_v1),
+                requirement_level: Some(weaver_semconv::convert::v2_requirement_level_to_v1(
+                    la.requirement_level.clone(),
+                )),
+                note: Some(attr.common.note.clone()),
+                annotations: attr.common.annotations.clone(),
             });
         }
-        spec_links.push(SpanLinkSpec {
-            r#ref: link.r#ref.clone(),
+        v1_links.push(V1SpanLink {
+            r#ref: link.r#ref.to_string(),
             brief: link.brief.clone(),
             note: link.note.clone(),
             attributes: link_attributes,
         });
     }
-    Ok(spec_links)
+    Ok(v1_links)
 }
 
 /// Where each entity a v2 signal is associated with is defined.
@@ -1227,7 +1223,7 @@ impl ImportableDependency for V2Schema {
             );
             group.span_kind = Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
             group.span_name = Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
-            group.span_links = v2_span_links_to_spec(self, &s.links)?;
+            group.span_links = v2_span_links_to_v1(self, &s.links)?;
             group.name = Some(s.r#type.to_string());
             group.entity_associations = to_named_associations(&s.entity_associations);
             group.requirement_level = s.requirement_level.clone().map(Into::into);
@@ -1897,17 +1893,17 @@ mod tests {
         let link = &upgraded_span.span_links[0];
         assert_eq!(&*link.r#ref, "span.d");
         assert_eq!(link.attributes.len(), 1);
-        assert_eq!(link.attributes[0].base.r#ref, "attr.in.group");
+        assert_eq!(link.attributes[0].r#ref, "attr.in.group");
         // A non-default attribute level must survive the resolved-to-carrier hop.
         assert_eq!(
-            link.attributes[0].base.requirement_level,
-            Some(weaver_semconv::v2::attribute::RequirementLevel::Basic(
-                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
+            link.attributes[0].requirement_level,
+            Some(weaver_semconv::v1::attribute::RequirementLevel::Basic(
+                weaver_semconv::v1::attribute::BasicRequirementLevelSpec::Required,
             ))
         );
         // Overridden metadata must survive the import as explicit overrides.
         assert_eq!(
-            link.attributes[0].base.brief.as_deref(),
+            link.attributes[0].brief.as_deref(),
             Some("the id, as carried on the link")
         );
 

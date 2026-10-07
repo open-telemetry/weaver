@@ -259,39 +259,41 @@ fn convert_attribute_ref<'a>(
 /// resolver already placed the (possibly overridden) attribute in the
 /// catalog, so a miss here is a broken registry and fails loudly.
 fn convert_span_link_attribute(
-    ar: &weaver_semconv::v2::span::LinkAttributeRef,
+    ar: &weaver_semconv::v1::group::LinkAttributeRef,
     g: &V1Group,
-    link: &weaver_semconv::v2::span::SpanLink,
+    link: &weaver_semconv::v1::group::SpanLink,
     c: &V1Catalog,
     v2_catalog: &V2CatalogBuilder,
 ) -> Result<span::LinkAttributeRef, crate::error::Error> {
     let not_found = || crate::error::Error::SpanLinkAttributeNotFound {
         group_id: g.id.clone(),
-        link_ref: link.r#ref.to_string(),
-        attribute: ar.base.r#ref.clone(),
+        link_ref: link.r#ref.clone(),
+        attribute: ar.r#ref.clone(),
     };
-    let (root, _) = c.root_attribute(&ar.base.r#ref).ok_or_else(not_found)?;
+    let (root, _) = c.root_attribute(&ar.r#ref).ok_or_else(not_found)?;
     // Overrides produce their own catalog entry during resolution; rebuild
     // the overridden value to find that entry.
     let mut merged = root.clone();
-    if let Some(brief) = &ar.base.brief {
+    if let Some(brief) = &ar.brief {
         merged.brief = brief.clone();
     }
-    if let Some(note) = &ar.base.note {
+    if let Some(note) = &ar.note {
         merged.note = note.clone();
     }
-    if let Some(examples) = &ar.base.examples {
-        merged.examples = Some(weaver_semconv::convert::v2_examples_to_v1(examples.clone()));
+    if let Some(examples) = &ar.examples {
+        merged.examples = Some(examples.clone());
     }
-    if !ar.base.annotations.is_empty() {
-        merged.annotations = Some(ar.base.annotations.clone());
+    if !ar.annotations.is_empty() {
+        merged.annotations = Some(ar.annotations.clone());
     }
     let base = v2_catalog.convert_ref(&merged).ok_or_else(not_found)?;
     Ok(span::LinkAttributeRef {
         base,
-        requirement_level: ar.base.requirement_level.clone().unwrap_or_else(|| {
-            weaver_semconv::convert::v1_requirement_level_to_v2(merged.requirement_level.clone())
-        }),
+        requirement_level: weaver_semconv::convert::v1_requirement_level_to_v2(
+            ar.requirement_level
+                .clone()
+                .unwrap_or_else(|| merged.requirement_level.clone()),
+        ),
     })
 }
 
@@ -309,10 +311,10 @@ fn convert_span_links(
     for link in g.span_links.iter() {
         // The caller scopes validation: refinements and imported spans skip
         // it, because their link targets may live in a dependency.
-        if validate_targets && !span_types.contains(&link.r#ref) {
+        if validate_targets && !span_types.contains(&SignalId::from(link.r#ref.clone())) {
             return Err(crate::error::Error::SpanLinkTargetNotFound {
                 group_id: g.id.clone(),
-                link_ref: link.r#ref.to_string(),
+                link_ref: link.r#ref.clone(),
             });
         }
         let mut attributes = Vec::new();
@@ -320,7 +322,7 @@ fn convert_span_links(
             attributes.push(convert_span_link_attribute(ar, g, link, c, v2_catalog)?);
         }
         links.push(span::SpanLink {
-            r#ref: link.r#ref.clone(),
+            r#ref: SignalId::from(link.r#ref.clone()),
             brief: link.brief.clone(),
             note: link.note.clone(),
             attributes,
@@ -798,9 +800,8 @@ mod tests {
     use crate::v2::attribute::AttributeRef;
     use weaver_semconv::provenance::Provenance;
     use weaver_semconv::v1::group::InstrumentSpec as V1InstrumentSpec;
+    use weaver_semconv::v1::group::{LinkAttributeRef as V1LinkAttributeRef, SpanLink};
     use weaver_semconv::v1::stability::Stability;
-    use weaver_semconv::v2::attribute::AttributeRef as AttributeRefSpec;
-    use weaver_semconv::v2::span::{LinkAttributeRef as LinkAttributeRefSpec, SpanLink};
 
     /// Builds a minimal v1 span group carrying the given span links.
     fn span_group_with_links(id: &str, links: Vec<SpanLink>) -> V1Group {
@@ -875,7 +876,7 @@ mod tests {
     /// Builds a minimal span link to the given target type.
     fn link_to(target: &str) -> SpanLink {
         SpanLink {
-            r#ref: target.to_owned().into(),
+            r#ref: target.to_owned(),
             brief: None,
             note: None,
             attributes: vec![],
@@ -883,16 +884,14 @@ mod tests {
     }
 
     /// Builds a minimal link attribute reference with the given overrides.
-    fn link_attribute(name: &str, brief: Option<&str>) -> LinkAttributeRefSpec {
-        LinkAttributeRefSpec {
-            base: AttributeRefSpec {
-                r#ref: name.to_owned(),
-                brief: brief.map(str::to_owned),
-                examples: None,
-                requirement_level: None,
-                note: None,
-                annotations: Default::default(),
-            },
+    fn link_attribute(name: &str, brief: Option<&str>) -> V1LinkAttributeRef {
+        V1LinkAttributeRef {
+            r#ref: name.to_owned(),
+            brief: brief.map(str::to_owned),
+            examples: None,
+            requirement_level: None,
+            note: None,
+            annotations: Default::default(),
         }
     }
 
@@ -980,15 +979,13 @@ mod tests {
         _ = builder.add(variant, None);
 
         let mut link = link_to("b");
-        link.attributes = vec![LinkAttributeRefSpec {
-            base: AttributeRefSpec {
-                r#ref: "test.key".to_owned(),
-                brief: None,
-                examples: None,
-                requirement_level: None,
-                note: None,
-                annotations: annotations.clone(),
-            },
+        link.attributes = vec![V1LinkAttributeRef {
+            r#ref: "test.key".to_owned(),
+            brief: None,
+            examples: None,
+            requirement_level: None,
+            note: None,
+            annotations: annotations.clone(),
         }];
         let v1_registry = V1Registry {
             registry_url: "my.schema.url".to_owned(),

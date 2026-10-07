@@ -406,7 +406,8 @@ pub fn split_span_attributes_and_groups(
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub struct SpanLink {
-    /// The span type this link points to.
+    /// The type of the span this link points at (the link's target),
+    /// not the type of the span that declares the link.
     pub r#ref: SignalId,
     /// The brief description of the link.
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -69,7 +69,8 @@ pub struct Span {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct SpanLink {
-    /// The span type this link points to.
+    /// The type of the span this link points at (the link's target),
+    /// not the type of the span that declares the link.
     pub r#ref: SignalId,
     /// The brief description of the link.
     #[serde(skip_serializing_if = "Option::is_none")]
