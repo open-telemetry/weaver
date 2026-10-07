@@ -9,10 +9,12 @@ use std::sync::Arc;
 
 use clap::Args;
 use include_dir::{include_dir, Dir};
+use serde_yaml::Value;
 
 use log::info;
-use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::http_auth::HttpAuthResolver;
+use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
 use weaver_common::{log_success, log_warn};
 use weaver_config::{FailOnLevel, WeaverConfig};
 use weaver_forge::{OutputProcessor, OutputTarget};
@@ -31,13 +33,15 @@ use weaver_live_check::{
 };
 use weaver_macros::weaver_command;
 
+use crate::registry::generate::{generate_params_shared, parse_key_val};
 use crate::registry::{load_config, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_config::WeaverCommand;
 
+use super::otlp::admin::Report;
 use super::otlp::otlp_ingester::OtlpIngester;
-use super::otlp::ShutdownCoordinator;
+use super::otlp::ListenerHandle;
 
 /// Embedded default live check templates
 pub(crate) static DEFAULT_LIVE_CHECK_TEMPLATES: Dir<'_> =
@@ -81,7 +85,7 @@ impl From<String> for InputFormat {
 #[weaver_command(
     section = "live-check",
     config_type = "::weaver_config::LiveCheckConfig",
-    extra_config_only = "finding_filters,finding_level_overrides"
+    extra_config_only = "finding_filters,finding_level_overrides,matchers"
 )]
 #[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryLiveCheckArgs {
@@ -94,6 +98,15 @@ pub struct RegistryLiveCheckArgs {
     #[command(flatten)]
     #[shared(policy)]
     policy: PolicyArgs,
+
+    /// Parameters key=value, defined in the command line, to pass to the templates.
+    /// The value must be a valid YAML value.
+    #[arg(short = 'D', long, value_parser = parse_key_val)]
+    pub param: Option<Vec<(String, Value)>>,
+
+    /// Parameters, defined in a YAML file, to pass to the templates.
+    #[arg(long)]
+    pub params: Option<PathBuf>,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
@@ -131,6 +144,13 @@ pub struct RegistryLiveCheckArgs {
     #[config(default = "false")]
     no_stats: Option<bool>,
 
+    /// Also search the base attribute definitions of the registry and its
+    /// dependencies for an attribute that is not on the matched signal or its
+    /// attribute groups.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    #[config(default = "false")]
+    search_all_attributes: Option<bool>,
+
     /// Findings at this level or higher cause a non-zero exit code.
     /// Levels (highest→lowest): violation, improvement, information.
     /// Use `none` to never fail.
@@ -139,7 +159,8 @@ pub struct RegistryLiveCheckArgs {
     fail_on: Option<FailOnLevel>,
 
     /// Path to save generated artifacts. Use "none" to suppress output,
-    /// "http" to send as the /stop response.
+    /// "http" to serve the report at GET /report on the admin port until POST /shutdown
+    /// (the inactivity timeout is then ignored).
     #[arg(short, long)]
     #[config]
     output: Option<PathBuf>,
@@ -149,7 +170,7 @@ pub struct RegistryLiveCheckArgs {
     #[config(path = "otlp.grpc_address")]
     otlp_grpc_address: Option<String>,
 
-    /// Port used by the gRPC OTLP listener.
+    /// Port used by the gRPC OTLP listener. 0 picks a free port.
     #[clap(long)]
     #[config(path = "otlp.grpc_port")]
     otlp_grpc_port: Option<u16>,
@@ -169,7 +190,7 @@ pub struct RegistryLiveCheckArgs {
     #[config(path = "emit.otlp_logs_stdout")]
     otlp_logs_stdout: Option<bool>,
 
-    /// Port used by the HTTP admin port (endpoints: /stop).
+    /// Port used by the HTTP admin port (endpoints: /health, /stop, /report, /shutdown).
     #[clap(long)]
     #[config(path = "otlp.admin_port")]
     admin_port: Option<u16>,
@@ -179,15 +200,15 @@ pub struct RegistryLiveCheckArgs {
     #[config(path = "otlp.inactivity_timeout")]
     inactivity_timeout: Option<u64>,
 
-    /// Advice policies directory. Set this to override the default policies.
+    /// Advice policies directory or virtual directory. Set this to override the default policies.
     #[arg(long)]
     #[config]
-    advice_policies: Option<PathBuf>,
+    advice_policies: Option<VirtualDirectoryPath>,
 
-    /// Glob pattern pointing to additional JSON/YAML files to load into OPA rego data (other extensions are ignored). Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).
+    /// Virtual directory, file, or glob pattern pointing to additional JSON/YAML files to load into OPA rego data (other extensions are ignored). Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).
     #[arg(long)]
     #[config]
-    advice_data: Option<String>,
+    advice_data: Option<VirtualDirectoryPath>,
 
     /// Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
     #[arg(long)]
@@ -221,8 +242,8 @@ fn generate_report(
         }
     } else {
         let report = LiveCheckReport {
-            statistics: stats,
             samples,
+            statistics: stats,
         };
         output.generate(&report)
     }
@@ -236,7 +257,7 @@ pub(crate) fn command(
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut exit_code = 0;
 
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     let config = cmd_config.config;
     let registry_args = cmd_config.registry;
     let policy_args = cmd_config.policy;
@@ -279,6 +300,7 @@ pub(crate) fn command(
         Some(&DEFAULT_LIVE_CHECK_TEMPLATES),
         Some(config.templates.clone()),
         target,
+        generate_params_shared(&args.param, &args.params)?,
     )?;
 
     info!("Weaver Registry Live Check");
@@ -287,7 +309,7 @@ pub(crate) fn command(
     info!("Resolving registry `{}`", registry_args.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&registry_args, &policy_args, auth);
+    let weaver = WeaverEngine::new(&registry_args, &policy_args, &cmd_config.resolve, auth);
     let resolved_registry = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let registry = match resolved_registry {
         crate::weaver::Resolved::V2(resolved_v2) => {
@@ -305,16 +327,37 @@ pub(crate) fn command(
     live_checker.finding_modifier =
         FindingModifier::from_rules(&config.finding_filters, &config.finding_level_overrides)?;
 
+    live_checker.set_matchers(&config.matchers)?;
+
+    if config.search_all_attributes {
+        live_checker.search_all_attributes()?;
+    }
+
+    let advice_policies_dir =
+        VirtualDirectory::try_from_opt_with_auth(config.advice_policies.as_ref(), auth)
+            .map_err(DiagnosticMessages::from_error)?;
+
+    let advice_data_dir =
+        VirtualDirectory::try_from_opt_with_auth(config.advice_data.as_ref(), auth)
+            .map_err(DiagnosticMessages::from_error)?;
+
+    let policy_path = advice_policies_dir.as_ref().map(VirtualDirectory::path_buf);
+    let data_pattern = advice_data_dir
+        .as_ref()
+        .map(|v| v.path_str().map(ToOwned::to_owned))
+        .transpose()
+        .map_err(DiagnosticMessages::from_error)?;
+
     let rego_advisor = RegoAdvisor::new(
         &live_checker,
-        &config.advice_policies,
+        &policy_path,
         &config.advice_preprocessor,
-        &config.advice_data,
+        &data_pattern,
     )?;
     live_checker.add_advisor(Box::new(rego_advisor));
 
     // Prepare the ingester
-    let mut shutdown_coordinator: Option<ShutdownCoordinator> = None;
+    let mut listener: Option<ListenerHandle> = None;
     let ingester = match (&input_source, &input_format) {
         (InputSource::File(path), InputFormat::Text) => TextFileIngester::new(path).ingest()?,
 
@@ -325,17 +368,28 @@ pub(crate) fn command(
         (InputSource::Stdin, InputFormat::Json) => JsonStdinIngester::new().ingest()?,
 
         (InputSource::Otlp, _) => {
+            // With --output http the client owns the run: it stops it with
+            // POST /stop and ends the process with POST /shutdown. A quiet
+            // period must not end the run first.
+            let inactivity_timeout = if is_http_output {
+                if config.otlp.inactivity_timeout != 0 {
+                    log_warn(
+                        "--inactivity-timeout is ignored with --output http; \
+                         the run stops on POST /stop",
+                    );
+                }
+                0
+            } else {
+                config.otlp.inactivity_timeout
+            };
             let otlp = OtlpIngester {
                 otlp_grpc_address: config.otlp.grpc_address.clone(),
                 otlp_grpc_port: config.otlp.grpc_port,
                 admin_port: config.otlp.admin_port,
-                inactivity_timeout: config.otlp.inactivity_timeout,
+                inactivity_timeout,
             };
-            let (iter, coordinator) = otlp.ingest_otlp()?;
-            if is_http_output {
-                coordinator.set_expect_report(true);
-            }
-            shutdown_coordinator = Some(coordinator);
+            let (iter, handle) = otlp.ingest_otlp()?;
+            listener = Some(handle);
             iter
         }
     };
@@ -410,7 +464,7 @@ pub(crate) fn command(
         }
     }
 
-    stats.finalize();
+    stats.finalize(live_checker.matchers());
     // Set exit_code based on the configured --fail-on threshold. `None`
     // threshold means "never fail". `should_fail` returns false for disabled
     // stats; the startup check above warns about --no-stats + non-`none` gates.
@@ -421,58 +475,74 @@ pub(crate) fn command(
     }
 
     if is_http_output {
-        let admin_waiting = shutdown_coordinator
-            .as_ref()
-            .is_some_and(ShutdownCoordinator::is_report_pending);
-
-        if admin_waiting {
-            // Format report and send through admin channel
-            let content_type = output.content_type().to_owned();
-            let body = if output.is_line_oriented() {
-                // For line-oriented formats (jsonl), build the body line by line
-                let mut lines = Vec::new();
-                for sample in &samples {
+        let content_type = output.content_type().to_owned();
+        let body = if output.is_line_oriented() {
+            // For line-oriented formats (jsonl), build the body line by line
+            let mut lines = Vec::new();
+            for sample in &samples {
+                lines.push(
+                    output
+                        .generate_to_string(sample)
+                        .map_err(DiagnosticMessages::from)?,
+                );
+            }
+            match &stats {
+                LiveCheckStatistics::Cumulative(_) => {
                     lines.push(
                         output
-                            .generate_to_string(sample)
+                            .generate_to_string(&stats)
                             .map_err(DiagnosticMessages::from)?,
                     );
                 }
-                match &stats {
-                    LiveCheckStatistics::Cumulative(_) => {
-                        lines.push(
-                            output
-                                .generate_to_string(&stats)
-                                .map_err(DiagnosticMessages::from)?,
-                        );
-                    }
-                    LiveCheckStatistics::Disabled(_) => {}
-                }
-                lines.join("\n")
-            } else {
-                let report = LiveCheckReport {
-                    statistics: stats,
-                    samples,
-                };
-                output
-                    .generate_to_string(&report)
-                    .map_err(DiagnosticMessages::from)?
-            };
-            if let Some(coordinator) = shutdown_coordinator.take() {
-                coordinator.deliver_report(content_type, body);
-                // Don't let the process exit until the admin server has
-                // actually finished writing the /stop response.
-                coordinator.wait_for_admin_shutdown();
+                LiveCheckStatistics::Disabled(_) => {}
             }
+            lines.join("\n")
         } else {
-            // No HTTP client waiting (SIGINT/inactivity stop), fall back to stdout
-            generate_report(&mut output, samples, stats).map_err(DiagnosticMessages::from)?;
+            let report = LiveCheckReport {
+                samples,
+                statistics: stats,
+            };
+            output
+                .generate_to_string(&report)
+                .map_err(DiagnosticMessages::from)?
+        };
+        // Serve the report at GET /report until POST /shutdown or a signal ends
+        // the process. Reading it is the client's job.
+        if let Some(handle) = listener.take() {
+            handle.serve_report(Report {
+                content_type,
+                body: body.into(),
+            });
         }
     } else if report_mode {
         generate_report(&mut output, samples, stats).map_err(DiagnosticMessages::from)?;
     } else {
         // Stats only (streaming mode finished)
         output.generate(&stats).map_err(DiagnosticMessages::from)?;
+    }
+
+    // The report is out. A waiting /stop returns and the listener ends.
+    if let Some(handle) = listener {
+        handle.finish();
+    }
+
+    for matcher in live_checker.matchers().iter() {
+        if let Some((count, error)) = matcher.errors() {
+            diag_msgs.extend_from_vec(vec![DiagnosticMessage::new(
+                crate::registry::Error::MatcherFailedAtRuntime {
+                    id: matcher.id.clone(),
+                    count,
+                    error: error.to_owned(),
+                },
+            )]);
+        }
+        if matcher.matched() == 0 {
+            diag_msgs.extend_from_vec(vec![DiagnosticMessage::new(
+                crate::registry::Error::MatcherNeverFired {
+                    id: matcher.id.clone(),
+                },
+            )]);
+        }
     }
 
     // Shutdown OTLP emitter to flush any pending log records
@@ -497,11 +567,66 @@ pub(crate) fn command(
 
 #[cfg(test)]
 mod tests {
-    use super::RegistryLiveCheckArgs;
+    use serde_json::json;
+    use weaver_forge::config::Params;
+    use weaver_forge::{OutputProcessor, OutputTarget};
+    use weaver_live_check::{
+        sample_attribute::SampleAttribute,
+        sample_instrumentation_scope::SampleInstrumentationScope, LiveCheckResult, Sample,
+    };
+
+    use super::{RegistryLiveCheckArgs, DEFAULT_LIVE_CHECK_TEMPLATES};
     use crate::registry::tests::assert_config_cli_consistency;
 
     #[test]
     fn config_fields_match_cli_args() {
         assert_config_cli_consistency::<RegistryLiveCheckArgs>();
+    }
+
+    #[test]
+    fn ansi_output_displays_instrumentation_scope_through_the_normal_sample_path() {
+        let output = OutputProcessor::new(
+            "ansi",
+            "live_check",
+            Some(&DEFAULT_LIVE_CHECK_TEMPLATES),
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("ANSI output processor should load");
+
+        let sample = Sample::InstrumentationScope(SampleInstrumentationScope {
+            name: "scope-name".to_owned(),
+            version: Some("1.2.3".to_owned()),
+            schema_url: Some("https://example.test/schema".to_owned()),
+            attributes: vec![SampleAttribute {
+                name: "scope.environment".to_owned(),
+                value: Some(json!("test")),
+                r#type: None,
+                live_check_result: Some(LiveCheckResult::new()),
+            }],
+            dropped_attributes_count: 2,
+            live_check_result: Some(LiveCheckResult::new()),
+        });
+
+        let rendered = output
+            .generate_to_string(&sample)
+            .expect("ANSI sample should render");
+
+        assert_eq!(
+            rendered.matches("Instrumentation scope").count(),
+            1,
+            "{rendered}"
+        );
+        assert!(
+            rendered.contains("\x1b[92mscope-name\x1b[0m"),
+            "scope name should use the finding-level sample header colour: {rendered}"
+        );
+        assert!(rendered.contains("1.2.3"), "{rendered}");
+        assert!(
+            rendered.contains("https://example.test/schema"),
+            "{rendered}"
+        );
+        assert!(rendered.contains("scope.environment"), "{rendered}");
     }
 }

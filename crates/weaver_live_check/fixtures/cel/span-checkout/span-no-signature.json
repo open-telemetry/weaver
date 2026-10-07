@@ -1,0 +1,11 @@
+{
+  "name": "checkout payment",
+  "kind": "internal",
+  "status": null,
+  "attributes": [
+    { "name": "myapp.cart.item_count", "value": 3 }
+  ],
+  "span_events": [],
+  "span_links": [],
+  "live_check_result": null
+}

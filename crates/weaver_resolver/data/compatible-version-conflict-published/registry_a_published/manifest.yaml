@@ -1,0 +1,5 @@
+file_format: manifest/2.0
+schema_url: https://example.com/a/0.1.0
+description: Registry A, published as a resolved schema (resolved against C v1.1).
+stability: development
+resolved_registry_uri: resolved.yaml

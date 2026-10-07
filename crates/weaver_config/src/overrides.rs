@@ -8,7 +8,10 @@
 
 use schemars::JsonSchema;
 
-use crate::effective::{EffectiveDiagnosticConfig, EffectivePolicyConfig, EffectiveRegistryConfig};
+use crate::effective::{
+    EffectiveDiagnosticConfig, EffectivePolicyConfig, EffectiveRegistryConfig,
+    EffectiveResolveConfig,
+};
 use crate::WeaverConfig;
 
 /// The unified result of loading all configuration for a command.
@@ -21,6 +24,8 @@ pub struct CommandConfig<C> {
     pub registry: EffectiveRegistryConfig,
     /// Effective policy settings (defaults → config → CLI).
     pub policy: EffectivePolicyConfig,
+    /// Effective resolution settings (defaults → config).
+    pub resolve: EffectiveResolveConfig,
 }
 
 /// A name mapping between a config field and its CLI arg counterpart.
@@ -51,7 +56,11 @@ pub trait CliOverrides {
     const SUBCOMMAND: &'static str;
 
     /// Extract the relevant section from a loaded `WeaverConfig`.
-    fn extract_config(weaver_config: &WeaverConfig) -> Self::Config;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the section is present but does not deserialize.
+    fn extract_config(weaver_config: &WeaverConfig) -> Result<Self::Config, crate::ConfigError>;
 
     /// Apply CLI arg overrides onto the config. Only `Some` values overwrite.
     fn apply_overrides(&self, config: &mut Self::Config);

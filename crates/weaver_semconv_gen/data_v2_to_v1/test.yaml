@@ -1,0 +1,21 @@
+file_format: definition/2
+attributes:
+  - key: test.attr
+    type: string
+    brief: 'Test attribute'
+    stability: stable
+
+metrics:
+  - name: base.metric
+    instrument: counter
+    unit: '{error}'
+    brief: Base metric
+    stability: stable
+
+metric_refinements:
+  - id: metric.refined.metric
+    ref: base.metric
+    brief: Refined metric
+    attributes:
+      - ref: test.attr
+        requirement_level: recommended

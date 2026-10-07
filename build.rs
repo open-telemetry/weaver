@@ -21,6 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //             "src/registry/otlp/proto/opentelemetry/proto/collector/logs/v1/logs_service.proto",
     //             "src/registry/otlp/proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto",
     //             "src/registry/otlp/proto/opentelemetry/proto/collector/trace/v1/trace_service.proto",
+    //             "src/registry/otlp/proto/opentelemetry/proto/collector/profiles/v1development/profiles_service.proto",
     //         ],
     //         &["src/registry/otlp/proto"],
     //     )?;

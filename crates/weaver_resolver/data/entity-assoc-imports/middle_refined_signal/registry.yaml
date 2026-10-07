@@ -1,0 +1,7 @@
+file_format: definition/2
+metric_refinements:
+  - id: metric.base.request.count
+    ref: base.request.count
+    brief: Refined in middle.
+    entity_associations:
+      - host

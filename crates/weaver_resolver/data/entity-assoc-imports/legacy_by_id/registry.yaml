@@ -1,0 +1,22 @@
+groups:
+  - id: resource.device
+    type: resource
+    name: device
+    stability: stable
+    brief: The device on which the application runs.
+    attributes:
+      - id: device.id
+        type: string
+        stability: stable
+        brief: A unique identifier for the device.
+        examples: ["2ab2916d-a51f-4ac8-80ee-45ac31a28092"]
+
+  - id: metric.legacy.device.count
+    type: metric
+    metric_name: legacy.device.count
+    instrument: counter
+    unit: "{device}"
+    stability: stable
+    brief: Count of devices.
+    entity_associations:
+      - resource.device

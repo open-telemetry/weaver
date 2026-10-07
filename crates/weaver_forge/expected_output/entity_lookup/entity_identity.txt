@@ -1,0 +1,16 @@
+
+span: db.client
+  entity: service
+  defined in: this registry
+  identity: service.name
+  all_of:
+    entity: service
+    defined in: this registry
+    identity: service.name
+    one_of:
+      entity: host
+      defined in: https://example.com/base/1.0.0
+      identity: host.id, host.name
+      entity: container
+      defined in: https://example.com/base/1.0.0
+      identity: container.id

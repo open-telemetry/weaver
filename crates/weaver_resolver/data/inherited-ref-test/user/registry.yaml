@@ -1,0 +1,20 @@
+file_format: definition/2
+# Refining a signal brings `base.attr` into this registry as an instance of a
+# definition owned by `base`, which `middle` never re-published. It must not
+# become something `user.metric` can reference on its own.
+metric_refinements:
+  - id: user.refined
+    ref: middle.metric
+    brief: Refined middle metric
+    attributes:
+      - ref: base.attr
+        brief: base.attr as used by user
+metrics:
+  - name: user.metric
+    brief: Metric defined by user.
+    instrument: counter
+    unit: "1"
+    stability: stable
+    requirement_level: recommended
+    attributes:
+      - ref: base.attr

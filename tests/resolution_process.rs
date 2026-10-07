@@ -8,6 +8,9 @@ use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_resolver::{DefaultSchemaVisitor, WeaverResolver, WeaverResolverConfig};
 use weaver_semconv::{registry_repo::RegistryRepo, schema_url::SchemaUrl};
 
+#[path = "../src/crypto.rs"]
+mod crypto;
+
 /// The URL of the official semantic convention registry.
 const SEMCONV_REGISTRY_URL: &str = "https://github.com/open-telemetry/semantic-conventions.git";
 /// The directory name of the official semantic convention registry.
@@ -24,6 +27,8 @@ const SEMCONV_REGISTRY_MODEL: &str = "model";
 /// - No warn or error messages should be reported by the logger.
 #[test]
 fn test_cli_interface() {
+    crypto::install_crypto_provider().expect("failed to install the test crypto provider");
+
     let log = weaver_common::TestLog::new();
 
     // Load the official semantic convention registry into a local cache.

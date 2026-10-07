@@ -73,6 +73,10 @@ pub enum FindingId {
     UnexpectedInstrument,
     /// An enum attribute value is not in the set of allowed members
     UndefinedEnumVariant,
+    /// A matched sample has an attribute that is not on its signal or attribute groups
+    UnexpectedAttribute,
+    /// A span kind does not match the kind defined in the registry
+    KindMismatch,
     /// A required attribute is absent from the sample
     RequiredAttributeNotPresent,
     /// A recommended attribute is absent from the sample
@@ -173,6 +177,8 @@ pub enum SampleType {
     SpanLink,
     /// A resource describing the telemetry source
     Resource,
+    /// An instrumentation scope that produced telemetry signals
+    InstrumentationScope,
     /// A metric measurement
     Metric,
     /// A numeric data point within a metric
@@ -185,6 +191,8 @@ pub enum SampleType {
     Exemplar,
     /// A log record or event
     Log,
+    /// A profiling data sample
+    Profile,
 }
 
 /// The OpenTelemetry signal type that the finding applies to
@@ -215,4 +223,6 @@ pub enum SignalType {
     Metric,
     /// Log record or event signal
     Log,
+    /// Profiling data signal
+    Profile,
 }

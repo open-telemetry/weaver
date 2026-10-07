@@ -18,6 +18,7 @@
     - [Diff schema](#diff-schema)
   - [Common types](#common-types)
     - [Requirement level](#requirement-level)
+    - [Entity associations](#entity-associations)
     - [Common signal and attribute properties](#common-signal-and-attribute-properties)
 
 <!-- tocstop -->
@@ -187,6 +188,9 @@ refinements:
 
 Attribute references are indexes into the `attribute_catalog` array, paired with per-signal properties such as `requirement_level`.
 
+Entity references name the entity and the registry that defines it. See
+[Entity associations](#entity-associations).
+
 #### Resolved schema properties
 
 - **file_format**: `"resolved/2.0"`
@@ -213,7 +217,7 @@ Attribute references are indexes into the `attribute_catalog` array, paired with
     - `attributes`: Attribute references (optional)
       - `base`: Index into `attribute_catalog`
       - `requirement_level`: See [Requirement level](#requirement-level)
-    - `entity_associations`: Associated entity types (optional)
+    - `entity_associations`: [Entity associations](#entity-associations) (optional)
     - [Common properties](#common-signal-and-attribute-properties)
   - **spans**: Span signal definitions
     - `type`: Unique span type identifier
@@ -223,14 +227,14 @@ Attribute references are indexes into the `attribute_catalog` array, paired with
       - `base`: Index into `attribute_catalog`
       - `requirement_level`: See [Requirement level](#requirement-level)
       - `sampling_relevant`: Whether this attribute must be available at span start (optional)
-    - `entity_associations`: Associated entity types (optional)
+    - `entity_associations`: [Entity associations](#entity-associations) (optional)
     - [Common properties](#common-signal-and-attribute-properties)
   - **events**: Event signal definitions
     - `name`: Unique event name
     - `attributes`: Attribute references (optional)
       - `base`: Index into `attribute_catalog`
       - `requirement_level`: See [Requirement level](#requirement-level)
-    - `entity_associations`: Associated entity types (optional)
+    - `entity_associations`: [Entity associations](#entity-associations) (optional)
     - [Common properties](#common-signal-and-attribute-properties)
   - **entities**: Entity (resource) signal definitions
     - `type`: Unique entity type
@@ -247,6 +251,8 @@ Attribute references are indexes into the `attribute_catalog` array, paired with
   - **metrics**: Metric refinements — `id` plus all metric properties
   - **events**: Event refinements — `id` plus all event properties
   - **entities**: Entity refinements — `id` plus all entity properties
+- **dependencies**: Every registry this schema was built from, direct and transitive, sorted by
+  schema URL. `provenance.source` is an index into this list.
 
 ## Other schemas
 
@@ -273,6 +279,16 @@ The materialized version of the same metric would look like:
 
 ```yaml
 schema_url: https://opentelemetry.io/schemas/semconv/1.{future}.0
+dependencies:
+  https://opentelemetry.io/schemas/semconv/1.29.0:
+    registry:
+      attributes: ...
+      metrics: ...
+    refinements: ...
+dependency_graph:
+  https://opentelemetry.io/schemas/semconv/1.{future}.0:
+    - https://opentelemetry.io/schemas/semconv/1.29.0
+  https://opentelemetry.io/schemas/semconv/1.29.0: []
 registry:
   attributes:
   ...
@@ -317,9 +333,14 @@ refinements:
 #### Materialized schema properties
 
 - **schema_url**: The Schema URL where this registry is or will be published
+- **dependencies**: Every registry this one depends on, directly or indirectly, keyed by schema
+  url. Each holds a `registry` and a `refinements` of the same structure as this schema.
+- **dependency_graph**: The direct dependencies of each registry, keyed by schema url and including
+  this one. Schema urls only. A registry with no entry has unknown dependencies, not none.
 - **registry**: Same structure as in the *resolved* schema, but all attribute references are replaced
   by complete attribute definitions. This applies to all signal types (metrics, spans, events, entities)
-  and to `attribute_groups`.
+  and to `attribute_groups`. An [entity association](#entity-associations) leaf keeps its reference,
+  with the schema url of the registry that defines the entity.
 - **refinements**: Same structure as in the *resolved* schema, but attribute references are fully expanded.
 
 ### Diff schema
@@ -366,6 +387,36 @@ It is either a simple string or an object carrying an explanation:
 | `{"conditionally_required": "<condition>"}` | Required when the condition holds |
 | `{"recommended": "<reason>"}` | Recommended, with explicit rationale |
 | `{"opt_in": "<reason>"}` | Opt-in, with explicit rationale |
+
+### Entity associations
+
+`entity_associations` appears on metrics, spans, events, and their refinements. It is a list of
+*entity association expressions*, each of which is one of:
+
+| Form | Meaning |
+| --- | --- |
+| `<entity reference>` | The signal is associated with this entity |
+| `{"one_of": [<expression>, ...]}` | Satisfied when at least one contained expression is satisfied |
+| `{"all_of": [<expression>, ...]}` | Satisfied when every contained expression is satisfied |
+
+`one_of` and `all_of` nest, so an expression is a tree with entity references at its leaves.
+
+How a leaf names its entity depends on the schema:
+
+- In the [definition schema](#definition-schema) a leaf is an entity type, for example `service`.
+- In the [resolved schema](#resolved-schema) a leaf is an object with a `type` and an optional
+  `provenance`. `type` is the entity type, or the id of an entity refinement. `provenance.source` is
+  the index in `dependencies` of the registry that defines the entity, and is absent when this
+  registry defines it. A reference is therefore self-describing: a consumer that holds one knows which
+  schema to read next.
+- In the [materialized schema](#materialized-resolved-schema) a leaf is the same object, except that
+  `provenance.source` is the schema url of the defining registry rather than an index, and is the
+  key that registry is stored under in `dependencies`.
+
+An association is resolved during [`weaver registry resolve`](/docs/usage.md#weaver-registry-resolve).
+The entity is *not* copied into this registry: there is one definition, in one place. A reference that
+no registry in scope satisfies is an error, and so is a reference to an entity that its own registry
+excludes with `dependency_resolution`.
 
 ### Common signal and attribute properties
 

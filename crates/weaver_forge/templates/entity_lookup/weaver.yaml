@@ -1,0 +1,7 @@
+# The filter gives the template the spans only. The entity definitions are not
+# in the context, so the template must read them with `lookup_entity`.
+templates:
+  - template: entity_identity.j2
+    filter: .registry.spans
+    application_mode: single
+    file_name: entity_identity.txt

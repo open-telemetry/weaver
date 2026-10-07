@@ -1,0 +1,9 @@
+name: main
+description: Two distinct registries both declared by the same name, neither versioned.
+semconv_version: 0.1.0
+schema_base_url: https://example.com/main/
+dependencies:
+  - name: dep
+    registry_path: data/unversioned-conflict/dep-a
+  - name: dep
+    registry_path: data/unversioned-conflict/dep-b

@@ -5,7 +5,7 @@
 use serde_json::json;
 use std::rc::Rc;
 use weaver_checker::{FindingLevel, PolicyFinding};
-use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec, ValueSpec};
+use weaver_semconv::v1::attribute::{AttributeType, PrimitiveOrArrayTypeSpec, ValueSpec};
 
 use super::{Advisor, FindingBuilder};
 use crate::{
@@ -34,7 +34,8 @@ impl Advisor for EnumAdvisor {
                     sample_attribute.r#type.as_ref(),
                 ) {
                     (Some(semconv_attribute), Some(attribute_value), Some(attribute_type)) => {
-                        if let AttributeType::Enum { members, .. } = semconv_attribute.r#type() {
+                        let semconv_type = semconv_attribute.r#type();
+                        if let AttributeType::Enum { members, .. } = semconv_type.as_ref() {
                             let mut is_found = false;
                             for member in members {
                                 if match attribute_type {

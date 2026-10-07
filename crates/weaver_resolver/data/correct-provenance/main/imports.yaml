@@ -1,0 +1,9 @@
+# `host.id` is defined only in base, but reaches main via both dependency
+# paths: directly (`base.uptime`) and through middle's re-export
+# (`middle.throughput`). The re-export must preserve base's provenance so
+# both paths agree on the attribute's origin schema_url.
+file_format: definition/2
+imports:
+  metrics:
+    - base.uptime
+    - middle.throughput

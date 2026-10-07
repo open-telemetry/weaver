@@ -983,7 +983,25 @@ The `comment` filter accepts the following optional parameters:
 All the functions available in the MiniJinja template engine are available (see
 this online [documentation](https://docs.rs/minijinja/latest/minijinja/functions/index.html)).
 
-In addition, OTel Weaver provides the following custom function:
+In addition, OTel Weaver provides the following custom functions:
+
+- `lookup_entity`: Returns the entity definition that an `entity_associations`
+  leaf names. A leaf gives the entity type and the registry that defines it, for
+  example `{ type: host, provenance: { source: <schema url> } }`. No provenance
+  means this registry. The definition is often not in the template context,
+  because a registry does not copy the entities of its dependencies.
+
+  Pass a leaf, not a whole association. Walk the `one_of` and `all_of` levels
+  first; `templates/entity_lookup/` has a macro for this. An entity that no
+  registry defines is an error, and so is a leaf the function cannot read.
+
+  Only `weaver registry generate` on a v2 registry gives the template engine
+  these definitions. A template rendered from anything else gets an error.
+
+  ```jinja
+  {% set entity = lookup_entity(leaf) %}
+  {{ entity.type }}: {% for attr in entity.identity %}{{ attr.key }} {% endfor %}
+  ```
 
 - `concat_if`: Concatenates two or more values (after converting them to strings)
   if all these values are defined. If any of the values are undefined, the function

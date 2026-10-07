@@ -9,7 +9,6 @@ use serde::Serialize;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 
 use weaver_common::error::WeaverError;
-use weaver_resolved_schema::attribute::AttributeRef;
 
 use crate::error::Error::CompoundError;
 
@@ -205,7 +204,19 @@ pub enum Error {
         /// Group id.
         group_id: String,
         /// Attribute reference.
-        attr_ref: AttributeRef,
+        attr_ref: u32,
+    },
+
+    /// An entity reference that no registry answers.
+    #[error("Entity `{entity_type}` was not found in {}", match .registry {
+        Some(url) => format!("registry `{url}`"),
+        None => "this registry".to_owned(),
+    })]
+    EntityNotFound {
+        /// The entity type, or refinement id, that the reference names.
+        entity_type: String,
+        /// The registry the reference points at, if it is not this one.
+        registry: Option<String>,
     },
 
     /// Filter error.
@@ -295,6 +306,14 @@ pub enum Error {
     /// An internal logic error that should not occur in normal operation.
     #[error("Internal error: {0}")]
     InternalError(String),
+
+    /// Resolver error.
+    #[error("Resolver error: {0}")]
+    ResolverError(#[from] weaver_resolver::Error),
+
+    /// Schema error.
+    #[error("Schema error: {0}")]
+    SchemaError(#[from] weaver_resolved_schema::error::Error),
 
     /// A generic container for multiple errors.
     #[error("Errors:\n{0:#?}")]

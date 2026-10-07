@@ -8,6 +8,8 @@ attribute_catalog:
   brief: Different brief
   note: Different note
   stability: stable
+  provenance:
+    source: 0
 - key: server.port
   type: int
   examples:
@@ -15,6 +17,8 @@ attribute_catalog:
   - 443
   brief: Refined server port
   stability: stable
+  provenance:
+    source: 0
 registry:
   attributes: []
   attribute_groups: []

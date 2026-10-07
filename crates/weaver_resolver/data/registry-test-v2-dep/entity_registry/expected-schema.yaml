@@ -7,18 +7,24 @@ attribute_catalog:
   - amd64
   brief: Host architecture.
   stability: stable
+  provenance:
+    source: 0
 - key: host.id
   type: string
   examples:
   - fdbf79e8af94cb7f9e8df36789187052
   brief: Refined host ID
   stability: stable
+  provenance:
+    source: 0
 - key: host.name
   type: string
   examples:
   - opentelemetry-test
   brief: Refined host name
   stability: stable
+  provenance:
+    source: 0
 registry:
   attributes: []
   attribute_groups: []

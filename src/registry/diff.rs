@@ -13,6 +13,7 @@ use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_config::{WeaverCommand, WeaverConfig};
+use weaver_forge::config::Params;
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_macros::weaver_command;
 use weaver_semconv::registry_repo::RegistryRepo;
@@ -62,9 +63,14 @@ pub(crate) fn command(
     cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let weaver = WeaverEngine::new(
+        &cmd_config.registry,
+        &cmd_config.policy,
+        &cmd_config.resolve,
+        auth,
+    );
 
     info!("Weaver Registry Diff");
     info!("Checking registry `{}`", cmd_config.registry.registry);
@@ -94,6 +100,7 @@ pub(crate) fn command(
         Some(&DEFAULT_DIFF_TEMPLATES),
         Some(templates),
         target,
+        Params::default(),
     )?;
 
     match diff {

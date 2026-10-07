@@ -103,7 +103,7 @@ pub(crate) fn command(
         path.is_file() && extension == "md"
     }
 
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     let config = cmd_config.config;
 
     let markdown_dir = config.markdown_dir.ok_or_else(|| {
@@ -146,7 +146,12 @@ pub(crate) fn command(
         crate::registry::apply_template_config(&mut config, cfg);
         OutputProcessor::from_template_config(config, loader, params, OutputTarget::Stdout)?
     };
-    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let weaver = WeaverEngine::new(
+        &cmd_config.registry,
+        &cmd_config.policy,
+        &cmd_config.resolve,
+        auth,
+    );
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let generator: Box<dyn MarkdownSnippetGenerator> = match resolved {
         crate::weaver::Resolved::V2(resolved_v2) => {

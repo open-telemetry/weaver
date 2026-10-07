@@ -8,27 +8,43 @@ use finding_modifier::FindingModifier;
 use live_checker::LiveChecker;
 use miette::Diagnostic;
 use sample_attribute::SampleAttribute;
+use sample_instrumentation_scope::SampleInstrumentationScope;
 use sample_log::SampleLog;
 use sample_metric::{
     SampleExemplar, SampleExponentialHistogramDataPoint, SampleHistogramDataPoint, SampleMetric,
     SampleNumberDataPoint,
 };
+use sample_profile::SampleProfile;
 use sample_resource::SampleResource;
 use sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
+
+use crate::matcher::{MatchInfo, SampleMatch, SignalKind};
 use weaver_checker::{FindingLevel, PolicyFinding};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::{
-    registry::{ResolvedGroup, ResolvedRegistry},
+    v1::registry::{ResolvedGroup, ResolvedRegistry},
     v2::registry::ForgeResolvedRegistry,
 };
 use weaver_semconv::{
-    attribute::AttributeType, deprecated::Deprecated, group::InstrumentSpec, stability::Stability,
+    deprecated::Deprecated,
+    v1::{attribute::AttributeType, group::InstrumentSpec, stability::Stability},
 };
+
+/// Serializes an enum value to its serde name, for example `internal`.
+pub(crate) fn enum_name<T: Serialize>(value: &T) -> String {
+    match serde_json::to_value(value) {
+        Ok(JsonValue::String(name)) => name,
+        _ => String::new(),
+    }
+}
 
 /// Advisors for live checks
 pub mod advice;
+/// Runs CEL expressions against samples.
+pub mod cel;
 /// Finding modifier engine (overrides and filters).
 pub mod finding_modifier;
 /// Generated types, constants, and log record builders for live check findings
@@ -40,14 +56,20 @@ pub mod json_file_ingester;
 pub mod json_stdin_ingester;
 /// Live checker
 pub mod live_checker;
+/// Matchers from the live-check config.
+pub mod matcher;
 /// OTLP logger for emitting policy findings as log records
 pub mod otlp_logger;
 /// The intermediary format for attributes
 pub mod sample_attribute;
+/// An intermediary format for instrumentation scope metadata.
+pub mod sample_instrumentation_scope;
 /// The intermediary format for logs
 pub mod sample_log;
 /// The intermediary format for metrics
 pub mod sample_metric;
+/// The intermediary format for profiles
+pub mod sample_profile;
 /// An intermediary format for resources
 pub mod sample_resource;
 /// The intermediary format for spans
@@ -60,7 +82,7 @@ pub mod text_file_ingester;
 pub mod text_stdin_ingester;
 
 // Re-export statistics types from stats module
-pub use stats::{CumulativeStatistics, DisabledStatistics, LiveCheckStatistics};
+pub use stats::{CumulativeStatistics, DisabledStatistics, LiveCheckStatistics, MatcherStatistics};
 
 /// Attribute key in advice context
 pub const ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: &str = "attribute_key";
@@ -80,12 +102,16 @@ pub const UNIT_ADVICE_CONTEXT_KEY: &str = "unit";
 pub const INSTRUMENT_ADVICE_CONTEXT_KEY: &str = "instrument";
 /// Expected value key in advice context
 pub const EXPECTED_VALUE_ADVICE_CONTEXT_KEY: &str = "expected";
+/// Span kind key in advice context
+pub const SPAN_KIND_ADVICE_CONTEXT_KEY: &str = "span_kind";
 /// Event name key in advice context
 pub const EVENT_NAME_ADVICE_CONTEXT_KEY: &str = "event_name";
 /// Metric name key in advice context
 pub const METRIC_NAME_ADVICE_CONTEXT_KEY: &str = "metric_name";
 /// Entity type key in advice context
 pub const ENTITY_TYPE_ADVICE_CONTEXT_KEY: &str = "entity_type";
+/// Schema url key in advice context
+pub const SCHEMA_URL_ADVICE_CONTEXT_KEY: &str = "schema_url";
 
 /// Embedded default live check rego policies
 pub const DEFAULT_LIVE_CHECK_REGO: &str =
@@ -113,7 +139,7 @@ pub enum VersionedRegistry {
 #[serde(untagged)]
 pub enum VersionedAttribute {
     /// v1 Attribute
-    V1(weaver_resolved_schema::attribute::Attribute),
+    V1(weaver_resolved_schema::v1::attribute::Attribute),
     /// v2 Attribute
     V2(weaver_forge::v2::attribute::Attribute),
 }
@@ -130,10 +156,12 @@ impl VersionedAttribute {
 
     /// Get the type of the attribute
     #[must_use]
-    pub fn r#type(&self) -> &AttributeType {
+    pub fn r#type(&self) -> std::borrow::Cow<'_, AttributeType> {
         match self {
-            VersionedAttribute::V1(attr) => &attr.r#type,
-            VersionedAttribute::V2(attr) => &attr.r#type,
+            VersionedAttribute::V1(attr) => std::borrow::Cow::Borrowed(&attr.r#type),
+            VersionedAttribute::V2(attr) => std::borrow::Cow::Owned(
+                weaver_semconv::convert::v2_attribute_type_to_v1(attr.r#type.clone()),
+            ),
         }
     }
 
@@ -148,10 +176,10 @@ impl VersionedAttribute {
 
     /// Get the stability field of the attribute
     #[must_use]
-    pub fn stability(&self) -> Option<&Stability> {
+    pub fn stability(&self) -> Option<Stability> {
         match self {
-            VersionedAttribute::V1(attr) => attr.stability.as_ref(),
-            VersionedAttribute::V2(attr) => Some(&attr.common.stability),
+            VersionedAttribute::V1(attr) => attr.stability.clone(),
+            VersionedAttribute::V2(attr) => Some(attr.common.stability.clone().into()),
         }
     }
 }
@@ -171,6 +199,18 @@ pub enum VersionedSignal {
 }
 
 impl VersionedSignal {
+    /// The name of the signal: a span type, a metric or event name, or a v1
+    /// group id
+    #[must_use]
+    pub fn name(&self) -> &str {
+        match self {
+            VersionedSignal::Group(group) => &group.as_ref().id,
+            VersionedSignal::Metric(metric) => &metric.name,
+            VersionedSignal::Span(span) => &span.r#type,
+            VersionedSignal::Event(event) => &event.name,
+        }
+    }
+
     /// Get the deprecated field of the signal
     #[must_use]
     pub fn deprecated(&self) -> &Option<Deprecated> {
@@ -184,21 +224,23 @@ impl VersionedSignal {
 
     /// Get the stability field of the signal
     #[must_use]
-    pub fn stability(&self) -> Option<&Stability> {
+    pub fn stability(&self) -> Option<Stability> {
         match self {
-            VersionedSignal::Group(group) => group.as_ref().stability.as_ref(),
-            VersionedSignal::Metric(metric) => Some(&metric.common.stability),
-            VersionedSignal::Span(span) => Some(&span.common.stability),
-            VersionedSignal::Event(event) => Some(&event.common.stability),
+            VersionedSignal::Group(group) => group.as_ref().stability.clone(),
+            VersionedSignal::Metric(metric) => Some(metric.common.stability.clone().into()),
+            VersionedSignal::Span(span) => Some(span.common.stability.clone().into()),
+            VersionedSignal::Event(event) => Some(event.common.stability.clone().into()),
         }
     }
 
     /// Get the instrument field of the signal, if applicable
     #[must_use]
-    pub fn instrument(&self) -> Option<&InstrumentSpec> {
+    pub fn instrument(&self) -> Option<InstrumentSpec> {
         match self {
-            VersionedSignal::Group(group) => group.as_ref().instrument.as_ref(),
-            VersionedSignal::Metric(metric) => Some(&metric.instrument),
+            VersionedSignal::Group(group) => group.as_ref().instrument.clone(),
+            VersionedSignal::Metric(metric) => Some(weaver_semconv::convert::v2_instrument_to_v1(
+                metric.instrument,
+            )),
             VersionedSignal::Span(_) => None,
             VersionedSignal::Event(_) => None,
         }
@@ -260,6 +302,64 @@ pub enum Error {
         /// The error that occurred.
         error: String,
     },
+
+    /// Two matchers declare the same id.
+    #[error("Matcher `{id}` is declared more than once.")]
+    DuplicateMatcher {
+        /// The repeated matcher id.
+        id: String,
+    },
+
+    /// A matcher's `when` expression does not compile.
+    #[error("Matcher `{id}`: {error}")]
+    InvalidMatcherExpression {
+        /// The matcher id.
+        id: String,
+        /// The error that occurred.
+        error: String,
+    },
+
+    /// Matchers are configured against a v1 registry.
+    #[error("Matchers require a v2 registry. Matcher `{id}` cannot be used with the registry under check.")]
+    MatchersRequireV2Registry {
+        /// The id of the first matcher declared.
+        id: String,
+    },
+
+    /// `search_all_attributes` is set against a v1 registry.
+    #[error("`search_all_attributes` requires a v2 registry. A v1 registry has no dependencies to search.")]
+    SearchAllAttributesRequiresV2Registry,
+
+    /// A matcher sets `signal` for a sample type that has no signal.
+    #[error("Matcher `{id}` sets `signal`, which a `{sample_type}` matcher does not allow. Use `attribute_groups` instead.")]
+    MatcherSignalNotAllowed {
+        /// The matcher id.
+        id: String,
+        /// The sample type the matcher applies to.
+        sample_type: String,
+    },
+
+    /// A matcher's `signal` is not in the registry.
+    #[error(
+        "Matcher `{id}` names the signal `{signal}`, which is not {expected} in the registry."
+    )]
+    UnknownMatcherSignal {
+        /// The matcher id.
+        id: String,
+        /// The signal the matcher names.
+        signal: String,
+        /// The kind of name the signal must be, for example `a span type`.
+        expected: String,
+    },
+
+    /// A matcher's `attribute_groups` names a group that is not in the registry.
+    #[error("Matcher `{id}` names the attribute group `{attribute_group}`, which is not in the registry.")]
+    UnknownMatcherAttributeGroup {
+        /// The matcher id.
+        id: String,
+        /// The attribute group the matcher names.
+        attribute_group: String,
+    },
 }
 
 impl From<Error> for DiagnosticMessages {
@@ -288,10 +388,14 @@ pub enum Sample {
     SpanLink(SampleSpanLink),
     /// A sample resource
     Resource(SampleResource),
+    /// An instrumentation scope that produced telemetry signals
+    InstrumentationScope(SampleInstrumentationScope),
     /// A sample metric
     Metric(SampleMetric),
     /// A sample log
     Log(SampleLog),
+    /// A sample profile
+    Profile(SampleProfile),
 }
 
 /// Represents a sample entity with a reference to the inner type.
@@ -309,6 +413,8 @@ pub enum SampleRef<'a> {
     SpanLink(&'a SampleSpanLink),
     /// A sample resource
     Resource(&'a SampleResource),
+    /// An instrumentation scope that produced telemetry signals
+    InstrumentationScope(&'a SampleInstrumentationScope),
     /// A sample metric
     Metric(&'a SampleMetric),
     /// A sample number data point
@@ -321,23 +427,37 @@ pub enum SampleRef<'a> {
     Exemplar(&'a SampleExemplar),
     /// A sample log
     Log(&'a SampleLog),
+    /// A sample profile
+    Profile(&'a SampleProfile),
 }
 
 impl SampleRef<'_> {
     /// Returns the sample name, if available for this sample type.
     ///
-    /// For attributes this is the attribute key, for spans/metrics/events
-    /// it is the signal name. Sub-signal types (data points, exemplars,
-    /// span links, resources) do not carry a name.
+    /// For attributes this is the attribute key, for instrumentation scopes
+    /// it is the scope name, and for spans/metrics/events it is the signal
+    /// name. Sub-signal types (data points, exemplars, span links, resources)
+    /// have no name.
     #[must_use]
     pub fn sample_name(&self) -> Option<&str> {
         match self {
             SampleRef::Attribute(attr) => Some(&attr.name),
             SampleRef::Span(span) => Some(&span.name),
             SampleRef::SpanEvent(event) => Some(&event.name),
+            SampleRef::InstrumentationScope(scope) => Some(&scope.name),
             SampleRef::Metric(metric) => Some(&metric.name),
             SampleRef::Log(log) => Some(&log.event_name),
             _ => None,
+        }
+    }
+
+    /// Whether this sample is expected to resolve a registry signal. When it
+    /// is, no signal is a gap. A log with no `event_name` is not expected to.
+    #[must_use]
+    pub fn expects_signal(&self) -> bool {
+        match self {
+            SampleRef::Log(log) => !log.event_name.is_empty(),
+            other => SignalKind::for_sample_type(other.sample_type()).is_some(),
         }
     }
 
@@ -350,6 +470,7 @@ impl SampleRef<'_> {
             SampleRef::SpanEvent(_) => SampleType::SpanEvent,
             SampleRef::SpanLink(_) => SampleType::SpanLink,
             SampleRef::Resource(_) => SampleType::Resource,
+            SampleRef::InstrumentationScope(_) => SampleType::InstrumentationScope,
             SampleRef::Metric(_) => SampleType::Metric,
             SampleRef::NumberDataPoint(_) => SampleType::NumberDataPoint,
             SampleRef::HistogramDataPoint(_) => SampleType::HistogramDataPoint,
@@ -358,6 +479,7 @@ impl SampleRef<'_> {
             }
             SampleRef::Exemplar(_) => SampleType::Exemplar,
             SampleRef::Log(_) => SampleType::Log,
+            SampleRef::Profile(_) => SampleType::Profile,
         }
     }
 }
@@ -373,18 +495,37 @@ impl Sample {
             Sample::SpanEvent(_) => None,
             Sample::SpanLink(_) => None,
             Sample::Resource(_) => Some(SignalType::Resource.to_string()),
+            Sample::InstrumentationScope(_) => None,
             Sample::Metric(_) => Some(SignalType::Metric.to_string()),
             Sample::Log(_) => Some(SignalType::Log.to_string()),
+            Sample::Profile(_) => Some(SignalType::Profile.to_string()),
         }
     }
 
-    /// Returns a reference to the parent resource, if available.
+    /// Returns the resource associated with this sample, if any.
+    ///
+    /// For span/metric/log samples this is the parent resource; a resource
+    /// sample is its own resource.
     #[must_use]
     pub fn resource(&self) -> Option<&SampleResource> {
         match self {
             Sample::Span(s) => s.resource.as_deref(),
             Sample::Metric(m) => m.resource.as_deref(),
             Sample::Log(l) => l.resource.as_deref(),
+            Sample::Profile(p) => p.resource.as_deref(),
+            Sample::Resource(r) => Some(r),
+            _ => None,
+        }
+    }
+
+    /// Returns the instrumentation scope that produced the signal, if available.
+    #[must_use]
+    pub fn instrumentation_scope(&self) -> Option<&SampleInstrumentationScope> {
+        match self {
+            Sample::Span(s) => s.instrumentation_scope.as_deref(),
+            Sample::Metric(m) => m.instrumentation_scope.as_deref(),
+            Sample::Log(l) => l.instrumentation_scope.as_deref(),
+            Sample::Profile(p) => p.instrumentation_scope.as_deref(),
             _ => None,
         }
     }
@@ -399,8 +540,20 @@ impl Sample {
             Sample::SpanEvent(_) => None,
             Sample::SpanLink(_) => None,
             Sample::Resource(_) => None,
+            Sample::InstrumentationScope(_) => None,
             Sample::Metric(metric) => Some(metric.name.clone()),
             Sample::Log(log) => Some(log.event_name.clone()),
+            Sample::Profile(_) => None,
+        }
+    }
+
+    /// Returns the trace and span IDs associated with a signal, if available.
+    #[must_use]
+    pub fn trace_context_ids(&self) -> Option<(&str, &str)> {
+        match self {
+            Sample::Span(span) => span.trace_id.as_deref().zip(span.span_id.as_deref()),
+            Sample::Log(log) => log.trace_id.as_deref().zip(log.span_id.as_deref()),
+            _ => None,
         }
     }
 }
@@ -411,30 +564,32 @@ impl LiveCheckRunner for Sample {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         match self {
             Sample::Attribute(attribute) => {
-                attribute.run_live_check(live_checker, stats, parent_group, parent_signal)
+                attribute.run_live_check(live_checker, stats, parent, parent_signal)
             }
-            Sample::Span(span) => {
-                span.run_live_check(live_checker, stats, parent_group, parent_signal)
-            }
+            Sample::Span(span) => span.run_live_check(live_checker, stats, parent, parent_signal),
             Sample::SpanEvent(span_event) => {
-                span_event.run_live_check(live_checker, stats, parent_group, parent_signal)
+                span_event.run_live_check(live_checker, stats, parent, parent_signal)
             }
             Sample::SpanLink(span_link) => {
-                span_link.run_live_check(live_checker, stats, parent_group, parent_signal)
+                span_link.run_live_check(live_checker, stats, parent, parent_signal)
             }
             Sample::Resource(resource) => {
-                resource.run_live_check(live_checker, stats, parent_group, parent_signal)
+                resource.run_live_check(live_checker, stats, parent, parent_signal)
+            }
+            Sample::InstrumentationScope(scope) => {
+                scope.run_live_check(live_checker, stats, parent, parent_signal)
             }
             Sample::Metric(metric) => {
-                metric.run_live_check(live_checker, stats, parent_group, parent_signal)
+                metric.run_live_check(live_checker, stats, parent, parent_signal)
             }
-            Sample::Log(log) => {
-                log.run_live_check(live_checker, stats, parent_group, parent_signal)
+            Sample::Log(log) => log.run_live_check(live_checker, stats, parent, parent_signal),
+            Sample::Profile(profile) => {
+                profile.run_live_check(live_checker, stats, parent, parent_signal)
             }
         }
     }
@@ -447,6 +602,9 @@ pub struct LiveCheckResult {
     pub all_advice: Vec<PolicyFinding>,
     /// The highest advice level
     pub highest_advice_level: Option<FindingLevel>,
+    /// What the sample was compared with. Only whole samples have one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub match_info: Option<MatchInfo>,
 }
 
 impl LiveCheckResult {
@@ -456,6 +614,7 @@ impl LiveCheckResult {
         LiveCheckResult {
             all_advice: Vec::new(),
             highest_advice_level: None,
+            match_info: None,
         }
     }
 
@@ -526,7 +685,7 @@ pub trait LiveCheckRunner {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error>;
 }
@@ -537,11 +696,11 @@ impl<T: LiveCheckRunner> LiveCheckRunner for Vec<T> {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         for item in self.iter_mut() {
-            item.run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
+            item.run_live_check(live_checker, stats, parent.clone(), parent_signal)?;
         }
         Ok(())
     }
@@ -556,11 +715,14 @@ pub trait Advisable {
     fn entity_type(&self) -> &str;
 
     /// Run advisors on this entity
+    ///
+    /// The result is not added to the statistics here. The caller can add its
+    /// own findings first, so it adds the finished result itself.
     fn run_advisors(
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<LiveCheckResult, Error> {
         let mut result = LiveCheckResult::new();
@@ -570,7 +732,7 @@ pub trait Advisable {
                 self.as_sample_ref(),
                 parent_signal,
                 None,
-                parent_group.clone(),
+                parent.as_ref().and_then(|c| c.signal.clone()),
                 live_checker.otlp_emitter.clone(),
             )?;
             result.add_advice_list(
@@ -581,7 +743,6 @@ pub trait Advisable {
         }
 
         stats.inc_entity_count(self.entity_type());
-        stats.maybe_add_live_check_result(Some(&result));
 
         Ok(result)
     }
@@ -593,4 +754,202 @@ pub fn get_json_schema() -> Result<String, Error> {
     serde_json::to_string_pretty(&schema).map_err(|e| Error::OutputError {
         error: e.to_string(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sample_log::SampleLog;
+    use sample_profile::SampleProfile;
+    use sample_span::{SampleSpan, Status, StatusCode};
+    use serde_json::json;
+    use weaver_semconv::v1::group::SpanKindSpec;
+
+    fn sample_log_with_timestamp(timestamp: Option<String>) -> SampleLog {
+        SampleLog {
+            event_name: "event".to_owned(),
+            severity_number: None,
+            severity_text: None,
+            body: None,
+            attributes: vec![],
+            trace_id: None,
+            span_id: None,
+            instrumentation_scope: None,
+            live_check_result: None,
+            resource: None,
+            timestamp,
+        }
+    }
+
+    fn make_sample_profile() -> SampleProfile {
+        SampleProfile {
+            original_payload_format: "pprof".to_owned(),
+            attributes: vec![],
+            instrumentation_scope: None,
+            live_check_result: None,
+            resource: None,
+        }
+    }
+
+    fn sample_span_with_trace_context(trace_id: Option<&str>, span_id: Option<&str>) -> SampleSpan {
+        SampleSpan {
+            name: "operation".to_owned(),
+            kind: SpanKindSpec::Internal,
+            status: Some(Status {
+                code: StatusCode::Ok,
+                message: String::new(),
+            }),
+            attributes: vec![],
+            span_events: vec![],
+            span_links: vec![],
+            instrumentation_scope: None,
+            live_check_result: None,
+            resource: None,
+            trace_id: trace_id.map(str::to_owned),
+            span_id: span_id.map(str::to_owned),
+            parent_span_id: None,
+            trace_state: None,
+            start_time: None,
+            end_time: None,
+        }
+    }
+
+    fn test_resource() -> SampleResource {
+        SampleResource {
+            attributes: vec![SampleAttribute {
+                name: "service.name".to_owned(),
+                value: Some(json!("my-test-service")),
+                r#type: None,
+                live_check_result: None,
+            }],
+            live_check_result: None,
+        }
+    }
+
+    #[test]
+    fn test_sample_profile_signal_type() {
+        let sample = Sample::Profile(make_sample_profile());
+        assert_eq!(sample.signal_type(), Some(SignalType::Profile.to_string()));
+    }
+
+    #[test]
+    fn test_sample_profile_signal_name_is_none() {
+        let sample = Sample::Profile(make_sample_profile());
+        assert_eq!(sample.signal_name(), None);
+    }
+
+    #[test]
+    fn test_sample_profile_resource_is_none() {
+        let sample = Sample::Profile(make_sample_profile());
+        assert!(sample.resource().is_none());
+    }
+
+    #[test]
+    fn test_sample_profile_instrumentation_scope_is_none() {
+        let sample = Sample::Profile(make_sample_profile());
+        assert!(sample.instrumentation_scope().is_none());
+    }
+
+    #[test]
+    fn trace_context_ids_returns_span_context() {
+        let sample = Sample::Span(sample_span_with_trace_context(
+            Some("00000000000000000000000000000001"),
+            Some("0000000000000001"),
+        ));
+
+        assert_eq!(
+            sample.trace_context_ids(),
+            Some(("00000000000000000000000000000001", "0000000000000001"))
+        );
+    }
+
+    #[test]
+    fn trace_context_ids_returns_log_context() {
+        let mut log = sample_log_with_timestamp(None);
+        log.trace_id = Some("00000000000000000000000000000002".to_owned());
+        log.span_id = Some("0000000000000002".to_owned());
+
+        assert_eq!(
+            Sample::Log(log).trace_context_ids(),
+            Some(("00000000000000000000000000000002", "0000000000000002"))
+        );
+    }
+
+    #[test]
+    fn trace_context_ids_returns_none_without_signal_context() {
+        assert_eq!(
+            Sample::Profile(make_sample_profile()).trace_context_ids(),
+            None
+        );
+        assert_eq!(
+            Sample::Span(sample_span_with_trace_context(
+                Some("00000000000000000000000000000001"),
+                None,
+            ))
+            .trace_context_ids(),
+            None
+        );
+    }
+
+    #[test]
+    fn test_sample_ref_profile_sample_type() {
+        let profile = make_sample_profile();
+        let sample_ref = SampleRef::Profile(&profile);
+        assert_eq!(sample_ref.sample_type(), SampleType::Profile);
+    }
+
+    #[test]
+    fn report_serializes_captured_timestamp_on_its_source_sample() {
+        let report = LiveCheckReport {
+            samples: vec![Sample::Log(sample_log_with_timestamp(Some(
+                "timestamp".to_owned(),
+            )))],
+            statistics: LiveCheckStatistics::Disabled(DisabledStatistics),
+        };
+
+        let json = serde_json::to_value(report).expect("serialize report");
+        assert_eq!(json["samples"][0]["log"]["timestamp"], "timestamp");
+    }
+
+    #[test]
+    fn report_without_captured_timestamp_omits_it_from_samples() {
+        let report = LiveCheckReport {
+            samples: vec![Sample::Log(sample_log_with_timestamp(None))],
+            statistics: LiveCheckStatistics::Disabled(DisabledStatistics),
+        };
+
+        let json = serde_json::to_value(report).expect("serialize report");
+        assert!(json["samples"][0]["log"].get("timestamp").is_none());
+    }
+
+    #[test]
+    fn test_resource_sample_is_its_own_resource() {
+        let resource = test_resource();
+        let sample = Sample::Resource(resource.clone());
+
+        assert_eq!(sample.resource(), Some(&resource));
+    }
+
+    #[test]
+    fn test_signal_sample_returns_parent_resource() {
+        let resource = test_resource();
+        let span = SampleSpan {
+            resource: Some(Rc::new(resource.clone())),
+            ..sample_span_with_trace_context(None, None)
+        };
+
+        assert_eq!(Sample::Span(span).resource(), Some(&resource));
+    }
+
+    #[test]
+    fn test_sample_without_resource_returns_none() {
+        let sample = Sample::Attribute(SampleAttribute {
+            name: "db.statement".to_owned(),
+            value: None,
+            r#type: None,
+            live_check_result: None,
+        });
+
+        assert_eq!(sample.resource(), None);
+    }
 }

@@ -52,7 +52,7 @@ pub(crate) fn command(
     cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     info!("Weaver Registry Emit");
     info!("Resolving registry `{}`", cmd_config.registry.registry);
 
@@ -65,7 +65,12 @@ pub(crate) fn command(
     } else {
         ExporterConfig::Otlp { endpoint }
     };
-    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let weaver = WeaverEngine::new(
+        &cmd_config.registry,
+        &cmd_config.policy,
+        &cmd_config.resolve,
+        auth,
+    );
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     match resolved {
         crate::weaver::Resolved::V2(v) => {

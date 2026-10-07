@@ -1,0 +1,7 @@
+name: middle
+description: Registry re-exporting base's metric. Its only role is to sit between base and main.
+schema_url: https://example.com/middle/0.1.0
+dependencies:
+  - name: base
+    schema_url: https://example.com/base/1.0.0
+    registry_path: data/transitive-provenance/base

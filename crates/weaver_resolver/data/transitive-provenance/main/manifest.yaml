@@ -1,0 +1,9 @@
+name: main
+description: >
+  Registry depending on middle only. `base` is reachable solely through middle,
+  so it is a purely transitive dependency of main.
+schema_url: https://example.com/main/0.1.0
+dependencies:
+  - name: middle
+    schema_url: https://example.com/middle/0.1.0
+    registry_path: data/transitive-provenance/middle

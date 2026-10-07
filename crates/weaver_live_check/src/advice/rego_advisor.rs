@@ -9,12 +9,14 @@ use weaver_forge::jq;
 
 use super::{emit_findings, Advisor};
 use crate::{
-    live_checker::LiveChecker, otlp_logger::OtlpEmitter, Error, Sample, SampleRef,
-    VersionedAttribute, VersionedSignal, DEFAULT_LIVE_CHECK_JQ, DEFAULT_LIVE_CHECK_REGO,
-    DEFAULT_LIVE_CHECK_REGO_POLICY_PATH,
+    live_checker::LiveChecker, otlp_logger::OtlpEmitter,
+    sample_instrumentation_scope::SampleInstrumentationScope, sample_resource::SampleResource,
+    Error, Sample, SampleRef, VersionedAttribute, VersionedSignal, DEFAULT_LIVE_CHECK_JQ,
+    DEFAULT_LIVE_CHECK_REGO, DEFAULT_LIVE_CHECK_REGO_POLICY_PATH,
 };
 
 /// An advisor which runs a rego policy on the attribute
+#[derive(Clone)]
 pub struct RegoAdvisor {
     engine: Engine,
 }
@@ -29,8 +31,8 @@ impl RegoAdvisor {
     ) -> Result<Self, Error> {
         let mut engine = Engine::new();
         if let Some(path) = policy_dir {
-            let _ = engine
-                .add_policies(path, "*.rego")
+            engine
+                .add_policy_from_file_or_dir(path)
                 .map_err(|e| Error::AdviceError {
                     error: e.to_string(),
                 })?;
@@ -104,6 +106,8 @@ impl RegoAdvisor {
 #[derive(Serialize)]
 struct RegoInput<'a> {
     sample: SampleRef<'a>,
+    resource: Option<&'a SampleResource>,
+    instrumentation_scope: Option<&'a SampleInstrumentationScope>,
     registry_attribute: Option<Rc<VersionedAttribute>>,
     registry_group: Option<Rc<VersionedSignal>>,
 }
@@ -120,6 +124,8 @@ impl Advisor for RegoAdvisor {
         let mut findings = self.check(RegoInput {
             sample: sample.clone(),
             registry_attribute,
+            resource: signal.resource(),
+            instrumentation_scope: signal.instrumentation_scope(),
             registry_group,
         })?;
 

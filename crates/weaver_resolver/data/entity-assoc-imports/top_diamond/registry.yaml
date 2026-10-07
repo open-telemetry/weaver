@@ -1,0 +1,6 @@
+file_format: definition/2
+imports:
+  metrics:
+    - middle.request.count
+  entities:
+    - host

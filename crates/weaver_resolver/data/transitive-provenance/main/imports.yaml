@@ -1,0 +1,7 @@
+# `base.uptime` is defined in base, which main does not depend on directly — it
+# arrives through middle. Its provenance must still name base as the origin
+# registry, not fall back to "defined locally" for want of an entry to point at.
+file_format: definition/2
+imports:
+  metrics:
+    - base.uptime

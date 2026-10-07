@@ -2,8 +2,8 @@
 
 //! OTLP logger provider for emitting policy findings as log records.
 
-use opentelemetry::logs::{AnyValue, Logger, LoggerProvider, Severity};
-use opentelemetry::{Key, KeyValue};
+use opentelemetry::logs::{AnyValue, LogRecord as _, Logger, LoggerProvider, Severity};
+use opentelemetry::{Key, KeyValue, SpanId, TraceId};
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::resource::ResourceDetector;
@@ -136,6 +136,10 @@ impl OtlpEmitter {
             signal_type.as_ref(),
         );
 
+        if let Some((trace_id, span_id)) = trace_context_from_sample(parent_signal) {
+            log_record.set_trace_context(trace_id, span_id, None);
+        }
+
         logger.emit(log_record);
     }
 
@@ -152,6 +156,13 @@ impl OtlpEmitter {
             error: format!("Failed to shutdown OTLP log provider: {e}"),
         })
     }
+}
+
+fn trace_context_from_sample(sample: &Sample) -> Option<(TraceId, SpanId)> {
+    let (trace_id, span_id) = sample.trace_context_ids()?;
+    TraceId::from_hex(trace_id)
+        .ok()
+        .zip(SpanId::from_hex(span_id).ok())
 }
 
 impl From<&FindingLevel> for GeneratedFindingLevel {
@@ -267,9 +278,10 @@ mod tests {
     use crate::sample_metric::{SampleInstrument, SampleMetric};
     use crate::sample_resource::SampleResource;
     use crate::sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink, Status, StatusCode};
+    use opentelemetry_sdk::logs::InMemoryLogExporter;
     use serde_json::json;
     use weaver_checker::{FindingLevel, PolicyFinding};
-    use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
+    use weaver_semconv::v1::group::{InstrumentSpec, SpanKindSpec};
 
     // Helper function to create a test attribute
     fn create_test_attribute(name: &str) -> SampleAttribute {
@@ -293,9 +305,78 @@ mod tests {
             attributes: vec![],
             span_events: vec![],
             span_links: vec![],
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
+            trace_id: None,
+            span_id: None,
+            parent_span_id: None,
+            trace_state: None,
+            start_time: None,
+            end_time: None,
         }
+    }
+
+    #[test]
+    fn finding_trace_context_uses_the_source_span_ids() {
+        let mut span = create_test_span("operation");
+        span.trace_id = Some("00000000000000000000000000000001".to_owned());
+        span.span_id = Some("0000000000000001".to_owned());
+
+        let (trace_id, span_id) =
+            trace_context_from_sample(&Sample::Span(span)).expect("trace context");
+        assert_eq!(trace_id.to_string(), "00000000000000000000000000000001");
+        assert_eq!(span_id.to_string(), "0000000000000001");
+    }
+
+    #[test]
+    fn finding_trace_context_ignores_invalid_or_missing_ids() {
+        let mut span = create_test_span("operation");
+        span.trace_id = Some("not-a-trace-id".to_owned());
+        span.span_id = Some("0000000000000001".to_owned());
+        assert!(trace_context_from_sample(&Sample::Span(span)).is_none());
+
+        assert!(
+            trace_context_from_sample(&Sample::Attribute(create_test_attribute("key"))).is_none()
+        );
+    }
+
+    #[test]
+    fn emit_finding_sets_trace_context_from_parent_span() {
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+        let emitter = OtlpEmitter { provider };
+        let mut span = create_test_span("operation");
+        span.trace_id = Some("00000000000000000000000000000001".to_owned());
+        span.span_id = Some("0000000000000001".to_owned());
+        let finding = create_test_finding(
+            "test-finding",
+            "test message",
+            FindingLevel::Violation,
+            Some("span"),
+            Some("operation"),
+            None,
+        );
+
+        let parent_signal = Sample::Span(span);
+        let Sample::Span(parent_span) = &parent_signal else {
+            unreachable!("parent signal is a span")
+        };
+        emitter.emit_finding(&finding, &SampleRef::Span(parent_span), &parent_signal);
+
+        let emitted = exporter.get_emitted_logs().expect("emitted logs");
+        assert_eq!(emitted.len(), 1);
+        let trace_context = emitted[0]
+            .record
+            .trace_context()
+            .expect("trace context on finding");
+        assert_eq!(
+            trace_context.trace_id.to_string(),
+            "00000000000000000000000000000001"
+        );
+        assert_eq!(trace_context.span_id.to_string(), "0000000000000001");
     }
 
     // Helper function to create a test metric
@@ -305,6 +386,7 @@ mod tests {
             instrument: SampleInstrument::Supported(InstrumentSpec::Gauge),
             unit: "ms".to_owned(),
             data_points: None,
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         }
@@ -678,6 +760,82 @@ mod tests {
         assert!(attrs.is_empty());
     }
 
+    /// Findings on a resource sample must carry that resource's attributes,
+    /// the same way findings on span/metric/log samples carry their parent
+    /// resource's attributes.
+    #[test]
+    fn test_resource_sample_finding_carries_resource_attributes() {
+        let resource = SampleResource {
+            attributes: vec![
+                SampleAttribute {
+                    name: "service.name".to_owned(),
+                    value: Some(json!("my-test-service")),
+                    r#type: None,
+                    live_check_result: None,
+                },
+                SampleAttribute {
+                    name: "deployment.environment.name".to_owned(),
+                    value: Some(json!("production")),
+                    r#type: None,
+                    live_check_result: None,
+                },
+            ],
+            live_check_result: None,
+        };
+        let parent_signal = Sample::Resource(resource.clone());
+
+        // Mirrors how `emit_finding` derives a finding's resource attributes.
+        let attrs = parent_signal
+            .resource()
+            .map(|r| flatten_resource_attributes(&r.attributes))
+            .unwrap_or_default();
+
+        assert_eq!(
+            find_attr(&attrs, "service.name"),
+            Some(&AnyValue::from("my-test-service"))
+        );
+        assert_eq!(
+            find_attr(&attrs, "deployment.environment.name"),
+            Some(&AnyValue::from("production"))
+        );
+
+        // A sample with no resource still yields no resource attributes.
+        let orphan = Sample::Span(create_test_span("test.span"));
+        assert!(orphan
+            .resource()
+            .map(|r| flatten_resource_attributes(&r.attributes))
+            .unwrap_or_default()
+            .is_empty());
+    }
+
+    #[test]
+    fn test_emit_finding_with_resource_sample() {
+        let emitter = OtlpEmitter::new_stdout();
+        let sample = SampleResource {
+            attributes: vec![SampleAttribute {
+                name: "service.name".to_owned(),
+                value: Some(json!("my-test-service")),
+                r#type: None,
+                live_check_result: None,
+            }],
+            live_check_result: None,
+        };
+        let parent_signal = Sample::Resource(sample.clone());
+        let sample_ref = SampleRef::Resource(&sample);
+        let finding = create_test_finding(
+            "test_finding",
+            "This is a test finding on a resource",
+            FindingLevel::Violation,
+            Some("resource"),
+            None,
+            None,
+        );
+
+        emitter.emit_finding(&finding, &sample_ref, &parent_signal);
+
+        assert!(emitter.shutdown().is_ok());
+    }
+
     #[test]
     fn test_service_to_resource_attributes_full() {
         use crate::generated::entities::{
@@ -833,9 +991,12 @@ mod tests {
         );
 
         let event_sample = SampleSpanEvent {
+            resource: None,
+            instrumentation_scope: None,
             name: "test".to_owned(),
             attributes: vec![],
             live_check_result: None,
+            timestamp: None,
         };
         assert_eq!(
             SampleRef::SpanEvent(&event_sample).sample_type(),
@@ -843,8 +1004,12 @@ mod tests {
         );
 
         let link_sample = SampleSpanLink {
+            resource: None,
+            instrumentation_scope: None,
             attributes: vec![],
             live_check_result: None,
+            trace_id: None,
+            span_id: None,
         };
         assert_eq!(
             SampleRef::SpanLink(&link_sample).sample_type(),

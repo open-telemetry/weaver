@@ -9,6 +9,7 @@ allowed_external_types = [
     "serde_yaml::value::Value",
     "weaver_common::*",
     "weaver_resolved_schema::*",
+    "weaver_resolver::*",
     "weaver_semconv::*",
     "miette::protocol::Diagnostic",
     "include_dir::dir::Dir",

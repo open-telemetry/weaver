@@ -1,0 +1,7 @@
+file_format: 'definition/2'
+# Imports `server.request` from the dependency rather than refining it. The
+# dependency marks `server.address` as sampling relevant on the span's
+# attribute ref, so the imported span must carry that through.
+imports:
+  spans:
+    - server.request

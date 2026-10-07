@@ -119,7 +119,7 @@ impl<'source> HtmlRenderer<'source> {
 
         // Add all Weaver filters and tests, except the comment filter
         // (in code extension), to avoid infinite recursion
-        install_weaver_extensions(&mut env, config, false)?;
+        install_weaver_extensions(&mut env, config, false, None)?;
         Ok(Self {
             options_by_format: config
                 .comment_formats

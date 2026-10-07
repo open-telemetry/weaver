@@ -11,23 +11,28 @@ use std::path::{Path, PathBuf};
 
 pub mod auth;
 pub mod effective;
+pub mod infer;
 pub mod live_check;
 mod overrides;
 pub mod registry;
+pub mod resolve;
 pub mod template;
 
 // Re-export the public API so callers can use `weaver_config::LiveCheckConfig` etc.
 pub use auth::{build_resolver as build_auth_resolver, AuthEntry};
 pub use effective::{
     EffectiveDiagnosticConfig, EffectivePolicyConfig, EffectiveRegistryConfig,
-    DEFAULT_DIAGNOSTIC_FORMAT, DEFAULT_DIAGNOSTIC_TEMPLATE, DEFAULT_REGISTRY,
+    EffectiveResolveConfig, DEFAULT_DIAGNOSTIC_FORMAT, DEFAULT_DIAGNOSTIC_TEMPLATE,
+    DEFAULT_REGISTRY,
 };
+pub use infer::{InferConfig, InferOtlpConfig};
 pub use live_check::{
     FailOnLevel, FindingFilter, FindingLevelOverride, LiveCheckConfig, LiveCheckEmitConfig,
     LiveCheckOtlpConfig,
 };
 pub use overrides::{CliOverrides, CommandConfig, FieldMapping};
 pub use registry::{DiagnosticsConfig, PolicyConfig, RegistryConfig};
+pub use resolve::ResolveConfig;
 pub use template::TemplateConfig;
 pub use weaver_common::http_auth::TokenSource;
 // Re-export the WeaverCommand derive macro and the weaver_command attribute
@@ -48,6 +53,9 @@ pub struct WeaverConfig {
     pub policy: PolicyConfig,
     /// Shared diagnostic output settings (apply to all subcommands that accept them).
     pub diagnostics: DiagnosticsConfig,
+    /// Shared resolution settings (apply to all subcommands that accept them).
+    #[serde(alias = "resolution")]
+    pub resolve: ResolveConfig,
     /// Project-level template settings applied on top of every template package
     /// used by the project, layering over the package's own `weaver.yaml`.
     pub template: TemplateConfig,
@@ -63,13 +71,25 @@ pub struct WeaverConfig {
 impl WeaverConfig {
     /// Deserialize a per-command config section from the raw TOML table.
     ///
-    /// Returns `C::default()` when the section is absent or fails to deserialize.
-    #[must_use]
-    pub fn command_config<C: serde::de::DeserializeOwned + Default>(&self, section: &str) -> C {
+    /// Returns `C::default()` when the section is absent.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the section is present but does not deserialize.
+    pub fn command_config<C: serde::de::DeserializeOwned + Default>(
+        &self,
+        section: &str,
+    ) -> Result<C, ConfigError> {
         let Some(value) = self.commands.get(section) else {
-            return C::default();
+            return Ok(C::default());
         };
-        value.clone().try_into::<C>().unwrap_or_default()
+        value
+            .clone()
+            .try_into::<C>()
+            .map_err(|e| ConfigError::Section {
+                section: section.to_owned(),
+                reason: e.to_string(),
+            })
     }
 }
 
@@ -140,6 +160,14 @@ pub enum ConfigError {
     Parse {
         /// The path that failed to parse.
         path: PathBuf,
+        /// The error message.
+        reason: String,
+    },
+    /// A command section is present but does not deserialize.
+    #[error("Invalid `{section}` section in the config: {reason}")]
+    Section {
+        /// The command section, for example `live-check`.
+        section: String,
         /// The error message.
         reason: String,
     },

@@ -1,0 +1,34 @@
+file_format: resolved/2.0
+schema_url: https://example.com/a/0.1.0
+dependencies:
+  - https://example.com/c/1.1.0
+attribute_catalog:
+- key: c.attr1
+  type: string
+  brief: Attribute 1 from C v1.1
+  stability: stable
+  provenance:
+    source: 0
+registry:
+  attributes:
+  - 0
+  attribute_groups: []
+  spans: []
+  events: []
+  entities: []
+  metrics:
+  - name: c.metric.1
+    instrument: counter
+    unit: '1'
+    brief: Metric 1 in C v1.1
+    stability: stable
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    provenance:
+      source: 0
+refinements:
+  spans: []
+  metrics: []
+  events: []
+  entities: []

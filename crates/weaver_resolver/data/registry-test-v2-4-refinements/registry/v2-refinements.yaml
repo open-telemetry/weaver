@@ -19,10 +19,19 @@ attribute_groups:
     brief: Test group
     stability: stable
     attributes:
+      # Base sets a non-default requirement level on test.attr.
       - ref: test.attr
+        requirement_level:
+          conditionally_required: "on the base signal"
   - id: test.refine.extras
     visibility: internal
     attributes:
+      # Re-refs test.attr with ONLY an example (no requirement_level). When this
+      # group is pulled into a refinement via `ref_group`, it must NOT reset the
+      # `conditionally_required` inherited from test.group above back to the
+      # `recommended` default.
+      - ref: test.attr
+        examples: [42]
       - ref: test.attr3
         requirement_level: recommended
 

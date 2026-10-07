@@ -6,10 +6,10 @@ install:
     cargo install cargo-depgraph@1.6.0 --locked
     cargo install cargo-edit@0.13.13 --locked
     cargo install cargo-check-external-types@0.5.0 --locked
-    cargo install git-cliff@2.13.1 --locked
-    cargo install cargo-tarpaulin@0.37.0 --locked
-    cargo install cargo-nextest@0.9.140 --locked
-    cargo install typos-cli@1.48.0 --locked
+    cargo install git-cliff@2.14.2 --locked
+    cargo install cargo-tarpaulin@0.37.5 --locked
+    cargo install cargo-nextest@0.9.146 --locked
+    cargo install typos-cli@1.50.3 --locked
 
 pre-push-check:
     cargo clean
@@ -45,9 +45,9 @@ generate:
     docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$(pwd)":/home/weaver/source otel/weaver:v0.24.2 registry generate --registry /home/weaver/source/crates/weaver_live_check/model/ --templates /home/weaver/source/crates/weaver_live_check/templates/ --v2 markdown /home/weaver/source/crates/weaver_live_check/docs/
     cargo fmt -p weaver_live_check
 
-# Run after `dist generate` to restore scoped GitHub workflow permissions
-fix-release-permissions:
-    cargo xtask fix-release-permissions
+# Run after `dist generate` to patch release.yml (permissions, scorecard shas, smoke tests)
+patch-release-workflow:
+    cargo xtask patch-release-workflow
 
 validate-workspace:
     cargo xtask validate
@@ -64,6 +64,12 @@ fuzz-all seconds="30":
 
 check-external-types:
   scripts/check_external_types.sh
+
+# Run the weaver from this working tree against the CI checks of the downstream
+# repos declared in downstream-check.yaml. Args are `<url>[@<ref>]`; no args
+# runs all of them. Repos that only run weaver in docker require docker.
+downstream-check *repos:
+    cargo xtask downstream-check {{repos}}
 
 # Vulnerabilities check (OSV). Honors the osv-scanner.toml ignore files.
 # Install: `brew install osv-scanner` (or see https://google.github.io/osv-scanner/installation/)

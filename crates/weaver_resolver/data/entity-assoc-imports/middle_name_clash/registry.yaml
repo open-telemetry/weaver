@@ -1,0 +1,16 @@
+file_format: definition/2
+metrics:
+  - name: host
+    brief: A metric that happens to be called host.
+    requirement_level: recommended
+    instrument: counter
+    unit: "{host}"
+    stability: stable
+  - name: clash.request.count
+    brief: Count of requests.
+    requirement_level: recommended
+    instrument: counter
+    unit: "{request}"
+    stability: stable
+    entity_associations:
+      - host
