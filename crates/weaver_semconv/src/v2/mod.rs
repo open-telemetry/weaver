@@ -15,9 +15,9 @@ use crate::{
     deprecated::Deprecated,
     v2::{
         attribute::AttributeDef, attribute::AttributeRef, attribute_group::AttributeGroup,
-        entity::Entity, entity::EntityRefinement, event::Event, event::EventRefinement,
-        metric::Metric, metric::MetricRefinement, signal_id::SignalId, span::Span,
-        span::SpanRefinement, stability::Stability,
+        entity::Entity, entity::EntityRefinement, entity::IdentityAttributeRef, event::Event,
+        event::EventRefinement, metric::Metric, metric::MetricRefinement, signal_id::SignalId,
+        span::Span, span::SpanRefinement, stability::Stability,
     },
     Error, YamlValue,
 };
@@ -315,20 +315,21 @@ impl SemConvSpecV2 {
             );
         }
 
-        let check_identity_overlap =
-            |identity: &[AttributeRef], description: &[AttributeRef], group_id: &SignalId| {
-                let mut overlaps = vec![];
-                for attr in description {
-                    if identity.iter().any(|i| i.r#ref == attr.r#ref) {
-                        overlaps.push(Error::AttributeInIdentityAndDescription {
-                            path_or_url: provenance.to_owned(),
-                            group_id: group_id.to_string(),
-                            attribute_id: attr.r#ref.clone(),
-                        });
-                    }
+        let check_identity_overlap = |identity: &[IdentityAttributeRef],
+                                      description: &[AttributeRef],
+                                      group_id: &SignalId| {
+            let mut overlaps = vec![];
+            for attr in description {
+                if identity.iter().any(|i| i.r#ref == attr.r#ref) {
+                    overlaps.push(Error::AttributeInIdentityAndDescription {
+                        path_or_url: provenance.to_owned(),
+                        group_id: group_id.to_string(),
+                        attribute_id: attr.r#ref.clone(),
+                    });
                 }
-                overlaps
-            };
+            }
+            overlaps
+        };
         for e in &self.entities {
             fatal_errors.extend(check_identity_overlap(
                 &e.identity,
@@ -649,11 +650,10 @@ mod tests {
             attributes: vec![],
             entities: vec![Entity {
                 r#type: SignalId::from("k8s.pod"),
-                identity: vec![AttributeRef {
+                identity: vec![IdentityAttributeRef {
                     r#ref: "k8s.pod.uid".to_owned(),
                     brief: None,
                     examples: None,
-                    requirement_level: None,
                     note: None,
                     annotations: Default::default(),
                 }],
@@ -729,11 +729,10 @@ mod tests {
             attributes: vec![],
             entities: vec![Entity {
                 r#type: SignalId::from("overlap.entity"),
-                identity: vec![AttributeRef {
+                identity: vec![IdentityAttributeRef {
                     r#ref: "shared.attr".to_owned(),
                     brief: None,
                     examples: None,
-                    requirement_level: None,
                     note: None,
                     annotations: Default::default(),
                 }],

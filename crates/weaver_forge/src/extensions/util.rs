@@ -235,28 +235,23 @@ mod tests {
 
     use crate::extensions::util::{add_filters, add_functions};
     use crate::v2::attribute::Attribute;
-    use crate::v2::entity::{Entity, EntityAttribute, EntityRefinement};
+    use crate::v2::entity::{Entity, EntityRefinement};
     use crate::v2::provenance::Provenance;
     use crate::v2::registry::{ForgeDependency, ForgeResolvedRegistry, Refinements, Registry};
     use minijinja::Environment;
     use serde_yaml::{Mapping, Number, Value};
     use weaver_semconv::schema_url::SchemaUrl;
-    use weaver_semconv::v2::attribute::{
-        AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
-    };
+    use weaver_semconv::v2::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
     use weaver_semconv::v2::CommonFields;
 
     /// An identity attribute for a test entity.
-    fn test_attribute(key: &str) -> EntityAttribute {
-        EntityAttribute {
-            base: Attribute {
-                key: key.to_owned(),
-                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                examples: None,
-                common: CommonFields::default(),
-                provenance: Provenance::default(),
-            },
-            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+    fn test_attribute(key: &str) -> Attribute {
+        Attribute {
+            key: key.to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            examples: None,
+            common: CommonFields::default(),
+            provenance: Provenance::default(),
         }
     }
 
