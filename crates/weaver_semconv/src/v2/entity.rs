@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     deprecated::Deprecated,
     v2::{
-        attribute::{AttributeRef, Examples},
+        attribute::{AttributeRef, Examples, RequirementLevel},
         signal_id::SignalId,
         signal_requirement_level::SignalRequirementLevel,
         stability::Stability,
@@ -38,6 +38,10 @@ pub struct IdentityAttributeRef {
     /// be reported without encapsulating it into a sequence/dictionary.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub examples: Option<Examples>,
+    /// Deprecated: Identity attributes are always required and should not specify `requirement_level`.
+    #[serde(default, skip_serializing)]
+    #[schemars(skip)]
+    pub requirement_level: Option<RequirementLevel>,
     /// Refines the more elaborate description of the attribute.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
@@ -129,7 +133,7 @@ stability: stable
     }
 
     #[test]
-    fn test_entity_identity_rejects_requirement_level() {
+    fn test_entity_identity_accepts_deprecated_requirement_level() {
         let entity_yaml = r#"type: my_entity
 identity:
   - ref: some_attr
@@ -137,13 +141,11 @@ identity:
 brief: Test entity
 stability: stable
 "#;
-        let err = serde_yaml::from_str::<Entity>(entity_yaml)
-            .expect_err("requirement_level must not be allowed on entity identity attributes");
-        assert!(
-            err.to_string()
-                .contains("unknown field `requirement_level`"),
-            "unexpected error: {err}"
-        );
+        let entity = serde_yaml::from_str::<Entity>(entity_yaml)
+            .expect("requirement_level on entity identity should deserialize for warning emission");
+        assert!(entity.identity[0].requirement_level.is_some());
+        let serialized = serde_yaml::to_string(&entity).expect("Failed to serialize entity");
+        assert!(!serialized.contains("requirement_level"));
 
         let refinement_yaml = r#"id: my_entity.refined
 ref: my_entity
@@ -151,13 +153,12 @@ identity:
   - ref: some_attr
     requirement_level: required
 "#;
-        let err = serde_yaml::from_str::<EntityRefinement>(refinement_yaml).expect_err(
-            "requirement_level must not be allowed on entity refinement identity attributes",
+        let refinement = serde_yaml::from_str::<EntityRefinement>(refinement_yaml).expect(
+            "requirement_level on entity refinement identity should deserialize for warning emission",
         );
-        assert!(
-            err.to_string()
-                .contains("unknown field `requirement_level`"),
-            "unexpected error: {err}"
-        );
+        assert!(refinement.identity[0].requirement_level.is_some());
+        let serialized_ref =
+            serde_yaml::to_string(&refinement).expect("Failed to serialize entity refinement");
+        assert!(!serialized_ref.contains("requirement_level"));
     }
 }

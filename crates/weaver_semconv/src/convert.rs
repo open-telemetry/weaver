@@ -2118,6 +2118,7 @@ stability: stable
                 r#ref: "host.id".to_owned(),
                 brief: None,
                 examples: None,
+                requirement_level: None,
                 note: None,
                 annotations: Default::default(),
             }],
