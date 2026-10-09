@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+# Unreleased
+
+- Add vdir documentation and safety features. We no longer untar symlinks or allow
+  non-local files to be extracted. ([#1817](https://github.com/open-telemetry/weaver/pull/1817) by @jsuereth)
+
 # [0.27.0] - 2026-10-02
 
 - Support virtual-directory format for `--advice-policies` and `--advice-data` in live-check. ([#1760](https://github.com/open-telemetry/weaver/pull/1760) by @lmolkova)

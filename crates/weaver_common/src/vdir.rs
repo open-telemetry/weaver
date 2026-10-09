@@ -893,6 +893,11 @@ impl VirtualDirectory {
                 error: e.to_string(),
             })?;
 
+            let entry_type = entry.header().entry_type();
+            if entry_type.is_symlink() || entry_type.is_hard_link() {
+                continue;
+            }
+
             let path = entry.path().map_err(|e| InvalidRegistryArchive {
                 archive: archive_filename.to_owned(),
                 error: e.to_string(),
@@ -939,8 +944,15 @@ impl VirtualDirectory {
                 error: e.to_string(),
             })?;
 
-            if let Some(path) = entry.enclosed_name() {
-                if let Some(valid_entry_path) = Self::path_to_unpack(&path, sub_folder, tmp_path) {
+            if entry.is_symlink() {
+                continue;
+            }
+
+            if entry.enclosed_name().is_some() {
+                let raw_path = PathBuf::from(entry.name());
+                if let Some(valid_entry_path) =
+                    Self::path_to_unpack(&raw_path, sub_folder, tmp_path)
+                {
                     Self::create_parent_dirs(&valid_entry_path, archive_filename)?;
 
                     if entry.is_dir() {
@@ -974,14 +986,16 @@ impl VirtualDirectory {
     /// Calculates the final destination path for an archive entry based on filtering rules.
     ///
     /// This function:
-    /// 1. Strips the first component of the `entry_path` (the archive's root folder).
-    /// 2. If `sub_folder` is `Some` and non-empty:
+    /// 1. Rejects entries containing parent directory traversal (`..`), root directory (`/`),
+    ///    or platform prefix components.
+    /// 2. Strips the first component of the `entry_path` (the archive's root folder).
+    /// 3. If `sub_folder` is `Some` and non-empty:
     ///    - Filters out entries not starting with `sub_folder` (after stripping the root).
     ///    - Strips the `sub_folder` component itself from the path.
-    /// 3. Joins the remaining components onto the `target_path`.
+    /// 4. Joins the remaining components onto the `target_path`.
     ///
     /// Returns `Some(PathBuf)` with the calculated target path if the entry should be unpacked,
-    /// or `None` if the entry should be skipped (e.g. outside the `sub_folder`).
+    /// or `None` if the entry should be skipped (e.g. outside the `sub_folder` or unsafe path).
     ///
     /// # Arguments
     ///
@@ -993,26 +1007,40 @@ impl VirtualDirectory {
         sub_folder: Option<&String>,
         target_path: &Path,
     ) -> Option<PathBuf> {
+        use std::path::Component;
+
+        if entry_path.components().any(|c| {
+            matches!(
+                c,
+                Component::ParentDir | Component::RootDir | Component::Prefix(_)
+            )
+        }) {
+            return None;
+        }
+
         let mut components = entry_path.components();
 
         // Skip the first component, i.e. the top-level directory in the archive that
         // corresponds to the initial directory archived.
-        _ = components.next();
+        _ = components.next()?;
 
         // If a sub-folder is specified, skip entries not in the sub-folder.
         if let Some(sub_folder) = sub_folder {
             if !sub_folder.trim().is_empty() {
                 // Skip any entry that is not in the sub-folder.
                 // If the entry is in the sub-folder, the sub-folder component is skipped.
-                let component = components.next();
-                if let Some(component) = component {
-                    if component.as_os_str() != sub_folder.as_str() {
-                        return None; // Skip entries not in the sub-folder
-                    }
+                let component = components.next()?;
+                if component.as_os_str() != sub_folder.as_str() {
+                    return None; // Skip entries not in the sub-folder
                 }
             }
         }
-        Some(target_path.join(components.collect::<PathBuf>()))
+
+        let rel_path = components.as_path();
+        if rel_path.as_os_str().is_empty() {
+            return None;
+        }
+        Some(target_path.join(rel_path))
     }
 
     /// Creates parent directories for the given path.
@@ -1870,5 +1898,167 @@ mod tests {
         assert!(!is_commit_sha("main"));
         assert!(!is_commit_sha("v1.0.0"));
         assert!(!is_commit_sha("refs/heads/main"));
+    }
+
+    #[test]
+    fn test_tar_gz_skips_badly_behaved_entries() {
+        use flate2::write::GzEncoder;
+        use flate2::Compression;
+        use std::fs::File;
+
+        fn append_raw_tar_entry(
+            builder: &mut tar::Builder<GzEncoder<File>>,
+            raw_path: &[u8],
+            entry_type: tar::EntryType,
+            link_target: Option<&[u8]>,
+            data: &[u8],
+        ) {
+            let mut header = tar::Header::new_gnu();
+            header.set_size(data.len() as u64);
+            header.set_entry_type(entry_type);
+            header.set_mode(0o644);
+            // Write raw_path directly into the tar header name field (bytes 0..100)
+            // to bypass tar::Header::set_path's client-side `..` validation.
+            let name_field = &mut header.as_mut_bytes()[..100];
+            name_field.fill(0);
+            name_field[..raw_path.len()].copy_from_slice(raw_path);
+            if let Some(target) = link_target {
+                let link_field = &mut header.as_mut_bytes()[157..257];
+                link_field.fill(0);
+                link_field[..target.len()].copy_from_slice(target);
+            }
+            header.set_cksum();
+            builder
+                .append(&header, data)
+                .expect("failed to append raw tar entry");
+        }
+
+        let tmp_dir = tempfile::tempdir().expect("failed to create temp dir");
+        let archive_path = tmp_dir.path().join("badly_behaved.tar.gz");
+        {
+            let file = File::create(&archive_path).expect("failed to create tar.gz");
+            let enc = GzEncoder::new(file, Compression::default());
+            let mut builder = tar::Builder::new(enc);
+
+            // 1. Well-behaved file inside the top-level archive folder.
+            append_raw_tar_entry(
+                &mut builder,
+                b"archive-root/good.yaml",
+                tar::EntryType::Regular,
+                None,
+                b"file: good\n",
+            );
+
+            // 2. Parent directory traversal attempting to escape the unpack dir.
+            append_raw_tar_entry(
+                &mut builder,
+                b"archive-root/../escaped.yaml",
+                tar::EntryType::Regular,
+                None,
+                b"file: escaped\n",
+            );
+
+            // 3. Parent directory traversal staying within the unpack dir.
+            append_raw_tar_entry(
+                &mut builder,
+                b"archive-root/sub/../dotdot_inside.yaml",
+                tar::EntryType::Regular,
+                None,
+                b"file: dotdot_inside\n",
+            );
+
+            // 4. Absolute / root path entry.
+            append_raw_tar_entry(
+                &mut builder,
+                b"/archive-root/root_path.yaml",
+                tar::EntryType::Regular,
+                None,
+                b"file: root_path\n",
+            );
+
+            // 5. Symbolic link entry.
+            append_raw_tar_entry(
+                &mut builder,
+                b"archive-root/symlink.yaml",
+                tar::EntryType::Symlink,
+                Some(b"good.yaml"),
+                b"",
+            );
+
+            // 6. Hard link entry.
+            append_raw_tar_entry(
+                &mut builder,
+                b"archive-root/hardlink.yaml",
+                tar::EntryType::Link,
+                Some(b"archive-root/good.yaml"),
+                b"",
+            );
+
+            builder.finish().expect("failed to finish tar builder");
+        }
+
+        let vdir_path: VirtualDirectoryPath = archive_path
+            .to_str()
+            .expect("valid utf-8 path")
+            .parse()
+            .expect("failed to parse archive vdir path");
+
+        if let Some(home) = dirs::home_dir() {
+            let _ = std::fs::remove_file(home.join(".weaver/vdir_cache/escaped.yaml"));
+        }
+
+        let vdir = VirtualDirectory::try_new(&vdir_path).expect("failed to unpack archive");
+        let unpacked_root = vdir.path();
+
+        // The well-behaved file must exist.
+        assert!(
+            unpacked_root.join("good.yaml").exists(),
+            "expected good.yaml to be unpacked"
+        );
+
+        // None of the badly-behaved entries may exist inside or outside the unpacked root.
+        assert!(
+            !unpacked_root
+                .parent()
+                .expect("unpacked root has parent")
+                .join("escaped.yaml")
+                .exists(),
+            "parent traversal entry must not escape unpacked root"
+        );
+        assert!(
+            !unpacked_root.join("escaped.yaml").exists(),
+            "escaped.yaml must not exist in unpacked root"
+        );
+        assert!(
+            !unpacked_root.join("dotdot_inside.yaml").exists(),
+            "`..` entry must be skipped even if it resolves inside unpacked root"
+        );
+        assert!(
+            !unpacked_root.join("root_path.yaml").exists(),
+            "root path entry must be skipped"
+        );
+        assert!(
+            !unpacked_root
+                .join("archive-root")
+                .join("root_path.yaml")
+                .exists(),
+            "root path entry must not treat `/` as the stripped top-level folder"
+        );
+        assert!(
+            !unpacked_root.join("symlink.yaml").exists()
+                && unpacked_root
+                    .join("symlink.yaml")
+                    .symlink_metadata()
+                    .is_err(),
+            "symlink entry must be skipped"
+        );
+        assert!(
+            !unpacked_root.join("hardlink.yaml").exists()
+                && unpacked_root
+                    .join("hardlink.yaml")
+                    .symlink_metadata()
+                    .is_err(),
+            "hardlink entry must be skipped"
+        );
     }
 }

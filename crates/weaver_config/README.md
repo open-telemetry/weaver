@@ -91,6 +91,8 @@ exclude = ["missing_namespace"]
 
 See `schemas/weaver-config.json` for the full JSON schema (with VS Code / taplo completion support via the `#:schema` annotation above).
 
+Location fields such as `[registry].path`, `[policy].paths`, `[resolve.schema_url_overrides]`, `[generate].templates`, `[update-markdown].templates`, `[live-check].advice_policies`, `[live-check].advice_data`, `[mcp].advice_policies`, and `[mcp].advice_data` accept [Virtual Directory (`vdir`)](/docs/vdir.md) references (`source[@refspec][[sub_folder]]`).
+
 `jq_modules` is appended to any modules declared by the template package's
 `weaver.yaml`. Paths are relative to the `.weaver.toml` file. Modules are
 loaded in list order; a later definition wins on a filter-name collision,
@@ -113,7 +115,7 @@ The `[resolve]` section configures how dependencies and schema URLs are resolved
 "https://opentelemetry.io/schemas/1.26.0" = "https://github.com/my-fork/semconv.git[model]"
 ```
 
-Aliases `[resolve.overrides]` and `[resolve.dependency_overrides]` are also supported. When Weaver loads and resolves dependencies during commands such as `check`, `generate`, `package`, or `live-check`, any dependency with a matching schema URL will be redirected to the configured override path.
+Aliases `[resolve.overrides]` and `[resolve.dependency_overrides]` are also supported. When Weaver loads and resolves dependencies during commands such as `check`, `generate`, `package`, or `live-check`, any dependency with a matching schema URL will be redirected to the configured [Virtual Directory (`vdir`)](/docs/vdir.md) override path.
 
 ## Architecture
 
