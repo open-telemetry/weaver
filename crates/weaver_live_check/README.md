@@ -406,7 +406,7 @@ These should be self-explanatory, but:
 - `seen_non_registry_attributes` is a record of how many times each non-registry attribute was seen in the samples
 - `seen_registry_metrics` is a record of how many times each metric in the registry was seen in the samples
 - `seen_non_registry_metrics` is a record of how many times each non-registry metric was seen in the samples
-- `seen_registry_events` is a record of how many times each event in the registry was seen in the samples
+- `seen_registry_events` is a record of how many times each event in the registry was seen in the samples. Only logs count toward events; span events do not (see [Matchers](docs/matchers.md#what-signal-can-name))
 - `seen_non_registry_events` is a record of how many times each non-registry event was seen in the samples
 - `registry_coverage` is the fraction of seen registry entities over the total registry entities
 

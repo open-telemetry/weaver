@@ -321,7 +321,13 @@ pub(crate) fn check_entity_resource_attributes(
         }
         EntityDef::V2(entity) => {
             let entity_type = entity.r#type.to_string();
-            for attr in entity.identity.iter().chain(entity.description.iter()) {
+            let required = weaver_semconv::v2::attribute::RequirementLevel::Basic(
+                weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required,
+            );
+            for attr in &entity.identity {
+                check_attr_v2(&attr.key, &required, &entity_type, &mut advice_list);
+            }
+            for attr in &entity.description {
                 check_attr_v2(
                     &attr.base.key,
                     &attr.requirement_level,
@@ -896,26 +902,6 @@ impl Advisor for TypeAdvisor {
                         signal_name: parent_signal.signal_name(),
                     });
                 }
-                emit_findings(
-                    &advice_list,
-                    &sample,
-                    otlp_emitter.as_deref(),
-                    parent_signal,
-                );
-                Ok(advice_list)
-            }
-            SampleRef::SpanEvent(sample_span_event) => {
-                let Some(semconv_event) = registry_group else {
-                    return Ok(Vec::new());
-                };
-                let VersionedSignal::Event(event) = &*semconv_event else {
-                    return Ok(Vec::new());
-                };
-                let advice_list = check_attributes(
-                    &event.attributes,
-                    &sample_span_event.attributes,
-                    parent_signal,
-                );
                 emit_findings(
                     &advice_list,
                     &sample,

@@ -214,21 +214,18 @@ fn resolved_event<AC: AttributeCatalog>(s: &Event, catalog: &AC, deps: &[SchemaU
 fn resolved_entity<AC: AttributeCatalog>(s: &Entity, catalog: &AC) -> ResolvedId {
     let mut identity = Vec::new();
     for ar in s.identity.iter() {
-        let attr = catalog.attribute(&ar.base).unwrap_or_else(|| {
+        let attr = catalog.attribute(ar).unwrap_or_else(|| {
             panic!(
                 "Invalid schema file: Attribute reference {} does not exist",
-                ar.base.0
+                ar.0
             )
         });
-        identity.push(EntityAttribute {
-            base: weaver_forge::v2::attribute::Attribute {
-                key: attr.key.clone(),
-                r#type: attr.r#type.clone(),
-                examples: attr.examples.clone(),
-                common: attr.common.clone(),
-                provenance: Default::default(),
-            },
-            requirement_level: ar.requirement_level.clone(),
+        identity.push(weaver_forge::v2::attribute::Attribute {
+            key: attr.key.clone(),
+            r#type: attr.r#type.clone(),
+            examples: attr.examples.clone(),
+            common: attr.common.clone(),
+            provenance: Default::default(),
         });
     }
     let mut description = Vec::new();
@@ -436,7 +433,7 @@ mod tests {
     use weaver_resolved_schema::v2::{
         attribute::{Attribute, AttributeRef},
         attribute_group::{AttributeGroup, AttributeGroupAttributeRef},
-        entity::{Entity, EntityAttributeRef, EntityRefinement},
+        entity::{Entity, EntityRefinement},
         event::{Event, EventAttributeRef, EventRefinement},
         metric::{Metric, MetricAttributeRef, MetricRefinement},
         refinements::Refinements,
@@ -570,12 +567,7 @@ mod tests {
                 entities: vec![Entity {
                     requirement_level: Some(SignalRequirementLevel::OptIn),
                     r#type: "test.entity".to_owned().into(),
-                    identity: vec![EntityAttributeRef {
-                        base: AttributeRef(0),
-                        requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Required,
-                        ),
-                    }],
+                    identity: vec![AttributeRef(0)],
                     description: vec![],
                     common: CommonFields::default(),
                     provenance: Default::default(),
@@ -643,12 +635,7 @@ mod tests {
                     entity: Entity {
                         requirement_level: Some(SignalRequirementLevel::Recommended),
                         r#type: "test.entity".to_owned().into(),
-                        identity: vec![EntityAttributeRef {
-                            base: AttributeRef(0),
-                            requirement_level: RequirementLevel::Basic(
-                                BasicRequirementLevelSpec::Required,
-                            ),
-                        }],
+                        identity: vec![AttributeRef(0)],
                         description: vec![],
                         common: CommonFields::default(),
                         provenance: Default::default(),

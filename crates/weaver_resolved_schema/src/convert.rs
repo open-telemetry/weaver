@@ -376,17 +376,16 @@ pub fn convert_v1_to_v2(
         let mut desc_attrs = Vec::new();
         for attr_ref in g.attributes.iter() {
             let (attr, base) = convert_attribute_ref(&g.id, attr_ref, &c, &v2_catalog)?;
-            let req_level =
-                weaver_semconv::convert::v1_requirement_level_to_v2(attr.requirement_level.clone());
-            let entity_attr = entity::EntityAttributeRef {
-                base,
-                requirement_level: req_level,
-            };
-            match attr.role {
-                Some(weaver_semconv::v1::attribute::AttributeRole::Identifying) => {
-                    id_attrs.push(entity_attr);
-                }
-                _ => desc_attrs.push(entity_attr),
+            if let Some(weaver_semconv::v1::attribute::AttributeRole::Identifying) = attr.role {
+                id_attrs.push(base);
+            } else {
+                let req_level = weaver_semconv::convert::v1_requirement_level_to_v2(
+                    attr.requirement_level.clone(),
+                );
+                desc_attrs.push(entity::EntityAttributeRef {
+                    base,
+                    requirement_level: req_level,
+                });
             }
         }
         let entity_type = if is_refinement {
@@ -1806,7 +1805,7 @@ mod tests {
         assert_eq!(reg.entities.len(), 1);
         let entity = &reg.entities[0];
         assert_eq!(entity.identity.len(), 1);
-        assert_eq!(entity.identity[0].base, AttributeRef(1));
+        assert_eq!(entity.identity[0], AttributeRef(1));
         assert_eq!(entity.description.len(), 1);
         assert_eq!(entity.description[0].base, AttributeRef(0));
     }

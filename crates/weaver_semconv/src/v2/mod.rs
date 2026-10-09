@@ -15,9 +15,9 @@ use crate::{
     deprecated::Deprecated,
     v2::{
         attribute::AttributeDef, attribute::AttributeRef, attribute_group::AttributeGroup,
-        entity::Entity, entity::EntityRefinement, event::Event, event::EventRefinement,
-        metric::Metric, metric::MetricRefinement, signal_id::SignalId, span::Span,
-        span::SpanRefinement, stability::Stability,
+        entity::Entity, entity::EntityRefinement, entity::IdentityAttributeRef, event::Event,
+        event::EventRefinement, metric::Metric, metric::MetricRefinement, signal_id::SignalId,
+        span::Span, span::SpanRefinement, stability::Stability,
     },
     Error, YamlValue,
 };
@@ -315,19 +315,33 @@ impl SemConvSpecV2 {
             );
         }
 
-        let check_identity_overlap =
-            |identity: &[AttributeRef], description: &[AttributeRef], group_id: &SignalId| {
-                let mut overlaps = vec![];
-                for attr in description {
-                    if identity.iter().any(|i| i.r#ref == attr.r#ref) {
-                        overlaps.push(Error::AttributeInIdentityAndDescription {
+        let check_identity_overlap = |identity: &[IdentityAttributeRef],
+                                      description: &[AttributeRef],
+                                      group_id: &SignalId| {
+            let mut overlaps = vec![];
+            for attr in description {
+                if identity.iter().any(|i| i.r#ref == attr.r#ref) {
+                    overlaps.push(Error::AttributeInIdentityAndDescription {
+                        path_or_url: provenance.to_owned(),
+                        group_id: group_id.to_string(),
+                        attribute_id: attr.r#ref.clone(),
+                    });
+                }
+            }
+            overlaps
+        };
+        let mut check_identity_requirement_level =
+            |identity: &[IdentityAttributeRef], group_id: String| {
+                for attr in identity {
+                    if attr.requirement_level.is_some() {
+                        errors.push(Error::InvalidAttributeWarning {
                             path_or_url: provenance.to_owned(),
-                            group_id: group_id.to_string(),
+                            group_id: group_id.clone(),
                             attribute_id: attr.r#ref.clone(),
+                            error: "Identity attributes are always required. Setting 'requirement_level' on an identity attribute is deprecated and has no effect.".to_owned(),
                         });
                     }
                 }
-                overlaps
             };
         for e in &self.entities {
             fatal_errors.extend(check_identity_overlap(
@@ -341,9 +355,11 @@ impl SemConvSpecV2 {
                     group_id: e.r#type.to_string(),
                 });
             }
+            check_identity_requirement_level(&e.identity, format!("entity.{}", e.r#type));
         }
         for r in &self.entity_refinements {
             fatal_errors.extend(check_identity_overlap(&r.identity, &r.description, &r.id));
+            check_identity_requirement_level(&r.identity, r.id.to_string());
         }
 
         if !fatal_errors.is_empty() {
@@ -649,7 +665,7 @@ mod tests {
             attributes: vec![],
             entities: vec![Entity {
                 r#type: SignalId::from("k8s.pod"),
-                identity: vec![AttributeRef {
+                identity: vec![IdentityAttributeRef {
                     r#ref: "k8s.pod.uid".to_owned(),
                     brief: None,
                     examples: None,
@@ -685,6 +701,90 @@ mod tests {
                 assert!(matches!(
                     warnings[0],
                     Error::MissingRequirementLevelWarning { .. }
+                ));
+            }
+            _ => panic!("Expected OkWithNFEs"),
+        }
+    }
+
+    #[test]
+    fn test_validate_identity_requirement_level_warning() {
+        use crate::v2::attribute::{BasicRequirementLevelSpec, RequirementLevel};
+        use crate::v2::signal_requirement_level::SignalRequirementLevel;
+
+        let spec = SemConvSpecV2 {
+            attributes: vec![],
+            entities: vec![Entity {
+                r#type: SignalId::from("k8s.pod"),
+                identity: vec![IdentityAttributeRef {
+                    r#ref: "k8s.pod.uid".to_owned(),
+                    brief: None,
+                    examples: None,
+                    requirement_level: Some(RequirementLevel::Basic(
+                        BasicRequirementLevelSpec::Required,
+                    )),
+                    note: None,
+                    annotations: Default::default(),
+                }],
+                description: vec![],
+                common: CommonFields {
+                    brief: "Kubernetes pod".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+                requirement_level: Some(SignalRequirementLevel::Recommended),
+            }],
+            events: vec![],
+            metrics: vec![],
+            spans: vec![],
+            attribute_groups: vec![],
+            entity_refinements: vec![EntityRefinement {
+                id: SignalId::from("entity.k8s.pod.refined"),
+                r#ref: SignalId::from("k8s.pod"),
+                identity: vec![IdentityAttributeRef {
+                    r#ref: "k8s.pod.uid".to_owned(),
+                    brief: None,
+                    examples: None,
+                    requirement_level: Some(RequirementLevel::Basic(
+                        BasicRequirementLevelSpec::Recommended,
+                    )),
+                    note: None,
+                    annotations: Default::default(),
+                }],
+                description: vec![],
+                brief: None,
+                note: None,
+                stability: None,
+                deprecated: None,
+                annotations: Default::default(),
+            }],
+            event_refinements: vec![],
+            metric_refinements: vec![],
+            span_refinements: vec![],
+            imports: None,
+        };
+
+        let result = spec.validate("test_prov");
+        match result {
+            WResult::OkWithNFEs(_, warnings) => {
+                assert_eq!(warnings.len(), 2);
+                assert!(matches!(
+                    &warnings[0],
+                    Error::InvalidAttributeWarning {
+                        group_id,
+                        attribute_id,
+                        ..
+                    } if group_id == "entity.k8s.pod" && attribute_id == "k8s.pod.uid"
+                ));
+                assert!(matches!(
+                    &warnings[1],
+                    Error::InvalidAttributeWarning {
+                        group_id,
+                        attribute_id,
+                        ..
+                    } if group_id == "entity.k8s.pod.refined" && attribute_id == "k8s.pod.uid"
                 ));
             }
             _ => panic!("Expected OkWithNFEs"),
@@ -729,7 +829,7 @@ mod tests {
             attributes: vec![],
             entities: vec![Entity {
                 r#type: SignalId::from("overlap.entity"),
-                identity: vec![AttributeRef {
+                identity: vec![IdentityAttributeRef {
                     r#ref: "shared.attr".to_owned(),
                     brief: None,
                     examples: None,

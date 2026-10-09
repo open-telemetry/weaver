@@ -107,8 +107,7 @@ signal = "acme.checkout.duration"
 id = "acme.span-event.step"
 sample_type = "span_event"
 when = 'name == "acme.checkout.step" && resource.attributes["acme.tenant.id"] == "t-42"'
-signal = "acme.checkout.abandoned"
-attribute_groups = ["acme.step"]
+strict_attribute_groups = ["acme.step"]
 
 [["live-check".matchers]]
 id = "acme.span-link.session"

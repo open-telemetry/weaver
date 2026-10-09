@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-# Unreleased
+# [0.27.0] - 2026-10-02
 
 - When a local registry path does not exist, including a dependency `registry_path` in a registry manifest, the error now names the absolute path a relative one resolved to. A relative path resolves against the current working directory, not against the manifest that declares it. Previously the error gave only the path as written: `IO error for operation on <path>: No such file or directory`. ([#1598](https://github.com/open-telemetry/weaver/pull/1598) by @ANcpLua)
 - Support virtual-directory format for `--advice-policies` and `--advice-data` in live-check. ([#1760](https://github.com/open-telemetry/weaver/pull/1760) by @lmolkova)
@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - Live-check matchers ([#1721](https://github.com/open-telemetry/weaver/pull/1721) by @jerbly)
   - Added `[[live-check.matchers]]`. A matcher uses a CEL expression to select samples, and names the v2 signal and attribute groups they are checked against. v2 registries only.
   - A matcher's `attribute_groups` lists the attribute groups allowed on a sample. Their definitions are used for the attribute checks, but an attribute missing from the sample is not reported. To enforce a group's requirement levels, name it in the new `strict_attribute_groups`. A signal's own attributes are always enforced.
+  - A `span_event` matcher cannot name a `signal`. A semantic convention event is a log-based event, and a span event has a different data model, so the two are not comparable. A span event's attributes are checked with `attribute_groups` or `strict_attribute_groups`, or with a Rego policy, and span events do not count toward event coverage. ([#1793](https://github.com/open-telemetry/weaver/pull/1793) by @jerbly)
   - New findings: `kind_mismatch` and `unexpected_attribute`. A v2 metric or log raises `unexpected_attribute` against the signal its name resolves to, or against the matcher's signal when a matcher sets `signal`.
   - By default, a v2 registry compares an attribute with the signal and attribute groups of its match. With `search_all_attributes`, it also searches the whole registry and its dependencies. v1 is unchanged.
   - Every sample's result holds a `match_info` with the signal, the attribute groups, and what each applied matcher contributed.
