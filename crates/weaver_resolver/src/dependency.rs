@@ -20,7 +20,7 @@ use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::v2::Signal;
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::schema_url::SchemaUrl;
-use weaver_semconv::v1::attribute::{AttributeRole, RequirementLevel};
+use weaver_semconv::v1::attribute::{AttributeRole, BasicRequirementLevelSpec, RequirementLevel};
 use weaver_semconv::v1::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::v1::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::v1::stability::Stability;
@@ -414,25 +414,25 @@ fn entity_group_summary(schema: &V2Schema, deps: &[SchemaUrl], e: &Entity) -> Gr
     let attributes = e
         .identity
         .iter()
-        .map(|ar| (ar, AttributeRole::Identifying))
-        .chain(
-            e.description
-                .iter()
-                .map(|ar| (ar, AttributeRole::Descriptive)),
-        )
-        .filter_map(|(ar, role)| {
-            schema.attribute_catalog.get(ar.base.0 as usize).map(|a| {
-                attr_spec(
-                    schema,
-                    deps,
-                    a,
-                    weaver_semconv::convert::v2_requirement_level_to_v1(
-                        ar.requirement_level.clone(),
-                    ),
-                    None,
-                    Some(role),
-                )
-            })
+        .map(|ar| {
+            (
+                ar,
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                AttributeRole::Identifying,
+            )
+        })
+        .chain(e.description.iter().map(|ar| {
+            (
+                &ar.base,
+                weaver_semconv::convert::v2_requirement_level_to_v1(ar.requirement_level.clone()),
+                AttributeRole::Descriptive,
+            )
+        }))
+        .filter_map(|(ar, req_level, role)| {
+            schema
+                .attribute_catalog
+                .get(ar.0 as usize)
+                .map(|a| attr_spec(schema, deps, a, req_level, None, Some(role)))
         })
         .collect();
     signal_summary(
@@ -760,10 +760,7 @@ pub(crate) mod tests {
                     r#type: "entity.c".to_owned().into(),
                     // An identity and a description attribute, so importing
                     // the entity has to tag each one with its role.
-                    identity: vec![weaver_resolved_schema::v2::entity::EntityAttributeRef {
-                        base: weaver_resolved_schema::v2::attribute::AttributeRef(1),
-                        requirement_level: Default::default(),
-                    }],
+                    identity: vec![weaver_resolved_schema::v2::attribute::AttributeRef(1)],
                     description: vec![weaver_resolved_schema::v2::entity::EntityAttributeRef {
                         base: weaver_resolved_schema::v2::attribute::AttributeRef(2),
                         requirement_level: Default::default(),

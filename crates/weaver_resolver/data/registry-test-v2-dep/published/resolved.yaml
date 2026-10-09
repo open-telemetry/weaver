@@ -91,10 +91,8 @@ registry:
   entities:
   - type: host
     identity:
-    - base: 3
-      requirement_level: required
-    - base: 5
-      requirement_level: recommended
+    - 3
+    - 5
     description:
     - base: 4
       requirement_level: recommended
@@ -141,10 +139,8 @@ refinements:
   - id: host
     type: host
     identity:
-    - base: 3
-      requirement_level: required
-    - base: 5
-      requirement_level: recommended
+    - 3
+    - 5
     description:
     - base: 4
       requirement_level: recommended

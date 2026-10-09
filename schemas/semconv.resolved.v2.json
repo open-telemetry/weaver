@@ -371,7 +371,7 @@
           "description": "The attributes that make the identity of the Entity.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/EntityAttributeRef"
+            "$ref": "#/$defs/AttributeRef"
           }
         },
         "note": {
@@ -529,7 +529,7 @@
           "description": "The attributes that make the identity of the Entity.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/EntityAttributeRef"
+            "$ref": "#/$defs/AttributeRef"
           }
         },
         "note": {

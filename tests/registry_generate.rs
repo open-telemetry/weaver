@@ -203,6 +203,183 @@ templates:
     assert_eq!(lines[2], "int64");
 }
 
+#[test]
+fn test_generate_loads_jq_modules_from_template_package() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("registry_generate")
+        .join("jq_modules");
+    let project = tempfile::tempdir().expect("Failed to create temp dir");
+    // Stop project-config discovery before it reaches the temporary directory's ancestors.
+    fs::write(project.path().join(".weaver.toml"), "").expect("Failed to write project config");
+
+    for enabled in [false, true] {
+        let out_dir = project
+            .path()
+            .join(if enabled { "enabled" } else { "disabled" });
+        let mut cmd = Command::cargo_bin("weaver").unwrap();
+        let output = cmd
+            .current_dir(project.path())
+            .arg("--quiet")
+            .arg("registry")
+            .arg("generate")
+            .arg("-r")
+            .arg(fixture.join("model"))
+            .arg("-t")
+            .arg(fixture.join("templates"))
+            .arg("--skip-policies")
+            .arg("-D")
+            .arg(format!("generate_public_attributes={enabled}"))
+            .arg("jq_modules")
+            .arg(&out_dir)
+            .timeout(std::time::Duration::from_secs(60))
+            .output()
+            .expect("failed to execute process");
+
+        assert!(
+            output.status.success(),
+            "generate failed (enabled={enabled}):\nstdout: {}\nstderr: {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+
+        let generated = out_dir.join("attributes.md");
+        if enabled {
+            let content = fs::read_to_string(generated).expect("Failed to read generated output");
+            assert_eq!(
+                content.lines().collect::<Vec<_>>(),
+                vec!["public.alpha", "public.beta"]
+            );
+        } else {
+            assert!(
+                !generated.exists(),
+                "attributes.md should be skipped when the module's `when` function returns false"
+            );
+        }
+    }
+}
+
+/// End-to-end check that `.weaver.toml` appends JQ modules after the template
+/// package's modules without replacing Weaver's built-in JQ prelude.
+#[test]
+fn test_generate_loads_jq_modules_from_weaver_toml() {
+    let registry = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("crates")
+        .join("weaver_codegen_test")
+        .join("semconv_registry");
+
+    let project = tempfile::tempdir().expect("Failed to create temp dir");
+    let proj = project.path();
+    fs::create_dir_all(proj.join("jq")).expect("Failed to create module directory");
+    fs::write(
+        proj.join("jq").join("custom.jq"),
+        "def custom_filter: semconv_attributes | 42;\ndef include_output: true;",
+    )
+    .expect("Failed to write JQ module");
+    fs::write(
+        proj.join(".weaver.toml"),
+        "[template]\njq_modules = [\"jq/custom.jq\"]\n",
+    )
+    .expect("Failed to write .weaver.toml");
+
+    let tdir = proj.join("templates").join("registry").join("tgt");
+    fs::create_dir_all(&tdir).expect("Failed to create template dir");
+    fs::create_dir_all(tdir.join("jq")).expect("Failed to create package module directory");
+    fs::write(tdir.join("jq").join("package.jq"), "def custom_filter: 1;")
+        .expect("Failed to write package JQ module");
+    fs::write(
+        tdir.join("weaver.yaml"),
+        "jq_modules:\n  - jq/package.jq\ntemplates:\n  - template: \"out.md\"\n    filter: custom_filter\n    application_mode: single\n    when: include_output\n",
+    )
+    .expect("Failed to write weaver.yaml");
+    fs::write(tdir.join("out.md"), "{{ ctx }}\n").expect("Failed to write template");
+
+    let mut cmd = Command::cargo_bin("weaver").unwrap();
+    let output = cmd
+        .current_dir(proj.join("templates"))
+        .arg("--quiet")
+        .arg("registry")
+        .arg("generate")
+        .arg("-r")
+        .arg(&registry)
+        .arg("-t")
+        .arg(".")
+        .arg("--skip-policies")
+        .arg("tgt")
+        .arg("../out")
+        .timeout(std::time::Duration::from_secs(60))
+        .output()
+        .expect("failed to execute process");
+
+    assert!(
+        output.status.success(),
+        "generate failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        fs::read_to_string(proj.join("out").join("out.md"))
+            .expect("Failed to read generated output")
+            .trim(),
+        "42"
+    );
+}
+
+#[test]
+fn test_generate_reports_invalid_jq_module_source() {
+    let registry = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("crates")
+        .join("weaver_codegen_test")
+        .join("semconv_registry");
+
+    let project = tempfile::tempdir().expect("Failed to create temp dir");
+    let proj = project.path();
+    let module = proj.join("jq").join("broken.jq");
+    fs::create_dir_all(module.parent().expect("Module must have a parent"))
+        .expect("Failed to create module directory");
+    fs::write(&module, "def broken: unknown_filter;").expect("Failed to write JQ module");
+    fs::write(
+        proj.join(".weaver.toml"),
+        "[template]\njq_modules = [\"jq/broken.jq\"]\n",
+    )
+    .expect("Failed to write .weaver.toml");
+
+    let tdir = proj.join("templates").join("registry").join("tgt");
+    fs::create_dir_all(&tdir).expect("Failed to create template directory");
+    fs::write(
+        tdir.join("weaver.yaml"),
+        "templates:\n  - template: \"out.md\"\n    filter: \".\"\n    application_mode: single\n",
+    )
+    .expect("Failed to write template config");
+    fs::write(tdir.join("out.md"), "{{ ctx }}\n").expect("Failed to write template");
+
+    let mut cmd = Command::cargo_bin("weaver").unwrap();
+    let output = cmd
+        .current_dir(proj.join("templates"))
+        .arg("--quiet")
+        .arg("registry")
+        .arg("generate")
+        .arg("-r")
+        .arg(&registry)
+        .arg("-t")
+        .arg(".")
+        .arg("--skip-policies")
+        .args(["--diagnostic-format", "json", "--diagnostic-stdout", "true"])
+        .arg("tgt")
+        .arg("../out")
+        .timeout(std::time::Duration::from_secs(60))
+        .output()
+        .expect("failed to execute process");
+
+    assert!(!output.status.success());
+    let diagnostics: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("Expected JSON diagnostics");
+    let message = diagnostics[0]["diagnostic"]["message"]
+        .as_str()
+        .expect("Expected diagnostic message");
+    assert!(message.contains("broken.jq:1:13"), "message: {message}");
+    assert!(message.contains("undefined filter"), "message: {message}");
+}
+
 /// End-to-end check that a template `when` clause (a JQ expression over the
 /// template params under `$params`) gates whether the template is applied. The
 /// unconditional template is always generated; the conditional one appears only

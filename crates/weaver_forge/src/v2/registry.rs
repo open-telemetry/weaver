@@ -5,7 +5,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet, VecDeque};
 use weaver_common::result::WResult;
-use weaver_resolved_schema::v2::{catalog::AttributeCatalog, entity::EntityAttributeRef};
+use weaver_resolved_schema::v2::{
+    attribute::AttributeRef, catalog::AttributeCatalog, entity::EntityAttributeRef,
+};
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::schema_url::SchemaUrl;
 
@@ -276,9 +278,7 @@ impl ForgeResolvedRegistry {
                 from_resolved_associations(assocs, &deps_list)
             };
 
-        let attribute_lookup = |r: &weaver_resolved_schema::v2::attribute::AttributeRef| {
-            schema.attribute_catalog.attribute(r)
-        };
+        let attribute_lookup = |r: &AttributeRef| schema.attribute_catalog.attribute(r);
         // We create an attribute lookup map.
         let mut attributes: Vec<Attribute> = schema
             .registry
@@ -532,6 +532,29 @@ impl ForgeResolvedRegistry {
         }
         event_refinements.sort_by(|l, r| l.id.cmp(&r.id));
 
+        let convert_identity_attrs =
+            |attrs: &[AttributeRef], group_id: &str, errors: &mut Vec<Error>| -> Vec<Attribute> {
+                attrs
+                    .iter()
+                    .filter_map(|ar| {
+                        let attr = attribute_lookup(ar).map(|a| Attribute {
+                            key: a.key.clone(),
+                            r#type: a.r#type.clone(),
+                            examples: a.examples.clone(),
+                            common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
+                        });
+                        if attr.is_none() {
+                            errors.push(Error::AttributeNotFound {
+                                group_id: group_id.to_owned(),
+                                attr_ref: ar.0,
+                            });
+                        }
+                        attr
+                    })
+                    .collect()
+            };
+
         let convert_entity_attrs = |attrs: &[EntityAttributeRef],
                                     group_id: &str,
                                     errors: &mut Vec<Error>|
@@ -563,7 +586,7 @@ impl ForgeResolvedRegistry {
         let mut entities = Vec::new();
         for e in schema.registry.entities {
             let group_id = format!("entity.{}", &e.r#type);
-            let identity = convert_entity_attrs(&e.identity, &group_id, &mut errors);
+            let identity = convert_identity_attrs(&e.identity, &group_id, &mut errors);
             let description = convert_entity_attrs(&e.description, &group_id, &mut errors);
             entities.push(Entity {
                 r#type: e.r#type,
@@ -579,7 +602,7 @@ impl ForgeResolvedRegistry {
         let mut entity_refinements = Vec::new();
         for e in schema.refinements.entities {
             let group_id = format!("entity.{}", &e.id);
-            let identity = convert_entity_attrs(&e.entity.identity, &group_id, &mut errors);
+            let identity = convert_identity_attrs(&e.entity.identity, &group_id, &mut errors);
             let description = convert_entity_attrs(&e.entity.description, &group_id, &mut errors);
             entity_refinements.push(EntityRefinement {
                 id: e.id,
@@ -871,12 +894,7 @@ pub(crate) mod tests {
                 }],
                 entities: vec![entity::Entity {
                     r#type: SignalId::from("my-entity".to_owned()),
-                    identity: vec![EntityAttributeRef {
-                        base: AttributeRef(0),
-                        requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Required,
-                        ),
-                    }],
+                    identity: vec![AttributeRef(0)],
                     description: vec![EntityAttributeRef {
                         base: AttributeRef(1),
                         requirement_level: RequirementLevel::Basic(
@@ -960,12 +978,7 @@ pub(crate) mod tests {
                     id: SignalId::from("my-refined-entity".to_owned()),
                     entity: entity::Entity {
                         r#type: SignalId::from("my-entity".to_owned()),
-                        identity: vec![EntityAttributeRef {
-                            base: AttributeRef(0),
-                            requirement_level: RequirementLevel::Basic(
-                                BasicRequirementLevelSpec::Required,
-                            ),
-                        }],
+                        identity: vec![AttributeRef(0)],
                         description: vec![EntityAttributeRef {
                             base: AttributeRef(1),
                             requirement_level: RequirementLevel::Basic(
@@ -1089,7 +1102,7 @@ pub(crate) mod tests {
         let entity = &forge_registry.registry.entities[0];
         assert_eq!(entity.r#type, "my-entity".to_owned().into());
         assert_eq!(entity.identity.len(), 1);
-        assert_eq!(entity.identity[0].base.key, "test.attr");
+        assert_eq!(entity.identity[0].key, "test.attr");
         assert_eq!(entity.description.len(), 1);
         assert_eq!(entity.description[0].base.key, "test.desc.attr");
         assert_eq!(
@@ -1127,7 +1140,7 @@ pub(crate) mod tests {
         assert_eq!(refined_entity.id, "my-refined-entity".to_owned().into());
         assert_eq!(refined_entity.entity.r#type, "my-entity".to_owned().into());
         assert_eq!(refined_entity.entity.identity.len(), 1);
-        assert_eq!(refined_entity.entity.identity[0].base.key, "test.attr");
+        assert_eq!(refined_entity.entity.identity[0].key, "test.attr");
         assert_eq!(refined_entity.entity.description.len(), 1);
         assert_eq!(
             refined_entity.entity.description[0].base.key,
@@ -1626,12 +1639,7 @@ pub(crate) mod tests {
                 }],
                 entities: vec![entity::Entity {
                     r#type: SignalId::from("my-entity".to_owned()),
-                    identity: vec![EntityAttributeRef {
-                        base: AttributeRef(13),
-                        requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Required,
-                        ),
-                    }],
+                    identity: vec![AttributeRef(13)],
                     description: vec![EntityAttributeRef {
                         base: AttributeRef(14),
                         requirement_level: RequirementLevel::Basic(
@@ -1715,12 +1723,7 @@ pub(crate) mod tests {
                     id: SignalId::from("refined-entity".to_owned()),
                     entity: entity::Entity {
                         r#type: SignalId::from("my-entity".to_owned()),
-                        identity: vec![EntityAttributeRef {
-                            base: AttributeRef(19),
-                            requirement_level: RequirementLevel::Basic(
-                                BasicRequirementLevelSpec::Required,
-                            ),
-                        }],
+                        identity: vec![AttributeRef(19)],
                         description: vec![EntityAttributeRef {
                             base: AttributeRef(20),
                             requirement_level: RequirementLevel::Basic(

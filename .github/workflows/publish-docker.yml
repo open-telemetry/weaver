@@ -24,8 +24,10 @@ jobs:
         include:
           - platform: linux/amd64
             runner: ubuntu-latest
+            cache-scope: linux-amd64
           - platform: linux/arm64
             runner: ubuntu-24.04-arm
+            cache-scope: linux-arm64
     steps:
     - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       with:
@@ -61,6 +63,8 @@ jobs:
         platforms: ${{ matrix.platform }}
         tags: ${{ env.TEST_WEAVER_TAG }}
         labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha,scope=weaver-docker-${{ matrix.cache-scope }}
+        cache-to: type=gha,mode=max,scope=weaver-docker-${{ matrix.cache-scope }}
     - name: Test
       run: |
         docker run --rm ${{ env.TEST_WEAVER_TAG }} --help
@@ -70,7 +74,7 @@ jobs:
     - name: Start weaver container
       # Serve the fixture registry so the UI suite runs against the built image.
       run: |
-        docker run --init -d --rm --name weaver-smoke -p 8080:8080 \
+        docker run --init -d --name weaver-smoke -p 8080:8080 \
           -v "$(pwd)/ui/e2e/fixtures/render-registry":/model \
           ${{ env.TEST_WEAVER_TAG }} serve --registry /model --bind 0.0.0.0:8080
         for i in $(seq 1 60); do
@@ -79,7 +83,11 @@ jobs:
           fi
           sleep 1
         done
-        echo "weaver container failed to become ready"; docker logs weaver-smoke; exit 1
+        echo "weaver container failed to become ready"
+        docker ps -a --filter name=weaver-smoke
+        docker inspect --format 'status={{.State.Status}} exit_code={{.State.ExitCode}} error={{.State.Error}}' weaver-smoke || true
+        docker logs weaver-smoke || true
+        exit 1
     - name: Run UI e2e tests against container
       env:
         WEAVER_EXTERNAL_SERVER: "1"
@@ -112,6 +120,8 @@ jobs:
         sbom: true
         labels: ${{ steps.meta.outputs.labels }}
         outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+        cache-from: type=gha,scope=weaver-docker-${{ matrix.cache-scope }}
+        cache-to: type=gha,mode=max,scope=weaver-docker-${{ matrix.cache-scope }}
     - name: Export digest
       if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
       env:

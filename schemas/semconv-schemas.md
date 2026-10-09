@@ -238,9 +238,7 @@ Entity references name the entity and the registry that defines it. See
     - [Common properties](#common-signal-and-attribute-properties)
   - **entities**: Entity (resource) signal definitions
     - `type`: Unique entity type
-    - `identity`: Attribute references for the attributes that uniquely identify an entity instance (required)
-      - `base`: Index into `attribute_catalog`
-      - `requirement_level`: See [Requirement level](#requirement-level)
+    - `identity`: Indexes into `attribute_catalog` for the attributes that uniquely identify an entity instance (required)
     - `description`: Attribute references for non-identifying descriptive attributes (optional)
       - `base`: Index into `attribute_catalog`
       - `requirement_level`: See [Requirement level](#requirement-level)
