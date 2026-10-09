@@ -4,6 +4,8 @@ A registry defines telemetry using a schema.
 
 The official OTel Semantic Conventions are defined in a registry located at [open-telemetry/semantic-conventions/model](https://github.com/open-telemetry/semantic-conventions/tree/main/model).
 
+In Weaver CLI commands, configuration files, and manifests, registries are referenced using a [Virtual Directory (`vdir`)](vdir.md) reference, which can point to a local folder or manifest file, a `.zip` or `.tar.gz` archive, a remote HTTP(S) URL, or a Git repository (`source[@refspec][[sub_folder]]`).
+
 ## Format
 
 Full reference at https://github.com/open-telemetry/weaver/blob/main/schemas/semconv-syntax.md

@@ -3,10 +3,10 @@
 <kbd>weaver registry check</kbd> ([Usage](usage.md#registry-check))
 
 The validation process for a semantic convention registry involves several steps:
-- Loading the semantic convention specifications from a local directory or a git repository.
+- Loading the semantic convention specifications from a [Virtual Directory (`vdir`)](vdir.md) (such as a local directory, `.zip`/`.tar.gz` archive, remote HTTP(S) URL, or Git repository) specified via `--registry` (and optionally `--baseline-registry`).
 - Parsing the loaded semantic convention specifications.
 - Resolving references and extends clauses within the specifications.
-- Checking compliance with specified Rego policies, if provided.
+- Checking compliance with specified Rego policies (`--policy`, which also accepts [Virtual Directory (`vdir`)](vdir.md) strings), if provided.
 
 
 ## Custom rules (Rego)
