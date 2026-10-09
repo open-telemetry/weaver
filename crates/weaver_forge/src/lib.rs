@@ -953,7 +953,7 @@ mod tests {
     use crate::file_loader::FileSystemFileLoader;
     use crate::v1::registry::ResolvedRegistry;
     use crate::v2::attribute::Attribute;
-    use crate::v2::entity::{Entity, EntityAssociation, EntityAttribute, EntityRef};
+    use crate::v2::entity::{Entity, EntityAssociation, EntityRef};
     use crate::v2::event::Event;
     use crate::v2::metric::Metric;
     use crate::v2::provenance::Provenance;
@@ -964,9 +964,7 @@ mod tests {
     use crate::{run_filter_raw, OutputDirective, TemplateEngine};
     use std::collections::BTreeMap;
     use weaver_semconv::v2::{
-        attribute::{
-            AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
-        },
+        attribute::{AttributeType, PrimitiveOrArrayTypeSpec},
         metric::InstrumentSpec,
         signal_id::SignalId,
         span::{SpanKindSpec, SpanName},
@@ -1656,16 +1654,13 @@ mod tests {
     /// A registry with a span that names an entity of its dependency and one of
     /// its own.
     fn prepare_association_registry() -> ForgeResolvedRegistry {
-        fn identity(key: &str) -> EntityAttribute {
-            EntityAttribute {
-                base: Attribute {
-                    key: key.to_owned(),
-                    r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                    examples: None,
-                    common: CommonFields::default(),
-                    provenance: Default::default(),
-                },
-                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+        fn identity(key: &str) -> Attribute {
+            Attribute {
+                key: key.to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                examples: None,
+                common: CommonFields::default(),
+                provenance: Default::default(),
             }
         }
         fn entity(r#type: &str, identity_keys: &[&str]) -> Entity {

@@ -246,7 +246,7 @@ You can refine the following properties of the attribute (for the scope of the s
 
 The following properties can be defined on the attribute references only:
 
-- `requirement_level` - Optional - see [Requirement Levels](https://github.com/open-telemetry/semantic-conventions/blob/v1.36.0/docs/general/attribute-requirement-level.md) for details.
+- `requirement_level` - Optional (not available on entity `identity` attributes, which are always required) - see [Requirement Levels](https://github.com/open-telemetry/semantic-conventions/blob/v1.36.0/docs/general/attribute-requirement-level.md) for details.
 - `sampling_relevant` - Optional - available on spans only - a boolean flag indicating if the attribute is (especially) relevant for sampling and
   thus should be set at span start. It defaults to `false`.
 
@@ -395,7 +395,7 @@ An entity definition consists of the following properties:
 - `note` - Optional. A more elaborate description of the entity.
 - `stability` - Required. Specifies the [stability](#stability-levels) of the entity definition.
 - `requirement_level` - Optional. The requirement level of the signal. See [Signal Requirement Levels](#signal-requirement-levels). Defaults to `recommended`.
-- `identity` - Required. List of [attribute references](#attribute-reference) that form the identity of the entity. These attributes uniquely identify an instance of the entity.
+- `identity` - Required. List of [attribute references](#attribute-reference) that form the identity of the entity. These attributes uniquely identify an instance of the entity and are always required (`requirement_level` cannot be set on `identity` attributes).
 - `description` - Optional. List of [attribute references](#attribute-reference) that provide additional descriptive information about the entity but are not part of its identity.
 - `deprecated` - Optional. When present, marks the entity as deprecated. See [deprecated](#deprecated-structure) for details.
 - `annotations` - Optional. Map of annotations. Annotations are key-value pairs that provide additional information about the entity. See [annotations](#annotations) for details.
@@ -430,6 +430,7 @@ An entity refinement definition consists of the following properties:
 
 - `id` - Required. Uniquely identifies the entity refinement.
 - `ref` - Required. The name of the entity being refined.
+- `identity` - Optional. Refinements of the base entity's identity attributes (cannot add new identity attributes or set `requirement_level`).
 - `description` - Optional. The additional attributes to describe the Entity.
 - `brief` - Optional. Refines the brief description of the signal.
 - `note` - Optional. Refines the more elaborate description of the signal.

@@ -584,9 +584,7 @@ mod tests {
     use std::collections::BTreeMap;
     use weaver_checker::{FindingLevel, PolicyFinding};
     use weaver_forge::v1::registry::{ResolvedGroup, ResolvedRegistry};
-    use weaver_forge::v2::entity::{
-        EntityAssociation as V2EntityAssociation, EntityAttribute, EntityRefinement,
-    };
+    use weaver_forge::v2::entity::{EntityAssociation as V2EntityAssociation, EntityRefinement};
     use weaver_forge::v2::provenance::Provenance as V2Provenance;
     use weaver_forge::v2::{
         attribute::Attribute as V2Attribute,
@@ -2741,12 +2739,7 @@ mod tests {
                     entities: vec![V2Entity {
                         requirement_level: None,
                         r#type: SignalId::from("deployment".to_owned()),
-                        identity: vec![EntityAttribute {
-                            base: deployment_name_attr,
-                            requirement_level: V2RequirementLevel::Basic(
-                                V2BasicRequirementLevelSpec::Required,
-                            ),
-                        }],
+                        identity: vec![deployment_name_attr],
                         description: vec![
                             EntityAttribute {
                                 base: deployment_env_attr,
@@ -3644,15 +3637,12 @@ mod tests {
         V2Entity {
             requirement_level: None,
             r#type: SignalId::from(entity_type.to_owned()),
-            identity: vec![EntityAttribute {
-                base: V2Attribute {
-                    key: attr_key.to_owned(),
-                    r#type: V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
-                    examples: None,
-                    common: v2_common(),
-                    provenance: Default::default(),
-                },
-                requirement_level: V2RequirementLevel::Basic(V2BasicRequirementLevelSpec::Required),
+            identity: vec![V2Attribute {
+                key: attr_key.to_owned(),
+                r#type: V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
+                examples: None,
+                common: v2_common(),
+                provenance: Default::default(),
             }],
             description: vec![],
             common: v2_common(),
@@ -4097,7 +4087,7 @@ mod tests {
     fn make_metric_entity_registry(use_v2: bool) -> VersionedRegistry {
         // A "host" entity with host.name (Required) associated with metric system.uptime
         if use_v2 {
-            use weaver_forge::v2::entity::{Entity as V2Entity, EntityAttribute};
+            use weaver_forge::v2::entity::Entity as V2Entity;
 
             let host_name_attr = V2Attribute {
                 key: "host.name".to_owned(),
@@ -4143,12 +4133,7 @@ mod tests {
                     entities: vec![V2Entity {
                         requirement_level: None,
                         r#type: SignalId::from("host".to_owned()),
-                        identity: vec![EntityAttribute {
-                            base: host_name_attr,
-                            requirement_level: V2RequirementLevel::Basic(
-                                V2BasicRequirementLevelSpec::Required,
-                            ),
-                        }],
+                        identity: vec![host_name_attr],
                         description: vec![],
                         common: CommonFields {
                             brief: "A host entity".to_owned(),

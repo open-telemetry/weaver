@@ -406,7 +406,7 @@
           "description": "List of attributes that identify this entity.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/EntityAttribute"
+            "$ref": "#/$defs/Attribute"
           }
         },
         "note": {
@@ -615,7 +615,7 @@
           "description": "List of attributes that identify this entity.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/EntityAttribute"
+            "$ref": "#/$defs/Attribute"
           }
         },
         "note": {
