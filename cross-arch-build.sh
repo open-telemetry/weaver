@@ -23,5 +23,6 @@ case "${HOST_ARCH}" in
 esac
 
 rustup target add "${RUST_TARGET}"
-cargo build --release --target="${RUST_TARGET}"
+# Keep the container's static musl build independent of system TLS libraries.
+cargo build --release --target="${RUST_TARGET}" --no-default-features --features=crypto-ring
 cp "target/${RUST_TARGET}/release/weaver" .

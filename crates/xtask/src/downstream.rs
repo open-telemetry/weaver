@@ -549,3 +549,52 @@ fn group_end() {
         println!("::endgroup::");
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config() -> Config {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../",
+            "downstream-check.yaml"
+        );
+        serde_yaml::from_str(&std::fs::read_to_string(path).expect("failed to read the config"))
+            .expect("failed to parse the config")
+    }
+
+    /// A repo listed in `IMAGE_ONLY_REPOS` that does not match a configured url is not an
+    /// error anywhere: it silently leaves the repo on `WeaverKind::Binary`, so `{weaver}`
+    /// expands to a binary path where the repo expects an image tag.
+    #[test]
+    fn image_only_repos_match_a_configured_repo() {
+        let config = config();
+        for repo in IMAGE_ONLY_REPOS {
+            assert!(
+                config
+                    .repos
+                    .iter()
+                    .any(|r| normalize_url(r.clone_url()) == normalize_url(repo)),
+                "'{repo}' is in IMAGE_ONLY_REPOS but no repo in downstream-check.yaml matches it"
+            );
+        }
+    }
+
+    #[test]
+    fn repos_are_classified_as_configured() {
+        let config = config();
+        let kind = |url: &str| {
+            config
+                .repos
+                .iter()
+                .find(|r| normalize_url(r.clone_url()) == normalize_url(url))
+                .unwrap_or_else(|| panic!("'{url}' is not in downstream-check.yaml"))
+                .weaver()
+        };
+        assert!(kind("github.com/open-telemetry/semantic-conventions") == WeaverKind::Image);
+        assert!(kind("github.com/open-telemetry/opentelemetry-rust") == WeaverKind::Binary);
+        // The `-genai` suffix must not make this one match semantic-conventions by prefix.
+        assert!(kind("github.com/open-telemetry/semantic-conventions-genai") == WeaverKind::Binary);
+    }
+}

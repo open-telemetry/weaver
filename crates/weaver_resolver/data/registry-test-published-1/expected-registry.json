@@ -15,6 +15,21 @@
         "provenance": {
           "schema_url": "https://opentelemetry.io/schemas/1.0.0",
           "path": ""
+        },
+        "attributes": {
+          "a": {
+            "source_group": "v2_dependency.opentelemetry.io/schemas",
+            "inherited_fields": [
+              "annotations",
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "role"
+            ]
+          }
         }
       },
       "annotations": {}
@@ -33,6 +48,20 @@
         "provenance": {
           "schema_url": "https://opentelemetry.io/schemas/1.0.0",
           "path": ""
+        },
+        "attributes": {
+          "a": {
+            "source_group": "v2_dependency.opentelemetry.io/schemas",
+            "inherited_fields": [
+              "annotations",
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          }
         }
       },
       "annotations": {},
@@ -56,6 +85,20 @@
         "provenance": {
           "schema_url": "https://opentelemetry.io/schemas/1.0.0",
           "path": ""
+        },
+        "attributes": {
+          "a": {
+            "source_group": "v2_dependency.opentelemetry.io/schemas",
+            "inherited_fields": [
+              "annotations",
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          }
         }
       },
       "annotations": {},
@@ -70,7 +113,7 @@
       "note": "my fun span",
       "stability": "beta",
       "attributes": [
-        0
+        2
       ],
       "span_kind": "client",
       "name": "my-span",

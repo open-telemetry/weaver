@@ -34,7 +34,7 @@ jaq-json = { version = "2.0.0", features = ["serde"] }
 indexmap = "2.11.4"
 regex.workspace = true
 markdown = "1.0.0"
-textwrap = "0.16.2"
+textwrap = "0.16.4"
 
 convert_case.workspace = true
 itertools.workspace = true

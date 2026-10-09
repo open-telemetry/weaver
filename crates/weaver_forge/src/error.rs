@@ -9,7 +9,6 @@ use serde::Serialize;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 
 use weaver_common::error::WeaverError;
-use weaver_resolved_schema::attribute::AttributeRef;
 
 use crate::error::Error::CompoundError;
 
@@ -44,16 +43,46 @@ pub struct FilterErrorDetail {
 
 impl std::fmt::Display for FilterErrorDetail {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(src) = &self.source {
-            write!(f, "{}:{}: {}", src.start.line, src.start.col, self.error)
-        } else {
-            write!(f, "{}", self.error)
+        match &self.source {
+            Some(src) => write!(f, "{}:{}: {}", src.start.line, src.start.col, self.error),
+            None => write!(f, "{}", self.error),
+        }
+    }
+}
+
+/// A JQ module diagnostic with an optional source file.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct ModuleFilterErrorDetail {
+    /// The detailed string reason for failure.
+    pub error: String,
+    /// Source file containing the error, when known.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file: Option<PathBuf>,
+    /// The span data marking the failed position.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<Source>,
+}
+
+impl std::fmt::Display for ModuleFilterErrorDetail {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match (&self.file, &self.source) {
+            (Some(file), Some(src)) => write!(
+                f,
+                "{}:{}:{}: {}",
+                file.display(),
+                src.start.line,
+                src.start.col,
+                self.error
+            ),
+            (Some(file), None) => write!(f, "{}: {}", file.display(), self.error),
+            (None, Some(src)) => write!(f, "{}:{}: {}", src.start.line, src.start.col, self.error),
+            (None, None) => write!(f, "{}", self.error),
         }
     }
 }
 
 // A helper for `thiserror` to format the vector of details
-fn format_details(details: &[FilterErrorDetail]) -> String {
+fn format_details(details: &[impl std::fmt::Display]) -> String {
     details
         .iter()
         .map(|d| d.to_string())
@@ -205,7 +234,19 @@ pub enum Error {
         /// Group id.
         group_id: String,
         /// Attribute reference.
-        attr_ref: AttributeRef,
+        attr_ref: u32,
+    },
+
+    /// An entity reference that no registry answers.
+    #[error("Entity `{entity_type}` was not found in {}", match .registry {
+        Some(url) => format!("registry `{url}`"),
+        None => "this registry".to_owned(),
+    })]
+    EntityNotFound {
+        /// The entity type, or refinement id, that the reference names.
+        entity_type: String,
+        /// The registry the reference points at, if it is not this one.
+        registry: Option<String>,
     },
 
     /// Filter error.
@@ -215,6 +256,15 @@ pub enum Error {
         filter: String,
         /// Structured syntax errors
         details: Vec<FilterErrorDetail>,
+    },
+
+    /// A filter failed while loading or compiling a configured JQ module.
+    #[error("Filter '{filter}' failed: {}", format_details(.details))]
+    ModuleFilterError {
+        /// Filter that caused the error.
+        filter: String,
+        /// Diagnostics with module source locations.
+        details: Vec<ModuleFilterErrorDetail>,
     },
 
     /// A template's `when` clause did not evaluate to a single boolean.

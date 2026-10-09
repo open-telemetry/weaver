@@ -6,8 +6,8 @@ use crate::attributes::{get_attribute_name_value, get_attribute_name_value_v2};
 use opentelemetry::logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity};
 use opentelemetry::{Array, Value};
 use opentelemetry_sdk::logs::SdkLoggerProvider;
-use weaver_forge::{registry::ResolvedRegistry, v2::registry::ForgeResolvedRegistry};
-use weaver_semconv::group::GroupType;
+use weaver_forge::{v1::registry::ResolvedRegistry, v2::registry::ForgeResolvedRegistry};
+use weaver_semconv::v1::group::GroupType;
 
 /// Convert an OpenTelemetry Value to AnyValue for log records
 fn value_to_any_value(value: Value) -> AnyValue {

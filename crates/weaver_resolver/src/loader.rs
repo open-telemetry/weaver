@@ -7,16 +7,17 @@ use std::fmt::Display;
 use std::path::MAIN_SEPARATOR;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
-use weaver_semconv::registry::SemConvRegistry;
+use weaver_semconv::v1::registry::SemConvRegistry;
 
 use walkdir::DirEntry;
 use weaver_common::result::WResult;
+use weaver_resolved_schema::v1::ResolvedTelemetrySchema as V1Schema;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
-use weaver_resolved_schema::ResolvedTelemetrySchema as V1Schema;
-use weaver_semconv::manifest::Dependency;
-use weaver_semconv::registry_repo::{RegistryRepo, LEGACY_REGISTRY_MANIFEST, REGISTRY_MANIFEST};
+use weaver_semconv::registry_repo::{is_semantic_convention_file, RegistryRepo};
 use weaver_semconv::schema_url::SchemaUrl;
-use weaver_semconv::{group::ImportsWithProvenance, semconv::SemConvSpecWithProvenance};
+use weaver_semconv::semconv::SemConvSpecWithProvenance;
+use weaver_semconv::v1::group::ImportsWithProvenance;
+use weaver_semconv::v2::manifest::Dependency;
 
 use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 use crate::Error;
@@ -40,9 +41,21 @@ pub enum LoadedSemconvRegistry {
         dependencies: Vec<LoadedSemconvRegistry>,
     },
     /// The semconv repository is already resolved and can be used as-is.
-    Resolved(V1Schema),
+    Resolved {
+        /// The resolved schema.
+        schema: V1Schema,
+        /// The direct dependencies its manifest declares, empty when it has no
+        /// manifest.
+        direct_dependencies: Vec<SchemaUrl>,
+    },
     /// The semconv repository is already resolved and can be used as-is.
-    ResolvedV2(V2Schema),
+    ResolvedV2 {
+        /// The resolved schema.
+        schema: V2Schema,
+        /// The direct dependencies its manifest declares, empty when it has no
+        /// manifest.
+        direct_dependencies: Vec<SchemaUrl>,
+    },
 }
 
 impl LoadedSemconvRegistry {
@@ -97,8 +110,8 @@ impl LoadedSemconvRegistry {
         match self {
             LoadedSemconvRegistry::Unresolved { repo, .. } => repo.registry_path_repr(),
             // TODO - are these correct?
-            LoadedSemconvRegistry::Resolved(schema) => &schema.schema_url,
-            LoadedSemconvRegistry::ResolvedV2(schema) => schema.schema_url.as_str(),
+            LoadedSemconvRegistry::Resolved { schema, .. } => &schema.schema_url,
+            LoadedSemconvRegistry::ResolvedV2 { schema, .. } => schema.schema_url.as_str(),
         }
     }
 
@@ -114,8 +127,8 @@ impl LoadedSemconvRegistry {
                     .max()
                     .unwrap_or_default()
             }
-            LoadedSemconvRegistry::Resolved(_) => 1,
-            LoadedSemconvRegistry::ResolvedV2(_) => 1,
+            LoadedSemconvRegistry::Resolved { .. } => 1,
+            LoadedSemconvRegistry::ResolvedV2 { .. } => 1,
         }
     }
 
@@ -133,8 +146,10 @@ impl LoadedSemconvRegistry {
                 }
                 result
             }
-            LoadedSemconvRegistry::Resolved(schema) => vec![schema.registry_id.to_owned()],
-            LoadedSemconvRegistry::ResolvedV2(schema) => vec![schema.schema_url.name().to_owned()],
+            LoadedSemconvRegistry::Resolved { schema, .. } => vec![schema.registry_id.to_owned()],
+            LoadedSemconvRegistry::ResolvedV2 { schema, .. } => {
+                vec![schema.schema_url.name().to_owned()]
+            }
         }
     }
 }
@@ -153,8 +168,8 @@ impl Display for LoadedSemconvRegistry {
                 repo.schema_url(),
                 dependencies.iter().map(|d| format!("{d}")).join(",")
             ),
-            LoadedSemconvRegistry::Resolved(schema) => write!(f, "{}", schema.schema_url),
-            LoadedSemconvRegistry::ResolvedV2(schema) => write!(f, "{}", schema.schema_url),
+            LoadedSemconvRegistry::Resolved { schema, .. } => write!(f, "{}", schema.schema_url),
+            LoadedSemconvRegistry::ResolvedV2 { schema, .. } => write!(f, "{}", schema.schema_url),
         }
     }
 }
@@ -280,12 +295,30 @@ fn load_semconv_repository_recursive(
     // Add current registry to dependency chain
     dependency_chain.push(registry_name.clone());
 
+    // The manifest is the only record of the direct dependencies of a schema that
+    // arrives already resolved.
+    let declared_dependencies: Vec<SchemaUrl> = registry_repo
+        .manifest()
+        .map(|m| {
+            m.dependencies()
+                .iter()
+                .map(|d| d.schema_url.clone())
+                .collect()
+        })
+        .unwrap_or_default();
+
     // Check for pre-resolved schema in cache.
     if let Some(cache) = cache {
         if let Some(arc) = find_pre_resolved(cache, &schema_url) {
             let loaded = match &*arc {
-                crate::WeaverResolvedSchema::V1(s) => LoadedSemconvRegistry::Resolved(s.clone()),
-                crate::WeaverResolvedSchema::V2(s) => LoadedSemconvRegistry::ResolvedV2(s.clone()),
+                crate::WeaverResolvedSchema::V1(s) => LoadedSemconvRegistry::Resolved {
+                    schema: s.clone(),
+                    direct_dependencies: declared_dependencies,
+                },
+                crate::WeaverResolvedSchema::V2(s) => LoadedSemconvRegistry::ResolvedV2 {
+                    schema: s.clone(),
+                    direct_dependencies: declared_dependencies,
+                },
             };
             let _ = dependency_chain.pop();
             return WResult::Ok(loaded);
@@ -295,11 +328,11 @@ fn load_semconv_repository_recursive(
     // Either load a fully resolved repository, or read in raw files.
     if let Some(manifest) = registry_repo.manifest() {
         if let Some(resolved_url) = registry_repo.resolved_registry_uri() {
-            let res = load_resolved_repository(&resolved_url, auth);
+            let res = load_resolved_repository(&resolved_url, auth, declared_dependencies);
 
             // Register dependencies of the resolved schema for conflict resolution.
-            if let WResult::Ok(LoadedSemconvRegistry::ResolvedV2(ref schema))
-            | WResult::OkWithNFEs(LoadedSemconvRegistry::ResolvedV2(ref schema), _) = res
+            if let WResult::Ok(LoadedSemconvRegistry::ResolvedV2 { ref schema, .. })
+            | WResult::OkWithNFEs(LoadedSemconvRegistry::ResolvedV2 { ref schema, .. }, _) = res
             {
                 for dep in schema.dependencies.iter() {
                     let dep_name = dep.name().to_owned();
@@ -326,7 +359,8 @@ fn load_semconv_repository_recursive(
             let mut seen_dependencies: std::collections::HashMap<String, &Dependency> =
                 std::collections::HashMap::new();
 
-            for d in manifest.dependencies().iter() {
+            let dependencies = manifest.dependencies();
+            for d in dependencies.iter() {
                 let dep_name = d.schema_url.name().to_owned();
                 if let Some(prev) = seen_dependencies.get(&dep_name) {
                     if let Err(e) = check_version_compatibility(prev, d) {
@@ -391,10 +425,14 @@ fn load_semconv_repository_recursive(
 fn load_resolved_repository(
     path: &VirtualDirectoryPath,
     auth: &HttpAuthResolver,
+    direct_dependencies: Vec<SchemaUrl>,
 ) -> WResult<LoadedSemconvRegistry, Error> {
     // TODO - should we handle V1 and V2?
     match from_vdir(path, auth) {
-        Ok(resolved) => WResult::Ok(LoadedSemconvRegistry::ResolvedV2(resolved)),
+        Ok(resolved) => WResult::Ok(LoadedSemconvRegistry::ResolvedV2 {
+            schema: resolved,
+            direct_dependencies,
+        }),
         Err(err) => WResult::FatalErr(err),
     }
 }
@@ -431,16 +469,6 @@ fn load_definition_repository(
             .map(|s| s.starts_with('.'))
             .unwrap_or(false)
     }
-    fn is_semantic_convention_file(entry: &DirEntry) -> bool {
-        let path = entry.path();
-        let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
-        let file_name = path.file_name().unwrap_or_else(|| std::ffi::OsStr::new(""));
-        path.is_file()
-            && (extension == "yaml" || extension == "yml")
-            && file_name != "schema-next.yaml"
-            && file_name != REGISTRY_MANIFEST
-            && file_name != LEGACY_REGISTRY_MANIFEST
-    }
     let local_path = registry_repo.path().to_path_buf();
     let registry_path_repr = registry_repo.registry_path_repr();
 
@@ -455,7 +483,7 @@ fn load_definition_repository(
         .flat_map(|entry| {
             match entry {
                 Ok(entry) => {
-                    if !is_semantic_convention_file(&entry) {
+                    if !is_semantic_convention_file(entry.path()) {
                         return vec![].into_par_iter();
                     }
 

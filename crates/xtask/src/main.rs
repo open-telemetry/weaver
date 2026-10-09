@@ -11,19 +11,23 @@
 #![allow(clippy::print_stderr)]
 
 mod downstream;
-mod fix_release_permissions;
 mod history;
+mod patch_release_workflow;
 mod schema_compat;
 mod validate;
 
 #[cfg(not(tarpaulin_include))]
 fn main() -> anyhow::Result<()> {
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .map_err(|_| anyhow::anyhow!("Failed to install the ring Rustls crypto provider"))?;
+
     let task = std::env::args().nth(1);
 
     match task {
         None => print_help(),
         Some(task) => match task.as_str() {
-            "fix-release-permissions" => fix_release_permissions::run(),
+            "patch-release-workflow" => patch_release_workflow::run(),
             "validate" => validate::run(),
             "history" => history::run(std::env::args().nth(2)),
             "schema-compat" => schema_compat::run(),
@@ -45,7 +49,7 @@ pub fn print_help() -> anyhow::Result<()> {
 Usage: Execute the command using `cargo xtask <task>`, e.g., `cargo xtask validate`.
 
 Tasks:
-  - fix-release-permissions: Patch release.yml after `dist generate` to scope contents:write to plan/host jobs only.
+  - patch-release-workflow: Patch release.yml after `dist generate` (permissions, scorecard shas, smoke tests).
   - validate: Validate the entire structure of the weaver project.
   - history: Run registry check on semconv models within back compatibility range.
              Optionally provide a start semver e.g. `history 1.29.0`.

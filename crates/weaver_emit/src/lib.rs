@@ -12,7 +12,7 @@ use opentelemetry_sdk::{metrics::PeriodicReader, trace::SdkTracerProvider};
 use serde::Serialize;
 use spans::emit_trace_for_registry;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
-use weaver_forge::registry::ResolvedRegistry;
+use weaver_forge::v1::registry::ResolvedRegistry;
 use weaver_forge::v2::registry::ForgeResolvedRegistry;
 
 use crate::logs::{emit_logs_for_registry, emit_logs_for_registry_v2};
@@ -263,13 +263,13 @@ pub fn emit(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
-    use weaver_resolved_schema::attribute::Attribute;
-    use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
-    use weaver_semconv::{
+    use weaver_forge::v1::registry::{ResolvedGroup, ResolvedRegistry};
+    use weaver_resolved_schema::v1::attribute::Attribute;
+    use weaver_semconv::v1::signal_requirement_level::SignalRequirementLevel;
+    use weaver_semconv::v1::stability::Stability;
+    use weaver_semconv::v1::{
         attribute::{AttributeType, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel},
         group::{GroupType, InstrumentSpec, SpanKindSpec},
-        stability::Stability,
     };
 
     // Test the emit command for stdout
@@ -590,14 +590,17 @@ mod tests {
             registry::{ForgeResolvedRegistry, Refinements, Registry},
             span::{Span, SpanAttribute},
         };
-        use weaver_semconv::{
+        use weaver_semconv::v2::signal_requirement_level::SignalRequirementLevel;
+        use weaver_semconv::v2::stability::Stability;
+        use weaver_semconv::v2::{
             attribute::{
                 AttributeType, BasicRequirementLevelSpec, Examples, PrimitiveOrArrayTypeSpec,
                 RequirementLevel,
             },
-            group::{InstrumentSpec, SpanKindSpec},
-            stability::Stability,
-            v2::{signal_id::SignalId, span::SpanName, CommonFields},
+            metric::InstrumentSpec,
+            signal_id::SignalId,
+            span::{SpanKindSpec, SpanName},
+            CommonFields,
         };
 
         let registry = ForgeResolvedRegistry {
@@ -610,7 +613,8 @@ mod tests {
                     r#type: SignalId::from("test.comprehensive.internal".to_owned()),
                     kind: SpanKindSpec::Internal,
                     name: SpanName {
-                        note: "test span".to_owned(),
+                        note: Some("test span".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![SpanAttribute {
                         base: V2Attribute {
@@ -755,7 +759,8 @@ mod tests {
                 events: vec![],
                 entities: vec![],
             },
-            dependencies: vec![],
+            dependencies: Default::default(),
+            dependency_graph: Default::default(),
         };
 
         let result = emit(

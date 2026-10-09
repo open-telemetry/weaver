@@ -5,21 +5,20 @@
 use serde::Serialize;
 use weaver_forge::{
     v2::{
-        entity::EntityAttribute, event::EventAttribute, metric::MetricAttribute,
-        registry::ForgeResolvedRegistry, span::SpanAttribute,
+        entity::{from_resolved_associations, EntityAttribute},
+        event::EventAttribute,
+        metric::MetricAttribute,
+        registry::ForgeResolvedRegistry,
+        span::SpanAttribute,
     },
     OutputProcessor,
 };
 use weaver_resolved_schema::v2::{
-    attribute::Attribute,
-    attribute_group::AttributeGroup,
-    catalog::AttributeCatalog,
-    entity::{to_named_associations, Entity},
-    event::Event,
-    metric::Metric,
-    span::Span,
-    ResolvedTelemetrySchema, Signal,
+    attribute::Attribute, attribute_group::AttributeGroup, catalog::AttributeCatalog,
+    entity::Entity, event::Event, metric::Metric, span::Span, ResolvedTelemetrySchema, Signal,
 };
+
+use weaver_semconv::schema_url::SchemaUrl;
 
 use crate::{
     parser::{parse_id_lookup_v2, IdLookupV2, RegistryLookup},
@@ -104,7 +103,11 @@ fn lookup_signal_by_id<'a, T: Signal>(signals: &'a [T], id: &str) -> Option<&'a 
 }
 
 /// Creates a renderable context for a resolved metric.
-fn resolved_metric<AC: AttributeCatalog>(m: &Metric, catalog: &AC) -> ResolvedId {
+fn resolved_metric<AC: AttributeCatalog>(
+    m: &Metric,
+    catalog: &AC,
+    deps: &[SchemaUrl],
+) -> ResolvedId {
     let mut attributes = Vec::new();
     for ar in m.attributes.iter() {
         let attr = catalog.attribute(&ar.base).unwrap_or_else(|| {
@@ -127,11 +130,11 @@ fn resolved_metric<AC: AttributeCatalog>(m: &Metric, catalog: &AC) -> ResolvedId
     ResolvedId::Metric(ResolvedMetric {
         metric: weaver_forge::v2::metric::Metric {
             name: m.name.clone(),
-            instrument: m.instrument.clone(),
+            instrument: m.instrument,
             unit: m.unit.clone(),
             requirement_level: m.requirement_level.clone(),
             attributes,
-            entity_associations: to_named_associations(&m.entity_associations),
+            entity_associations: from_resolved_associations(&m.entity_associations, deps),
             common: m.common.clone(),
             provenance: Default::default(),
         },
@@ -139,7 +142,7 @@ fn resolved_metric<AC: AttributeCatalog>(m: &Metric, catalog: &AC) -> ResolvedId
 }
 
 // Creates renderable span.
-fn resolved_span<AC: AttributeCatalog>(s: &Span, catalog: &AC) -> ResolvedId {
+fn resolved_span<AC: AttributeCatalog>(s: &Span, catalog: &AC, deps: &[SchemaUrl]) -> ResolvedId {
     let mut attributes = Vec::new();
     for ar in s.attributes.iter() {
         let attr = catalog.attribute(&ar.base).unwrap_or_else(|| {
@@ -165,8 +168,8 @@ fn resolved_span<AC: AttributeCatalog>(s: &Span, catalog: &AC) -> ResolvedId {
             r#type: s.r#type.clone(),
             name: s.name.clone(),
             attributes,
-            kind: s.kind.clone(),
-            entity_associations: to_named_associations(&s.entity_associations),
+            kind: s.kind,
+            entity_associations: from_resolved_associations(&s.entity_associations, deps),
             requirement_level: s.requirement_level.clone(),
             common: s.common.clone(),
             provenance: Default::default(),
@@ -175,7 +178,7 @@ fn resolved_span<AC: AttributeCatalog>(s: &Span, catalog: &AC) -> ResolvedId {
 }
 
 // Creates renderable event.
-fn resolved_event<AC: AttributeCatalog>(s: &Event, catalog: &AC) -> ResolvedId {
+fn resolved_event<AC: AttributeCatalog>(s: &Event, catalog: &AC, deps: &[SchemaUrl]) -> ResolvedId {
     let mut attributes = Vec::new();
     for ar in s.attributes.iter() {
         let attr = catalog.attribute(&ar.base).unwrap_or_else(|| {
@@ -199,7 +202,7 @@ fn resolved_event<AC: AttributeCatalog>(s: &Event, catalog: &AC) -> ResolvedId {
         event: weaver_forge::v2::event::Event {
             name: s.name.clone(),
             attributes,
-            entity_associations: to_named_associations(&s.entity_associations),
+            entity_associations: from_resolved_associations(&s.entity_associations, deps),
             requirement_level: s.requirement_level.clone(),
             common: s.common.clone(),
             provenance: Default::default(),
@@ -211,21 +214,18 @@ fn resolved_event<AC: AttributeCatalog>(s: &Event, catalog: &AC) -> ResolvedId {
 fn resolved_entity<AC: AttributeCatalog>(s: &Entity, catalog: &AC) -> ResolvedId {
     let mut identity = Vec::new();
     for ar in s.identity.iter() {
-        let attr = catalog.attribute(&ar.base).unwrap_or_else(|| {
+        let attr = catalog.attribute(ar).unwrap_or_else(|| {
             panic!(
                 "Invalid schema file: Attribute reference {} does not exist",
-                ar.base.0
+                ar.0
             )
         });
-        identity.push(EntityAttribute {
-            base: weaver_forge::v2::attribute::Attribute {
-                key: attr.key.clone(),
-                r#type: attr.r#type.clone(),
-                examples: attr.examples.clone(),
-                common: attr.common.clone(),
-                provenance: Default::default(),
-            },
-            requirement_level: ar.requirement_level.clone(),
+        identity.push(weaver_forge::v2::attribute::Attribute {
+            key: attr.key.clone(),
+            r#type: attr.r#type.clone(),
+            examples: attr.examples.clone(),
+            common: attr.common.clone(),
+            provenance: Default::default(),
         });
     }
     let mut description = Vec::new();
@@ -305,6 +305,8 @@ fn resolved_attribute(attr: &Attribute) -> ResolvedId {
 
 fn lookup_id(registry: &ResolvedTelemetrySchema, id: &str) -> Result<Option<ResolvedId>, Error> {
     let lookup = parse_id_lookup_v2(id)?;
+    // The table an association leaf's `DependencyRef` indexes.
+    let deps: Vec<SchemaUrl> = registry.dependencies.iter().cloned().collect();
     match lookup {
         IdLookupV2::Registry(RegistryLookup::Attribute { id }) => Ok(registry
             .registry
@@ -320,15 +322,15 @@ fn lookup_id(registry: &ResolvedTelemetrySchema, id: &str) -> Result<Option<Reso
         .map(|ag| resolved_attribute_group(ag, &registry.attribute_catalog))),
         IdLookupV2::Registry(RegistryLookup::Span { id }) => {
             Ok(lookup_signal_by_id(&registry.registry.spans, &id)
-                .map(|s| resolved_span(s, &registry.attribute_catalog)))
+                .map(|s| resolved_span(s, &registry.attribute_catalog, &deps)))
         }
         IdLookupV2::Registry(RegistryLookup::Metric { id }) => {
             Ok(lookup_signal_by_id(&registry.registry.metrics, &id)
-                .map(|m| resolved_metric(m, &registry.attribute_catalog)))
+                .map(|m| resolved_metric(m, &registry.attribute_catalog, &deps)))
         }
         IdLookupV2::Registry(RegistryLookup::Event { id }) => {
             Ok(lookup_signal_by_id(&registry.registry.events, &id)
-                .map(|e| resolved_event(e, &registry.attribute_catalog)))
+                .map(|e| resolved_event(e, &registry.attribute_catalog, &deps)))
         }
         IdLookupV2::Registry(RegistryLookup::Entity { id }) => {
             Ok(lookup_signal_by_id(&registry.registry.entities, &id)
@@ -339,19 +341,19 @@ fn lookup_id(registry: &ResolvedTelemetrySchema, id: &str) -> Result<Option<Reso
             .metrics
             .iter()
             .find(|m| m.id == id)
-            .map(|m| resolved_metric(&m.metric, &registry.attribute_catalog))),
+            .map(|m| resolved_metric(&m.metric, &registry.attribute_catalog, &deps))),
         IdLookupV2::Refinement(crate::parser::RefinementLookup::Event { id }) => Ok(registry
             .refinements
             .events
             .iter()
             .find(|s| s.id == id)
-            .map(|e| resolved_event(&e.event, &registry.attribute_catalog))),
+            .map(|e| resolved_event(&e.event, &registry.attribute_catalog, &deps))),
         IdLookupV2::Refinement(crate::parser::RefinementLookup::Span { id }) => Ok(registry
             .refinements
             .spans
             .iter()
             .find(|s| s.id == id)
-            .map(|s| resolved_span(&s.span, &registry.attribute_catalog))),
+            .map(|s| resolved_span(&s.span, &registry.attribute_catalog, &deps))),
         IdLookupV2::Refinement(crate::parser::RefinementLookup::Entity { id }) => Ok(registry
             .refinements
             .entities
@@ -431,7 +433,7 @@ mod tests {
     use weaver_resolved_schema::v2::{
         attribute::{Attribute, AttributeRef},
         attribute_group::{AttributeGroup, AttributeGroupAttributeRef},
-        entity::{Entity, EntityAttributeRef, EntityRefinement},
+        entity::{Entity, EntityRefinement},
         event::{Event, EventAttributeRef, EventRefinement},
         metric::{Metric, MetricAttributeRef, MetricRefinement},
         refinements::Refinements,
@@ -439,11 +441,14 @@ mod tests {
         span::{Span, SpanAttributeRef, SpanRefinement},
         ResolvedTelemetrySchema,
     };
-    use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
-    use weaver_semconv::{
-        attribute::{AttributeType, PrimitiveOrArrayTypeSpec},
-        group::InstrumentSpec,
-        v2::{span::SpanName, CommonFields},
+    use weaver_semconv::v2::{
+        attribute::{
+            AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
+        },
+        metric::InstrumentSpec,
+        signal_requirement_level::SignalRequirementLevel,
+        span::{SpanKindSpec, SpanName},
+        CommonFields,
     };
 
     use crate::{Error, MarkdownSnippetGenerator, SnipperGeneratorV2};
@@ -505,8 +510,8 @@ mod tests {
                     id: "test.common".to_owned().into(),
                     attributes: vec![AttributeGroupAttributeRef {
                         base: AttributeRef(0),
-                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                            weaver_semconv::attribute::BasicRequirementLevelSpec::Recommended,
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Recommended,
                         ),
                     }],
                     common: CommonFields::default(),
@@ -515,14 +520,15 @@ mod tests {
                 spans: vec![Span {
                     requirement_level: Some(SignalRequirementLevel::Recommended),
                     r#type: "trace.test".to_owned().into(),
-                    kind: weaver_semconv::group::SpanKindSpec::Client,
+                    kind: SpanKindSpec::Client,
                     name: SpanName {
-                        note: "note".to_owned(),
+                        note: Some("note".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![SpanAttributeRef {
                         base: AttributeRef(0),
-                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Required,
                         ),
                         sampling_relevant: None,
                     }],
@@ -537,8 +543,8 @@ mod tests {
                     requirement_level: Some(SignalRequirementLevel::Recommended),
                     attributes: vec![MetricAttributeRef {
                         base: AttributeRef(0),
-                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Required,
                         ),
                     }],
                     entity_associations: vec![],
@@ -550,8 +556,8 @@ mod tests {
                     name: "test.event".to_owned().into(),
                     attributes: vec![EventAttributeRef {
                         base: AttributeRef(0),
-                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Required,
                         ),
                     }],
                     entity_associations: vec![],
@@ -561,12 +567,7 @@ mod tests {
                 entities: vec![Entity {
                     requirement_level: Some(SignalRequirementLevel::OptIn),
                     r#type: "test.entity".to_owned().into(),
-                    identity: vec![EntityAttributeRef {
-                        base: AttributeRef(0),
-                        requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                            weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
-                        ),
-                    }],
+                    identity: vec![AttributeRef(0)],
                     description: vec![],
                     common: CommonFields::default(),
                     provenance: Default::default(),
@@ -578,14 +579,15 @@ mod tests {
                     span: Span {
                         requirement_level: None,
                         r#type: "trace.test".to_owned().into(),
-                        kind: weaver_semconv::group::SpanKindSpec::Client,
+                        kind: SpanKindSpec::Client,
                         name: SpanName {
-                            note: "note".to_owned(),
+                            note: Some("note".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![SpanAttributeRef {
                             base: AttributeRef(0),
-                            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                            requirement_level: RequirementLevel::Basic(
+                                BasicRequirementLevelSpec::Required,
                             ),
                             sampling_relevant: None,
                         }],
@@ -603,8 +605,8 @@ mod tests {
                         requirement_level: Some(SignalRequirementLevel::OptIn),
                         attributes: vec![MetricAttributeRef {
                             base: AttributeRef(0),
-                            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                            requirement_level: RequirementLevel::Basic(
+                                BasicRequirementLevelSpec::Required,
                             ),
                         }],
                         entity_associations: vec![],
@@ -619,8 +621,8 @@ mod tests {
                         name: "test.event".to_owned().into(),
                         attributes: vec![EventAttributeRef {
                             base: AttributeRef(0),
-                            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
+                            requirement_level: RequirementLevel::Basic(
+                                BasicRequirementLevelSpec::Required,
                             ),
                         }],
                         entity_associations: vec![],
@@ -633,12 +635,7 @@ mod tests {
                     entity: Entity {
                         requirement_level: Some(SignalRequirementLevel::Recommended),
                         r#type: "test.entity".to_owned().into(),
-                        identity: vec![EntityAttributeRef {
-                            base: AttributeRef(0),
-                            requirement_level: weaver_semconv::attribute::RequirementLevel::Basic(
-                                weaver_semconv::attribute::BasicRequirementLevelSpec::Required,
-                            ),
-                        }],
+                        identity: vec![AttributeRef(0)],
                         description: vec![],
                         common: CommonFields::default(),
                         provenance: Default::default(),

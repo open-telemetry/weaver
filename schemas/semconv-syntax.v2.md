@@ -57,7 +57,7 @@ A semantic convention file starts with `file_format: definition/2` and may conta
 - `metric_refinements`: Contains definitions of metric instrument refinements.
 - `spans`: Contains definitions of spans.
 - `span_refinements`: Contains definitions of span refinements.
-- `imports`: Allows importing attributes or signal definitions from a different semantic convention registry (dependencies on registries are declared in `registry_manifest.yaml`).
+- `imports`: Allows importing attributes or signal definitions from a different semantic convention registry (dependencies on registries are declared in `manifest.yaml`).
 
 ### `attributes` definition
 
@@ -241,12 +241,12 @@ You can refine the following properties of the attribute (for the scope of the s
 - `note`
 - `examples`
 - `annotations`
-- `stability` can be changed from stable to unstable, but not the other way around
-- `deprecated` can be changed from not-deprecated to deprecated, but not the other way around
+
+`stability` and `deprecated` cannot be refined - they always come from the attribute definition.
 
 The following properties can be defined on the attribute references only:
 
-- `requirement_level` - Optional - see [Requirement Levels](https://github.com/open-telemetry/semantic-conventions/blob/v1.36.0/docs/general/attribute-requirement-level.md) for details.
+- `requirement_level` - Optional (not available on entity `identity` attributes, which are always required) - see [Requirement Levels](https://github.com/open-telemetry/semantic-conventions/blob/v1.36.0/docs/general/attribute-requirement-level.md) for details.
 - `sampling_relevant` - Optional - available on spans only - a boolean flag indicating if the attribute is (especially) relevant for sampling and
   thus should be set at span start. It defaults to `false`.
 
@@ -376,9 +376,13 @@ A span refinement definition consists of the following properties:
 
 #### Span name
 
-The `name` field specifies how the span name should be formatted. It consists of a `note` field that describes in a free form how to format span name based on the attributes. OpenTelemetry semantic conventions use `{action} {target}` format where action and target match attributes on that span. For example, [HTTP server span names](https://github.com/open-telemetry/semantic-conventions/blob/v1.36.0/docs/http/http-spans.md#name) match `{http.request.method} {http.route}` pattern in general case.
+The `name` field specifies how the span name should be formatted. It supports:
+- `templates` - Optional. An ordered list of template patterns evaluated sequentially. The first template whose referenced attributes are all present, non-empty, and not `_OTHER` is selected. A literal template with no placeholders (e.g. `HTTP`) can be placed at the end to serve as a fallback.
+- `note` - Optional. A description in free form explaining how to format the span name based on attributes. Required if `templates` is omitted.
 
-The span name structure may be evolved in the future to formally define the naming pattern.
+OpenTelemetry semantic conventions use `{action} {target}` format where action and target match attributes on that span. For example, HTTP client span names match `{http.request.method} {url.template}` falling back to `{http.request.method}` and finally `HTTP` if `{http.request.method}` resolves to `_OTHER`.
+
+For enum attributes, `_OTHER` is treated in the same way as a missing value.
 
 ### `entities` definition
 
@@ -391,7 +395,7 @@ An entity definition consists of the following properties:
 - `note` - Optional. A more elaborate description of the entity.
 - `stability` - Required. Specifies the [stability](#stability-levels) of the entity definition.
 - `requirement_level` - Optional. The requirement level of the signal. See [Signal Requirement Levels](#signal-requirement-levels). Defaults to `recommended`.
-- `identity` - Required. List of [attribute references](#attribute-reference) that form the identity of the entity. These attributes uniquely identify an instance of the entity.
+- `identity` - Required. List of [attribute references](#attribute-reference) that form the identity of the entity. These attributes uniquely identify an instance of the entity and are always required (`requirement_level` cannot be set on `identity` attributes).
 - `description` - Optional. List of [attribute references](#attribute-reference) that provide additional descriptive information about the entity but are not part of its identity.
 - `deprecated` - Optional. When present, marks the entity as deprecated. See [deprecated](#deprecated-structure) for details.
 - `annotations` - Optional. Map of annotations. Annotations are key-value pairs that provide additional information about the entity. See [annotations](#annotations) for details.
@@ -426,6 +430,7 @@ An entity refinement definition consists of the following properties:
 
 - `id` - Required. Uniquely identifies the entity refinement.
 - `ref` - Required. The name of the entity being refined.
+- `identity` - Optional. Refinements of the base entity's identity attributes (cannot add new identity attributes or set `requirement_level`).
 - `description` - Optional. The additional attributes to describe the Entity.
 - `brief` - Optional. Refines the brief description of the signal.
 - `note` - Optional. Refines the more elaborate description of the signal.

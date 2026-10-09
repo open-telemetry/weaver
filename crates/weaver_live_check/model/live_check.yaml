@@ -46,6 +46,15 @@ attributes:
           value: "undefined_enum_variant"
           brief: "An enum attribute value is not in the set of allowed members"
           stability: development
+        # Matcher findings
+        - id: unexpected_attribute
+          value: "unexpected_attribute"
+          brief: "A matched sample has an attribute that is not on its signal or attribute groups"
+          stability: development
+        - id: kind_mismatch
+          value: "kind_mismatch"
+          brief: "A span kind does not match the kind defined in the registry"
+          stability: development
         # Requirement-level attribute findings
         - id: required_attribute_not_present
           value: "required_attribute_not_present"

@@ -8,13 +8,13 @@ use std::num::NonZeroUsize;
 use std::sync::Arc;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::result::WResult;
+use weaver_resolved_schema::v1::ResolvedTelemetrySchema;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
-use weaver_resolved_schema::ResolvedTelemetrySchema;
-use weaver_semconv::group::ImportsWithProvenance;
-use weaver_semconv::manifest::Dependency;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::semconv::SemConvSpecWithProvenance;
+use weaver_semconv::v1::group::ImportsWithProvenance;
+use weaver_semconv::v2::manifest::Dependency;
 
 use crate::attribute::AttributeCatalog;
 use crate::dependency::ResolvedDependency;
@@ -72,6 +72,15 @@ impl WeaverResolvedSchema {
         match self {
             Self::V1(s) => Some(s),
             Self::V2(_) => None,
+        }
+    }
+
+    /// Returns an OpenTelemetry V2 schema reference if this bundle holds a V2 schema.
+    #[must_use]
+    pub fn as_v2(&self) -> Option<&V2Schema> {
+        match self {
+            Self::V1(_) => None,
+            Self::V2(s) => Some(s),
         }
     }
 }
@@ -137,6 +146,9 @@ pub struct WeaverResolver {
     /// Bounded LRU cache mapping exact SchemaUrls to reference-counted resolved schema bundles.
     cache: LruCache<SchemaUrl, Arc<WeaverResolvedSchema>>,
 
+    /// The direct dependencies of each schema, recorded as that schema resolves.
+    direct_dependencies: HashMap<SchemaUrl, Vec<SchemaUrl>>,
+
     /// Internal engine configuration.
     config: WeaverResolverConfig,
 }
@@ -147,6 +159,7 @@ impl WeaverResolver {
     pub fn new(config: WeaverResolverConfig) -> Self {
         Self {
             cache: LruCache::new(config.cache_capacity),
+            direct_dependencies: HashMap::new(),
             config,
         }
     }
@@ -179,6 +192,17 @@ impl WeaverResolver {
         )
     }
 
+    /// Records what a registry depends on directly, keeping any existing entry.
+    ///
+    /// An entry recorded during resolution names the versions actually used,
+    /// where a manifest may name one that version arbitration replaced.
+    fn record_direct_dependencies(&mut self, schema_url: &SchemaUrl, direct: Vec<SchemaUrl>) {
+        if direct.is_empty() || self.direct_dependencies.contains_key(schema_url) {
+            return;
+        }
+        let _ = self.direct_dependencies.insert(schema_url.clone(), direct);
+    }
+
     /// Dynamically resolves a LoadedSemconvRegistry dependency, serving pre-resolved schemas from cache if available.
     fn resolve_dependency(
         &mut self,
@@ -186,22 +210,19 @@ impl WeaverResolver {
     ) -> WResult<ResolvedDependency, Error> {
         let schema_url = match &loaded {
             LoadedSemconvRegistry::Unresolved { repo, .. } => {
-                if let Some(m) = repo.manifest() {
-                    m.schema_url().clone()
-                } else {
-                    match SchemaUrl::try_from_name_version(repo.name(), repo.version()) {
-                        Ok(url) => url,
-                        Err(_) => return WResult::FatalErr(Error::FailToResolveSchemaUrl {}),
-                    }
-                }
+                let manifest = match repo.to_v2_manifest() {
+                    Ok(m) => m,
+                    Err(e) => return WResult::FatalErr(e.into()),
+                };
+                manifest.schema_url().clone()
             }
-            LoadedSemconvRegistry::Resolved(s) => {
-                match SchemaUrl::try_from(s.schema_url.as_str()) {
+            LoadedSemconvRegistry::Resolved { schema, .. } => {
+                match SchemaUrl::try_from(schema.schema_url.as_str()) {
                     Ok(url) => url,
                     Err(_) => return WResult::FatalErr(Error::FailToResolveSchemaUrl {}),
                 }
             }
-            LoadedSemconvRegistry::ResolvedV2(s) => s.schema_url.clone(),
+            LoadedSemconvRegistry::ResolvedV2 { schema, .. } => schema.schema_url.clone(),
         };
 
         if let Some(cached) = self.cache.get(&schema_url) {
@@ -252,6 +273,16 @@ pub trait SchemaResolver {
         &mut self,
         schema_url: &SchemaUrl,
     ) -> WResult<Arc<WeaverResolvedSchema>, Error>;
+
+    /// The direct dependencies of this schema, or `None` when they are unknown.
+    ///
+    /// `None` is not the same as empty: a schema that arrived already resolved
+    /// lists direct and transitive dependencies alike, with no way to tell them
+    /// apart.
+    fn direct_dependencies(&self, schema_url: &SchemaUrl) -> Option<&[SchemaUrl]> {
+        let _ = schema_url;
+        None
+    }
 }
 
 impl SchemaResolver for WeaverResolver {
@@ -260,6 +291,12 @@ impl SchemaResolver for WeaverResolver {
         schema_url: &SchemaUrl,
     ) -> WResult<Arc<WeaverResolvedSchema>, Error> {
         self.resolve_schema(schema_url)
+    }
+
+    fn direct_dependencies(&self, schema_url: &SchemaUrl) -> Option<&[SchemaUrl]> {
+        self.direct_dependencies
+            .get(schema_url)
+            .map(|urls| urls.as_slice())
     }
 }
 
@@ -388,7 +425,7 @@ impl WeaverResolver {
             }
         }
 
-        let manifest = repo.manifest().cloned();
+        let manifest = repo.v1_manifest();
         let schema_url = if let Some(m) = manifest.as_ref() {
             m.schema_url().clone()
         } else {
@@ -415,6 +452,18 @@ impl WeaverResolver {
                 }
             }
         }
+
+        // The flat set above cannot be reduced back to the direct dependencies.
+        let direct: Vec<SchemaUrl> = resolved_dependencies
+            .iter()
+            .filter_map(|d| match d {
+                ResolvedDependency::V1(schema) => {
+                    SchemaUrl::try_from(schema.schema_url.as_str()).ok()
+                }
+                ResolvedDependency::V2(schema) => Some(schema.schema_url.clone()),
+            })
+            .collect();
+        let _ = self.direct_dependencies.insert(schema_url.clone(), direct);
 
         let mut chosen_versions = HashMap::new();
         for d in &resolved_dependencies {
@@ -481,16 +530,24 @@ impl WeaverResolver {
                     WResult::FatalErr(e) => WResult::FatalErr(e),
                 }
             }
-            LoadedSemconvRegistry::Resolved(schema) => {
+            LoadedSemconvRegistry::Resolved {
+                schema,
+                direct_dependencies,
+            } => {
                 let arc = Arc::new(WeaverResolvedSchema::V1(schema));
                 if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
+                    self.record_direct_dependencies(&url, direct_dependencies);
                     _ = self.cache.put(url, arc.clone());
                 }
                 WResult::Ok(arc)
             }
-            LoadedSemconvRegistry::ResolvedV2(schema) => {
+            LoadedSemconvRegistry::ResolvedV2 {
+                schema,
+                direct_dependencies,
+            } => {
                 let arc = Arc::new(WeaverResolvedSchema::V2(schema));
                 if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
+                    self.record_direct_dependencies(&url, direct_dependencies);
                     _ = self.cache.put(url, arc.clone());
                 }
                 WResult::Ok(arc)
@@ -621,9 +678,9 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
     use weaver_common::vdir::VirtualDirectoryPath;
-    use weaver_semconv::attribute::{BasicRequirementLevelSpec, RequirementLevel};
-    use weaver_semconv::group::{GroupType, ImportsWithProvenance};
     use weaver_semconv::registry_repo::RegistryRepo;
+    use weaver_semconv::v1::attribute::{BasicRequirementLevelSpec, RequirementLevel};
+    use weaver_semconv::v1::group::{GroupType, ImportsWithProvenance};
 
     #[test]
     fn test_weaver_resolver_caching() {
@@ -870,8 +927,8 @@ mod tests {
                     assert_eq!(attr.brief, "Server address.");
                     assert_eq!(
                         attr.r#type,
-                        weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                            weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String
+                        weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                            weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String
                         )
                     );
                 }
@@ -879,8 +936,8 @@ mod tests {
                     assert_eq!(attr.brief, "The server port used by the consumer.");
                     assert_eq!(
                         attr.r#type,
-                        weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                            weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::Int
+                        weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                            weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::Int
                         )
                     );
                 }
@@ -956,6 +1013,27 @@ mod tests {
         assert_resolved_v2_schema("data/registry-test-v2-dep/span_import_registry")
     }
 
+    /// Importing a signal from a published dependency does not make its
+    /// attributes this registry's own. `registry.attributes` lists only what a
+    /// registry defines - it is what a dependent's bare `ref` resolves against -
+    /// so an imported span, metric, event or entity must leave it empty, as it
+    /// does when the dependency is resolved from source.
+    #[test]
+    fn test_v2_published_dependency_import_defines_no_attributes(
+    ) -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/signal_import_registry")
+    }
+
+    /// Importing an attribute group from a published dependency keeps it in the
+    /// resolved `attribute_groups`, with its requirement levels. Every group in a
+    /// published registry is public; resolving the dependency from source already
+    /// keeps the imported group.
+    #[test]
+    fn test_v2_published_dependency_import_keeps_attribute_group(
+    ) -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/group_import_registry")
+    }
+
     /// End-to-end test for an event refinement over a v2 dependency
     #[test]
     fn test_v2_dependency_event_refinement_inherits_attributes() -> Result<(), weaver_semconv::Error>
@@ -975,6 +1053,17 @@ mod tests {
     #[test]
     fn test_v2_transitive_dependency_attribute_provenance() -> Result<(), weaver_semconv::Error> {
         assert_resolved_v2_schema("data/registry-test-v2-dep/deep_registry")
+    }
+
+    /// A `ref` to an attribute of a published dependency that sets no
+    /// `requirement_level` takes the default, `recommended` - on a new signal,
+    /// on an attribute group, and on a refinement that introduces an attribute
+    /// its parent does not carry. Resolving the dependency from source already
+    /// does this; a published dependency must not differ.
+    #[test]
+    fn test_v2_published_dependency_bare_ref_defaults_to_recommended(
+    ) -> Result<(), weaver_semconv::Error> {
+        assert_resolved_v2_schema("data/registry-test-v2-dep/bare_ref_registry")
     }
 
     /// An attribute a dependency inherited rather than defined reaches this
@@ -1358,7 +1447,7 @@ metrics:
 
     fn create_registry_from_string(
         registry_spec: &str,
-    ) -> WResult<weaver_resolved_schema::registry::Registry, Error> {
+    ) -> WResult<weaver_resolved_schema::v1::registry::Registry, Error> {
         let loaded = LoadedSemconvRegistry::create_from_string(registry_spec)
             .expect("Failed to load semconv spec");
         let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
@@ -1555,6 +1644,50 @@ groups:
                 .contains_key("metric.greenfield.requests"),
             "greenfield metric should resolve"
         );
+    }
+
+    #[test]
+    fn test_dep_exclusion_migration_redefine_ref_before_def() {
+        // Test that when a consumer references a redefined attribute (via ref) in a group,
+        // it resolves against the local definition rather than falling back to the dependency's
+        // excluded definition.
+        let consumer_yaml = r#"
+file_format: definition/2
+metrics:
+  - name: moved.metric
+    requirement_level: recommended
+    instrument: counter
+    unit: "1"
+    stability: stable
+    brief: Redefined metric.
+    attributes:
+      - ref: moved.attr
+        requirement_level: required
+attributes:
+  - key: moved.attr
+    type: string
+    stability: stable
+    brief: Redefined attribute (same name as the deprecated parent item).
+"#;
+        let result = resolve_inline_with_parent(
+            consumer_yaml,
+            "data/registry-test-dep-exclusion/migration_parent",
+        );
+        let resolved = match result {
+            WResult::Ok(s) | WResult::OkWithNFEs(s, _) => s,
+            WResult::FatalErr(e) => panic!("expected success; got {e:?}"),
+        };
+
+        let metric = resolved
+            .groups(GroupType::Metric)
+            .get("metric.moved.metric")
+            .cloned()
+            .expect("metric.moved.metric should be present");
+        let attr = resolved
+            .catalog
+            .attribute(&metric.attributes[0])
+            .expect("attribute should exist in catalog");
+        assert_eq!(attr.name, "moved.attr");
     }
 
     #[test]
@@ -2251,6 +2384,75 @@ groups:
         (v2, nfes)
     }
 
+    /// Loads and resolves a `signal-name-preservation` fixture.
+    fn load_signal_name_fixture(name: &str) -> WeaverResolvedSchema {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: format!("data/signal-name-preservation/{name}"),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("failed to create registry repo");
+        match WeaverResolver::new(WeaverResolverConfig::default())
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+        {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Failed to resolve `{name}`: {e}"),
+        }
+    }
+
+    /// Asserts the materialized v2 signal names/types match the expected values.
+    fn check_v2_signal_names(v2: &V2Schema, entity: &str, metric: &str, event: &str, span: &str) {
+        let entities: Vec<String> = v2
+            .registry
+            .entities
+            .iter()
+            .map(|e| e.r#type.to_string())
+            .collect();
+        let metrics: Vec<String> = v2
+            .registry
+            .metrics
+            .iter()
+            .map(|m| m.name.to_string())
+            .collect();
+        let events: Vec<String> = v2
+            .registry
+            .events
+            .iter()
+            .map(|e| e.name.to_string())
+            .collect();
+        let spans: Vec<String> = v2
+            .registry
+            .spans
+            .iter()
+            .map(|s| s.r#type.to_string())
+            .collect();
+        let mut wrong = Vec::new();
+        for (label, want, got) in [
+            ("entity type", entity, &entities),
+            ("metric name", metric, &metrics),
+            ("event name", event, &events),
+            ("span type", span, &spans),
+        ] {
+            if got.len() != 1 || got.first().map(String::as_str) != Some(want) {
+                wrong.push(format!("{label}: want {want:?}, got {got:?}"));
+            }
+        }
+        assert!(
+            wrong.is_empty(),
+            "unexpected v2 signal names -> {}",
+            wrong.join("; ")
+        );
+    }
+
+    /// A v2 (`definition/2`) registry names a signal directly, with no id
+    /// prefix, so the materialized name is kept verbatim.
+    #[test]
+    fn test_v2_schema_preserves_signal_names() {
+        let resolved = load_signal_name_fixture("v2");
+        let v1 = resolved.as_v1().expect("a v1 schema").clone();
+        let v2: V2Schema = v1.try_into().expect("v1 -> v2 conversion");
+        check_v2_signal_names(&v2, "entity.test", "metric.test", "event.test", "span.test");
+    }
+
     /// The non-fatal errors of one of the `entity-assoc-imports` registries.
     fn entity_assoc_fixture_errors(name: &str) -> Vec<Error> {
         resolve_entity_assoc_fixture(name).1
@@ -2925,12 +3127,12 @@ groups:
             file_format: "resolved/1.0".to_owned(),
             schema_url: "https://example.com/base/1.0.0".to_owned(),
             registry_id: "base".to_owned(),
-            registry: weaver_resolved_schema::registry::Registry {
+            registry: weaver_resolved_schema::v1::registry::Registry {
                 registry_url: "https://example.com/base/1.0.0".to_owned(),
                 entity_association_origins: Default::default(),
                 groups: vec![],
             },
-            catalog: weaver_resolved_schema::catalog::Catalog::default(),
+            catalog: weaver_resolved_schema::v1::catalog::Catalog::default(),
             resource: None,
             instrumentation_library: None,
             dependencies: Default::default(),
@@ -2942,12 +3144,12 @@ groups:
             file_format: "resolved/1.0".to_owned(),
             schema_url: "https://example.com/base/1.1.0".to_owned(),
             registry_id: "base".to_owned(),
-            registry: weaver_resolved_schema::registry::Registry {
+            registry: weaver_resolved_schema::v1::registry::Registry {
                 registry_url: "https://example.com/base/1.1.0".to_owned(),
                 entity_association_origins: Default::default(),
                 groups: vec![],
             },
-            catalog: weaver_resolved_schema::catalog::Catalog::default(),
+            catalog: weaver_resolved_schema::v1::catalog::Catalog::default(),
             resource: None,
             instrumentation_library: None,
             dependencies: Default::default(),
@@ -2959,12 +3161,12 @@ groups:
             file_format: "resolved/1.0".to_owned(),
             schema_url: "https://example.com/layer1_a/0.1.0".to_owned(),
             registry_id: "layer1_a".to_owned(),
-            registry: weaver_resolved_schema::registry::Registry {
+            registry: weaver_resolved_schema::v1::registry::Registry {
                 registry_url: "https://example.com/layer1_a/0.1.0".to_owned(),
                 entity_association_origins: Default::default(),
                 groups: vec![],
             },
-            catalog: weaver_resolved_schema::catalog::Catalog::default(),
+            catalog: weaver_resolved_schema::v1::catalog::Catalog::default(),
             resource: None,
             instrumentation_library: None,
             dependencies: [url_base_v1_0.clone()].into_iter().collect(),
@@ -2976,12 +3178,12 @@ groups:
             file_format: "resolved/1.0".to_owned(),
             schema_url: "https://example.com/layer1_b/0.1.0".to_owned(),
             registry_id: "layer1_b".to_owned(),
-            registry: weaver_resolved_schema::registry::Registry {
+            registry: weaver_resolved_schema::v1::registry::Registry {
                 registry_url: "https://example.com/layer1_b/0.1.0".to_owned(),
                 entity_association_origins: Default::default(),
                 groups: vec![],
             },
-            catalog: weaver_resolved_schema::catalog::Catalog::default(),
+            catalog: weaver_resolved_schema::v1::catalog::Catalog::default(),
             resource: None,
             instrumentation_library: None,
             dependencies: [url_base_v1_1.clone()].into_iter().collect(),
@@ -3019,12 +3221,12 @@ groups:
             file_format: "resolved/1.0".to_owned(),
             schema_url: "https://example.com/c/1.2.0".to_owned(),
             registry_id: "c".to_owned(),
-            registry: weaver_resolved_schema::registry::Registry {
+            registry: weaver_resolved_schema::v1::registry::Registry {
                 registry_url: "https://example.com/c/1.2.0".to_owned(),
                 entity_association_origins: Default::default(),
                 groups: vec![],
             },
-            catalog: weaver_resolved_schema::catalog::Catalog::default(),
+            catalog: weaver_resolved_schema::v1::catalog::Catalog::default(),
             resource: None,
             instrumentation_library: None,
             dependencies: Default::default(),
@@ -3040,10 +3242,10 @@ groups:
             cache: &cache,
         };
 
-        let attr = weaver_resolved_schema::attribute::Attribute {
+        let attr = weaver_resolved_schema::v1::attribute::Attribute {
             name: "c.removed_attr".to_owned(),
-            r#type: weaver_semconv::attribute::AttributeType::PrimitiveOrArray(
-                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
+            r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String,
             ),
             brief: "Old attribute in C v1.1".to_owned(),
             examples: Default::default(),

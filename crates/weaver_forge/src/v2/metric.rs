@@ -1,15 +1,13 @@
 //! Metric related definitions structs.
 
 use crate::v2::attribute::Attribute;
+use crate::v2::entity::EntityAssociation;
 use crate::v2::provenance::Provenance;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_semconv::{
-    attribute::RequirementLevel,
-    entity_association::EntityAssociation,
-    group::InstrumentSpec,
-    signal_requirement_level::SignalRequirementLevel,
-    v2::{signal_id::SignalId, CommonFields},
+use weaver_semconv::v2::{
+    attribute::RequirementLevel, metric::InstrumentSpec, signal_id::SignalId,
+    signal_requirement_level::SignalRequirementLevel, CommonFields,
 };
 
 /// The definition of a metric signal.

@@ -201,8 +201,8 @@ regeneration:
 
 1. Temporarily remove `allow-dirty = ["ci"]` from `dist-workspace.toml`.
 2. Run `dist init`.
-3. Update the versions and shas in `crates/xtask/src/fix_release_permissions.rs`.
-4. Run `just fix-release-permissions` to re-apply the required permission patches.
+3. Update the versions and shas in `crates/xtask/src/patch_release_workflow.rs`.
+4. Run `just patch-release-workflow` to re-apply the required workflow patches.
 5. Restore `allow-dirty = ["ci"]` in `dist-workspace.toml`.
 
 #### 4. Monitor the CI/CD Process

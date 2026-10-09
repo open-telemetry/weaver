@@ -9,21 +9,57 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     deprecated::Deprecated,
-    group::GroupSpec,
-    signal_requirement_level::SignalRequirementLevel,
-    stability::Stability,
-    v2::{attribute::AttributeRef, signal_id::SignalId, CommonFields},
+    v2::{
+        attribute::{AttributeRef, Examples, RequirementLevel},
+        signal_id::SignalId,
+        signal_requirement_level::SignalRequirementLevel,
+        stability::Stability,
+        CommonFields,
+    },
     YamlValue,
 };
 
+/// A refinement of an Attribute for an entity's identity.
+///
+/// Identity attributes are always required and do not accept a `requirement_level`.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub struct IdentityAttributeRef {
+    /// Reference an existing attribute by key.
+    pub r#ref: String,
+    /// Refines the brief description of the attribute.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brief: Option<String>,
+    /// Refined sequence of example values for the attribute or single example
+    /// value. They are required only for string and string array
+    /// attributes. Example values must be of the same type of the
+    /// attribute. If only a single example is provided, it can directly
+    /// be reported without encapsulating it into a sequence/dictionary.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub examples: Option<Examples>,
+    /// Deprecated: Identity attributes are always required and should not specify `requirement_level`.
+    #[serde(default, skip_serializing)]
+    #[schemars(skip)]
+    pub requirement_level: Option<RequirementLevel>,
+    /// Refines the more elaborate description of the attribute.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    /// Additional annotations for the attribute. These will be
+    /// merged with annotations from the definition.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub annotations: BTreeMap<String, YamlValue>,
+}
+
 /// Defines a new entity.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Entity {
     /// The type of the Entity.
     pub r#type: SignalId,
     /// The attributes that make the identity of the Entity.
-    pub identity: Vec<AttributeRef>,
+    pub identity: Vec<IdentityAttributeRef>,
     /// The attributes that make the description of the Entity.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -37,7 +73,7 @@ pub struct Entity {
 }
 
 /// A refinement of an existing entity.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct EntityRefinement {
     /// The ID of the refinement.
@@ -51,7 +87,7 @@ pub struct EntityRefinement {
     /// `identity`.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub identity: Vec<AttributeRef>,
+    pub identity: Vec<IdentityAttributeRef>,
     /// Refinements or additional attributes to describe the Entity.
     ///
     /// Attributes listed here have the descriptive role.
@@ -76,199 +112,53 @@ pub struct EntityRefinement {
     pub annotations: BTreeMap<String, YamlValue>,
 }
 
-impl Entity {
-    /// Converts a v2 entity into a v1 GroupSpec.
-    #[must_use]
-    pub fn into_v1_group(self) -> GroupSpec {
-        let attributes = self
-            .identity
-            .into_iter()
-            .map(|a| a.into_v1_attribute_with_role(crate::attribute::AttributeRole::Identifying))
-            .chain(self.description.into_iter().map(|a| {
-                a.into_v1_attribute_with_role(crate::attribute::AttributeRole::Descriptive)
-            }))
-            .collect();
-
-        GroupSpec {
-            id: format!("entity.{}", &self.r#type),
-            r#type: crate::group::GroupType::Entity,
-            brief: self.common.brief,
-            note: self.common.note,
-            prefix: Default::default(),
-            extends: None,
-            include_groups: vec![],
-            stability: Some(self.common.stability),
-            deprecated: self.common.deprecated,
-            attributes,
-            span_kind: None,
-            events: Default::default(),
-            metric_name: None,
-            instrument: None,
-            unit: None,
-            name: Some(self.r#type.into_v1()),
-            display_name: None,
-            body: None,
-            annotations: if self.common.annotations.is_empty() {
-                None
-            } else {
-                Some(self.common.annotations)
-            },
-            entity_associations: Default::default(),
-            visibility: None,
-            is_v2: true,
-            span_name: None,
-            requirement_level: self.requirement_level,
-        }
-    }
-}
-
-impl EntityRefinement {
-    /// Converts a v2 entity refinement into a v1 GroupSpec.
-    #[must_use]
-    pub fn into_v1_group(self) -> GroupSpec {
-        // Roles are set explicitly from the list the attribute appears in.
-        // Changing a base entity's identity (demoting/promoting an attribute or
-        // adding a new identity attribute) is rejected downstream during
-        // resolution; see `entity_identity_refinement_errors` in weaver_resolver.
-        let attributes = self
-            .identity
-            .into_iter()
-            .map(|a| a.into_v1_attribute_with_role(crate::attribute::AttributeRole::Identifying))
-            .chain(self.description.into_iter().map(|a| {
-                a.into_v1_attribute_with_role(crate::attribute::AttributeRole::Descriptive)
-            }))
-            .collect();
-
-        GroupSpec {
-            id: self.id.to_string(),
-            r#type: crate::group::GroupType::Entity,
-            brief: self.brief.unwrap_or_default(),
-            note: self.note.unwrap_or_default(),
-            prefix: Default::default(),
-            extends: Some(format!("entity.{}", &self.r#ref)),
-            include_groups: vec![],
-            stability: self.stability,
-            deprecated: self.deprecated,
-            attributes,
-            span_kind: None,
-            events: Default::default(),
-            metric_name: None,
-            instrument: None,
-            unit: None,
-            name: Some(self.id.into_v1()),
-            display_name: None,
-            body: None,
-            annotations: if self.annotations.is_empty() {
-                None
-            } else {
-                Some(self.annotations)
-            },
-            entity_associations: Default::default(),
-            visibility: None,
-            is_v2: true,
-            span_name: None,
-            requirement_level: None,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn parse_and_translate(v2: &str, v1: &str) {
-        let entity = serde_yaml::from_str::<Entity>(v2).expect("Failed to parse YAML string");
-        let expected =
-            serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
-        assert_eq!(expected, entity.into_v1_group());
-    }
-
     #[test]
-    fn test_value_spec_display() {
-        parse_and_translate(
-            // V2 - Entity
-            r#"type: my_entity
+    fn test_entity_parsing() {
+        let yaml = r#"type: my_entity
 identity:
   - ref: some_attr
 description:
   - ref: some_other_attr
 brief: Test entity
 stability: stable
-"#,
-            // V1 - Group
-            r#"id: entity.my_entity
-type: entity
-name: my_entity
-brief: Test entity
-stability: stable
-is_v2: true
-attributes:
-  - ref: some_attr
-    role: identifying
-  - ref: some_other_attr
-    role: descriptive
-"#,
-        );
-    }
-
-    fn parse_and_translate_refinement(v2: &str, v1: &str) {
-        let entity =
-            serde_yaml::from_str::<EntityRefinement>(v2).expect("Failed to parse YAML string");
-        let expected =
-            serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
-        assert_eq!(expected, entity.into_v1_group());
+"#;
+        let entity = serde_yaml::from_str::<Entity>(yaml).expect("Failed to parse YAML string");
+        assert_eq!(entity.r#type.to_string(), "my_entity");
+        assert_eq!(entity.identity.len(), 1);
+        assert_eq!(entity.description.len(), 1);
     }
 
     #[test]
-    fn test_entity_refinement_translation() {
-        parse_and_translate_refinement(
-            // V2 - EntityRefinement
-            r#"id: entity.refinement.my_entity
-ref: my_entity
-brief: Test entity refinement
-stability: stable
-"#,
-            // V1 - Group
-            r#"id: entity.refinement.my_entity
-type: entity
-name: entity.refinement.my_entity
-brief: Test entity refinement
-extends: entity.my_entity
-stability: stable
-is_v2: true
-"#,
-        );
-    }
-
-    #[test]
-    fn test_entity_refinement_attribute_translation() {
-        parse_and_translate_refinement(
-            // V2 - EntityRefinement
-            r#"id: entity.refinement.my_entity
-ref: my_entity
-brief: Test entity refinement
-stability: stable
+    fn test_entity_identity_accepts_deprecated_requirement_level() {
+        let entity_yaml = r#"type: my_entity
 identity:
   - ref: some_attr
-    brief: Refined identity attribute
-description:
-  - ref: some_other_attr
-"#,
-            // V1 - Group
-            r#"id: entity.refinement.my_entity
-type: entity
-name: entity.refinement.my_entity
-brief: Test entity refinement
-extends: entity.my_entity
+    requirement_level: required
+brief: Test entity
 stability: stable
-is_v2: true
-attributes:
+"#;
+        let entity = serde_yaml::from_str::<Entity>(entity_yaml)
+            .expect("requirement_level on entity identity should deserialize for warning emission");
+        assert!(entity.identity[0].requirement_level.is_some());
+        let serialized = serde_yaml::to_string(&entity).expect("Failed to serialize entity");
+        assert!(!serialized.contains("requirement_level"));
+
+        let refinement_yaml = r#"id: my_entity.refined
+ref: my_entity
+identity:
   - ref: some_attr
-    brief: Refined identity attribute
-    role: identifying
-  - ref: some_other_attr
-    role: descriptive
-"#,
+    requirement_level: required
+"#;
+        let refinement = serde_yaml::from_str::<EntityRefinement>(refinement_yaml).expect(
+            "requirement_level on entity refinement identity should deserialize for warning emission",
         );
+        assert!(refinement.identity[0].requirement_level.is_some());
+        let serialized_ref =
+            serde_yaml::to_string(&refinement).expect("Failed to serialize entity refinement");
+        assert!(!serialized_ref.contains("requirement_level"));
     }
 }

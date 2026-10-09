@@ -4,15 +4,17 @@ use std::fmt::Display;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_semconv::{
+use weaver_semconv::v2::{
     attribute::{AttributeType, Examples},
-    v2::CommonFields,
+    CommonFields,
 };
 
 use crate::v2::{provenance::Provenance, Signal};
 
 /// The definition of an Attribute.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Hash, Eq)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Hash, Eq, PartialOrd, Ord,
+)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -59,5 +61,34 @@ impl Signal for Attribute {
 
     fn common(&self) -> &CommonFields {
         &self.common
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use weaver_semconv::v2::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
+
+    #[test]
+    fn test_attribute_and_ref() {
+        let attr_ref = AttributeRef(12);
+        assert_eq!(attr_ref.to_string(), "AttributeRef(12)");
+
+        let attr = Attribute {
+            key: "service.name".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            examples: None,
+            common: CommonFields {
+                brief: "Service name".to_owned(),
+                note: "".to_owned(),
+                stability: Default::default(),
+                deprecated: None,
+                annotations: Default::default(),
+            },
+            provenance: Default::default(),
+        };
+
+        assert_eq!(attr.id(), "service.name");
+        assert_eq!(attr.common().brief, "Service name");
     }
 }

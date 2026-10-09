@@ -2,10 +2,9 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_semconv::{
-    attribute::RequirementLevel,
-    signal_requirement_level::SignalRequirementLevel,
-    v2::{signal_id::SignalId, CommonFields},
+use weaver_semconv::v2::{
+    attribute::RequirementLevel, signal_id::SignalId,
+    signal_requirement_level::SignalRequirementLevel, CommonFields,
 };
 
 use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
@@ -19,7 +18,7 @@ pub struct Entity {
     pub r#type: SignalId,
 
     /// The attributes that make the identity of the Entity.
-    pub identity: Vec<EntityAttributeRef>,
+    pub identity: Vec<AttributeRef>,
     /// The attributes that make the description of the Entity.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -112,32 +111,6 @@ impl EntityAssociation {
             None
         })
     }
-}
-
-/// Turns resolved association expressions back into the authored form, where a
-/// leaf is a name alone.
-///
-/// A v1 group and a markdown table both read a name, so every consumer of the
-/// two needs this.
-#[must_use]
-pub fn to_named_associations(
-    associations: &[EntityAssociation],
-) -> Vec<weaver_semconv::entity_association::EntityAssociation> {
-    use weaver_semconv::entity_association::EntityAssociation as SpecAssociation;
-    associations
-        .iter()
-        .map(|assoc| match assoc {
-            EntityAssociation::Ref(entity_ref) => {
-                SpecAssociation::Ref(entity_ref.r#type.to_string())
-            }
-            EntityAssociation::OneOf { one_of } => SpecAssociation::OneOf {
-                one_of: to_named_associations(one_of),
-            },
-            EntityAssociation::AllOf { all_of } => SpecAssociation::AllOf {
-                all_of: to_named_associations(all_of),
-            },
-        })
-        .collect()
 }
 
 /// A special type of reference to attributes that remembers entity-specicific information.
@@ -236,22 +209,5 @@ mod tests {
         assert_eq!(types.len(), 2);
         assert!(types.contains(&"service"));
         assert!(types.contains(&"host"));
-    }
-
-    /// The authored form keeps the shape and drops the provenance.
-    #[test]
-    fn test_to_named_associations_keeps_the_shape() {
-        use weaver_semconv::entity_association::EntityAssociation as SpecAssociation;
-        assert_eq!(
-            to_named_associations(&association_tree()),
-            vec![SpecAssociation::AllOf {
-                all_of: vec![
-                    SpecAssociation::Ref("service".to_owned()),
-                    SpecAssociation::OneOf {
-                        one_of: vec![SpecAssociation::Ref("host".to_owned())],
-                    },
-                ],
-            }]
-        );
     }
 }

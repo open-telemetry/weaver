@@ -10,7 +10,9 @@
 
 mod types;
 
-pub use types::{NamespaceAttribute, NamespaceInfo, ScoredResult, SearchResult, SearchType};
+pub use types::{
+    NamespaceAttribute, NamespaceInfo, ScoredResult, SearchResult, SearchSort, SearchType,
+};
 
 use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
@@ -19,8 +21,8 @@ use weaver_forge::v2::{
     attribute::Attribute, entity::Entity, event::Event, metric::Metric,
     registry::ForgeResolvedRegistry, span::Span,
 };
-use weaver_semconv::attribute::AttributeType;
-use weaver_semconv::stability::Stability;
+use weaver_semconv::v2::attribute::AttributeType;
+use weaver_semconv::v2::stability::Stability;
 
 //TODO: Consider using a fuzzy matching crate for improved search capabilities.
 // e.g. Tantivy - https://github.com/open-telemetry/weaver/pull/1076#discussion_r2640681775
@@ -29,6 +31,9 @@ use weaver_semconv::stability::Stability;
 /// above this are clamped. Kept in sync with the documented maximum of the
 /// `/api/v1/registry/search` endpoint (`SearchParams::limit`).
 pub const MAX_SEARCH_LIMIT: usize = 1000;
+
+/// The separator between a registry name's namespaces.
+const NAMESPACE_SEPARATOR: &str = ".";
 
 /// Search context for performing fuzzy searches and O(1) lookups across the registry.
 pub struct SearchContext {
@@ -50,8 +55,6 @@ pub struct SearchContext {
     event_index: HashMap<String, Arc<Event>>,
     /// Entities indexed by type.
     entity_index: HashMap<String, Arc<Entity>>,
-    /// Namespace separator for attribute keys (default: ".").
-    separator: String,
 }
 
 /// A searchable item from the registry containing the full object.
@@ -69,18 +72,9 @@ enum SearchableItem {
 }
 
 impl SearchContext {
-    /// Build a search context from a resolved registry with the default separator (".").
+    /// Build a search context from a resolved registry.
     #[must_use]
     pub fn from_registry(registry: &ForgeResolvedRegistry) -> Self {
-        Self::from_registry_with_separator(registry, ".".to_owned())
-    }
-
-    /// Build a search context from a resolved registry with a custom namespace separator.
-    #[must_use]
-    pub fn from_registry_with_separator(
-        registry: &ForgeResolvedRegistry,
-        separator: String,
-    ) -> Self {
         let mut items = Vec::new();
         let mut attr_index = HashMap::new();
         let mut template_index = HashMap::new();
@@ -144,7 +138,6 @@ impl SearchContext {
             span_index,
             event_index,
             entity_index,
-            separator,
         }
     }
 
@@ -155,7 +148,8 @@ impl SearchContext {
     /// * `query` - Optional search query string (None = browse mode).
     /// * `search_type` - Filter by item type.
     /// * `stability` - Optional stability filter.
-    /// * `hide_deprecated` - When true, excludes deprecated items regardless of stability.
+    /// * `deprecated` - Optional deprecation filter: `Some(true)` for only deprecated items,
+    ///   `Some(false)` to exclude deprecated items, `None` for all items.
     /// * `limit` - Maximum number of results.
     /// * `offset` - Pagination offset.
     ///
@@ -168,7 +162,32 @@ impl SearchContext {
         query: Option<&str>,
         search_type: SearchType,
         stability: Option<Stability>,
-        hide_deprecated: bool,
+        deprecated: Option<bool>,
+        limit: usize,
+        offset: usize,
+    ) -> (Vec<SearchResult>, usize) {
+        self.search_sorted(
+            query,
+            search_type,
+            stability,
+            deprecated,
+            SearchSort::Default,
+            limit,
+            offset,
+        )
+    }
+
+    /// Search for items matching the query with an explicit sort order applied
+    /// across the full matched result set before pagination.
+    #[must_use]
+    #[allow(clippy::too_many_arguments)]
+    pub fn search_sorted(
+        &self,
+        query: Option<&str>,
+        search_type: SearchType,
+        stability: Option<Stability>,
+        deprecated: Option<bool>,
+        sort: SearchSort,
         limit: usize,
         offset: usize,
     ) -> (Vec<SearchResult>, usize) {
@@ -188,8 +207,8 @@ impl SearchContext {
 
         // `deprecated` is independent of `stability` - a deprecated item can carry any
         // stability level - so this is a separate retain rather than folded into the above.
-        if hide_deprecated {
-            items.retain(|item| !item.is_deprecated());
+        if let Some(deprecated_filter) = deprecated {
+            items.retain(|item| item.is_deprecated() == deprecated_filter);
         }
 
         // Branch based on whether we have a search query
@@ -197,16 +216,16 @@ impl SearchContext {
             if q.is_empty() {
                 // Empty query - browse mode
                 let total = items.len();
-                let results = browse_mode(items, limit, offset);
+                let results = browse_mode(items, sort, limit, offset);
                 (results, total)
             } else {
                 // Non-empty query - search mode with scoring
-                search_mode_with_total(items, q, limit, offset, &self.separator)
+                search_mode_with_total(items, q, sort, limit, offset)
             }
         } else {
             // No query - browse mode
             let total = items.len();
-            let results = browse_mode(items, limit, offset);
+            let results = browse_mode(items, sort, limit, offset);
             (results, total)
         };
 
@@ -277,10 +296,8 @@ impl SearchContext {
     /// and direct attributes under that prefix.
     #[must_use]
     pub fn browse_namespace(&self, prefix: Option<&str>) -> NamespaceInfo {
-        let prefix = prefix
-            .unwrap_or("")
-            .trim_end_matches(self.separator.as_str());
-        let sep = &self.separator;
+        let prefix = prefix.unwrap_or("").trim_end_matches(NAMESPACE_SEPARATOR);
+        let sep = NAMESPACE_SEPARATOR;
 
         let mut sub_ns_set: BTreeSet<String> = BTreeSet::new();
         let mut direct_attrs: Vec<NamespaceAttribute> = Vec::new();
@@ -294,7 +311,7 @@ impl SearchContext {
             let remainder = if prefix.is_empty() {
                 Some(key.as_str())
             } else if let Some(rest) = key.strip_prefix(prefix) {
-                rest.strip_prefix(sep.as_str())
+                rest.strip_prefix(sep)
             } else {
                 None
             };
@@ -306,13 +323,13 @@ impl SearchContext {
             total_count += 1;
 
             // Calculate depth of this key relative to the prefix
-            let depth = remainder.matches(sep.as_str()).count() + 1;
+            let depth = remainder.matches(sep).count() + 1;
             if depth > max_depth {
                 max_depth = depth;
             }
 
             // Check if this is a direct attribute or in a sub-namespace
-            if let Some(next_sep_pos) = remainder.find(sep.as_str()) {
+            if let Some(next_sep_pos) = remainder.find(sep) {
                 // Has more segments — extract the sub-namespace
                 let sub_segment = &remainder[..next_sep_pos];
                 let sub_ns = if prefix.is_empty() {
@@ -339,18 +356,50 @@ impl SearchContext {
     }
 }
 
+fn stability_rank(stability: &Stability) -> u8 {
+    match stability {
+        Stability::Stable => 0,
+        Stability::ReleaseCandidate => 1,
+        Stability::Beta => 2,
+        Stability::Alpha => 3,
+        Stability::Development => 4,
+    }
+}
+
+fn compare_items(
+    a: &SearchableItem,
+    a_score: u32,
+    b: &SearchableItem,
+    b_score: u32,
+    sort: SearchSort,
+) -> std::cmp::Ordering {
+    match sort {
+        SearchSort::Default => b_score.cmp(&a_score),
+        SearchSort::Name => a.id().cmp(b.id()).then_with(|| b_score.cmp(&a_score)),
+        SearchSort::Stability => stability_rank(a.stability())
+            .cmp(&stability_rank(b.stability()))
+            .then_with(|| a.id().cmp(b.id()))
+            .then_with(|| b_score.cmp(&a_score)),
+        SearchSort::Deprecated => b
+            .is_deprecated()
+            .cmp(&a.is_deprecated())
+            .then_with(|| b_score.cmp(&a_score))
+            .then_with(|| a.id().cmp(b.id())),
+    }
+}
+
 /// Search mode with total count: perform fuzzy matching with scoring and return (results, total).
 fn search_mode_with_total(
     items: Vec<&SearchableItem>,
     query: &str,
+    sort: SearchSort,
     limit: usize,
     offset: usize,
-    separator: &str,
 ) -> (Vec<SearchResult>, usize) {
     let mut scored_items: Vec<(u32, &SearchableItem)> = items
         .into_iter()
         .filter_map(|item| {
-            let score = score_match(query, item, separator);
+            let score = score_match(query, item);
             if score > 0 {
                 Some((score, item))
             } else {
@@ -359,8 +408,9 @@ fn search_mode_with_total(
         })
         .collect();
 
-    // Sort by score descending
-    scored_items.sort_by_key(|b| std::cmp::Reverse(b.0));
+    // Sort across the full matched result set before paginating
+    scored_items
+        .sort_by(|(a_score, a), (b_score, b)| compare_items(a, *a_score, b, *b_score, sort));
 
     // Calculate total before paginating
     let total = scored_items.len();
@@ -376,8 +426,16 @@ fn search_mode_with_total(
     (results, total)
 }
 
-/// Browse mode: return all items in natural order with pagination.
-fn browse_mode(items: Vec<&SearchableItem>, limit: usize, offset: usize) -> Vec<SearchResult> {
+/// Browse mode: return all items in the requested sort order with pagination.
+fn browse_mode(
+    mut items: Vec<&SearchableItem>,
+    sort: SearchSort,
+    limit: usize,
+    offset: usize,
+) -> Vec<SearchResult> {
+    if sort != SearchSort::Default {
+        items.sort_by(|a, b| compare_items(a, 0, b, 0, sort));
+    }
     items
         .into_iter()
         .skip(offset)
@@ -490,7 +548,7 @@ impl SearchableItem {
 /// - Brief contains query: 40 points
 /// - Note contains query: 20 points
 /// - Deprecated items: score divided by 10 (heavily demoted)
-fn score_match(query: &str, item: &SearchableItem, separator: &str) -> u32 {
+fn score_match(query: &str, item: &SearchableItem) -> u32 {
     let query_lower = query.to_lowercase();
     let id_lower = item.id().to_lowercase();
     let brief_lower = item.brief().to_lowercase();
@@ -502,7 +560,6 @@ fn score_match(query: &str, item: &SearchableItem, separator: &str) -> u32 {
         &brief_lower,
         &note_lower,
         item.is_deprecated(),
-        separator,
     )
 }
 
@@ -513,7 +570,6 @@ fn score_fields(
     brief_lower: &str,
     note_lower: &str,
     is_deprecated: bool,
-    separator: &str,
 ) -> u32 {
     let mut score = 0;
 
@@ -524,7 +580,7 @@ fn score_fields(
     } else if id_lower.contains(query_lower) {
         score = 70;
     } else {
-        let sep = separator;
+        let sep = NAMESPACE_SEPARATOR;
         let query_tokens: Vec<&str> = query_lower
             .split(|c: char| sep.contains(c) || c == '_' || c.is_whitespace())
             .filter(|s| !s.is_empty())
@@ -578,12 +634,14 @@ mod tests {
     use super::*;
     use std::collections::BTreeMap;
     use weaver_forge::v2::registry::{ForgeResolvedRegistry, Refinements, Registry};
-    use weaver_semconv::attribute::AttributeType;
     use weaver_semconv::deprecated::Deprecated;
-    use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
-    use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
-    use weaver_semconv::stability::Stability;
-    use weaver_semconv::v2::span::SpanName;
+    use weaver_semconv::v2::attribute::{
+        AttributeType, PrimitiveOrArrayTypeSpec, TemplateTypeSpec,
+    };
+    use weaver_semconv::v2::metric::InstrumentSpec;
+    use weaver_semconv::v2::signal_requirement_level::SignalRequirementLevel;
+    use weaver_semconv::v2::span::{SpanKindSpec, SpanName};
+    use weaver_semconv::v2::stability::Stability;
     use weaver_semconv::v2::CommonFields;
 
     fn make_test_attribute(key: &str, brief: &str, note: &str, deprecated: bool) -> SearchableItem {
@@ -593,9 +651,7 @@ mod tests {
     fn make_attribute(key: &str, brief: &str, note: &str, deprecated: bool) -> Attribute {
         Attribute {
             key: key.to_owned(),
-            r#type: AttributeType::PrimitiveOrArray(
-                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
-            ),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
             examples: None,
             common: CommonFields {
                 brief: brief.to_owned(),
@@ -617,7 +673,7 @@ mod tests {
     fn make_template_attribute(key: &str, brief: &str) -> Attribute {
         Attribute {
             key: key.to_owned(),
-            r#type: AttributeType::Template(weaver_semconv::attribute::TemplateTypeSpec::String),
+            r#type: AttributeType::Template(TemplateTypeSpec::String),
             examples: None,
             common: CommonFields {
                 brief: brief.to_owned(),
@@ -633,9 +689,7 @@ mod tests {
     fn make_development_attribute(key: &str, brief: &str) -> Attribute {
         Attribute {
             key: key.to_owned(),
-            r#type: AttributeType::PrimitiveOrArray(
-                weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
-            ),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
             examples: None,
             common: CommonFields {
                 brief: brief.to_owned(),
@@ -693,7 +747,8 @@ mod tests {
                     r#type: "http.client".to_owned().into(),
                     kind: SpanKindSpec::Client,
                     name: SpanName {
-                        note: "HTTP client span".to_owned(),
+                        note: Some("HTTP client span".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![],
                     entity_associations: vec![],
@@ -741,7 +796,8 @@ mod tests {
                 events: vec![],
                 entities: vec![],
             },
-            dependencies: vec![],
+            dependencies: Default::default(),
+            dependency_graph: Default::default(),
         }
     }
 
@@ -749,21 +805,21 @@ mod tests {
     fn test_exact_match_scores_highest() {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
-        assert_eq!(score_match("http.request.method", &item, "."), 100);
+        assert_eq!(score_match("http.request.method", &item), 100);
     }
 
     #[test]
     fn test_starts_with_scores_high() {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
-        assert_eq!(score_match("http.request", &item, "."), 80);
+        assert_eq!(score_match("http.request", &item), 80);
     }
 
     #[test]
     fn test_contains_scores_medium() {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
-        assert_eq!(score_match("request.method", &item, "."), 70);
+        assert_eq!(score_match("request.method", &item), 70);
     }
 
     #[test]
@@ -775,14 +831,14 @@ mod tests {
             false,
         );
 
-        assert_eq!(score_match("verb", &item, "."), 40);
+        assert_eq!(score_match("verb", &item), 40);
     }
 
     #[test]
     fn test_no_match_scores_zero() {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
-        assert_eq!(score_match("database", &item, "."), 0);
+        assert_eq!(score_match("database", &item), 0);
     }
 
     #[test]
@@ -790,10 +846,10 @@ mod tests {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", true);
 
         // Exact match for deprecated item: 100 / 10 = 10
-        assert_eq!(score_match("http.request.method", &item, "."), 10);
+        assert_eq!(score_match("http.request.method", &item), 10);
 
         // Starts with for deprecated item: 80 / 10 = 8
-        assert_eq!(score_match("http.request", &item, "."), 8);
+        assert_eq!(score_match("http.request", &item), 8);
     }
 
     // =========================================================================
@@ -840,7 +896,7 @@ mod tests {
         let registry = make_test_registry();
         let ctx = SearchContext::from_registry(&registry);
 
-        let (results, total) = ctx.search(Some("http"), SearchType::All, None, false, 10, 0);
+        let (results, total) = ctx.search(Some("http"), SearchType::All, None, None, 10, 0);
 
         // Should find http.request.method, http.response.status_code,
         // http.server.request.duration, http.client
@@ -854,7 +910,7 @@ mod tests {
         let ctx = SearchContext::from_registry(&registry);
 
         // None query = browse mode
-        let (results, total) = ctx.search(None, SearchType::All, None, false, 100, 0);
+        let (results, total) = ctx.search(None, SearchType::All, None, None, 100, 0);
 
         // Should return all items: 5 attributes + 1 metric + 1 span + 1 event + 1 entity = 9
         assert_eq!(total, 9);
@@ -867,25 +923,25 @@ mod tests {
         let ctx = SearchContext::from_registry(&registry);
 
         // Filter by Attribute only
-        let (results, total) = ctx.search(None, SearchType::Attribute, None, false, 100, 0);
+        let (results, total) = ctx.search(None, SearchType::Attribute, None, None, 100, 0);
         assert_eq!(total, 5); // 5 attributes (3 regular + 1 template + 1 development)
         assert_eq!(results.len(), 5);
 
         // Filter by Metric only
-        let (results, total) = ctx.search(None, SearchType::Metric, None, false, 100, 0);
+        let (results, total) = ctx.search(None, SearchType::Metric, None, None, 100, 0);
         assert_eq!(total, 1);
         assert_eq!(results.len(), 1);
 
         // Filter by Span only
-        let (_, total) = ctx.search(None, SearchType::Span, None, false, 100, 0);
+        let (_, total) = ctx.search(None, SearchType::Span, None, None, 100, 0);
         assert_eq!(total, 1);
 
         // Filter by Event only
-        let (_, total) = ctx.search(None, SearchType::Event, None, false, 100, 0);
+        let (_, total) = ctx.search(None, SearchType::Event, None, None, 100, 0);
         assert_eq!(total, 1);
 
         // Filter by Entity only
-        let (_, total) = ctx.search(None, SearchType::Entity, None, false, 100, 0);
+        let (_, total) = ctx.search(None, SearchType::Entity, None, None, 100, 0);
         assert_eq!(total, 1);
     }
 
@@ -895,17 +951,17 @@ mod tests {
         let ctx = SearchContext::from_registry(&registry);
 
         // Get first 2 items
-        let (results1, total1) = ctx.search(None, SearchType::All, None, false, 2, 0);
+        let (results1, total1) = ctx.search(None, SearchType::All, None, None, 2, 0);
         assert_eq!(total1, 9);
         assert_eq!(results1.len(), 2);
 
         // Get next 2 items with offset
-        let (results2, total2) = ctx.search(None, SearchType::All, None, false, 2, 2);
+        let (results2, total2) = ctx.search(None, SearchType::All, None, None, 2, 2);
         assert_eq!(total2, 9);
         assert_eq!(results2.len(), 2);
 
         // Get remaining items
-        let (results3, _) = ctx.search(None, SearchType::All, None, false, 100, 4);
+        let (results3, _) = ctx.search(None, SearchType::All, None, None, 100, 4);
         assert_eq!(results3.len(), 5);
     }
 
@@ -915,7 +971,7 @@ mod tests {
         let ctx = SearchContext::from_registry(&registry);
 
         // Request limit > MAX_SEARCH_LIMIT should be capped
-        let (results, _) = ctx.search(None, SearchType::All, None, false, MAX_SEARCH_LIMIT + 1, 0);
+        let (results, _) = ctx.search(None, SearchType::All, None, None, MAX_SEARCH_LIMIT + 1, 0);
 
         // We only have 9 items, so we get 9 (not testing the cap directly,
         // but ensuring it doesn't crash with large limit)
@@ -928,12 +984,12 @@ mod tests {
         let ctx = SearchContext::from_registry(&registry);
 
         // Collect all matches in one call, then re-fetch them one page at a time.
-        let (all_results, total) = ctx.search(Some("http"), SearchType::All, None, false, 100, 0);
+        let (all_results, total) = ctx.search(Some("http"), SearchType::All, None, None, 100, 0);
         assert_eq!(all_results.len(), total);
         assert!(total >= 4);
 
-        let (page1, _) = ctx.search(Some("http"), SearchType::All, None, false, 2, 0);
-        let (page2, _) = ctx.search(Some("http"), SearchType::All, None, false, 2, 2);
+        let (page1, _) = ctx.search(Some("http"), SearchType::All, None, None, 2, 0);
+        let (page2, _) = ctx.search(Some("http"), SearchType::All, None, None, 2, 2);
         assert_eq!(page1.len(), 2);
 
         // Pages must continue the ranked list, not repeat the top results.
@@ -947,7 +1003,7 @@ mod tests {
 
         // Offset past the end returns an empty page but the same total.
         let (past_end, past_end_total) =
-            ctx.search(Some("http"), SearchType::All, None, false, 10, total);
+            ctx.search(Some("http"), SearchType::All, None, None, 10, total);
         assert!(past_end.is_empty());
         assert_eq!(past_end_total, total);
     }
@@ -958,7 +1014,7 @@ mod tests {
         let ctx = SearchContext::from_registry(&registry);
 
         let (results, total) =
-            ctx.search(Some("zzzznonexistent"), SearchType::All, None, false, 10, 0);
+            ctx.search(Some("zzzznonexistent"), SearchType::All, None, None, 10, 0);
 
         assert_eq!(total, 0);
         assert!(results.is_empty());
@@ -1032,7 +1088,7 @@ mod tests {
             None,
             SearchType::Attribute,
             Some(Stability::Stable),
-            false,
+            None,
             100,
             0,
         );
@@ -1052,7 +1108,7 @@ mod tests {
             None,
             SearchType::Attribute,
             Some(Stability::Development),
-            false,
+            None,
             100,
             0,
         );
@@ -1096,7 +1152,8 @@ mod tests {
                 events: vec![],
                 entities: vec![],
             },
-            dependencies: vec![],
+            dependencies: Default::default(),
+            dependency_graph: Default::default(),
         }
     }
 
@@ -1108,11 +1165,15 @@ mod tests {
         ]);
         let ctx = SearchContext::from_registry(&registry);
 
-        let (results, total) = ctx.search(None, SearchType::All, None, false, 100, 0);
+        let (results, total) = ctx.search(None, SearchType::All, None, None, 100, 0);
         assert_eq!(total, 2);
         assert_eq!(results.len(), 2);
 
-        let (results, total) = ctx.search(None, SearchType::All, None, true, 100, 0);
+        let (results, total) = ctx.search(None, SearchType::All, None, Some(false), 100, 0);
+        assert_eq!(total, 1);
+        assert_eq!(results.len(), 1);
+
+        let (results, total) = ctx.search(None, SearchType::All, None, Some(true), 100, 0);
         assert_eq!(total, 1);
         assert_eq!(results.len(), 1);
     }
@@ -1121,7 +1182,7 @@ mod tests {
     fn test_search_hide_deprecated_independent_of_stability() {
         // `make_attribute` always sets stability: Stable regardless of the
         // deprecated flag - a deprecated item can carry any stability level,
-        // so `hide_deprecated` must filter independently of the stability
+        // so `deprecated` must filter independently of the stability
         // filter rather than only affecting items with `stability: deprecated`.
         let registry = make_registry_with_attributes(vec![make_attribute(
             "service.name",
@@ -1131,8 +1192,25 @@ mod tests {
         )]);
         let ctx = SearchContext::from_registry(&registry);
 
-        let (_, total) = ctx.search(None, SearchType::All, Some(Stability::Stable), true, 100, 0);
+        let (_, total) = ctx.search(
+            None,
+            SearchType::All,
+            Some(Stability::Stable),
+            Some(false),
+            100,
+            0,
+        );
         assert_eq!(total, 0);
+
+        let (_, total) = ctx.search(
+            None,
+            SearchType::All,
+            Some(Stability::Stable),
+            Some(true),
+            100,
+            0,
+        );
+        assert_eq!(total, 1);
     }
 
     // =========================================================================
@@ -1207,5 +1285,82 @@ mod tests {
         let info = ctx.browse_namespace(Some(""));
         assert_eq!(info.prefix, "");
         assert_eq!(info.total_attribute_count, 5);
+    }
+
+    #[test]
+    fn test_search_sorted_across_pages() {
+        fn attr_key(r: &SearchResult) -> &str {
+            match r {
+                SearchResult::Attribute(a) => a.item.key.as_str(),
+                _ => panic!("expected attribute"),
+            }
+        }
+
+        let mut dev_attr = make_attribute("z.dev", "Development attribute", "", false);
+        dev_attr.common.stability = Stability::Development;
+        let stable_attr = make_attribute("m.stable", "Stable attribute", "", false);
+        let dep_attr = make_attribute("a.deprecated", "Deprecated attribute", "", true);
+
+        // Place the deprecated item last in natural registry order so page 1 (limit=1)
+        // would NOT include it unless sorting happens before pagination.
+        let registry = make_registry_with_attributes(vec![dev_attr, stable_attr, dep_attr]);
+        let ctx = SearchContext::from_registry(&registry);
+
+        // 1. Sort by Deprecated first: page 1 (limit=1, offset=0) returns the deprecated item.
+        let (page1, total) = ctx.search_sorted(
+            None,
+            SearchType::Attribute,
+            None,
+            None,
+            SearchSort::Deprecated,
+            1,
+            0,
+        );
+        assert_eq!(total, 3);
+        assert_eq!(attr_key(&page1[0]), "a.deprecated");
+
+        // 2. Sort by Stability: page 1 (limit=1, offset=0) returns the Stable item (even though dev_attr was first in registry).
+        let (page1_stab, _) = ctx.search_sorted(
+            None,
+            SearchType::Attribute,
+            None,
+            Some(false),
+            SearchSort::Stability,
+            1,
+            0,
+        );
+        assert_eq!(attr_key(&page1_stab[0]), "m.stable");
+
+        // 3. Sort by Name: page 1 (limit=1, offset=0) returns `a.deprecated`, page 2 returns `m.stable`, page 3 returns `z.dev`.
+        let (page1_name, _) = ctx.search_sorted(
+            None,
+            SearchType::Attribute,
+            None,
+            None,
+            SearchSort::Name,
+            1,
+            0,
+        );
+        let (page2_name, _) = ctx.search_sorted(
+            None,
+            SearchType::Attribute,
+            None,
+            None,
+            SearchSort::Name,
+            1,
+            1,
+        );
+        let (page3_name, _) = ctx.search_sorted(
+            None,
+            SearchType::Attribute,
+            None,
+            None,
+            SearchSort::Name,
+            1,
+            2,
+        );
+        assert_eq!(attr_key(&page1_name[0]), "a.deprecated");
+        assert_eq!(attr_key(&page2_name[0]), "m.stable");
+        assert_eq!(attr_key(&page3_name[0]), "z.dev");
     }
 }
