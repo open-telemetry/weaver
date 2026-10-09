@@ -484,7 +484,7 @@
           "description": "The attributes that make the identity of the Entity.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/AttributeRef"
+            "$ref": "#/$defs/IdentityAttributeRef"
           }
         },
         "note": {
@@ -604,7 +604,7 @@
           "description": "Refinements of the base entity's identity attributes.\n\nA refinement must not change *which* attributes identify the entity: it\nmay only refine attributes the base entity already lists under\n`identity`.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/AttributeRef"
+            "$ref": "#/$defs/IdentityAttributeRef"
           }
         },
         "note": {
@@ -977,6 +977,52 @@
     "GroupWildcard": {
       "description": "Represents a wildcard expression to import one or several groups defined in an imported\nregistry.",
       "type": "string"
+    },
+    "IdentityAttributeRef": {
+      "description": "A refinement of an Attribute for an entity's identity.\n\nIdentity attributes are always required and do not accept a `requirement_level`.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Additional annotations for the attribute. These will be\nmerged with annotations from the definition.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "brief": {
+          "description": "Refines the brief description of the attribute.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "examples": {
+          "description": "Refined sequence of example values for the attribute or single example\nvalue. They are required only for string and string array\nattributes. Example values must be of the same type of the\nattribute. If only a single example is provided, it can directly\nbe reported without encapsulating it into a sequence/dictionary.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Examples"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "note": {
+          "description": "Refines the more elaborate description of the attribute.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ref": {
+          "description": "Reference an existing attribute by key.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "ref"
+      ]
     },
     "Imports": {
       "description": "Imports are used to reference groups defined in a dependent registry.",

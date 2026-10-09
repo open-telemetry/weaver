@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: Apache-2.0
+
+groups:
+  - id: registry.jq_modules
+    type: attribute_group
+    brief: Attributes for the template-package JQ integration test.
+    attributes:
+      - id: public.beta
+        type: string
+        brief: Public beta attribute.
+        stability: stable
+        examples: [beta]
+      - id: private.internal
+        type: string
+        brief: Internal attribute excluded from generated output.
+        stability: stable
+        examples: [internal]
+      - id: public.alpha
+        type: string
+        brief: Public alpha attribute.
+        stability: stable
+        examples: [alpha]
