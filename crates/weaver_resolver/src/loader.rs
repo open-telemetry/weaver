@@ -6,6 +6,7 @@ use rayon::iter::{IntoParallelIterator, ParallelBridge};
 use std::env::current_dir;
 use std::fmt::Display;
 use std::fs::metadata;
+use std::io::ErrorKind;
 use std::path::{Path, MAIN_SEPARATOR};
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
@@ -494,8 +495,11 @@ fn load_definition_repository(
     let registry_path_repr = registry_repo.registry_path_repr();
 
     // Checked before the walk, whose error for a missing path gives only the path as written.
+    // Any other error, such as a denied permission, is left for the walk to report.
     if let Err(e) = metadata(&local_path) {
-        return WResult::FatalErr(registry_not_found(&local_path, &e));
+        if e.kind() == ErrorKind::NotFound {
+            return WResult::FatalErr(registry_not_found(&local_path, &e));
+        }
     }
 
     // Loads the semantic convention specifications from the git repo.
@@ -839,8 +843,8 @@ mod tests {
         Ok(())
     }
 
-    /// Returns the `path_or_url` and `error` reported when loading the registry at `path`.
-    fn not_found_error(path: &str) -> (String, String) {
+    /// Returns the error reported when loading the unreadable registry at `path`.
+    fn load_error(path: &str) -> Error {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: path.to_owned(),
         };
@@ -851,9 +855,18 @@ mod tests {
             false,
             &weaver_common::http_auth::HttpAuthResolver::empty(),
         );
-        let WResult::FatalErr(Error::FailToResolveDefinition(
-            weaver_semconv::Error::RegistryNotFound { path_or_url, error },
-        )) = result
+        let WResult::FatalErr(error) = result else {
+            panic!("an unreadable local registry must fail to load");
+        };
+        error
+    }
+
+    /// Returns the `path_or_url` and `error` reported when loading the registry at `path`.
+    fn not_found_error(path: &str) -> (String, String) {
+        let Error::FailToResolveDefinition(weaver_semconv::Error::RegistryNotFound {
+            path_or_url,
+            error,
+        }) = load_error(path)
         else {
             panic!("a missing local registry must be reported as not found");
         };
@@ -889,5 +902,22 @@ mod tests {
         let (path_or_url, error) = not_found_error(&missing);
         assert_eq!(path_or_url, missing);
         assert!(!error.contains("current working directory"), "{error}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_path_through_a_file_is_not_reported_as_not_found() {
+        // A path that runs through a regular file fails with ENOTDIR, not ENOENT.
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("file");
+        std::fs::write(&file, "").unwrap();
+        let error = load_error(&file.join("registry").display().to_string());
+        assert!(
+            matches!(
+                error,
+                Error::FailToResolveDefinition(weaver_semconv::Error::SemConvSpecError { .. })
+            ),
+            "{error}"
+        );
     }
 }
