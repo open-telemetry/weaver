@@ -3,11 +3,10 @@
 use itertools::Itertools;
 use rayon::iter::ParallelIterator;
 use rayon::iter::{IntoParallelIterator, ParallelBridge};
-use std::env::current_dir;
 use std::fmt::Display;
 use std::fs::metadata;
 use std::io::ErrorKind;
-use std::path::{Path, MAIN_SEPARATOR};
+use std::path::{absolute, Path, MAIN_SEPARATOR};
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
 use weaver_semconv::v1::registry::SemConvRegistry;
@@ -460,9 +459,9 @@ fn from_vdir<T: serde::de::DeserializeOwned>(
 
 /// Names the absolute path a missing relative registry path resolved to.
 fn registry_not_found(path: &Path, cause: &std::io::Error) -> Error {
-    let error = match current_dir() {
-        Ok(cwd) if path.is_relative() => {
-            let resolved = cwd.join(path.strip_prefix(".").unwrap_or(path));
+    // `absolute` also resolves a Windows drive-relative path such as `C:dir`.
+    let error = match absolute(path) {
+        Ok(resolved) if path.is_relative() => {
             let resolved = resolved.display();
             format!(
                 "{cause}. A relative path resolves against the current working directory, here \
@@ -873,10 +872,19 @@ mod tests {
         (path_or_url, error)
     }
 
+    /// Joins `relative`, written with `/`, to the working directory one segment at a time,
+    /// so the separators match the platform's.
+    fn in_working_dir(relative: &str) -> String {
+        relative
+            .split('/')
+            .fold(current_dir().unwrap(), |dir, segment| dir.join(segment))
+            .display()
+            .to_string()
+    }
+
     #[test]
     fn test_missing_relative_path_names_resolved_path() {
-        let cwd = current_dir().unwrap();
-        let resolved = cwd.join("does/not/exist").display().to_string();
+        let resolved = in_working_dir("does/not/exist");
         for path in ["./does/not/exist", "does/not/exist"] {
             let (path_or_url, error) = not_found_error(path);
             assert_eq!(path_or_url, path);
@@ -889,8 +897,7 @@ mod tests {
         // `main` exists; the `registry_path` of its dependency does not.
         let (path_or_url, error) = not_found_error("data/dependency-not-found/main");
         assert_eq!(path_or_url, "data/dependency-not-found/non-existent");
-        let cwd = current_dir().unwrap();
-        let resolved = cwd.join(&path_or_url).display().to_string();
+        let resolved = in_working_dir(&path_or_url);
         assert!(error.contains(&resolved), "{error}");
     }
 
