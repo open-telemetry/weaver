@@ -79,7 +79,7 @@ use std::fmt::Display;
 use std::fs::{create_dir_all, File};
 use std::io;
 use std::num::NonZeroU32;
-use std::path::{Path, PathBuf};
+use std::path::{absolute, Path, PathBuf};
 use std::str::FromStr;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
@@ -106,6 +106,23 @@ pub fn enable_git_credentials() {
 #[must_use]
 pub fn is_git_credentials_enabled() -> bool {
     ALLOW_GIT_CREDENTIALS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// Returns `cause` for a missing local `path`, followed, when `path` is relative, by the
+/// absolute path it resolved to.
+#[must_use]
+pub fn explain_missing_path(path: &Path, cause: impl Display) -> String {
+    // `absolute` also resolves a Windows drive-relative path such as `C:dir`.
+    match absolute(path) {
+        Ok(resolved) if path.is_relative() => {
+            let resolved = resolved.display();
+            format!(
+                "{cause}. A relative path resolves against the current working directory, here \
+                 to `{resolved}`, even when a manifest declares it as a dependency `registry_path`."
+            )
+        }
+        _ => cause.to_string(),
+    }
 }
 
 /// Shared ureq [`Agent`] configured for authenticated HTTP downloads.
@@ -837,10 +854,11 @@ impl VirtualDirectory {
         vdir_path: String,
     ) -> Result<Self, Error> {
         let archive_path = Path::new(archive_filename);
-        if !archive_path.exists() {
+        // Any other error, such as a denied permission, is left for `File::open` to report.
+        if let Ok(false) = archive_path.try_exists() {
             return Err(InvalidRegistryArchive {
                 archive: archive_filename.to_owned(),
-                error: "This archive file doesn't exist".to_owned(),
+                error: explain_missing_path(archive_path, "This archive file doesn't exist"),
             });
         }
         let archive_file = File::open(archive_path).map_err(|e| InvalidRegistryArchive {
@@ -1183,7 +1201,8 @@ impl VirtualDirectory {
 mod tests {
     use crate::test::ServeStaticFiles;
     use crate::vdir::{VirtualDirectory, VirtualDirectoryPath};
-    use crate::Error::{GitError, InvalidVirtualDirectory};
+    use crate::Error::{GitError, InvalidRegistryArchive, InvalidVirtualDirectory};
+    use std::env::current_dir;
     use std::path::{Path, PathBuf};
 
     #[test]
@@ -1200,6 +1219,43 @@ mod tests {
         assert_eq!(vdir.path(), Path::new("path/to/registry"));
         assert_eq!(vdir.path_buf(), PathBuf::from("path/to/registry"));
         assert_eq!(vdir.path_str().unwrap(), "path/to/registry");
+    }
+
+    /// Returns the `error` reported for the missing local archive at `path`.
+    fn missing_archive_error(path: &str) -> String {
+        let vdir_path = VirtualDirectoryPath::LocalArchive {
+            path: path.to_owned(),
+            sub_folder: None,
+        };
+        let Err(InvalidRegistryArchive { archive, error }) = VirtualDirectory::try_new(&vdir_path)
+        else {
+            panic!("a missing local archive must be reported as invalid");
+        };
+        assert_eq!(archive, path);
+        error
+    }
+
+    #[test]
+    fn test_missing_relative_archive_names_resolved_path() {
+        // Joined one segment at a time, so the separators match the platform's.
+        let resolved = ["does", "not", "exist.zip"]
+            .iter()
+            .fold(current_dir().unwrap(), |dir, segment| dir.join(segment))
+            .display()
+            .to_string();
+        let error = missing_archive_error("does/not/exist.zip");
+        assert!(error.contains(&resolved), "{error}");
+    }
+
+    #[test]
+    fn test_missing_absolute_archive_names_no_working_directory() {
+        // Absolute and missing on every platform.
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().join("missing.zip").display().to_string();
+        assert_eq!(
+            missing_archive_error(&missing),
+            "This archive file doesn't exist"
+        );
     }
 
     #[cfg(unix)]

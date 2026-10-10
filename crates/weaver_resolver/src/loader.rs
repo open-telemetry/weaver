@@ -6,9 +6,9 @@ use rayon::iter::{IntoParallelIterator, ParallelBridge};
 use std::fmt::Display;
 use std::fs::metadata;
 use std::io::ErrorKind;
-use std::path::{absolute, Path, MAIN_SEPARATOR};
+use std::path::{Path, MAIN_SEPARATOR};
 use weaver_common::http_auth::HttpAuthResolver;
-use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
+use weaver_common::vdir::{explain_missing_path, VirtualDirectory, VirtualDirectoryPath};
 use weaver_semconv::v1::registry::SemConvRegistry;
 
 use walkdir::DirEntry;
@@ -459,20 +459,9 @@ fn from_vdir<T: serde::de::DeserializeOwned>(
 
 /// Names the absolute path a missing relative registry path resolved to.
 fn registry_not_found(path: &Path, cause: &std::io::Error) -> Error {
-    // `absolute` also resolves a Windows drive-relative path such as `C:dir`.
-    let error = match absolute(path) {
-        Ok(resolved) if path.is_relative() => {
-            let resolved = resolved.display();
-            format!(
-                "{cause}. A relative path resolves against the current working directory, here \
-                 to `{resolved}`, even when a manifest declares it as a dependency `registry_path`."
-            )
-        }
-        _ => cause.to_string(),
-    };
     Error::FailToResolveDefinition(weaver_semconv::Error::RegistryNotFound {
         path_or_url: path.display().to_string(),
-        error,
+        error: explain_missing_path(path, cause),
     })
 }
 
