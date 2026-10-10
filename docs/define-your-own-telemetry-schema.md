@@ -161,3 +161,57 @@ You can configure schema URL overrides in `.weaver.toml` under `[resolve.schema_
 ```
 
 When Weaver resolves dependencies during commands like `weaver registry check`, `weaver registry generate`, or `weaver registry live-check`, any dependency whose `schema_url` matches an entry in `[resolve.schema_url_overrides]` will be redirected to the specified local path or URL instead of the default location in `manifest.yaml`.
+
+## Caching Git registries
+
+By default, every `weaver` invocation re-clones a remote Git registry (and every
+remote `dependencies[]` entry of a manifest) into a throwaway temporary
+directory that is deleted when the command exits. When many invocations resolve
+the same registry — for example, one `weaver` container per integration-test
+suite — this repeated cloning dominates start-up time.
+
+To avoid it, weaver can cache a Git registry in a shared directory and reuse it
+across invocations. Only a source whose `@<refspec>` resolves to **immutable**
+content is cached: a commit SHA, or a tag. A branch, and a URL with no refspec,
+both keep tracking the remote and are re-cloned every run, so the cache cannot
+serve a stale snapshot of a moving ref. The cache is controlled by these global
+CLI flags (available on every subcommand):
+
+| Flag | Effect |
+| --- | --- |
+| `--registry-cache-dir <PATH>` | Cache root directory. Providing it enables the cache; omitting it keeps the default throwaway-clone behavior. |
+| `--registry-cache-offline` | A cache miss is a hard error instead of a network fetch. Requires `--registry-cache-dir`. |
+| `--registry-cache-refresh` | Re-fetch and atomically replace a cached entry even on a hit. Requires `--registry-cache-dir`. |
+
+`--registry-cache-offline` scopes to the registry cache only. It does not make
+the whole run offline: an unpinned git source, a remote archive, a remote file,
+and a `dependencies[]` entry resolved from its `schema_url` are all still
+downloaded. A branch refspec is never cached, so under
+`--registry-cache-offline` it always fails; pin to a tag or commit instead.
+
+Cache entries are keyed by `(url, refspec)`, so registries that differ only by
+sub-folder share a single clone. Population is concurrency-safe: the clone is
+staged in a private directory and then atomically moved into place, so parallel
+`weaver` processes never observe a half-populated entry and a lost race simply
+reuses the winner's clone. `--registry-cache-offline` takes precedence over
+`--registry-cache-refresh` (offline never re-fetches). During a refresh the
+entry is briefly absent, and the refreshing process can fail if another one
+populates the same entry in that window, so prefer running a refresh while no
+other `weaver` process is reading the same cache entry.
+
+A cache entry is trusted on sight: a hit is served without verifying its
+contents. Point `--registry-cache-dir` at a directory only your own builds can
+write to — weaver executes any `*.rego` policy found in a registry it resolves,
+so a cache directory shared across trust boundaries is a code-execution risk.
+
+```bash
+# Populate (or reuse) the cache, then run against the cached copy with no fetch.
+weaver --registry-cache-dir /path/to/weaver-cache \
+  registry check -r "https://github.com/open-telemetry/semantic-conventions.git@v1.41.0[model]"
+weaver --registry-cache-dir /path/to/weaver-cache --registry-cache-offline \
+  registry live-check --registry "https://github.com/open-telemetry/semantic-conventions.git@v1.41.0[model]"
+```
+
+In CI, point `--registry-cache-dir` at a cached/restored directory keyed on the
+pinned version, and add `--registry-cache-offline` so a cache miss fails loudly
+rather than silently reaching the network.
