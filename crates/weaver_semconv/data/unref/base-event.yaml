@@ -1,0 +1,7 @@
+file_format: definition/2
+events:
+  - name: base
+    brief: Base
+    stability: stable
+    attributes:
+      - unref: test.attr

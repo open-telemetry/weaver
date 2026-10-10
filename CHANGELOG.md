@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+# Unreleased
+
+- Add `unref` to v2 signal refinements to unreference inherited attributes. ([#1799](https://github.com/open-telemetry/weaver/pull/1799) by @lmolkova)
+
 # [0.27.0] - 2026-10-02
 
 - Support virtual-directory format for `--advice-policies` and `--advice-data` in live-check. ([#1760](https://github.com/open-telemetry/weaver/pull/1760) by @lmolkova)
