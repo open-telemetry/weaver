@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+# Unreleased
+
+- Add `unref` to v2 signal refinements to unreference inherited attributes. ([#1799](https://github.com/open-telemetry/weaver/pull/1799) by @lmolkova)
+
 # [0.27.0] - 2026-10-02
 
 - When a local registry folder or archive does not exist, including a dependency `registry_path` in a registry manifest, the error now names the absolute path a relative one resolved to. A relative path resolves against the current working directory, not against the manifest that declares it. Previously the error gave only the path as written, e.g. `IO error for operation on <path>: No such file or directory`. ([#1598](https://github.com/open-telemetry/weaver/pull/1598) by @ANcpLua)
