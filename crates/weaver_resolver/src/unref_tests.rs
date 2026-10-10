@@ -297,7 +297,7 @@ fn unref_is_absent_from_resolved_v2_attributes() {
     }
     assert_eq!(entity.identity.len(), 1);
     assert_eq!(
-        v2.attribute_catalog.attribute_key(&entity.identity[0].base),
+        v2.attribute_catalog.attribute_key(&entity.identity[0]),
         Some("test.id")
     );
     assert!(!serde_json::to_string(&v2).unwrap().contains("unref"));

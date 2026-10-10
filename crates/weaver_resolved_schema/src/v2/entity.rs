@@ -18,7 +18,7 @@ pub struct Entity {
     pub r#type: SignalId,
 
     /// The attributes that make the identity of the Entity.
-    pub identity: Vec<EntityAttributeRef>,
+    pub identity: Vec<AttributeRef>,
     /// The attributes that make the description of the Entity.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]

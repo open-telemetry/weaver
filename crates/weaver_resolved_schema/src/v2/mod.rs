@@ -777,20 +777,7 @@ mod tests {
                 entities: vec![
                     Entity {
                         r#type: "k8s.pod".to_owned().into(),
-                        identity: vec![
-                            entity::EntityAttributeRef {
-                                base: AttributeRef(3),
-                                requirement_level: RequirementLevel::Basic(
-                                    BasicRequirementLevelSpec::Required,
-                                ),
-                            },
-                            entity::EntityAttributeRef {
-                                base: AttributeRef(2),
-                                requirement_level: RequirementLevel::Recommended {
-                                    text: "Recommended for clustering".to_owned(),
-                                },
-                            },
-                        ],
+                        identity: vec![AttributeRef(3), AttributeRef(2)],
                         description: vec![],
                         requirement_level: None,
                         common: CommonFields {
@@ -804,12 +791,7 @@ mod tests {
                     },
                     Entity {
                         r#type: "host".to_owned().into(),
-                        identity: vec![entity::EntityAttributeRef {
-                            base: AttributeRef(2),
-                            requirement_level: RequirementLevel::Basic(
-                                BasicRequirementLevelSpec::Required,
-                            ),
-                        }],
+                        identity: vec![AttributeRef(2)],
                         description: vec![],
                         requirement_level: None,
                         common: CommonFields {

@@ -32,7 +32,7 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
     "@types/swagger-ui-react": "^5.18.0",
-    "@vitejs/plugin-react": "6.1.1",
+    "@vitejs/plugin-react": "6.1.2",
     "daisyui": "5.7.47",
     "eslint": "10.11.0",
     "eslint-plugin-react-hooks": "7.1.1",
@@ -40,7 +40,7 @@
     "globals": "17.13.0",
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.70.1",
+    "typescript-eslint": "8.71.1",
     "vite": "8.3.2"
   },
   "overrides-notes": {

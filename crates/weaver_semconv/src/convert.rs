@@ -37,7 +37,7 @@ use crate::v2::{
         ValueSpec as V2ValueSpec,
     },
     attribute_group::AttributeGroup,
-    entity::{Entity, EntityAttributeRefinement, EntityRefinement},
+    entity::{Entity, EntityAttributeRefinement, EntityRefinement, IdentityAttributeRef},
     entity_association::EntityAssociation as V2EntityAssociation,
     event::{Event, EventRefinement},
     manifest::{
@@ -220,6 +220,33 @@ pub(crate) fn v2_attribute_ref_to_v1(attr_ref: AttributeRef) -> V1AttributeSpec 
             Some(attr_ref.annotations)
         },
         role: None,
+    }
+}
+
+/// Converts a V2 entity identity attribute ref into a V1 AttributeSpec.
+///
+/// Identity attributes are always `required` with the `identifying` role in V1.
+#[must_use]
+pub(crate) fn v2_identity_attribute_ref_to_v1(attr_ref: IdentityAttributeRef) -> V1AttributeSpec {
+    V1AttributeSpec::Ref {
+        r#ref: attr_ref.r#ref,
+        brief: attr_ref.brief,
+        examples: attr_ref.examples.map(v2_examples_to_v1),
+        tag: None,
+        requirement_level: Some(V1RequirementLevel::Basic(
+            V1BasicRequirementLevelSpec::Required,
+        )),
+        sampling_relevant: None,
+        note: attr_ref.note,
+        stability: None,
+        deprecated: None,
+        prefix: false,
+        annotations: if attr_ref.annotations.is_empty() {
+            None
+        } else {
+            Some(attr_ref.annotations)
+        },
+        role: Some(V1AttributeRole::Identifying),
     }
 }
 
@@ -802,7 +829,7 @@ pub(crate) fn v2_entity_to_v1(entity: Entity) -> V1GroupSpec {
     let attributes = entity
         .identity
         .into_iter()
-        .map(|a| v2_attribute_ref_to_v1_with_role(a, V1AttributeRole::Identifying))
+        .map(v2_identity_attribute_ref_to_v1)
         .chain(
             entity
                 .description
@@ -852,7 +879,7 @@ pub(crate) fn v2_entity_refinement_to_v1(r: EntityRefinement) -> V1GroupSpec {
     let mut attributes: Vec<_> = r
         .identity
         .into_iter()
-        .map(|a| v2_attribute_ref_to_v1_with_role(a, V1AttributeRole::Identifying))
+        .map(v2_identity_attribute_ref_to_v1)
         .collect();
     let mut attribute_unrefs = Vec::new();
     for attr in r.description {
@@ -2105,6 +2132,37 @@ stability: stable
         assert_eq!(v1_group.id, "entity.my_entity");
         assert_eq!(v1_group.r#type, V1GroupType::Entity);
         assert_eq!(v1_group.attributes.len(), 2);
+        match &v1_group.attributes[0] {
+            V1AttributeSpec::Ref {
+                r#ref,
+                requirement_level,
+                role,
+                ..
+            } => {
+                assert_eq!(r#ref, "some_attr");
+                assert_eq!(
+                    *requirement_level,
+                    Some(V1RequirementLevel::Basic(
+                        V1BasicRequirementLevelSpec::Required
+                    ))
+                );
+                assert_eq!(*role, Some(V1AttributeRole::Identifying));
+            }
+            V1AttributeSpec::Id { .. } => panic!("Expected V1AttributeSpec::Ref"),
+        }
+        match &v1_group.attributes[1] {
+            V1AttributeSpec::Ref {
+                r#ref,
+                requirement_level,
+                role,
+                ..
+            } => {
+                assert_eq!(r#ref, "some_other_attr");
+                assert_eq!(*requirement_level, None);
+                assert_eq!(*role, Some(V1AttributeRole::Descriptive));
+            }
+            V1AttributeSpec::Id { .. } => panic!("Expected V1AttributeSpec::Ref"),
+        }
         assert!(v1_group.is_v2);
     }
 
@@ -2113,7 +2171,7 @@ stability: stable
         let refinement = EntityRefinement {
             id: SignalId::from("host.refined"),
             r#ref: SignalId::from("host"),
-            identity: vec![AttributeRef {
+            identity: vec![IdentityAttributeRef {
                 r#ref: "host.id".to_owned(),
                 brief: None,
                 examples: None,
@@ -2141,6 +2199,24 @@ stability: stable
         assert_eq!(v1_group.r#type, V1GroupType::Entity);
         assert_eq!(v1_group.extends, Some("entity.host".to_owned()));
         assert_eq!(v1_group.attributes.len(), 2);
+        match &v1_group.attributes[0] {
+            V1AttributeSpec::Ref {
+                r#ref,
+                requirement_level,
+                role,
+                ..
+            } => {
+                assert_eq!(r#ref, "host.id");
+                assert_eq!(
+                    *requirement_level,
+                    Some(V1RequirementLevel::Basic(
+                        V1BasicRequirementLevelSpec::Required
+                    ))
+                );
+                assert_eq!(*role, Some(V1AttributeRole::Identifying));
+            }
+            V1AttributeSpec::Id { .. } => panic!("Expected V1AttributeSpec::Ref"),
+        }
         assert!(v1_group.is_v2);
     }
 
