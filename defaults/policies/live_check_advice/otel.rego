@@ -7,8 +7,6 @@ attributes_set := data.attributes_set
 
 deprecated_attributes_set := data.deprecated_attributes_set
 
-templates_set := data.templates_set
-
 namespaces_to_check_set := data.namespaces_to_check_set
 
 name_regex := "^[a-z][a-z0-9]*([._][a-z0-9]+)*$"
@@ -35,7 +33,7 @@ deny contains make_advice(advice_type, advice_level, advice_context, message) if
 # checks attribute name format
 deny contains make_advice(advice_type, advice_level, advice_context, message) if {
 	input.sample.attribute
-	not is_template_type(input.sample.attribute.name)
+	not resolves_to_template
 	not regex.match(name_regex, input.sample.attribute.name)
 	advice_type := "invalid_format"
 	advice_level := "violation"
@@ -82,8 +80,7 @@ deny contains make_advice(advice_type, advice_level, advice_context, message) if
 
 	# Skip checks first (fail fast)
 	contains(input.sample.attribute.name, ".") # Must have at least one namespace
-	not is_template_type(input.sample.attribute.name)
-	not attributes_set[input.sample.attribute.name]
+	input.registry_attribute == null
 
 	# Get input namespaces
 	namespaces := derive_namespaces(input.sample.attribute.name)
@@ -119,10 +116,8 @@ make_advice_with_signal_info(advice_type, advice_level, advice_context, signal_n
 	"message": message,
 }
 
-# Helper function to check if name is a template type, extending it across a dot
-is_template_type(name) if {
-	some template in object.keys(templates_set)
-	prefix := concat("", [trim_suffix(template, "."), "."])
-	startswith(name, prefix)
-	count(name) > count(prefix)
+# Whether the sample's attribute resolves to a template definition
+resolves_to_template if {
+	is_string(input.registry_attribute.type)
+	startswith(input.registry_attribute.type, "template[")
 }

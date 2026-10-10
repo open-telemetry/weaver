@@ -185,17 +185,17 @@ make_finding(id, level, context, message) := {
 
 `input.instrumentation_scope` contains the instrumentation scope associated with the signal being assessed, or `null` when no scope is available. When present, it includes `name`, `version`, `schema_url`, `attributes`, and `dropped_attributes_count`.
 
-`input.registry_attribute`, when present, contains the matching attribute definition from the supplied registry.
+`input.registry_attribute`, when present, contains the matching attribute definition from the supplied registry. For a v2 registry it is the definition from the matched signal or attribute groups, which can come from a dependency.
 
 `input.registry_group`, when present, contains the matching group definition from the supplied registry.
 
-`data` contains a structure derived from the supplied `Registry`. A jq preprocessor takes the `Registry` (and maps for attributes and templates) to produce the `data` for the policy. If the jq is simply `.` this will passthrough as-is. Preprocessing is used to improve Rego performance and to simplify policy definitions. With this model `data` is processed once whereas the Rego policy runs for every sample entity as it arrives in the stream.
+`data` contains a structure derived from the supplied `Registry`. A jq preprocessor takes the `Registry` (and maps for attributes and templates) to produce the `data` for the policy. With `search_all_attributes`, the attribute and template maps also hold the attributes of every dependency of a v2 registry. If the jq is simply `.` this will passthrough as-is. Preprocessing is used to improve Rego performance and to simplify policy definitions. With this model `data` is processed once whereas the Rego policy runs for every sample entity as it arrives in the stream.
 
 The default preprocessor produces these keys:
 
-- `data.attributes_set`: every attribute name in the registry, as a map from name to `true`.
+- `data.attributes_set`: every attribute name in the registry, as a map from name to `true`. With `search_all_attributes`, it also holds the attribute names of every dependency of a v2 registry.
 - `data.deprecated_attributes_set`: the deprecated subset of those names, in the same shape.
-- `data.templates_set`: every template attribute name, in the same shape.
+- `data.templates_set`: every template attribute name, in the same shape, including the dependencies' with `search_all_attributes`.
 - `data.namespaces_to_check_set`: every namespace prefix derived from the attribute names, in the same shape.
 - `data.schema_url`: the schema url of the registry under check. `null` for a v1 registry.
 - `data.entities`: the entity definitions, keyed by the schema url of the registry that defines them, and then by entity type or refinement id. Empty for a v1 registry.
