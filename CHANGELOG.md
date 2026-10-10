@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+# Unreleased
+
+- Live-check no longer reports false `invalid_format` and `extends_namespace` advice for v2 attributes and templates referenced from a dependency. The advice now finds attributes the same way as the other checks: in the matched signal and attribute groups, or also in the whole registry and its dependencies with `--search-all-attributes`. Fixes [#1814](https://github.com/open-telemetry/weaver/issues/1814) - ([#TBD](https://github.com/open-telemetry/weaver/pull/TBD) by @jerbly)
+
 # [0.27.0] - 2026-10-02
 
 - Support virtual-directory format for `--advice-policies` and `--advice-data` in live-check. ([#1760](https://github.com/open-telemetry/weaver/pull/1760) by @lmolkova)
