@@ -569,6 +569,12 @@ mod tests {
         assert!(emitter.shutdown().is_ok());
     }
 
+    #[tokio::test]
+    async fn test_otlp_emitter_new_grpc_invalid_endpoint() {
+        let result = OtlpEmitter::new_grpc("http:/invalid-endpoint:4317");
+        assert!(matches!(result, Err(Error::OutputError { .. })));
+    }
+
     #[test]
     fn test_emit_finding_with_stdout_emitter() {
         let emitter = OtlpEmitter::new_stdout();

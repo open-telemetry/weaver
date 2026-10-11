@@ -430,6 +430,13 @@ By default, log records are sent via gRPC to `http://localhost:4317`. You can cu
 weaver registry live-check --emit-otlp-logs --otlp-logs-endpoint http://my-collector:4317
 ```
 
+When the endpoint is not set with `--otlp-logs-endpoint` or in `.weaver.toml`, the standard
+`OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` and then `OTEL_EXPORTER_OTLP_ENDPOINT` variables apply.
+
+With `--input-source otlp`, the default endpoint is live-check's own listener. Each finding
+would come back as a new sample, so live-check stops at startup when the endpoint is its own
+listener. Send the findings to a different receiver.
+
 For debugging, you can emit to stdout instead:
 
 ```sh

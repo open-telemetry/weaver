@@ -29,6 +29,16 @@ pub const DEFAULT_OTLP_ENDPOINT: &str = "http://localhost:4317";
 
 const WEAVER_SERVICE_NAME: &str = "weaver";
 
+/// Sets the endpoint on an exporter builder only when one was configured.
+/// Otherwise the SDK reads `OTEL_EXPORTER_OTLP_<SIGNAL>_ENDPOINT`, then
+/// `OTEL_EXPORTER_OTLP_ENDPOINT`, then uses its default.
+fn with_optional_endpoint<B: WithExportConfig>(builder: B, endpoint: Option<&str>) -> B {
+    match endpoint {
+        Some(endpoint) => builder.with_endpoint(endpoint),
+        None => builder,
+    }
+}
+
 /// An error that can occur while emitting a semantic convention registry.
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
 #[non_exhaustive]
@@ -65,13 +75,13 @@ impl From<Error> for DiagnosticMessages {
     }
 }
 
-/// Initialise a grpc OTLP exporter, sends to by default http://localhost:4317
-/// but can be overridden with the standard OTEL_EXPORTER_OTLP_ENDPOINT env var.
-fn init_tracer_provider(endpoint: &String) -> Result<SdkTracerProvider, ExporterBuildError> {
-    let exporter = opentelemetry_otlp::SpanExporter::builder()
-        .with_tonic()
-        .with_endpoint(endpoint)
-        .build()?;
+/// Initialise a grpc OTLP exporter for spans. See [`with_optional_endpoint`].
+fn init_tracer_provider(endpoint: Option<&str>) -> Result<SdkTracerProvider, ExporterBuildError> {
+    let exporter = with_optional_endpoint(
+        opentelemetry_otlp::SpanExporter::builder().with_tonic(),
+        endpoint,
+    )
+    .build()?;
     Ok(SdkTracerProvider::builder()
         .with_resource(
             Resource::builder()
@@ -94,17 +104,14 @@ fn init_stdout_tracer_provider() -> SdkTracerProvider {
         .build()
 }
 
-/// Initialise a grpc OTLP exporter for metrics, sends to by default http://localhost:4317
-/// but can be overridden with the standard OTEL_EXPORTER_OTLP_ENDPOINT env var.
-fn init_meter_provider(endpoint: &String) -> Result<SdkMeterProvider, ExporterBuildError> {
+/// Initialise a grpc OTLP exporter for metrics. See [`with_optional_endpoint`].
+fn init_meter_provider(endpoint: Option<&str>) -> Result<SdkMeterProvider, ExporterBuildError> {
     let resource = Resource::builder()
         .with_service_name(WEAVER_SERVICE_NAME)
         .build();
 
-    let exporter = MetricExporter::builder()
-        .with_tonic()
-        .with_endpoint(endpoint)
-        .build()?;
+    let exporter =
+        with_optional_endpoint(MetricExporter::builder().with_tonic(), endpoint).build()?;
 
     let reader = PeriodicReader::builder(exporter).build();
 
@@ -129,19 +136,19 @@ fn init_stdout_meter_provider() -> SdkMeterProvider {
         .build()
 }
 
-/// Initialise a grpc OTLP exporter for logs, sends to by default http://localhost:4317
-/// but can be overridden with the standard OTEL_EXPORTER_OTLP_ENDPOINT env var.
+/// Initialise a grpc OTLP exporter for logs. See [`with_optional_endpoint`].
 fn init_logger_provider(
-    endpoint: &String,
+    endpoint: Option<&str>,
 ) -> Result<opentelemetry_sdk::logs::SdkLoggerProvider, ExporterBuildError> {
     let resource = Resource::builder()
         .with_service_name(WEAVER_SERVICE_NAME)
         .build();
 
-    let exporter = opentelemetry_otlp::LogExporter::builder()
-        .with_tonic()
-        .with_endpoint(endpoint)
-        .build()?;
+    let exporter = with_optional_endpoint(
+        opentelemetry_otlp::LogExporter::builder().with_tonic(),
+        endpoint,
+    )
+    .build()?;
 
     Ok(opentelemetry_sdk::logs::SdkLoggerProvider::builder()
         .with_resource(resource)
@@ -168,8 +175,9 @@ pub enum ExporterConfig {
     Stdout,
     /// Emit to OTLP.
     Otlp {
-        /// The endpoint to emit to.
-        endpoint: String,
+        /// The endpoint set by a flag or the config file. When `None`, the SDK
+        /// reads the standard `OTEL_EXPORTER_OTLP_*` environment variables.
+        endpoint: Option<String>,
     },
 }
 
@@ -192,15 +200,31 @@ pub fn emit(
         error: e.to_string(),
     })?;
     rt.block_on(async {
-        // Emit spans
+        // Build every provider first, so a bad endpoint fails before anything is sent.
         let tracer_provider = match exporter_config {
             ExporterConfig::Stdout => init_stdout_tracer_provider(),
-            ExporterConfig::Otlp { endpoint } => {
-                init_tracer_provider(endpoint).map_err(|e| Error::TracerProviderError {
+            ExporterConfig::Otlp { endpoint } => init_tracer_provider(endpoint.as_deref())
+                .map_err(|e| Error::TracerProviderError {
                     error: e.to_string(),
-                })?
-            }
+                })?,
         };
+        let meter_provider =
+            match exporter_config {
+                ExporterConfig::Stdout => init_stdout_meter_provider(),
+                ExporterConfig::Otlp { endpoint } => init_meter_provider(endpoint.as_deref())
+                    .map_err(|e| Error::MetricProviderError {
+                        error: e.to_string(),
+                    })?,
+            };
+        let logger_provider = match exporter_config {
+            ExporterConfig::Stdout => init_stdout_logger_provider(),
+            ExporterConfig::Otlp { endpoint } => init_logger_provider(endpoint.as_deref())
+                .map_err(|e| Error::LogProviderError {
+                    error: e.to_string(),
+                })?,
+        };
+
+        // Emit spans
         global::set_tracer_provider(tracer_provider.clone());
 
         match registry {
@@ -215,14 +239,6 @@ pub fn emit(
             })?;
 
         // Emit metrics
-        let meter_provider = match exporter_config {
-            ExporterConfig::Stdout => init_stdout_meter_provider(),
-            ExporterConfig::Otlp { endpoint } => {
-                init_meter_provider(endpoint).map_err(|e| Error::MetricProviderError {
-                    error: e.to_string(),
-                })?
-            }
-        };
         global::set_meter_provider(meter_provider.clone());
 
         match registry {
@@ -237,15 +253,6 @@ pub fn emit(
             })?;
 
         // Emit logs
-        let logger_provider = match exporter_config {
-            ExporterConfig::Stdout => init_stdout_logger_provider(),
-            ExporterConfig::Otlp { endpoint } => {
-                init_logger_provider(endpoint).map_err(|e| Error::LogProviderError {
-                    error: e.to_string(),
-                })?
-            }
-        };
-
         match registry {
             RegistryVersion::V1(reg) => emit_logs_for_registry(reg, &logger_provider),
             RegistryVersion::V2(reg) => emit_logs_for_registry_v2(reg, &logger_provider),
@@ -263,6 +270,9 @@ pub fn emit(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use opentelemetry_otlp::{
+        OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+    };
     use weaver_forge::v1::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_resolved_schema::v1::attribute::Attribute;
     use weaver_semconv::v1::signal_requirement_level::SignalRequirementLevel;
@@ -560,6 +570,32 @@ mod tests {
         assert!(result.is_ok());
     }
 
+    /// Sets and clears process environment variables, so both signals are
+    /// checked in one test.
+    #[test]
+    fn an_invalid_signal_endpoint_variable_fails_that_signal() {
+        let registry = ResolvedRegistry {
+            registry_url: "TEST_OTLP_ENV".to_owned(),
+            groups: vec![],
+        };
+        let exporter_config = ExporterConfig::Otlp { endpoint: None };
+        let emit_with = |var: &str| {
+            std::env::set_var(var, "http:/invalid-endpoint:4317");
+            let result = emit(RegistryVersion::V1(&registry), "TEST", &exporter_config);
+            std::env::remove_var(var);
+            result
+        };
+
+        assert!(matches!(
+            emit_with(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT),
+            Err(Error::MetricProviderError { .. })
+        ));
+        assert!(matches!(
+            emit_with(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT),
+            Err(Error::LogProviderError { .. })
+        ));
+    }
+
     #[test]
     fn test_emit_otlp_invalid_endpoint() {
         let registry = ResolvedRegistry {
@@ -570,7 +606,7 @@ mod tests {
             RegistryVersion::V1(&registry),
             "TEST_OTLP_INVALID",
             &ExporterConfig::Otlp {
-                endpoint: "http:/invalid-endpoint:4317".to_owned(),
+                endpoint: Some("http:/invalid-endpoint:4317".to_owned()),
             },
         );
         assert!(result.is_err());
