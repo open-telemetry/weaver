@@ -471,7 +471,7 @@ pub(crate) fn command(
                 .into());
             }
             log_info(format!("Emitting findings as OTLP logs to {endpoint}"));
-            weaver_live_check::otlp_logger::OtlpEmitter::new_grpc(Some(&endpoint))?
+            weaver_live_check::otlp_logger::OtlpEmitter::new_grpc(&endpoint)?
         };
         live_checker.otlp_emitter = Some(std::rc::Rc::new(emitter));
     }
