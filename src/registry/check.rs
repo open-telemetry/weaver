@@ -102,6 +102,74 @@ mod tests {
     }
 
     #[test]
+    fn test_policy_finding_filter_config_reaches_engine() {
+        use clap::Parser;
+        let dir = tempfile::tempdir().unwrap();
+        let policy = dir.path().join("test.rego");
+        std::fs::write(
+            &policy,
+            r#"
+            package after_resolution
+            import rego.v1
+            deny contains {"id": "test_removed", "message": "removed", "level": "violation", "signal_type": "entity", "signal_name": "device"}
+        "#,
+        )
+        .unwrap();
+        let config = dir.path().join(".weaver.toml");
+        std::fs::write(
+            &config,
+            r#"
+            [[policy.finding_filters]]
+            exclude = ["test_removed"]
+            signal_type = "entity"
+            signal_names = ["dev*"]
+        "#,
+        )
+        .unwrap();
+        let model = dir.path().join("model");
+        std::fs::create_dir(&model).unwrap();
+        std::fs::write(
+            model.join("registry.yaml"),
+            r#"
+            groups:
+              - id: registry.example
+                type: attribute_group
+                brief: Example attributes.
+                attributes:
+                  - id: example.name
+                    type: string
+                    brief: Example name.
+                    stability: development
+                    examples: [example]
+        "#,
+        )
+        .unwrap();
+        let cli = Cli::try_parse_from([
+            "weaver",
+            "--config",
+            config.to_str().unwrap(),
+            "registry",
+            "check",
+            "-r",
+            model.to_str().unwrap(),
+            "-p",
+            policy.to_str().unwrap(),
+        ])
+        .unwrap();
+        assert_eq!(run_command(&cli).exit_code, 0);
+        std::fs::write(
+            &config,
+            r#"
+            [[policy.finding_filters]]
+            exclude = ["test_removed"]
+            signal_names = ["host"]
+        "#,
+        )
+        .unwrap();
+        assert_eq!(run_command(&cli).exit_code, 1);
+    }
+
+    #[test]
     fn test_registry_check_exit_code() {
         let cli = Cli {
             debug: 0,

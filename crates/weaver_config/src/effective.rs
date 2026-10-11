@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_semconv::schema_url::SchemaUrl;
 
-use crate::registry::{DiagnosticsConfig, PolicyConfig, RegistryConfig};
+use crate::registry::{DiagnosticsConfig, PolicyConfig, PolicyFindingFilter, RegistryConfig};
 use crate::resolve::ResolveConfig;
 
 /// Default registry URL used when no registry is specified.
@@ -82,6 +82,8 @@ pub struct EffectivePolicyConfig {
     pub skip_policies: bool,
     /// Whether to display the policy coverage report.
     pub display_policy_coverage: bool,
+    /// Finding filters scoped by signal type, signal name, or context.
+    pub finding_filters: Vec<PolicyFindingFilter>,
 }
 
 impl EffectivePolicyConfig {
@@ -101,6 +103,9 @@ impl EffectivePolicyConfig {
         }
         if let Some(v) = cfg.skip {
             self.skip_policies = v;
+        }
+        if let Some(filters) = &cfg.finding_filters {
+            self.finding_filters = filters.clone();
         }
         if let Some(v) = cfg.display_policy_coverage {
             self.display_policy_coverage = v;
@@ -291,6 +296,41 @@ mod tests {
     }
 
     #[test]
+    fn test_policy_finding_filters_from_toml() {
+        let config: crate::WeaverConfig = toml::from_str(
+            r#"
+            [[policy.finding_filters]]
+            exclude = ["compatibility_entity_missing"]
+            signal_type = "entity"
+            signal_names = ["device*"]
+            context = { attribute_key = "example.old" }
+        "#,
+        )
+        .unwrap();
+        let mut effective = EffectivePolicyConfig::default();
+        effective.layer_config(&config.policy);
+        assert_eq!(effective.finding_filters.len(), 1);
+        assert_eq!(
+            effective.finding_filters[0].exclude,
+            ["compatibility_entity_missing"]
+        );
+        assert_eq!(effective.finding_filters[0].signal_names, ["device*"]);
+        effective.layer_config(&PolicyConfig::default());
+        assert_eq!(effective.finding_filters.len(), 1);
+        let empty: crate::WeaverConfig = toml::from_str("[policy]\nfinding_filters = []").unwrap();
+        effective.layer_config(&empty.policy);
+        assert!(effective.finding_filters.is_empty());
+        assert!(toml::from_str::<crate::WeaverConfig>(
+            r#"
+            [[policy.finding_filters]]
+            exclude = ["removed"]
+            signal_nam = "device"
+        "#
+        )
+        .is_err());
+    }
+
+    #[test]
     fn test_policy_skip_all() {
         let cfg = EffectivePolicyConfig::skip_all();
         assert!(cfg.skip_policies);
@@ -305,6 +345,7 @@ mod tests {
             paths: Some(vec!["./policies".to_owned()]),
             skip: Some(true),
             display_policy_coverage: Some(true),
+            ..Default::default()
         });
         assert!(cfg.skip_policies);
         assert!(cfg.display_policy_coverage);

@@ -309,3 +309,34 @@ This test verifies that every field in `MyCommandConfig` has a corresponding CLI
 - **`SocketAddr` fields**: the macro automatically adds `#[schemars(with = "String")]` so the JSON schema renders it as a string.
 - **Template paths** (`Option<String>` pointing to a directory or archive): parse via `VirtualDirectoryPath::from_str` in the command body — a `.zip` suffix is treated as a local archive, local paths become `LocalFolder`, and HTTP(S) URLs become remote sources.
 - **Custom template context**: if your command generates a custom context struct (rather than the standard registry template schema), build it explicitly in your `match resolved { ... }` arms instead of calling `v.template_schema()`. See `src/registry/stats.rs` for an example.
+
+## Policy finding filters
+
+Policy checks share ID exclusion and scope matching with
+[live-check finding filters](../weaver_live_check/README.md#finding-filters):
+
+```toml
+[[policy.finding_filters]]
+exclude = ["compatibility_entity_missing"]
+signal_type = "entity"
+signal_names = ["device*"]
+```
+
+The `exclude` list contains finding IDs to suppress. Optional `signal_type`,
+`signal_names`, and `context` narrow the scope; all supplied scopes must match.
+Signal names support glob patterns and match the finding's `signal_name`.
+A name-scoped rule does not match findings without a signal name.
+
+Context matches supplied keys exactly and permits additional keys in the finding.
+For attribute findings, use context fields emitted by that policy:
+
+```toml
+[[policy.finding_filters]]
+exclude = ["compatibility_removed_attribute"]
+context = { attribute_key = "example.retired" }
+```
+
+Unknown filter fields and invalid glob patterns are rejected.
+Schema errors and policy evaluation errors cannot be filtered.
+
+These settings use the normal `.weaver.toml` discovery and `--config` selection.

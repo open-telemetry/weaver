@@ -24,6 +24,8 @@ mod finding;
 // Import finding so we don't need to expose deeper into the crate.
 pub use crate::finding::FindingLevel;
 pub use crate::finding::PolicyFinding;
+mod finding_modifier;
+pub use finding_modifier::{compile_name_patterns, FindingMatcher, FindingModifier};
 
 /// Default semconv rules/functions for the semantic convention registry.
 pub const SEMCONV_REGO: &str = include_str!("../../../defaults/rego/semconv.rego");
@@ -191,6 +193,7 @@ pub struct Engine {
     // Policy packages loaded. This is used to check if a policy package has been imported
     // before evaluating it.
     policy_packages: HashSet<String>,
+    finding_modifier: Option<FindingModifier>,
 }
 
 impl Engine {
@@ -198,6 +201,11 @@ impl Engine {
     #[must_use]
     pub fn new() -> Self {
         Default::default()
+    }
+
+    /// Sets compiled finding filters for every policy stage.
+    pub fn set_finding_filters(&mut self, filters: Vec<FindingMatcher>) {
+        self.finding_modifier = FindingModifier::from_matchers(filters);
     }
 
     /// Enables the coverage report.
@@ -592,7 +600,13 @@ impl Engine {
                 error: e.to_string(),
             })?;
 
-        Ok(violations)
+        let Some(modifier) = &self.finding_modifier else {
+            return Ok(violations);
+        };
+        Ok(violations
+            .into_iter()
+            .filter_map(|finding| modifier.apply(finding))
+            .collect())
     }
 }
 
