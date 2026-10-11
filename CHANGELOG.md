@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Fix `registry live-check --emit-otlp-logs` sending findings back to its own OTLP listener, which with the default ports made every finding a new sample to check. Live-check now stops at startup with an error when the logs endpoint is its own listener, and logs the endpoint it uses. ([#1782](https://github.com/open-telemetry/weaver/pull/1782) by @jerbly)
+- Fix `OTEL_EXPORTER_OTLP_ENDPOINT` being ignored by `registry emit` and `registry live-check --emit-otlp-logs`. When no endpoint is set with `--endpoint` / `--otlp-logs-endpoint` or in `.weaver.toml`, the signal's `OTEL_EXPORTER_OTLP_<SIGNAL>_ENDPOINT`, then `OTEL_EXPORTER_OTLP_ENDPOINT`, now apply before the `http://localhost:4317` default. ([#1782](https://github.com/open-telemetry/weaver/pull/1782) by @jerbly)
 - Add `unref` to v2 signal refinements to unreference inherited attributes. ([#1799](https://github.com/open-telemetry/weaver/pull/1799) by @lmolkova)
 
 # [0.27.0] - 2026-10-02
