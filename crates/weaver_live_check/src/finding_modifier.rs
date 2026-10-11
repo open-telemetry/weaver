@@ -6,8 +6,7 @@
 //! findings at creation time — before they are stored in `LiveCheckResult`.
 
 use crate::{Error, SampleRef};
-use globset::GlobSet;
-use weaver_checker::{compile_name_patterns, FindingMatcher, PolicyFinding};
+use weaver_checker::{FindingMatcher, NameMatcher, PolicyFinding};
 use weaver_config::{FindingFilter, FindingLevelOverride, LiveCheckConfig};
 
 /// Engine that applies finding filters and level overrides.
@@ -29,9 +28,9 @@ struct CompiledFilter {
     filter: FindingFilter,
     matcher: FindingMatcher,
     /// Compiled `filter.sample_names` (scope), if non-empty.
-    sample_names_matcher: Option<GlobSet>,
+    sample_names_matcher: Option<NameMatcher>,
     /// Compiled `filter.exclude_samples` (exclusion condition), if non-empty.
-    exclude_samples_matcher: Option<GlobSet>,
+    exclude_samples_matcher: Option<NameMatcher>,
 }
 
 /// A `FindingLevelOverride` with its glob patterns precompiled once at
@@ -41,13 +40,13 @@ struct CompiledLevelOverride {
     rule: FindingLevelOverride,
     matcher: FindingMatcher,
     /// Compiled `rule.sample_names` (scope), if non-empty.
-    sample_names_matcher: Option<GlobSet>,
+    sample_names_matcher: Option<NameMatcher>,
 }
 
-/// Compile a list of glob patterns into a `GlobSet`. Returns `Ok(None)` when
+/// Compile a list of glob patterns. Returns `Ok(None)` when
 /// `patterns` is empty (nothing to match).
-fn compile_globset(patterns: &[String]) -> Result<Option<GlobSet>, Error> {
-    compile_name_patterns(patterns).map_err(|error| Error::ConfigError {
+fn compile_globset(patterns: &[String]) -> Result<Option<NameMatcher>, Error> {
+    NameMatcher::compile(patterns).map_err(|error| Error::ConfigError {
         error: error.to_string(),
     })
 }
@@ -57,7 +56,7 @@ fn compile_globset(patterns: &[String]) -> Result<Option<GlobSet>, Error> {
 /// are optional and combine as AND; an unset scope matches everything.
 fn scope_matches(
     matcher: &FindingMatcher,
-    sample_names_matcher: Option<&GlobSet>,
+    sample_names_matcher: Option<&NameMatcher>,
     finding: &PolicyFinding,
     sample: &SampleRef<'_>,
 ) -> bool {

@@ -15,7 +15,7 @@ pub struct FindingMatcher {
     ids: Vec<String>,
     signal_type: Option<String>,
     context: BTreeMap<String, Value>,
-    signal_names: Option<GlobSet>,
+    signal_names: Option<NameMatcher>,
 }
 
 impl FindingMatcher {
@@ -29,7 +29,7 @@ impl FindingMatcher {
         Ok(Self {
             ids: ids.to_vec(),
             signal_type: signal_type.map(str::to_owned),
-            signal_names: compile_name_patterns(signal_names)?,
+            signal_names: NameMatcher::compile(signal_names)?,
             context: context.clone(),
         })
     }
@@ -62,8 +62,24 @@ impl FindingMatcher {
     }
 }
 
-/// Compile name glob patterns, returning no matcher for an empty list.
-pub fn compile_name_patterns(patterns: &[String]) -> Result<Option<GlobSet>, Error> {
+/// Matches names against compiled glob patterns.
+#[derive(Debug, Clone)]
+pub struct NameMatcher(GlobSet);
+
+impl NameMatcher {
+    /// Compile name glob patterns, returning no matcher for an empty list.
+    pub fn compile(patterns: &[String]) -> Result<Option<Self>, Error> {
+        compile_name_patterns(patterns).map(|matcher| matcher.map(Self))
+    }
+
+    /// Whether a name matches any configured pattern.
+    #[must_use]
+    pub fn is_match(&self, name: &str) -> bool {
+        self.0.is_match(name)
+    }
+}
+
+fn compile_name_patterns(patterns: &[String]) -> Result<Option<GlobSet>, Error> {
     if patterns.is_empty() {
         return Ok(None);
     }

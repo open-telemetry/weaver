@@ -324,7 +324,7 @@ mod tests {
             r#"
             [[policy.finding_filters]]
             exclude = ["removed"]
-            signal_nam = "device"
+            unknown_field = "device"
         "#
         )
         .is_err());

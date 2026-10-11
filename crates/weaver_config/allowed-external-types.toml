@@ -7,6 +7,7 @@ allowed_external_types = [
     "serde_core::de::DeserializeOwned",
     "serde_core::ser::Serialize",
     "schemars::JsonSchema",
+    "serde_json::value::Value",
     "weaver_checker::*",
     "weaver_macros::*",
     "weaver_common::*",

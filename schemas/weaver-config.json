@@ -366,6 +366,16 @@
           ],
           "default": null
         },
+        "finding_filters": {
+          "description": "Finding filters scoped by signal type, signal name, or context.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/PolicyFindingFilter"
+          }
+        },
         "paths": {
           "description": "Policy file or directory paths. Directories load all `.rego` files.",
           "type": [
@@ -883,6 +893,44 @@
           "type": "string",
           "const": "profile"
         }
+      ]
+    },
+    "PolicyFindingFilter": {
+      "description": "Excludes finding IDs within an optional signal and context scope.",
+      "type": "object",
+      "properties": {
+        "context": {
+          "description": "Context keys that must match; additional finding keys are allowed.",
+          "type": "object",
+          "additionalProperties": true,
+          "default": {}
+        },
+        "exclude": {
+          "description": "Finding IDs to exclude.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "signal_names": {
+          "description": "Optional signal name glob patterns.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "signal_type": {
+          "description": "Optional exact signal type.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "exclude"
       ]
     },
     "VirtualDirectoryPath": {

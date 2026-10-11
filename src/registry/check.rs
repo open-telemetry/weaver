@@ -127,7 +127,7 @@ mod tests {
         )
         .unwrap();
         let model = dir.path().join("model");
-        std::fs::create_dir(&model).unwrap();
+        std::fs::create_dir_all(&model).unwrap();
         std::fs::write(
             model.join("registry.yaml"),
             r#"

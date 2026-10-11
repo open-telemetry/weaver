@@ -25,7 +25,7 @@ mod finding;
 pub use crate::finding::FindingLevel;
 pub use crate::finding::PolicyFinding;
 mod finding_modifier;
-pub use finding_modifier::{compile_name_patterns, FindingMatcher, FindingModifier};
+pub use finding_modifier::{FindingMatcher, FindingModifier, NameMatcher};
 
 /// Default semconv rules/functions for the semantic convention registry.
 pub const SEMCONV_REGO: &str = include_str!("../../../defaults/rego/semconv.rego");
