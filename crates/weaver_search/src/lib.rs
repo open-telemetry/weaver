@@ -32,6 +32,9 @@ use weaver_semconv::v2::stability::Stability;
 /// `/api/v1/registry/search` endpoint (`SearchParams::limit`).
 pub const MAX_SEARCH_LIMIT: usize = 1000;
 
+/// The separator between a registry name's namespaces.
+const NAMESPACE_SEPARATOR: &str = ".";
+
 /// Search context for performing fuzzy searches and O(1) lookups across the registry.
 pub struct SearchContext {
     /// All searchable items for fuzzy search.
@@ -52,8 +55,6 @@ pub struct SearchContext {
     event_index: HashMap<String, Arc<Event>>,
     /// Entities indexed by type.
     entity_index: HashMap<String, Arc<Entity>>,
-    /// Namespace separator for attribute keys (default: ".").
-    separator: String,
 }
 
 /// A searchable item from the registry containing the full object.
@@ -71,18 +72,9 @@ enum SearchableItem {
 }
 
 impl SearchContext {
-    /// Build a search context from a resolved registry with the default separator (".").
+    /// Build a search context from a resolved registry.
     #[must_use]
     pub fn from_registry(registry: &ForgeResolvedRegistry) -> Self {
-        Self::from_registry_with_separator(registry, ".".to_owned())
-    }
-
-    /// Build a search context from a resolved registry with a custom namespace separator.
-    #[must_use]
-    pub fn from_registry_with_separator(
-        registry: &ForgeResolvedRegistry,
-        separator: String,
-    ) -> Self {
         let mut items = Vec::new();
         let mut attr_index = HashMap::new();
         let mut template_index = HashMap::new();
@@ -146,7 +138,6 @@ impl SearchContext {
             span_index,
             event_index,
             entity_index,
-            separator,
         }
     }
 
@@ -229,7 +220,7 @@ impl SearchContext {
                 (results, total)
             } else {
                 // Non-empty query - search mode with scoring
-                search_mode_with_total(items, q, sort, limit, offset, &self.separator)
+                search_mode_with_total(items, q, sort, limit, offset)
             }
         } else {
             // No query - browse mode
@@ -305,10 +296,8 @@ impl SearchContext {
     /// and direct attributes under that prefix.
     #[must_use]
     pub fn browse_namespace(&self, prefix: Option<&str>) -> NamespaceInfo {
-        let prefix = prefix
-            .unwrap_or("")
-            .trim_end_matches(self.separator.as_str());
-        let sep = &self.separator;
+        let prefix = prefix.unwrap_or("").trim_end_matches(NAMESPACE_SEPARATOR);
+        let sep = NAMESPACE_SEPARATOR;
 
         let mut sub_ns_set: BTreeSet<String> = BTreeSet::new();
         let mut direct_attrs: Vec<NamespaceAttribute> = Vec::new();
@@ -322,7 +311,7 @@ impl SearchContext {
             let remainder = if prefix.is_empty() {
                 Some(key.as_str())
             } else if let Some(rest) = key.strip_prefix(prefix) {
-                rest.strip_prefix(sep.as_str())
+                rest.strip_prefix(sep)
             } else {
                 None
             };
@@ -334,13 +323,13 @@ impl SearchContext {
             total_count += 1;
 
             // Calculate depth of this key relative to the prefix
-            let depth = remainder.matches(sep.as_str()).count() + 1;
+            let depth = remainder.matches(sep).count() + 1;
             if depth > max_depth {
                 max_depth = depth;
             }
 
             // Check if this is a direct attribute or in a sub-namespace
-            if let Some(next_sep_pos) = remainder.find(sep.as_str()) {
+            if let Some(next_sep_pos) = remainder.find(sep) {
                 // Has more segments — extract the sub-namespace
                 let sub_segment = &remainder[..next_sep_pos];
                 let sub_ns = if prefix.is_empty() {
@@ -406,12 +395,11 @@ fn search_mode_with_total(
     sort: SearchSort,
     limit: usize,
     offset: usize,
-    separator: &str,
 ) -> (Vec<SearchResult>, usize) {
     let mut scored_items: Vec<(u32, &SearchableItem)> = items
         .into_iter()
         .filter_map(|item| {
-            let score = score_match(query, item, separator);
+            let score = score_match(query, item);
             if score > 0 {
                 Some((score, item))
             } else {
@@ -560,7 +548,7 @@ impl SearchableItem {
 /// - Brief contains query: 40 points
 /// - Note contains query: 20 points
 /// - Deprecated items: score divided by 10 (heavily demoted)
-fn score_match(query: &str, item: &SearchableItem, separator: &str) -> u32 {
+fn score_match(query: &str, item: &SearchableItem) -> u32 {
     let query_lower = query.to_lowercase();
     let id_lower = item.id().to_lowercase();
     let brief_lower = item.brief().to_lowercase();
@@ -572,7 +560,6 @@ fn score_match(query: &str, item: &SearchableItem, separator: &str) -> u32 {
         &brief_lower,
         &note_lower,
         item.is_deprecated(),
-        separator,
     )
 }
 
@@ -583,7 +570,6 @@ fn score_fields(
     brief_lower: &str,
     note_lower: &str,
     is_deprecated: bool,
-    separator: &str,
 ) -> u32 {
     let mut score = 0;
 
@@ -594,7 +580,7 @@ fn score_fields(
     } else if id_lower.contains(query_lower) {
         score = 70;
     } else {
-        let sep = separator;
+        let sep = NAMESPACE_SEPARATOR;
         let query_tokens: Vec<&str> = query_lower
             .split(|c: char| sep.contains(c) || c == '_' || c.is_whitespace())
             .filter(|s| !s.is_empty())
@@ -819,21 +805,21 @@ mod tests {
     fn test_exact_match_scores_highest() {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
-        assert_eq!(score_match("http.request.method", &item, "."), 100);
+        assert_eq!(score_match("http.request.method", &item), 100);
     }
 
     #[test]
     fn test_starts_with_scores_high() {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
-        assert_eq!(score_match("http.request", &item, "."), 80);
+        assert_eq!(score_match("http.request", &item), 80);
     }
 
     #[test]
     fn test_contains_scores_medium() {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
-        assert_eq!(score_match("request.method", &item, "."), 70);
+        assert_eq!(score_match("request.method", &item), 70);
     }
 
     #[test]
@@ -845,14 +831,14 @@ mod tests {
             false,
         );
 
-        assert_eq!(score_match("verb", &item, "."), 40);
+        assert_eq!(score_match("verb", &item), 40);
     }
 
     #[test]
     fn test_no_match_scores_zero() {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", false);
 
-        assert_eq!(score_match("database", &item, "."), 0);
+        assert_eq!(score_match("database", &item), 0);
     }
 
     #[test]
@@ -860,10 +846,10 @@ mod tests {
         let item = make_test_attribute("http.request.method", "HTTP request method", "", true);
 
         // Exact match for deprecated item: 100 / 10 = 10
-        assert_eq!(score_match("http.request.method", &item, "."), 10);
+        assert_eq!(score_match("http.request.method", &item), 10);
 
         // Starts with for deprecated item: 80 / 10 = 8
-        assert_eq!(score_match("http.request", &item, "."), 8);
+        assert_eq!(score_match("http.request", &item), 8);
     }
 
     // =========================================================================

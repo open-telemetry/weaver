@@ -102,7 +102,6 @@ entities:
     requirement_level: recommended
     identity:
       - ref: acme.deployment.id
-        requirement_level: required
     description:
       - ref: acme.deployment.name
         requirement_level: recommended
@@ -117,7 +116,6 @@ entities:
     requirement_level: recommended
     identity:
       - ref: acme.cluster.id
-        requirement_level: required
 
 attribute_groups:
   - id: acme.session
@@ -145,6 +143,9 @@ attribute_groups:
         annotations:
           acme:
             source: group-step
+      # The span event does not set it. The group is strict, so it is reported.
+      - ref: acme.session.id
+        requirement_level: required
   - id: acme.customer
     visibility: public
     brief: Customer attributes.

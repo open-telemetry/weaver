@@ -16,7 +16,7 @@
 use globset::GlobSet;
 use std::collections::{BTreeMap, HashMap};
 use weaver_resolved_schema::v1::attribute::{Attribute, AttributeRef};
-use weaver_resolved_schema::v1::lineage::GroupLineage;
+use weaver_resolved_schema::v1::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::v1::registry::Group;
 use weaver_resolved_schema::v1::ResolvedTelemetrySchema as V1Schema;
 use weaver_resolved_schema::v2::attribute::AttributeRef as V2AttributeRef;
@@ -25,8 +25,10 @@ use weaver_resolved_schema::v2::entity::EntityAssociation as V2EntityAssociation
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::v2::Signal;
 use weaver_semconv::schema_url::SchemaUrl;
-use weaver_semconv::v1::attribute::{AttributeRole, RequirementLevel};
-use weaver_semconv::v1::group::{GroupType, GroupWildcard, ImportsWithProvenance};
+use weaver_semconv::v1::attribute::{AttributeRole, BasicRequirementLevelSpec, RequirementLevel};
+use weaver_semconv::v1::group::{
+    AttributeGroupVisibilitySpec, GroupType, GroupWildcard, ImportsWithProvenance,
+};
 use weaver_semconv::v1::semconv::Imports;
 
 use crate::{
@@ -510,11 +512,7 @@ fn upgrade_imported_group_v2<C: crate::SchemaCacheLookup>(
                 GroupType::Metric,
                 &m.common,
                 attributes,
-                Some(GroupLineage::new(v2_provenance(
-                    chosen_v2,
-                    &deps,
-                    &m.provenance,
-                ))),
+                GroupLineage::new(v2_provenance(chosen_v2, &deps, &m.provenance)),
             );
             upgraded.metric_name = Some(m.name.to_string());
             upgraded.instrument = Some(weaver_semconv::convert::v2_instrument_to_v1(m.instrument));
@@ -549,11 +547,7 @@ fn upgrade_imported_group_v2<C: crate::SchemaCacheLookup>(
                 GroupType::Event,
                 &e.common,
                 attributes,
-                Some(GroupLineage::new(v2_provenance(
-                    chosen_v2,
-                    &deps,
-                    &e.provenance,
-                ))),
+                GroupLineage::new(v2_provenance(chosen_v2, &deps, &e.provenance)),
             );
             upgraded.name = Some(e.name.to_string());
             upgraded.entity_associations = to_named_associations(&e.entity_associations);
@@ -574,10 +568,8 @@ fn upgrade_imported_group_v2<C: crate::SchemaCacheLookup>(
                     .iter()
                     .map(|ar| {
                         V2SignalAttribute::new(
-                            &ar.base,
-                            weaver_semconv::convert::v2_requirement_level_to_v1(
-                                ar.requirement_level.clone(),
-                            ),
+                            ar,
+                            RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
                         )
                         .with_role(AttributeRole::Identifying)
                     })
@@ -598,11 +590,7 @@ fn upgrade_imported_group_v2<C: crate::SchemaCacheLookup>(
                 GroupType::Entity,
                 &e.common,
                 attributes,
-                Some(GroupLineage::new(v2_provenance(
-                    chosen_v2,
-                    &deps,
-                    &e.provenance,
-                ))),
+                GroupLineage::new(v2_provenance(chosen_v2, &deps, &e.provenance)),
             );
             upgraded.name = Some(e.r#type.to_string());
             upgraded.requirement_level = e.requirement_level.clone().map(Into::into);
@@ -635,11 +623,7 @@ fn upgrade_imported_group_v2<C: crate::SchemaCacheLookup>(
                 GroupType::Span,
                 &s.common,
                 attributes,
-                Some(GroupLineage::new(v2_provenance(
-                    chosen_v2,
-                    &deps,
-                    &s.provenance,
-                ))),
+                GroupLineage::new(v2_provenance(chosen_v2, &deps, &s.provenance)),
             );
             upgraded.span_kind = Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
             upgraded.span_name = Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
@@ -675,7 +659,7 @@ fn upgrade_imported_group_v2<C: crate::SchemaCacheLookup>(
                 GroupType::AttributeGroup,
                 &ag.common,
                 attributes,
-                None,
+                GroupLineage::new(v2_provenance(chosen_v2, &deps, &ag.provenance)),
             )))
         }
         _ => Ok(None),
@@ -826,6 +810,13 @@ fn v2_provenance(
     )
 }
 
+/// The attributes of an imported v2 signal: their refs in the importing
+/// registry's catalog, and the lineage of each one.
+struct ImportedAttributes {
+    refs: Vec<AttributeRef>,
+    lineage: Vec<(String, AttributeLineage)>,
+}
+
 /// Resolves a v2 signal's attribute refs into the importing registry's
 /// catalog, converting each one to its v1 form.
 fn import_v2_attributes<'a, C: crate::SchemaCacheLookup>(
@@ -834,8 +825,11 @@ fn import_v2_attributes<'a, C: crate::SchemaCacheLookup>(
     refs: impl Iterator<Item = V2SignalAttribute<'a>>,
     attribute_catalog: &mut AttributeCatalog,
     cache_lookup: &C,
-) -> Result<Vec<AttributeRef>, Error> {
-    let mut attributes = vec![];
+) -> Result<ImportedAttributes, Error> {
+    let mut attributes = ImportedAttributes {
+        refs: vec![],
+        lineage: vec![],
+    };
     for signal_attr in refs {
         let base = signal_attr.base;
         let attr =
@@ -846,21 +840,54 @@ fn import_v2_attributes<'a, C: crate::SchemaCacheLookup>(
                     registry_name: schema.schema_url.name().to_owned(),
                     attribute_ref: base.0,
                 })?;
-        let source = AttributeSource::Dependency {
-            schema_url: v2_source_url(schema, deps, attr.provenance.source),
-        };
-        attributes.push(attribute_catalog.attribute_ref_with_provenance(
-            convert_v2_attribute(
-                attr,
-                signal_attr.requirement_level,
-                signal_attr.sampling_relevant,
-                signal_attr.role,
-            ),
-            source,
-            cache_lookup,
-        )?);
+        let schema_url = v2_source_url(schema, deps, attr.provenance.source);
+        let v1_attr = convert_v2_attribute(
+            attr,
+            signal_attr.requirement_level,
+            signal_attr.sampling_relevant,
+            signal_attr.role,
+        );
+        attributes.lineage.push((
+            v1_attr.name.clone(),
+            imported_attribute_lineage(&schema_url, &v1_attr),
+        ));
+        attributes
+            .refs
+            .push(attribute_catalog.attribute_ref_with_provenance(
+                v1_attr,
+                AttributeSource::Dependency { schema_url },
+                cache_lookup,
+            )?);
     }
     Ok(attributes)
+}
+
+/// The lineage of an attribute that arrived with an imported v2 signal.
+///
+/// It records the attribute as a reference to the registry that defines it, as
+/// resolving the same dependency from source does. Without it, the importing
+/// registry would take the attribute for one of its own definitions. The
+/// catalog supplies the descriptive fields; the signal's ref sets the rest.
+///
+/// The fields are recorded with the same `AttributeLineage` methods that resolve
+/// a ref from source, so the two agree. Each method returns the merged field
+/// value rather than `self`, so they can't be chained; only the lineage they
+/// record is needed here.
+fn imported_attribute_lineage(schema_url: &SchemaUrl, attr: &Attribute) -> AttributeLineage {
+    let mut lineage = AttributeLineage::new(&format!("v2_dependency.{}", schema_url.name()));
+    _ = lineage.brief(&None, &attr.brief);
+    _ = lineage.examples(&None, &attr.examples);
+    _ = lineage.note(&None, &attr.note);
+    _ = lineage.stability(&None, &attr.stability);
+    _ = lineage.deprecated(&None, &attr.deprecated);
+    _ = lineage.annotations(&None, &attr.annotations);
+    _ = lineage.requirement_level(
+        &Some(attr.requirement_level.clone()),
+        &attr.requirement_level,
+    );
+    _ = lineage.sampling_relevant(&attr.sampling_relevant, &None);
+    _ = lineage.optional_role(&attr.role, &None);
+    lineage
 }
 
 /// Builds the v1 group that carries an imported v2 signal, with the fields
@@ -870,9 +897,16 @@ fn imported_v2_group(
     id: String,
     r#type: GroupType,
     common: &weaver_semconv::v2::CommonFields,
-    attributes: Vec<AttributeRef>,
-    lineage: Option<GroupLineage>,
+    attributes: ImportedAttributes,
+    mut lineage: GroupLineage,
 ) -> Group {
+    for (name, attr_lineage) in attributes.lineage {
+        lineage.add_attribute_lineage(name, attr_lineage);
+    }
+    // A published registry holds only public attribute groups, so an imported
+    // one is public; without it, the group is left out of the resolved registry.
+    let visibility =
+        matches!(r#type, GroupType::AttributeGroup).then_some(AttributeGroupVisibilitySpec::Public);
     Group {
         id,
         r#type,
@@ -882,7 +916,7 @@ fn imported_v2_group(
         extends: None,
         stability: Some(common.stability.clone().into()),
         deprecated: common.deprecated.clone(),
-        attributes,
+        attributes: attributes.refs,
         span_kind: None,
         events: vec![],
         metric_name: None,
@@ -890,12 +924,12 @@ fn imported_v2_group(
         unit: None,
         requirement_level: None,
         name: None,
-        lineage,
+        lineage: Some(lineage),
         display_name: None,
         body: None,
         annotations: Some(common.annotations.clone()),
         entity_associations: vec![],
-        visibility: None,
+        visibility,
         is_v2: true,
         span_name: None,
     }
@@ -1021,7 +1055,7 @@ impl ImportableDependency for V2Schema {
                 GroupType::Metric,
                 &m.common,
                 attributes,
-                Some(GroupLineage::new(v2_provenance(self, &deps, &m.provenance))),
+                GroupLineage::new(v2_provenance(self, &deps, &m.provenance)),
             );
             group.metric_name = Some(m.name.to_string());
             group.instrument = Some(weaver_semconv::convert::v2_instrument_to_v1(m.instrument));
@@ -1059,7 +1093,7 @@ impl ImportableDependency for V2Schema {
                 GroupType::Event,
                 &e.common,
                 attributes,
-                Some(GroupLineage::new(v2_provenance(self, &deps, &e.provenance))),
+                GroupLineage::new(v2_provenance(self, &deps, &e.provenance)),
             );
             group.name = Some(e.name.to_string());
             group.entity_associations = to_named_associations(&e.entity_associations);
@@ -1084,10 +1118,8 @@ impl ImportableDependency for V2Schema {
                     .iter()
                     .map(|ar| {
                         V2SignalAttribute::new(
-                            &ar.base,
-                            weaver_semconv::convert::v2_requirement_level_to_v1(
-                                ar.requirement_level.clone(),
-                            ),
+                            ar,
+                            RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
                         )
                         .with_role(AttributeRole::Identifying)
                     })
@@ -1108,7 +1140,7 @@ impl ImportableDependency for V2Schema {
                 GroupType::Entity,
                 &e.common,
                 attributes,
-                Some(GroupLineage::new(v2_provenance(self, &deps, &e.provenance))),
+                GroupLineage::new(v2_provenance(self, &deps, &e.provenance)),
             );
             group.name = Some(e.r#type.to_string());
             group.requirement_level = e.requirement_level.clone().map(Into::into);
@@ -1140,7 +1172,7 @@ impl ImportableDependency for V2Schema {
                 GroupType::Span,
                 &s.common,
                 attributes,
-                Some(GroupLineage::new(v2_provenance(self, &deps, &s.provenance))),
+                GroupLineage::new(v2_provenance(self, &deps, &s.provenance)),
             );
             group.span_kind = Some(weaver_semconv::convert::v2_span_kind_to_v1(s.kind));
             group.span_name = Some(weaver_semconv::convert::v2_span_name_to_v1(s.name.clone()));
@@ -1154,8 +1186,7 @@ impl ImportableDependency for V2Schema {
             result.push(group);
         }
 
-        // Now AttributeGroup imports. An attribute group carries no lineage:
-        // it defines no signal for a refinement to extend.
+        // Now AttributeGroup imports.
         for ag in self.registry.attribute_groups.iter() {
             if !is_imported(ag, ImportField::AttributeGroups, GroupType::AttributeGroup) {
                 continue;
@@ -1179,7 +1210,7 @@ impl ImportableDependency for V2Schema {
                 GroupType::AttributeGroup,
                 &ag.common,
                 attributes,
-                None,
+                GroupLineage::new(v2_provenance(self, &deps, &ag.provenance)),
             ));
         }
 
@@ -1496,8 +1527,44 @@ mod tests {
             ]
         );
 
-        // An attribute group defines no signal, so it carries no lineage.
-        assert!(group("attribute_group.e").lineage.is_none());
+        // Every imported group, an attribute group included, records each of
+        // its attributes as a reference to the registry that defines it, so the
+        // importing registry does not take them for its own definitions.
+        for id in [
+            "metric.a",
+            "event.b",
+            "entity.c",
+            "span.d",
+            "attribute_group.e",
+        ] {
+            let imported = group(id);
+            let lineage = imported
+                .lineage
+                .as_ref()
+                .unwrap_or_else(|| panic!("{id} should carry its lineage"));
+            for ar in &imported.attributes {
+                let attr = catalog
+                    .attribute(ar)
+                    .expect("imported attribute should exist in the catalog");
+                let attr_lineage = lineage
+                    .attribute(&attr.name)
+                    .unwrap_or_else(|| panic!("{id} should record `{}` as a reference", attr.name));
+                assert!(
+                    attr_lineage.source_group.starts_with("v2_dependency."),
+                    "`{}` in {id} should come from a dependency, got `{}`",
+                    attr.name,
+                    attr_lineage.source_group
+                );
+            }
+        }
+
+        // A published attribute group is public, so the import keeps it public;
+        // visibility means nothing on a signal.
+        assert_eq!(
+            group("attribute_group.e").visibility,
+            Some(weaver_semconv::v1::group::AttributeGroupVisibilitySpec::Public)
+        );
+        assert!(group("metric.a").visibility.is_none());
 
         Ok(())
     }
@@ -1691,6 +1758,53 @@ mod tests {
             .expect("attribute_group should be upgraded");
         assert_eq!(upgraded_ag.id, "attribute_group.e");
         assert_eq!(upgraded_ag.attributes.len(), 1);
+        assert_eq!(
+            upgraded_ag.visibility,
+            Some(weaver_semconv::v1::group::AttributeGroupVisibilitySpec::Public)
+        );
+
+        // Every other signal type is rebuilt from the chosen version too, and
+        // keeps its attributes recorded as references to the registry that
+        // defines them, as a fresh import does.
+        let mut upgraded_groups = vec![upgraded, upgraded_ag];
+        for (id, r#type) in [
+            ("event.b", weaver_semconv::v1::group::GroupType::Event),
+            ("entity.c", weaver_semconv::v1::group::GroupType::Entity),
+            ("span.d", weaver_semconv::v1::group::GroupType::Span),
+        ] {
+            let old = Group {
+                id: id.to_owned(),
+                r#type,
+                name: Some(id.to_owned()),
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                ..group.clone()
+            };
+            let upgraded = upgrade_imported_group(&old, &old_url, &mut catalog, &lookup)?
+                .unwrap_or_else(|| panic!("{id} should be upgraded"));
+            assert_eq!(upgraded.id, id);
+            upgraded_groups.push(upgraded);
+        }
+        for upgraded in &upgraded_groups {
+            let lineage = upgraded
+                .lineage
+                .as_ref()
+                .unwrap_or_else(|| panic!("{} should carry its lineage", upgraded.id));
+            for ar in &upgraded.attributes {
+                let attr = catalog
+                    .attribute(ar)
+                    .expect("upgraded attribute should exist in the catalog");
+                assert!(
+                    lineage
+                        .attribute(&attr.name)
+                        .is_some_and(|l| l.source_group.starts_with("v2_dependency.")),
+                    "{} should record `{}` as a reference to its dependency",
+                    upgraded.id,
+                    attr.name
+                );
+            }
+        }
 
         Ok(())
     }

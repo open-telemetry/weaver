@@ -46,7 +46,7 @@ pub struct WeaverMcpService {
     versioned_registry: Arc<VersionedRegistry>,
     /// Path to custom Rego advice policies directory.
     advice_policies: Option<PathBuf>,
-    /// Path to the directory or file containing additional rego data (JSON/YAML files) or a glob pattern.
+    /// Path, directory, or glob pattern containing additional rego data (JSON/YAML files).
     advice_data: Option<String>,
     /// Path to jq preprocessor script for Rego policies.
     advice_preprocessor: Option<PathBuf>,
@@ -56,10 +56,7 @@ impl WeaverMcpService {
     /// Create a new MCP service with the given registry and configuration.
     #[must_use]
     pub fn new(registry: Arc<ForgeResolvedRegistry>, config: McpConfig) -> Self {
-        let search_context = Arc::new(SearchContext::from_registry_with_separator(
-            &registry,
-            config.namespace_separator.clone(),
-        ));
+        let search_context = Arc::new(SearchContext::from_registry(&registry));
 
         // Create versioned registry wrapper once for live check
         let versioned_registry = Arc::new(VersionedRegistry::V2(Box::new((*registry).clone())));

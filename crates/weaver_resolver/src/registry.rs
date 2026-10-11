@@ -64,6 +64,10 @@ pub struct UnresolvedGroup {
     /// List of groups to include in the semantic convention group.
     pub include_groups: Vec<String>,
 
+    /// Inherited attributes to unreference before merging local references.
+    #[serde(default)]
+    pub attribute_unrefs: Vec<String>,
+
     /// Visibility of the group.
     pub visibility: Option<AttributeGroupVisibilitySpec>,
 
@@ -456,6 +460,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
         attributes: attrs,
         provenance: Some(group.provenance),
         include_groups: group.spec.include_groups,
+        attribute_unrefs: group.spec.attribute_unrefs,
         visibility: group.spec.visibility,
         is_v2: group.spec.is_v2,
     }
@@ -533,6 +538,7 @@ fn resolve_dependency_imports<C: crate::SchemaCacheLookup>(
             group,
             attributes: vec![],
             include_groups: vec![],
+            attribute_unrefs: vec![],
             visibility: None,
             is_v2,
             provenance,
@@ -814,6 +820,7 @@ fn add_resolved_group_to_index(
     );
     _ = unresolved_group.group.extends.take();
     unresolved_group.include_groups.clear();
+    unresolved_group.attribute_unrefs.clear();
     let mut summary =
         GroupSummary::from_without_attributes(&unresolved_group.group, GroupSource::Local);
     summary.attributes = unresolved_group.attributes.clone();
@@ -999,7 +1006,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                     Some(included) => included,
                     None => continue,
                 };
-            let parent = match unresolved_group.group.extends.clone() {
+            let mut parent = match unresolved_group.group.extends.clone() {
                 Some(parent_ref) => match resolve_refinement_parent(
                     unresolved_group,
                     &parent_ref,
@@ -1039,6 +1046,19 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                 },
                 None => None,
             };
+
+            if !unresolved_group.attribute_unrefs.is_empty() {
+                if let Some((parent_ref, parent_attrs)) = &mut parent {
+                    fatal_errors.extend(attribute_unref_errors(
+                        unresolved_group,
+                        parent_ref,
+                        parent_attrs,
+                        &included,
+                    ));
+                    let unrefs: HashSet<_> = unresolved_group.attribute_unrefs.iter().collect();
+                    parent_attrs.retain(|attr| !unrefs.contains(&attr.spec.id()));
+                }
+            }
 
             // Help V2 mapping reverse-engineer private groups
             if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
@@ -1093,6 +1113,54 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
     } else {
         Err(Error::CompoundError(fatal_errors))
     }
+}
+
+fn attribute_unref_errors(
+    group: &UnresolvedGroup,
+    parent_ref: &str,
+    parent_attrs: &[UnresolvedAttribute],
+    included: &[(String, &[UnresolvedAttribute])],
+) -> Vec<Error> {
+    use weaver_semconv::v1::attribute::AttributeRole;
+
+    let inherited: HashMap<_, _> = parent_attrs
+        .iter()
+        .map(|a| (a.spec.id(), &a.spec))
+        .collect();
+    let local: HashSet<_> = group.attributes.iter().map(|a| a.spec.id()).collect();
+    let included: HashMap<_, _> = included
+        .iter()
+        .flat_map(|(source, attrs)| attrs.iter().map(move |attr| (attr.spec.id(), source)))
+        .collect();
+    let mut seen = HashSet::new();
+    group.attribute_unrefs.iter().filter_map(|key| {
+        let reason = if !seen.insert(key) {
+            "duplicate unref entry".to_owned()
+        } else if local.contains(key) {
+            "the attribute is also explicitly referenced by this refinement".to_owned()
+        } else if let Some(source) = included.get(key) {
+            format!("the attribute is also included by ref_group `{source}`")
+        } else if let Some(spec) = inherited.get(key) {
+            let role = match spec {
+                AttributeSpec::Ref { role, .. } | AttributeSpec::Id { role, .. } => role,
+            };
+            if group.group.r#type == GroupType::Entity && *role == Some(AttributeRole::Identifying) {
+                format!("the attribute identifies entity `{parent_ref}`; refinements must preserve identity")
+            } else if spec.is_required() {
+                format!("the attribute is required by `{parent_ref}`")
+            } else {
+                return None;
+            }
+        } else {
+            format!("the attribute is not inherited from `{parent_ref}`")
+        };
+        Some(Error::InvalidAttributeUnref {
+            refinement_id: group.group.id.clone(),
+            attribute_key: key.clone(),
+            reason,
+            provenance: group.provenance.clone().map(Box::new),
+        })
+    }).collect()
 }
 
 /// Errors when an entity refinement alters the identity of the base entity
@@ -2028,6 +2096,7 @@ groups:
                 },
                 attributes: Default::default(),
                 include_groups: Default::default(),
+                attribute_unrefs: vec![],
                 visibility: Default::default(),
                 is_v2: false,
                 provenance: Some(Provenance {
@@ -2129,6 +2198,7 @@ groups:
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
+                    attribute_unrefs: vec![],
                     visibility: Default::default(),
                     is_v2: false,
                     provenance: Some(Provenance {
@@ -2165,6 +2235,7 @@ groups:
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
+                    attribute_unrefs: vec![],
                     visibility: Default::default(),
                     is_v2: false,
                     provenance: Some(Provenance {
@@ -2201,6 +2272,7 @@ groups:
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
+                    attribute_unrefs: vec![],
                     visibility: Default::default(),
                     is_v2: false,
                     provenance: Some(Provenance {

@@ -246,7 +246,7 @@ You can refine the following properties of the attribute (for the scope of the s
 
 The following properties can be defined on the attribute references only:
 
-- `requirement_level` - Optional - see [Requirement Levels](https://github.com/open-telemetry/semantic-conventions/blob/v1.36.0/docs/general/attribute-requirement-level.md) for details.
+- `requirement_level` - Optional (not available on entity `identity` attributes, which are always required) - see [Requirement Levels](https://github.com/open-telemetry/semantic-conventions/blob/v1.36.0/docs/general/attribute-requirement-level.md) for details.
 - `sampling_relevant` - Optional - available on spans only - a boolean flag indicating if the attribute is (especially) relevant for sampling and
   thus should be set at span start. It defaults to `false`.
 
@@ -314,6 +314,27 @@ spans:
 > attribute inherited from the refined (parent) signal. The order of these declarations
 > in the YAML file does not affect this precedence.
 
+#### Removing inherited attributes
+
+Use `unref` to unreference an attribute inherited from a base signal:
+
+```yaml
+span_refinements:
+  - id: span.db.hbase.client
+    ref: db.client
+    attributes:
+      - unref: db.query.text
+```
+
+Use it in `attributes` on span, metric, and event refinements, or in `description`
+on entity refinements. Base signals and attribute groups cannot use `unref`.
+
+Resolution fails if the attribute
+is not inherited, is `required` in the base signal, appears in duplicate `unref` entries,
+or is also included explicitly or via a group.
+
+An `unref` entry accepts no other fields.
+
 ### `spans` definition
 
 The spans section contains a list of span definitions. A span definition consists of the following properties:
@@ -359,14 +380,14 @@ spans:
 
 ### `span_refinements` definition
 
-The span refinements section contains a list of span refinement definitions. A span refinement allows adding or modifying attributes of an existing span definition.
+Span refinements can add attributes and override or remove inherited attributes.
 
 A span refinement definition consists of the following properties:
 
 - `id` - Required. Uniquely identifies the span refinement.
 - `ref` - Required. The type of the span being refined.
 - `name` - Optional. Overrides the [span name](#span-name) specification from the referenced base span. If set, the entire `name` structure from the refinement replaces the base span's `name`; otherwise, the base span's `name` is inherited.
-- `attributes` - Optional. List of [attribute references](#attribute-reference) that belong to the semantic convention.
+- `attributes` - Optional. List of attribute references, group references, or [`unref` entries](#removing-inherited-attributes).
 - `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this span should be associated with.
 - `brief` - Optional. Refines the brief description of the signal.
 - `note` - Optional. Refines the more elaborate description of the signal.
@@ -395,7 +416,7 @@ An entity definition consists of the following properties:
 - `note` - Optional. A more elaborate description of the entity.
 - `stability` - Required. Specifies the [stability](#stability-levels) of the entity definition.
 - `requirement_level` - Optional. The requirement level of the signal. See [Signal Requirement Levels](#signal-requirement-levels). Defaults to `recommended`.
-- `identity` - Required. List of [attribute references](#attribute-reference) that form the identity of the entity. These attributes uniquely identify an instance of the entity.
+- `identity` - Required. List of [attribute references](#attribute-reference) that form the identity of the entity. These attributes uniquely identify an instance of the entity and are always required (`requirement_level` cannot be set on `identity` attributes).
 - `description` - Optional. List of [attribute references](#attribute-reference) that provide additional descriptive information about the entity but are not part of its identity.
 - `deprecated` - Optional. When present, marks the entity as deprecated. See [deprecated](#deprecated-structure) for details.
 - `annotations` - Optional. Map of annotations. Annotations are key-value pairs that provide additional information about the entity. See [annotations](#annotations) for details.
@@ -424,13 +445,16 @@ would otherwise replace the other silently.
 
 ### `entity_refinements` definition
 
-The entity refinements section contains a list of entity refinement definitions. An entity refinement allows adding or modifying attributes of an existing entity definition.
+Entity refinements can add descriptive attributes and override or remove inherited
+descriptive attributes. They can override identity attributes but must preserve
+the set of attributes that identify the entity.
 
 An entity refinement definition consists of the following properties:
 
 - `id` - Required. Uniquely identifies the entity refinement.
 - `ref` - Required. The name of the entity being refined.
-- `description` - Optional. The additional attributes to describe the Entity.
+- `identity` - Optional. Refinements of existing identity attributes. Identity attributes cannot be added or removed, or set `requirement_level`.
+- `description` - Optional. Attribute references or [`unref` entries](#removing-inherited-attributes) for descriptive attributes.
 - `brief` - Optional. Refines the brief description of the signal.
 - `note` - Optional. Refines the more elaborate description of the signal.
 - `stability` - Optional. Refines the stability of the signal.
@@ -547,13 +571,13 @@ events:
 
 ### `event_refinements` definition
 
-The event refinements section contains a list of event refinement definitions. An event refinement allows adding or modifying attributes of an existing event definition.
+Event refinements can add attributes and override or remove inherited attributes.
 
 An event refinement definition consists of the following properties:
 
 - `id` - Required. Uniquely identifies the event refinement.
 - `ref` - Required. The name of the event being refined.
-- `attributes` - Optional. List of [attribute references](#attribute-reference) that belong to the semantic convention.
+- `attributes` - Optional. List of attribute references, group references, or [`unref` entries](#removing-inherited-attributes).
 - `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this event should be associated with.
 - `brief` - Optional. Refines the brief description of the signal.
 - `note` - Optional. Refines the more elaborate description of the signal.
@@ -604,13 +628,13 @@ metrics:
 
 ### `metric_refinements` definition
 
-The metric refinements section contains a list of metric refinement definitions. A metric refinement allows adding or modifying attributes of an existing metric definition.
+Metric refinements can add attributes and override or remove inherited attributes.
 
 A metric refinement definition consists of the following properties:
 
 - `id` - Required. Uniquely identifies the metric refinement.
 - `ref` - Required. The name of the metric being refined.
-- `attributes` - Optional. List of [attribute references](#attribute-reference) that belong to the semantic convention.
+- `attributes` - Optional. List of attribute references, group references, or [`unref` entries](#removing-inherited-attributes).
 - `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this metric should be associated with.
 - `brief` - Optional. Refines the brief description of the signal.
 - `note` - Optional. Refines the more elaborate description of the signal.

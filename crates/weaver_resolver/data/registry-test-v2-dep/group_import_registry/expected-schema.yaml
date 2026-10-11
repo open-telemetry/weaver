@@ -1,0 +1,47 @@
+file_format: resolved/2.0
+schema_url: https://group-import-consumer.example.com/schemas/1.0.0
+attribute_catalog:
+- key: server.address
+  type: string
+  examples:
+  - example.com
+  brief: Server address.
+  stability: stable
+  provenance:
+    source: 0
+- key: server.port
+  type: int
+  examples:
+  - 80
+  - 443
+  brief: Server port.
+  stability: stable
+  provenance:
+    source: 0
+registry:
+  # Both attributes arrived with the imported group and are defined by the
+  # dependency, so neither is listed here.
+  attributes: []
+  attribute_groups:
+  # Imported from the published dependency, with its requirement levels.
+  - id: server.common
+    attributes:
+    - base: 0
+      requirement_level: required
+    - base: 1
+      requirement_level: recommended
+    brief: Common server attributes.
+    stability: stable
+    provenance:
+      source: 0
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+dependencies:
+- https://server.example.com/schemas/1.0.0

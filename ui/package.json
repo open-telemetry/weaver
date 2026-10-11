@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
-  "packageManager": "pnpm@10.34.5+sha512.a4ee05f2f73658255bd6a89859c065a45c28a57daefae2c893a168ee2b73168c37b91e83e57ea67654ad03f03031746430e8bce38e362e042605fb8abc80192e",
+  "packageManager": "pnpm@10.34.6+sha512.7e1ae66a83a9143c118cc1944f37cc4f2b8acddeda4b001cfa78908f6e46e45e15292739ca6c9d026426cc757e9318cc98c5551d6a16c165097b0028ba87b4e6",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -28,20 +28,20 @@
     "@eslint/js": "10.0.1",
     "@playwright/test": "^1.60.0",
     "@tailwindcss/vite": "4.3.3",
-    "@types/node": "25.9.8",
+    "@types/node": "25.9.9",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
     "@types/swagger-ui-react": "^5.18.0",
-    "@vitejs/plugin-react": "6.1.1",
-    "daisyui": "5.7.43",
-    "eslint": "10.10.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "daisyui": "5.7.47",
+    "eslint": "10.11.0",
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.7",
-    "globals": "17.12.0",
+    "globals": "17.13.0",
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.70.1",
-    "vite": "8.3.0"
+    "typescript-eslint": "8.71.1",
+    "vite": "8.3.2"
   },
   "overrides-notes": {
     "monaco-dompurify": "monaco-editor 0.55.1 hard-pins dompurify 3.2.7 which has multiple XSS CVEs; remove when monaco-editor updates its dompurify pin to >=3.4.0"
