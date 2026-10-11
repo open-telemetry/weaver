@@ -6,8 +6,7 @@
 //! findings at creation time — before they are stored in `LiveCheckResult`.
 
 use crate::{Error, SampleRef};
-use globset::{Glob, GlobSet, GlobSetBuilder};
-use weaver_checker::PolicyFinding;
+use weaver_checker::{FindingMatcher, NameMatcher, PolicyFinding};
 use weaver_config::{FindingFilter, FindingLevelOverride, LiveCheckConfig};
 
 /// Engine that applies finding filters and level overrides.
@@ -27,10 +26,11 @@ pub struct FindingModifier {
 #[derive(Debug)]
 struct CompiledFilter {
     filter: FindingFilter,
+    matcher: FindingMatcher,
     /// Compiled `filter.sample_names` (scope), if non-empty.
-    sample_names_matcher: Option<GlobSet>,
+    sample_names_matcher: Option<NameMatcher>,
     /// Compiled `filter.exclude_samples` (exclusion condition), if non-empty.
-    exclude_samples_matcher: Option<GlobSet>,
+    exclude_samples_matcher: Option<NameMatcher>,
 }
 
 /// A `FindingLevelOverride` with its glob patterns precompiled once at
@@ -38,41 +38,29 @@ struct CompiledFilter {
 #[derive(Debug)]
 struct CompiledLevelOverride {
     rule: FindingLevelOverride,
+    matcher: FindingMatcher,
     /// Compiled `rule.sample_names` (scope), if non-empty.
-    sample_names_matcher: Option<GlobSet>,
+    sample_names_matcher: Option<NameMatcher>,
 }
 
-/// Compile a list of glob patterns into a `GlobSet`. Returns `Ok(None)` when
+/// Compile a list of glob patterns. Returns `Ok(None)` when
 /// `patterns` is empty (nothing to match).
-fn compile_globset(patterns: &[String]) -> Result<Option<GlobSet>, Error> {
-    if patterns.is_empty() {
-        return Ok(None);
-    }
-    let mut builder = GlobSetBuilder::new();
-    for pattern in patterns {
-        let glob = Glob::new(pattern).map_err(|e| Error::ConfigError {
-            error: format!("Invalid sample name pattern '{pattern}': {e}"),
-        })?;
-        _ = builder.add(glob);
-    }
-    let set = builder.build().map_err(|e| Error::ConfigError {
-        error: format!("Invalid sample name patterns {patterns:?}: {e}"),
-    })?;
-    Ok(Some(set))
+fn compile_globset(patterns: &[String]) -> Result<Option<NameMatcher>, Error> {
+    NameMatcher::compile(patterns).map_err(|error| Error::ConfigError {
+        error: error.to_string(),
+    })
 }
 
 /// Check whether a `signal_type`/`sample_names` scope (shared by
 /// `FindingFilter` and `FindingLevelOverride`) matches a finding. Both scopes
 /// are optional and combine as AND; an unset scope matches everything.
 fn scope_matches(
-    signal_type: Option<&String>,
-    sample_names_matcher: Option<&GlobSet>,
+    matcher: &FindingMatcher,
+    sample_names_matcher: Option<&NameMatcher>,
     finding: &PolicyFinding,
     sample: &SampleRef<'_>,
 ) -> bool {
-    let signal_type_ok =
-        signal_type.is_none_or(|s| finding.signal_type.as_deref() == Some(s.as_str()));
-    if !signal_type_ok {
+    if !matcher.matches_scope(finding) {
         return false;
     }
     match sample_names_matcher {
@@ -85,10 +73,8 @@ fn scope_matches(
 
 /// Check whether a finding's ID is matched by a level override rule. An
 /// unset `ids` list matches any finding ID within scope.
-fn is_matched_by(finding: &PolicyFinding, rule: &FindingLevelOverride) -> bool {
-    rule.ids
-        .as_ref()
-        .is_none_or(|ids| ids.iter().any(|id| id == &finding.id))
+fn is_matched_by(finding: &PolicyFinding, compiled: &CompiledLevelOverride) -> bool {
+    compiled.rule.ids.is_none() || compiled.matcher.matches_id(finding)
 }
 
 /// Check whether a finding should be excluded by a given filter.
@@ -98,10 +84,8 @@ fn is_excluded_by(
     sample: &SampleRef<'_>,
 ) -> bool {
     // Exclude by ID
-    if let Some(ref exclude_ids) = compiled.filter.exclude {
-        if exclude_ids.iter().any(|id| id == &finding.id) {
-            return true;
-        }
+    if compiled.matcher.matches_id(finding) {
+        return true;
     }
     // Exclude by min_level
     if let Some(min_level) = compiled.filter.min_level {
@@ -138,6 +122,15 @@ impl FindingModifier {
             .iter()
             .map(|filter| {
                 Ok(CompiledFilter {
+                    matcher: FindingMatcher::new(
+                        filter.exclude.as_deref().unwrap_or_default(),
+                        filter.signal_type.as_deref(),
+                        &[],
+                        &Default::default(),
+                    )
+                    .map_err(|error| Error::ConfigError {
+                        error: error.to_string(),
+                    })?,
                     sample_names_matcher: compile_globset(&filter.sample_names)?,
                     exclude_samples_matcher: compile_globset(&filter.exclude_samples)?,
                     filter: filter.clone(),
@@ -148,6 +141,15 @@ impl FindingModifier {
             .iter()
             .map(|rule| {
                 Ok(CompiledLevelOverride {
+                    matcher: FindingMatcher::new(
+                        rule.ids.as_deref().unwrap_or_default(),
+                        rule.signal_type.as_deref(),
+                        &[],
+                        &Default::default(),
+                    )
+                    .map_err(|error| Error::ConfigError {
+                        error: error.to_string(),
+                    })?,
                     sample_names_matcher: compile_globset(&rule.sample_names)?,
                     rule: rule.clone(),
                 })
@@ -191,11 +193,11 @@ impl FindingModifier {
         let mut finding = finding;
         for compiled in &self.level_overrides {
             if scope_matches(
-                compiled.rule.signal_type.as_ref(),
+                &compiled.matcher,
                 compiled.sample_names_matcher.as_ref(),
                 &finding,
                 sample,
-            ) && is_matched_by(&finding, &compiled.rule)
+            ) && is_matched_by(&finding, compiled)
             {
                 finding.level = compiled.rule.level;
                 break;
@@ -203,7 +205,7 @@ impl FindingModifier {
         }
         for compiled in &self.filters {
             if scope_matches(
-                compiled.filter.signal_type.as_ref(),
+                &compiled.matcher,
                 compiled.sample_names_matcher.as_ref(),
                 &finding,
                 sample,

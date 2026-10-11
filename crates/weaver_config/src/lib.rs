@@ -31,7 +31,7 @@ pub use live_check::{
     LiveCheckOtlpConfig,
 };
 pub use overrides::{CliOverrides, CommandConfig, FieldMapping};
-pub use registry::{DiagnosticsConfig, PolicyConfig, RegistryConfig};
+pub use registry::{DiagnosticsConfig, PolicyConfig, PolicyFindingFilter, RegistryConfig};
 pub use resolve::ResolveConfig;
 pub use template::TemplateConfig;
 pub use weaver_common::http_auth::TokenSource;
