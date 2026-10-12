@@ -2,8 +2,8 @@
 
 <kbd>weaver registry generate</kbd>
 
-|Quick Links | [weaver.yaml](weaver-config.md) | [Semconv Schema](../schemas/semconv-syntax.md) | [JQ Filters](../crates/weaver_forge/README.md#jq-filters-reference) | [Jinja Filters](../crates/weaver_forge/README.md#jinja-filters-reference) |
-|-|-|-|-|-|
+|Quick Links | [weaver.yaml](weaver-config.md) | [Virtual Directory (`vdir`)](vdir.md) | [Semconv Schema](../schemas/semconv-syntax.md) | [JQ Filters](../crates/weaver_forge/README.md#jq-filters-reference) | [Jinja Filters](../crates/weaver_forge/README.md#jinja-filters-reference) |
+|-|-|-|-|-|-|
 
 A core element of schema-first telemetry are the artifacts it enables:
 - **Up-to-Date Documentation**: Created right from the schema, the source of truth. When a metric changes, the docs do so, too.
@@ -30,7 +30,7 @@ Weaver extends Jinja with custom filters and functions specifically designed for
 >For a full tutorial, consider the [Step-by-Step Guide](../crates/weaver_forge/README.md#step-by-step-guide)
 
 Let's say we want to generate Markdown documentation for the metrics of our application or convention.
-With Weaver Forge, the following directory layout is used by default:
+With Weaver Forge, the following directory layout is used by default (both `--registry` and `--templates` accept [Virtual Directory (`vdir`)](vdir.md) strings, so registries and templates can be loaded from local folders, `.zip`/`.tar.gz` archives, or Git repositories):
 
 | Path | Description |
 |-|-|

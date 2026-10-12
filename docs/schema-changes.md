@@ -3,6 +3,7 @@
 ## Introduction
 
 Weaver can be used to compare two versions of a semantic convention registry
+(`--registry` and `--baseline-registry`, both accepting [Virtual Directory (`vdir`)](vdir.md) references)
 and generate a diff report. This document describes the data model used to
 represent the differences between two versions of a semantic convention
 registry, as well as the diffing process. This diff report can be used to:

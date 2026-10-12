@@ -52,7 +52,7 @@ Properties:
 - **dependencies**: Registries this registry builds on (optional). Currently at most one dependency
   is supported. Each dependency has:
   - `schema_url`: Schema URL of the dependency registry (required)
-  - `registry_path`: Path to the dependency's files (optional). When omitted,
+  - `registry_path`: [Virtual Directory (`vdir`)](/docs/vdir.md) path to the dependency's files (optional). When omitted,
     the dependency is resolved by its `schema_url` alone. Can be:
     - A local directory or archive (`.zip`, `.tar.gz`)
     - A remote archive URL
@@ -61,7 +61,7 @@ Properties:
     - A GitHub release asset URL (automatically resolved via the GitHub API)
 
     For private sources, configure HTTP authentication per-URL via `[[auth]]`
-    entries in `.weaver.toml` (see the schema's `auth` section).
+    entries in `.weaver.toml` (see the schema's `auth` section and the [Virtual Directory (`vdir`) Reference](/docs/vdir.md)).
 
 For example, a definition manifest for a registry that extends OTel semantic conventions:
 
@@ -120,7 +120,7 @@ Properties:
 
 - **file_format**: `"manifest/2.0"`
 - **schema_url**: Schema URL that uniquely identifies this registry and its version.
-- **resolved_registry_uri**: URI pointing to the resolved registry artifact included in the package.
+- **resolved_registry_uri**: Relative path or [Virtual Directory (`vdir`)](/docs/vdir.md) URI pointing to the resolved registry artifact included in the package.
 - **stability**: Stability level of the registry (optional, defaults to `development`).
 - **description**: Description of the registry (optional).
 - **dependencies**: Same structure as in the [definition manifest](#definition-manifest).
