@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     deprecated::Deprecated,
     v2::{
-        attribute::{AttributeRef, Examples, RequirementLevel},
+        attribute::{AttributeRef, AttributeUnref, Examples, RequirementLevel},
         signal_id::SignalId,
         signal_requirement_level::SignalRequirementLevel,
         stability::Stability,
@@ -72,6 +72,31 @@ pub struct Entity {
     pub common: CommonFields,
 }
 
+/// An attribute reference or removal in an entity refinement.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[serde(untagged)]
+#[schemars(inline)]
+pub enum EntityAttributeRefinement {
+    /// An attribute reference supported by the signal.
+    Ref(AttributeRef),
+    /// An inherited attribute to unreference.
+    Unref(AttributeUnref),
+}
+
+impl EntityAttributeRefinement {
+    /// Includes or overrides an attribute reference.
+    #[must_use]
+    pub fn reference(reference: impl Into<AttributeRef>) -> Self {
+        Self::Ref(reference.into())
+    }
+
+    /// Removes an inherited attribute by key.
+    #[must_use]
+    pub fn unref(key: impl Into<String>) -> Self {
+        Self::Unref(AttributeUnref { unref: key.into() })
+    }
+}
+
 /// A refinement of an existing entity.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -80,20 +105,16 @@ pub struct EntityRefinement {
     pub id: SignalId,
     /// The name of the entity being refined.
     pub r#ref: SignalId,
-    /// Refinements of the base entity's identity attributes.
-    ///
-    /// A refinement must not change *which* attributes identify the entity: it
-    /// may only refine attributes the base entity already lists under
-    /// `identity`.
+    /// Overrides of the base entity's identity attributes; identity cannot be removed.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub identity: Vec<IdentityAttributeRef>,
-    /// Refinements or additional attributes to describe the Entity.
+    /// References, overrides, or removals of descriptive attributes.
     ///
     /// Attributes listed here have the descriptive role.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub description: Vec<AttributeRef>,
+    pub description: Vec<EntityAttributeRefinement>,
     /// Refines the brief description of the signal.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub brief: Option<String>,
