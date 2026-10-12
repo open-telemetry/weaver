@@ -2004,7 +2004,7 @@ mod tests {
             .expect("failed to parse archive vdir path");
 
         if let Some(home) = dirs::home_dir() {
-            let _ = std::fs::remove_file(home.join(".weaver/vdir_cache/escaped.yaml"));
+            _ = std::fs::remove_file(home.join(".weaver/vdir_cache/escaped.yaml"));
         }
 
         let vdir = VirtualDirectory::try_new(&vdir_path).expect("failed to unpack archive");
