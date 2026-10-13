@@ -68,7 +68,6 @@ function computeColors(): ChartColors {
       development: warning,
       alpha: info,
       beta: info,
-      deprecated: error,
     },
   }
 }

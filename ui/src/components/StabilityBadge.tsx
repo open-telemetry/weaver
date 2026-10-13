@@ -1,9 +1,10 @@
-import type { StabilityFilter } from '../lib/api'
+import type { DeprecatedField, StabilityLevel } from '../lib/api'
 
-export type StabilityLevel = Exclude<StabilityFilter, null>
+export type { StabilityLevel }
 
 interface StabilityBadgeProps {
   stability?: StabilityLevel | null
+  size?: 'xs' | 'sm' | 'md' | 'lg'
 }
 
 const stabilityLabels: Record<StabilityLevel, string> = {
@@ -12,10 +13,9 @@ const stabilityLabels: Record<StabilityLevel, string> = {
   'alpha': 'Alpha',
   'beta': 'Beta',
   'release_candidate': 'Release Candidate',
-  'deprecated': 'Deprecated',
 }
 
-export function StabilityBadge({ stability }: StabilityBadgeProps) {
+export function StabilityBadge({ stability, size }: StabilityBadgeProps) {
   if (!stability) return null
   const badgeClass = {
     'stable': 'badge-success',
@@ -23,12 +23,12 @@ export function StabilityBadge({ stability }: StabilityBadgeProps) {
     'alpha': 'badge-info',
     'beta': 'badge-info',
     'release_candidate': 'badge-accent',
-    'deprecated': 'badge-error',
   }[stability] || 'badge-ghost'
 
+  const sizeClass = size ? ` badge-${size}` : ''
   const label = stabilityLabels[stability] || stability
 
-  return <span className={`badge ${badgeClass}`}>{label}</span>
+  return <span className={`badge ${badgeClass}${sizeClass}`}>{label}</span>
 }
 
 /** Compact colored dot for tight layouts (e.g. tree rows); label appears on hover. */
@@ -40,7 +40,6 @@ export function StabilityDot({ stability }: StabilityBadgeProps) {
     'alpha': 'bg-info',
     'beta': 'bg-info',
     'release_candidate': 'bg-accent',
-    'deprecated': 'bg-error',
   }[stability] || 'bg-base-content/30'
 
   const label = stabilityLabels[stability] || stability
@@ -52,5 +51,32 @@ export function StabilityDot({ stability }: StabilityBadgeProps) {
       role="img"
       aria-label={label}
     />
+  )
+}
+
+interface DeprecatedBadgeProps {
+  deprecated?: DeprecatedField | null
+  size?: 'xs' | 'sm' | 'md' | 'lg'
+}
+
+export function DeprecatedBadge({ deprecated, size }: DeprecatedBadgeProps) {
+  if (!deprecated) return null
+
+  const sizeClass = size ? ` badge-${size}` : ''
+  let title = 'Deprecated'
+  if (typeof deprecated === 'object') {
+    if (deprecated.reason && deprecated.note) {
+      title = `Deprecated (${deprecated.reason}): ${deprecated.note}`
+    } else if (deprecated.note) {
+      title = `Deprecated: ${deprecated.note}`
+    } else if (deprecated.reason) {
+      title = `Deprecated (${deprecated.reason})`
+    }
+  }
+
+  return (
+    <span className={`badge badge-error${sizeClass}`} title={title}>
+      Deprecated
+    </span>
   )
 }

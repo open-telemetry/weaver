@@ -1,9 +1,13 @@
 import { Fragment } from 'react'
 import { Link } from '@tanstack/react-router'
-import type { EntityAssociation } from '../lib/api'
+import type { EntityAssociation, EntityRef } from '../lib/api'
+
+function isRef(node: EntityAssociation): node is EntityRef {
+  return 'type' in node
+}
 
 function isAllOf(node: EntityAssociation): node is { all_of: EntityAssociation[] } {
-  return typeof node === 'object' && node !== null && 'all_of' in node
+  return 'all_of' in node
 }
 
 function EntityLink({ name }: { name: string }) {
@@ -29,8 +33,8 @@ function Paren({ children }: { children: string }) {
  * parentheses to keep the precedence clear.
  */
 function Expr({ node, nested }: { node: EntityAssociation; nested: boolean }) {
-  if (typeof node === 'string') {
-    return <EntityLink name={node} />
+  if (isRef(node)) {
+    return <EntityLink name={node.type} />
   }
 
   const children = isAllOf(node) ? node.all_of : node.one_of
@@ -55,8 +59,8 @@ function Expr({ node, nested }: { node: EntityAssociation; nested: boolean }) {
  * Renders the entity associations declared on a signal (span, metric or event).
  *
  * The top-level list is an implicit `one_of`: the signal must be associated with
- * at least one of the entries. Each entry may be a bare entity reference or a
- * nested `one_of` / `all_of` expression. The whole thing is rendered as a single
+ * at least one of the entries. Each entry may be an entity reference or a nested
+ * `one_of` / `all_of` expression. The whole thing is rendered as a single
  * readable boolean expression with links to each referenced entity.
  *
  * Returns `null` when there are no associations so callers can render it

@@ -1,0 +1,14 @@
+file_format: definition/2
+metric_refinements:
+  # `consumer.request.count` comes from `consumer`, but its attributes are
+  # defined in `server` - one level deeper. Provenance must point at `server`.
+  - id: deep.consumer.count
+    ref: consumer.request.count
+    brief: Refined consumer request count
+    attributes:
+      - ref: server.port
+        brief: Deeply refined server port
+  # Same attributes, this time reached through a direct dependency.
+  - id: deep.server.duration
+    ref: server.request.duration
+    brief: Refined server request duration

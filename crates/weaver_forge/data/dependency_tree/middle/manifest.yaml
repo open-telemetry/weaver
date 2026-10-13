@@ -1,0 +1,7 @@
+name: middle
+description: Depends on sub, and is depended on by root.
+schema_url: https://example.com/dependency-tree-middle/1.0.0
+dependencies:
+  - name: sub
+    schema_url: https://example.com/dependency-tree-sub/1.0.0
+    registry_path: data/dependency_tree/sub

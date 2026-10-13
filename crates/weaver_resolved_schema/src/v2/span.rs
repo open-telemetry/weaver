@@ -2,15 +2,17 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_semconv::{
+use weaver_semconv::v2::{
     attribute::RequirementLevel,
-    entity_association::EntityAssociation,
-    group::SpanKindSpec,
+    signal_id::SignalId,
     signal_requirement_level::SignalRequirementLevel,
-    v2::{signal_id::SignalId, span::SpanName, CommonFields},
+    span::{SpanKindSpec, SpanName},
+    CommonFields,
 };
 
-use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
+use crate::v2::{
+    attribute::AttributeRef, entity::EntityAssociation, provenance::Provenance, Signal,
+};
 
 /// The definition of a Span signal.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
@@ -34,7 +36,7 @@ pub struct Span {
     /// Which entities this span should be associated with.
     ///
     /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
-    /// entity reference or a nested `one_of`/`all_of` expression.
+    /// entity reference (a type plus its provenance) or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<EntityAssociation>,
@@ -97,5 +99,37 @@ impl Signal for Span {
     }
     fn common(&self) -> &CommonFields {
         &self.common
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use weaver_semconv::v2::span::{SpanKindSpec, SpanName};
+
+    #[test]
+    fn test_span_signal() {
+        let span = Span {
+            r#type: SignalId::from("http.client"),
+            kind: SpanKindSpec::Client,
+            name: SpanName {
+                note: Some("HTTP {http.request.method}".to_owned()),
+                ..Default::default()
+            },
+            attributes: vec![],
+            entity_associations: vec![],
+            requirement_level: None,
+            common: CommonFields {
+                brief: "Client span".to_owned(),
+                note: "".to_owned(),
+                stability: Default::default(),
+                deprecated: None,
+                annotations: Default::default(),
+            },
+            provenance: Default::default(),
+        };
+
+        assert_eq!(span.id(), "http.client");
+        assert_eq!(span.common().brief, "Client span");
     }
 }

@@ -1,14 +1,13 @@
 //! Metric related definitions structs.
 
-use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
+use crate::v2::{
+    attribute::AttributeRef, entity::EntityAssociation, provenance::Provenance, Signal,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_semconv::{
-    attribute::RequirementLevel,
-    entity_association::EntityAssociation,
-    group::InstrumentSpec,
-    signal_requirement_level::SignalRequirementLevel,
-    v2::{signal_id::SignalId, CommonFields},
+use weaver_semconv::v2::{
+    attribute::RequirementLevel, metric::InstrumentSpec, signal_id::SignalId,
+    signal_requirement_level::SignalRequirementLevel, CommonFields,
 };
 
 /// The definition of a metric signal.
@@ -35,7 +34,7 @@ pub struct Metric {
     /// Which entities this metric should be associated with.
     ///
     /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
-    /// entity reference or a nested `one_of`/`all_of` expression.
+    /// entity reference (a type plus its provenance) or a nested `one_of`/`all_of` expression.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<EntityAssociation>,
@@ -100,5 +99,33 @@ impl Signal for Metric {
 
     fn common(&self) -> &CommonFields {
         &self.common
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_metric_signal() {
+        let metric = Metric {
+            name: SignalId::from("http.server.duration"),
+            instrument: InstrumentSpec::Histogram,
+            unit: "ms".to_owned(),
+            attributes: vec![],
+            entity_associations: vec![],
+            requirement_level: None,
+            common: CommonFields {
+                brief: "Server duration".to_owned(),
+                note: "".to_owned(),
+                stability: Default::default(),
+                deprecated: None,
+                annotations: Default::default(),
+            },
+            provenance: Default::default(),
+        };
+
+        assert_eq!(metric.id(), "http.server.duration");
+        assert_eq!(metric.common().brief, "Server duration");
     }
 }

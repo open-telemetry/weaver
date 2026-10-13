@@ -1,0 +1,30 @@
+file_format: definition/2
+attributes:
+  - key: service.name
+    type: string
+    stability: stable
+    brief: Service name, defined in middle.
+    examples: ["cart"]
+entities:
+  - type: service
+    requirement_level: recommended
+    stability: stable
+    brief: A service, defined in middle.
+    identity:
+      - ref: service.name
+metrics:
+  - name: middle.request.count
+    brief: Count of requests, defined in middle.
+    requirement_level: recommended
+    instrument: counter
+    unit: "{request}"
+    stability: stable
+    attributes:
+      # Defined in base, not imported here — and resolved anyway.
+      - ref: host.id
+    entity_associations:
+      - all_of:
+          # Defined here, so the reference carries no provenance.
+          - service
+          # Defined in base and not imported, so the reference names base.
+          - host

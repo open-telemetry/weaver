@@ -24,7 +24,7 @@ use weaver_live_check::{
     VersionedRegistry,
 };
 use weaver_search::{SearchContext, SearchType};
-use weaver_semconv::stability::Stability;
+use weaver_semconv::v2::stability::Stability;
 
 use crate::McpConfig;
 
@@ -46,7 +46,7 @@ pub struct WeaverMcpService {
     versioned_registry: Arc<VersionedRegistry>,
     /// Path to custom Rego advice policies directory.
     advice_policies: Option<PathBuf>,
-    /// Path to the directory or file containing additional rego data (JSON/YAML files) or a glob pattern.
+    /// Path, directory, or glob pattern containing additional rego data (JSON/YAML files).
     advice_data: Option<String>,
     /// Path to jq preprocessor script for Rego policies.
     advice_preprocessor: Option<PathBuf>,
@@ -56,10 +56,7 @@ impl WeaverMcpService {
     /// Create a new MCP service with the given registry and configuration.
     #[must_use]
     pub fn new(registry: Arc<ForgeResolvedRegistry>, config: McpConfig) -> Self {
-        let search_context = Arc::new(SearchContext::from_registry_with_separator(
-            &registry,
-            config.namespace_separator.clone(),
-        ));
+        let search_context = Arc::new(SearchContext::from_registry(&registry));
 
         // Create versioned registry wrapper once for live check
         let versioned_registry = Arc::new(VersionedRegistry::V2(Box::new((*registry).clone())));
@@ -80,6 +77,13 @@ impl WeaverMcpService {
     fn create_live_checker(&self) -> Result<LiveChecker, String> {
         let mut live_checker =
             LiveChecker::new(Arc::clone(&self.versioned_registry), default_advisors());
+        // The tool checks a bare attribute name. On a v2 registry, that needs a
+        // search of the whole registry.
+        if live_checker.is_v2() {
+            live_checker
+                .search_all_attributes()
+                .map_err(|error| error.to_string())?;
+        }
 
         // Add RegoAdvisor for policy-based advice
         let rego_advisor = RegoAdvisor::new(
@@ -185,6 +189,18 @@ fn collect_compact_findings(samples: &[Sample]) -> Vec<serde_json::Value> {
                     out.push(json!({"type": "resource", "attribute_findings": parts}));
                 }
             }
+            Sample::InstrumentationScope(scope) => {
+                let findings = extract_findings(&scope.live_check_result);
+                let attr_findings = extract_attr_findings(&scope.attributes);
+                if !findings.is_empty() || !attr_findings.is_empty() {
+                    out.push(json!({
+                        "name": scope.name,
+                        "type": "instrumentation_scope",
+                        "findings": findings,
+                        "attribute_findings": attr_findings,
+                    }));
+                }
+            }
             Sample::Metric(m) => {
                 let findings = extract_findings(&m.live_check_result);
                 if !findings.is_empty() {
@@ -195,6 +211,12 @@ fn collect_compact_findings(samples: &[Sample]) -> Vec<serde_json::Value> {
                 let parts = extract_attr_findings(&l.attributes);
                 if !parts.is_empty() {
                     out.push(json!({"type": "log", "attribute_findings": parts}));
+                }
+            }
+            Sample::Profile(p) => {
+                let parts = extract_attr_findings(&p.attributes);
+                if !parts.is_empty() {
+                    out.push(json!({"type": "profile", "attribute_findings": parts}));
                 }
             }
         }
@@ -231,6 +253,8 @@ pub struct SearchParams {
     search_type: SearchTypeParam,
     /// Filter by stability level (development = experimental).
     stability: Option<StabilityParam>,
+    /// Filter by deprecation status: true = only deprecated, false = exclude deprecated, omit = all.
+    deprecated: Option<bool>,
     /// Maximum results to return (1-100, default 20).
     #[serde(default = "default_limit")]
     limit: usize,
@@ -378,7 +402,7 @@ impl WeaverMcpService {
             params.query.as_deref(),
             search_type,
             stability,
-            false, // hide_deprecated: not exposed via the MCP search tool
+            params.deprecated,
             limit,
             0, // offset
         );
@@ -542,11 +566,11 @@ mod tests {
     use weaver_forge::v2::registry::{ForgeResolvedRegistry, Refinements, Registry};
     use weaver_forge::v2::span::Span;
     use weaver_search::SearchType;
-    use weaver_semconv::attribute::AttributeType;
-    use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
-    use weaver_semconv::signal_requirement_level::SignalRequirementLevel;
-    use weaver_semconv::stability::Stability;
-    use weaver_semconv::v2::span::SpanName;
+    use weaver_semconv::v2::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
+    use weaver_semconv::v2::metric::InstrumentSpec;
+    use weaver_semconv::v2::signal_requirement_level::SignalRequirementLevel;
+    use weaver_semconv::v2::span::{SpanKindSpec, SpanName};
+    use weaver_semconv::v2::stability::Stability;
     use weaver_semconv::v2::CommonFields;
 
     fn make_test_registry() -> ForgeResolvedRegistry {
@@ -555,9 +579,7 @@ mod tests {
             registry: Registry {
                 attributes: vec![Attribute {
                     key: "http.request.method".to_owned(),
-                    r#type: AttributeType::PrimitiveOrArray(
-                        weaver_semconv::attribute::PrimitiveOrArrayTypeSpec::String,
-                    ),
+                    r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                     examples: None,
                     common: CommonFields {
                         brief: "HTTP request method".to_owned(),
@@ -590,7 +612,8 @@ mod tests {
                     r#type: "http.client".to_owned().into(),
                     kind: SpanKindSpec::Client,
                     name: SpanName {
-                        note: "HTTP client span".to_owned(),
+                        note: Some("HTTP client span".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![],
                     entity_associations: vec![],
@@ -638,6 +661,8 @@ mod tests {
                 events: vec![],
                 entities: vec![],
             },
+            dependencies: Default::default(),
+            dependency_graph: Default::default(),
         }
     }
 
@@ -728,6 +753,7 @@ mod tests {
             query: Some("http".to_owned()),
             search_type: SearchTypeParam::All,
             stability: None,
+            deprecated: None,
             limit: 20,
         };
 
@@ -748,6 +774,7 @@ mod tests {
             query: None,
             search_type: SearchTypeParam::All,
             stability: None,
+            deprecated: None,
             limit: 100,
         };
 
@@ -766,6 +793,7 @@ mod tests {
             query: None,
             search_type: SearchTypeParam::All,
             stability: None,
+            deprecated: None,
             limit: 200, // MCP should clamp this to 100
         };
 
@@ -1271,6 +1299,34 @@ mod tests {
             .as_array()
             .expect("attribute_findings array");
         assert_eq!(attr_findings[0]["name"], "nonexistent.log.attr");
+    }
+
+    #[test]
+    fn test_live_check_findings_only_profile() {
+        let service = create_test_service();
+
+        let sample: Sample = serde_json::from_value(serde_json::json!({
+            "profile": {
+                "original_payload_format": "pprof",
+                "attributes": [{ "name": "nonexistent.profile.attr", "value": "x" }]
+            }
+        }))
+        .expect("profile sample should deserialize");
+
+        let params = LiveCheckParams {
+            samples: vec![sample],
+            output: LiveCheckOutput::FindingsOnly,
+        };
+
+        let result = service.live_check(Parameters(params));
+        let parsed: serde_json::Value = serde_json::from_str(&result).expect("json");
+        let findings = parsed["findings"].as_array().expect("findings array");
+        assert!(!findings.is_empty());
+        assert_eq!(findings[0]["type"], "profile");
+        let attr_findings = findings[0]["attribute_findings"]
+            .as_array()
+            .expect("attribute_findings array");
+        assert_eq!(attr_findings[0]["name"], "nonexistent.profile.attr");
     }
 
     #[test]

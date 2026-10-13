@@ -119,9 +119,12 @@ test.describe('attribute rendering', () => {
     await expect(page.getByRole('listitem').filter({ hasText: 'a bulleted list item' })).toBeVisible()
   })
 
-  test('a renamed-deprecated attribute links to its successor', async ({ page }) => {
+  test('a renamed-deprecated attribute links to its successor and shows both stability and deprecated badges', async ({ page }) => {
     await page.goto('/attribute/render.attr.deprecated_renamed')
     await expect(page.getByRole('heading', { name: 'render.attr.deprecated_renamed', level: 1 })).toBeVisible()
+    // Header renders both Stable stability badge and Deprecated badge.
+    await expect(page.locator('.badge', { hasText: 'Stable' }).first()).toBeVisible()
+    await expect(page.locator('.badge', { hasText: 'Deprecated' }).first()).toBeVisible()
     // Deprecation alert with a link to the successor attribute.
     const alert = page.getByRole('alert').filter({ hasText: 'Deprecated' })
     await expect(alert).toBeVisible()
@@ -133,8 +136,10 @@ test.describe('attribute rendering', () => {
     await expect(page).toHaveURL(/\/attribute\/render\.attr\.string_single_example$/)
   })
 
-  test('an obsoleted-deprecated attribute shows a note but no successor link', async ({ page }) => {
+  test('an obsoleted-deprecated attribute shows a note, no successor link, and both stability and deprecated badges', async ({ page }) => {
     await page.goto('/attribute/render.attr.deprecated_obsoleted')
+    await expect(page.locator('.badge', { hasText: 'Development' }).first()).toBeVisible()
+    await expect(page.locator('.badge', { hasText: 'Deprecated' }).first()).toBeVisible()
     const alert = page.getByRole('alert').filter({ hasText: 'Deprecated' })
     await expect(alert).toBeVisible()
     await expect(alert.getByText('This attribute no longer exists and has no replacement.')).toBeVisible()
@@ -148,7 +153,6 @@ test.describe('attribute rendering', () => {
     { key: 'render.attr.int_single_example', label: 'Alpha' },
     { key: 'render.attr.int_multi_example', label: 'Beta' },
     { key: 'render.attr.double_example', label: 'Release Candidate' },
-    { key: 'render.attr.stability_deprecated', label: 'Deprecated' },
   ]
   for (const { key, label } of stabilityCases) {
     test(`stability badge renders "${label}"`, async ({ page }) => {

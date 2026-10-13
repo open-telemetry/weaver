@@ -16,6 +16,7 @@ use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
+use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
 use weaver_config::{WeaverCommand, WeaverConfig};
 use weaver_macros::weaver_command;
 
@@ -33,27 +34,21 @@ pub struct RegistryMcpArgs {
     #[shared(diagnostic)]
     pub diagnostic: DiagnosticArgs,
 
-    /// Advice policies directory. Set this to override the default policies.
+    /// Advice policies directory or virtual directory. Set this to override the default policies.
     #[arg(long)]
     #[config]
-    pub advice_policies: Option<PathBuf>,
+    pub advice_policies: Option<VirtualDirectoryPath>,
 
     /// Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
     #[arg(long)]
     #[config]
     pub advice_preprocessor: Option<PathBuf>,
 
-    /// Glob pattern pointing to additional JSON/YAML files to load into OPA rego data.
+    /// Virtual directory, file, or glob pattern pointing to additional JSON/YAML files to load into OPA rego data.
     /// Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).
     #[arg(long)]
     #[config]
-    pub advice_data: Option<String>,
-
-    /// Namespace separator used in attribute keys. Defaults to ".".
-    /// Used by namespace browsing and search token splitting.
-    #[arg(long)]
-    #[config(default = ".")]
-    pub namespace_separator: Option<String>,
+    pub advice_data: Option<VirtualDirectoryPath>,
 }
 
 /// Run the MCP server for the semantic convention registry.
@@ -62,13 +57,18 @@ pub(crate) fn command(
     cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     info!("Loading semantic convention registry for MCP server");
 
     let mut diag_msgs = DiagnosticMessages::empty();
 
     // Use WeaverEngine to load and resolve the registry (always use v2)
-    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let weaver = WeaverEngine::new(
+        &cmd_config.registry,
+        &cmd_config.policy,
+        &cmd_config.resolve,
+        auth,
+    );
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
     // Convert to V2 ForgeResolvedRegistry
@@ -81,12 +81,23 @@ pub(crate) fn command(
     info!("Starting MCP server (communicating over stdio)");
     info!("The server will run until stdin is closed.");
 
-    // Build MCP config from effective config
+    // Build MCP config from effective config, resolving virtual directories upfront
+    let advice_policies_dir =
+        VirtualDirectory::try_from_opt_with_auth(cmd_config.config.advice_policies.as_ref(), auth)
+            .map_err(DiagnosticMessages::from_error)?;
+
+    let advice_data_dir =
+        VirtualDirectory::try_from_opt_with_auth(cmd_config.config.advice_data.as_ref(), auth)
+            .map_err(DiagnosticMessages::from_error)?;
+
     let mcp_config = weaver_mcp::McpConfig {
-        advice_policies: cmd_config.config.advice_policies,
-        advice_data: cmd_config.config.advice_data,
+        advice_policies: advice_policies_dir.as_ref().map(VirtualDirectory::path_buf),
+        advice_data: advice_data_dir
+            .as_ref()
+            .map(|v| v.path_str().map(ToOwned::to_owned))
+            .transpose()
+            .map_err(DiagnosticMessages::from_error)?,
         advice_preprocessor: cmd_config.config.advice_preprocessor,
-        namespace_separator: cmd_config.config.namespace_separator,
     };
 
     // Run the MCP server

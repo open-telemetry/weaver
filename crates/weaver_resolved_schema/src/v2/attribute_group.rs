@@ -4,10 +4,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_semconv::{
-    attribute::RequirementLevel,
-    v2::{signal_id::SignalId, CommonFields},
-};
+use weaver_semconv::v2::{attribute::RequirementLevel, signal_id::SignalId, CommonFields};
 
 use crate::v2::{attribute::AttributeRef, provenance::Provenance, Signal};
 
@@ -60,5 +57,29 @@ impl Signal for AttributeGroup {
     }
     fn common(&self) -> &CommonFields {
         &self.common
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_attribute_group_signal() {
+        let group = AttributeGroup {
+            id: SignalId::from("http.client.group"),
+            attributes: vec![],
+            common: CommonFields {
+                brief: "HTTP client group".to_owned(),
+                note: "".to_owned(),
+                stability: Default::default(),
+                deprecated: None,
+                annotations: Default::default(),
+            },
+            provenance: Default::default(),
+        };
+
+        assert_eq!(group.id(), "http.client.group");
+        assert_eq!(group.common().brief, "HTTP client group");
     }
 }

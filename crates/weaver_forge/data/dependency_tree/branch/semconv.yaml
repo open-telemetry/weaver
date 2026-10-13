@@ -1,0 +1,8 @@
+file_format: definition/2
+
+attributes:
+  - key: branch.key
+    type: string
+    stability: stable
+    brief: Defined by the branch registry.
+    examples: ["x"]

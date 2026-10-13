@@ -35,8 +35,14 @@ The `schema_url` of a dependency is required. It uniquely identifies the
 dependency registry and its version, and is what provenance tracking and
 version conflict resolution key on. It does not have to be a URL the registry
 can actually be fetched from — the files themselves are located via
-`registry_path` — but it must follow the OTel schema URL format and include a
-version segment.
+`registry_path` (a [Virtual Directory (`vdir`)](vdir.md) string) — but it must
+follow the OTel schema URL format and include a version segment.
+
+Legacy manifests that identify themselves with `schema_base_url` +
+`semconv_version` instead of `schema_url` may still declare a dependency by
+`name` + `registry_path`. Such a dependency carries no version, so it cannot be
+declared twice, and `weaver registry package` rejects it — give it a
+`schema_url` before publishing.
 
 > **Current limitations**:
 > - Weaver supports a maximum of 10 registry levels without circular
@@ -112,13 +118,17 @@ All commands accepting the `-r` or `--registry` parameter can be applied to your
 custom registry. It is important to note that some templates are specific to the
 OTEL registry. We are working to remove this type of limitation.
 
-The `<path-to-your-registry>` parameter can be a local directory, a local or
-remote archive, a remote file URL (such as a published registry manifest), or a
-Git URL. GitHub release asset URLs are also supported and are automatically
-resolved via the GitHub API.
+The `<path-to-your-registry>` parameter accepts a [Virtual Directory (`vdir`)](vdir.md)
+reference, which can be a local directory, a local or remote archive (`.zip`,
+`.tar.gz`), a remote file URL (such as a published registry manifest), or a Git
+URL. GitHub release asset URLs are also supported and are automatically resolved
+via the GitHub API.
 
 It is also possible to use specific Git references, such as a tag, a branch or
-even a specific commit with the `<path-to-your-registry>@<refspec>` syntax.
+even a specific commit, as well as a sub-folder inside a repository or archive,
+using the `source[@refspec][[sub_folder]]` syntax. See the
+[Virtual Directory (`vdir`) Reference](vdir.md) for the full format, resolution
+behavior, and string interpretation priority order.
 
 To download from private sources, configure HTTP authentication per-URL in
 `.weaver.toml` with one or more `[[auth]]` entries. Each entry pairs a
@@ -138,3 +148,20 @@ Matching requests are sent with `Authorization: Bearer <token>`. Then:
 weaver registry check \
   -r "https://github.com/org/repo/releases/download/v1.0.0/manifest.yaml"
 ```
+
+## Overriding dependency schema URLs locally (`.weaver.toml`)
+
+When developing custom registries that depend on upstream registries (e.g., OpenTelemetry semantic conventions), you might want to test against local directory checkouts, forks, or offline archives without modifying the canonical `registry_path` in `manifest.yaml`.
+
+You can configure schema URL overrides in `.weaver.toml` under `[resolve.schema_url_overrides]`:
+
+```toml
+[resolve.schema_url_overrides]
+# Override an upstream dependency schema URL to point to a local checkout
+"https://opentelemetry.io/schemas/1.40.0" = "../semantic-conventions/model"
+
+# Or override to point to a specific Git fork or branch
+"https://example.com/schemas/1.0.0" = "https://github.com/my-fork/semconv.git[model]"
+```
+
+When Weaver resolves dependencies during commands like `weaver registry check`, `weaver registry generate`, or `weaver registry live-check`, any dependency whose `schema_url` matches an entry in `[resolve.schema_url_overrides]` will be redirected to the specified [Virtual Directory (`vdir`)](vdir.md) location instead of the default location in `manifest.yaml`.

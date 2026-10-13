@@ -1,0 +1,26 @@
+file_format: definition/2
+attributes:
+  - key: host.id
+    type: string
+    brief: Unique identifier of the host.
+    stability: development
+    examples: ["host-1"]
+  - key: service.name
+    type: string
+    brief: Name of the service.
+    stability: stable
+    examples: ["cart"]
+entities:
+  # Not stable, so a stable signal must not be associated with it.
+  - type: host
+    brief: A host.
+    requirement_level: recommended
+    stability: development
+    identity:
+      - ref: host.id
+  - type: service
+    brief: A service.
+    requirement_level: recommended
+    stability: stable
+    identity:
+      - ref: service.name

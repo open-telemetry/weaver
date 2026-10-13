@@ -657,13 +657,13 @@ mod tests {
         print_member_value,
     };
 
-    use weaver_resolved_schema::attribute::Attribute;
-    use weaver_semconv::any_value::{AnyValueCommonSpec, AnyValueSpec};
-    use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
-    use weaver_semconv::attribute::RequirementLevel;
-    use weaver_semconv::attribute::{AttributeSpec, BasicRequirementLevelSpec};
-    use weaver_semconv::attribute::{AttributeType, EnumEntriesSpec, TemplateTypeSpec, ValueSpec};
+    use weaver_resolved_schema::v1::attribute::Attribute;
     use weaver_semconv::deprecated::Deprecated;
+    use weaver_semconv::v1::any_value::{AnyValueCommonSpec, AnyValueSpec};
+    use weaver_semconv::v1::attribute::{
+        AttributeSpec, AttributeType, BasicRequirementLevelSpec, EnumEntriesSpec,
+        PrimitiveOrArrayTypeSpec, RequirementLevel, TemplateTypeSpec, ValueSpec,
+    };
 
     #[derive(Debug)]
     struct DynAttr {
