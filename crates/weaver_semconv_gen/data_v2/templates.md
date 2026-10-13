@@ -10,6 +10,10 @@ test.metric param opt_in
 test.event param recommended
 <!-- endsemconv -->
 
+<!-- semconv refinements.entities.test -->
+test.entity param recommended
+<!-- endsemconv -->
+
 <!-- semconv registry.entities.test.entity -->
 test.entity param opt_in
 <!-- endsemconv -->

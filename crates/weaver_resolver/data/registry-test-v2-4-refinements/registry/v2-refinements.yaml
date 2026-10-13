@@ -19,10 +19,19 @@ attribute_groups:
     brief: Test group
     stability: stable
     attributes:
+      # Base sets a non-default requirement level on test.attr.
       - ref: test.attr
+        requirement_level:
+          conditionally_required: "on the base signal"
   - id: test.refine.extras
     visibility: internal
     attributes:
+      # Re-refs test.attr with ONLY an example (no requirement_level). When this
+      # group is pulled into a refinement via `ref_group`, it must NOT reset the
+      # `conditionally_required` inherited from test.group above back to the
+      # `recommended` default.
+      - ref: test.attr
+        examples: [42]
       - ref: test.attr3
         requirement_level: recommended
 
@@ -86,6 +95,8 @@ entities:
     requirement_level: recommended
     identity:
       - ref: test.attr
+    description:
+      - ref: test.attr2
     brief: Base entity
     stability: stable
 
@@ -93,5 +104,13 @@ entity_refinements:
   - id: entity.refined.entity
     ref: base.entity
     brief: Refined entity
+    identity:
+      - ref: test.attr
+        brief: Refined identity attribute
     description:
+      # Refines a descriptive attribute of the base entity.
       - ref: test.attr2
+        brief: Refined description attribute
+      # Adds a new descriptive attribute.
+      - ref: test.attr3
+        brief: Added description attribute

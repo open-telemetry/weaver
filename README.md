@@ -53,6 +53,27 @@ cd weaver
 cargo build --release
 ```
 
+The CLI uses Rustls with the `ring` crypto provider by default. Custom builds
+can select exactly one provider after disabling default features:
+
+| Feature | Provider | Notes |
+| --- | --- | --- |
+| `crypto-ring` | ring | Default; works on all supported platforms |
+| `crypto-aws-lc` | AWS-LC | AWS-LC-backed Rustls provider |
+| `crypto-openssl` | OpenSSL | Uses the platform OpenSSL installation |
+| `crypto-openssl-vendored` | OpenSSL | Builds and statically links OpenSSL |
+| `crypto-symcrypt` | SymCrypt | Requires the system SymCrypt shared library; Linux and Windows only |
+
+For example:
+
+```bash
+cargo build --release --no-default-features --features crypto-aws-lc
+```
+
+Weaver's reusable crates do not select a process-wide crypto provider. An
+application embedding those crates is responsible for installing one before
+making TLS connections.
+
 ### GitHub Actions
 
 | Action | Purpose |
@@ -102,17 +123,17 @@ Further reading:
 
 ## Main Commands
 
-| Command                                                                   | Description                                                                                               |
-| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| [weaver registry check](docs/usage.md#registry-check)                     | Validates a semantic convention registry                                                                  |
-| [weaver registry resolve](docs/usage.md#registry-resolve)                 | Resolves a semantic convention registry                                                                   |
-| [weaver registry diff](docs/usage.md#registry-diff)                       | Generate a diff between two versions of a semantic convention registry                                    |
-| [weaver registry generate](docs/usage.md#registry-generate)               | Generates artifacts from a semantic convention registry                                                   |
-| [weaver registry update-markdown](docs/usage.md#registry-update-markdown) | Update markdown files that contain markers indicating the templates used to update the specified sections |
-| [weaver registry live-check](docs/usage.md#registry-live-check)           | Check the conformance level of an OTLP stream against a semantic convention registry                      |
-| [weaver registry emit](docs/usage.md#registry-emit)                       | Emits a semantic convention registry as example signals to your OTLP receiver                             |
-| [weaver registry mcp](docs/mcp-server.md)                                 | Run an MCP server for LLM integration                                                                     |
-| [weaver completion](docs/usage.md#completion)                             | Generate shell completions                                                                                |
+| Command                                                                          | Description                                                                                               |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| [weaver registry check](docs/usage.md#weaver-registry-check)                     | Validates a semantic convention registry                                                                  |
+| [weaver registry resolve](docs/usage.md#weaver-registry-resolve)                 | Resolves a semantic convention registry                                                                   |
+| [weaver registry diff](docs/usage.md#weaver-registry-diff)                       | Generate a diff between two versions of a semantic convention registry                                    |
+| [weaver registry generate](docs/usage.md#weaver-registry-generate)               | Generates artifacts from a semantic convention registry                                                   |
+| [weaver registry update-markdown](docs/usage.md#weaver-registry-update-markdown) | Update markdown files that contain markers indicating the templates used to update the specified sections |
+| [weaver registry live-check](docs/usage.md#weaver-registry-live-check)           | Check the conformance level of an OTLP stream against a semantic convention registry                      |
+| [weaver registry emit](docs/usage.md#weaver-registry-emit)                       | Emits a semantic convention registry as example signals to your OTLP receiver                             |
+| [weaver registry mcp](docs/usage.md#weaver-registry-mcp)                         | Run an MCP server for LLM integration                                                                     |
+| [weaver completion](docs/usage.md#weaver-completion)                             | Generate shell completions                                                                                |
 
 ## Getting Help
 

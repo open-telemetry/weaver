@@ -7,7 +7,7 @@
         "instrument": "histogram",
         "name": "db.client.operation.duration",
         "root_namespace": "db",
-        "stability": "alpha",
+        "stability": "development",
         "unit": "s"
       }
     ],

@@ -9,13 +9,16 @@ use clap::Args;
 use log::info;
 use miette::Diagnostic;
 use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
+use weaver_forge::config::Params;
 use weaver_forge::{OutputProcessor, OutputTarget};
 
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::http_auth::HttpAuthResolver;
-use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig, WeaverConfig};
+use weaver_config::{
+    EffectivePolicyConfig, EffectiveRegistryConfig, EffectiveResolveConfig, WeaverConfig,
+};
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
 enum Error {
@@ -83,14 +86,26 @@ pub(crate) fn command(
     }
     args.policy.apply_to(&mut policy);
 
+    let mut resolve = EffectiveResolveConfig::default();
+    if let Some(wc) = cfg {
+        resolve.layer_config(&wc.resolve);
+    }
+
     info!("Resolving registry `{}`", registry.registry);
     let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&registry, &policy, auth);
+    let weaver = WeaverEngine::new(&registry, &policy, &resolve, auth);
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
     let target = OutputTarget::from_optional_file(args.output.as_ref());
-    let mut output = OutputProcessor::new(&args.format, "resolved_registry", None, None, target)
-        .map_err(DiagnosticMessages::from)?;
+    let mut output = OutputProcessor::new(
+        &args.format,
+        "resolved_registry",
+        None,
+        None,
+        target,
+        Params::default(),
+    )
+    .map_err(DiagnosticMessages::from)?;
 
     resolved.check_after_resolution_policy(&mut diag_msgs)?;
     match &resolved {

@@ -1,0 +1,48 @@
+schema_url: https://test/schemas/1.0.0
+registry:
+  attributes:
+  - key: test.attr
+    type: string
+    examples:
+    - example-value
+    brief: A test attribute.
+    stability: stable
+  attribute_groups: []
+  metrics: []
+  spans:
+  - type: test.span
+    kind: client
+    name:
+      note: ''
+    attributes:
+    - key: test.attr
+      type: string
+      examples:
+      - example-value
+      brief: A test attribute.
+      stability: stable
+      requirement_level: recommended
+    brief: A test span.
+    stability: stable
+  events: []
+  entities: []
+refinements:
+  metrics: []
+  spans:
+  - id: test.span
+    type: test.span
+    kind: client
+    name:
+      note: ''
+    attributes:
+    - key: test.attr
+      type: string
+      examples:
+      - example-value
+      brief: A test attribute.
+      stability: stable
+      requirement_level: recommended
+    brief: A test span.
+    stability: stable
+  events: []
+  entities: []

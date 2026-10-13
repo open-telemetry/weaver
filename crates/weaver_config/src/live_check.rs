@@ -9,6 +9,7 @@ use std::str::FromStr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_checker::FindingLevel;
+use weaver_common::vdir::VirtualDirectoryPath;
 
 /// Severity gate controlling when `registry live-check` exits non-zero.
 ///
@@ -74,13 +75,27 @@ impl FromStr for FailOnLevel {
 
 /// Validate live telemetry against a semantic convention registry.
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 #[schemars(inline)]
 pub struct LiveCheckConfig {
     /// Filters control which findings are dropped. A filter without `signal_type`
     /// applies globally; a filter with `signal_type` applies only to that signal type.
     #[serde(default)]
     pub finding_filters: Vec<FindingFilter>,
+
+    /// Rules that override the level of matching findings instead of dropping
+    /// them (e.g. promote `undefined_enum_variant` from `information` to
+    /// `violation`). Scoped the same way as `finding_filters` (optional
+    /// `signal_type` and `sample_names`). Applied before `finding_filters`,
+    /// so a subsequent `min_level` filter sees the overridden level.
+    #[serde(default)]
+    pub finding_level_overrides: Vec<FindingLevelOverride>,
+
+    /// Rules that give a sample a registry signal, extra attribute groups, or
+    /// both, when its name alone does not identify it. Live-check evaluates
+    /// them in the order they are declared.
+    #[serde(default)]
+    pub matchers: Vec<MatcherConfig>,
 
     /// Where to read the input telemetry from. `{file path}` | `stdin` | `otlp`.
     pub input_source: String,
@@ -102,21 +117,29 @@ pub struct LiveCheckConfig {
     /// Disable statistics accumulation. Useful for long-running live-check sessions.
     pub no_stats: bool,
 
+    /// Also search the base attribute definitions of the registry and its
+    /// dependencies for an attribute that is not on the matched signal or its
+    /// attribute groups. When an attribute is found this way, its
+    /// `unexpected_attribute` finding names every schema url that declares
+    /// it. Without this setting, the attributes of a sample that matched no
+    /// matcher are not checked.
+    pub search_all_attributes: bool,
+
     /// Severity threshold that causes a non-zero exit code. Findings at this
     /// level or higher fail the run. Use `none` to never fail.
     pub fail_on: FailOnLevel,
 
     /// Path to the directory where the generated artifacts will be saved.
     /// `none` disables all template output rendering.
-    /// `http` sends the report as the response to the `/stop` request on the admin port.
+    /// `http` serves the report at `GET /report` on the admin port until `POST /shutdown`.
     pub output: Option<PathBuf>,
 
-    /// Advice policies directory. Overrides the built-in default policies.
-    pub advice_policies: Option<PathBuf>,
+    /// Advice policies directory or virtual directory. Overrides the built-in default policies.
+    pub advice_policies: Option<VirtualDirectoryPath>,
 
-    /// Glob pattern pointing to additional JSON/YAML files to load into OPA rego data.
+    /// Virtual directory, file, or glob pattern pointing to additional JSON/YAML files to load into OPA rego data.
     /// Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).
-    pub advice_data: Option<String>,
+    pub advice_data: Option<VirtualDirectoryPath>,
 
     /// Advice preprocessor — a jq script run once over the registry data before
     /// being passed to rego policies.
@@ -133,12 +156,15 @@ impl Default for LiveCheckConfig {
     fn default() -> Self {
         Self {
             finding_filters: Vec::new(),
+            finding_level_overrides: Vec::new(),
+            matchers: Vec::new(),
             input_source: "otlp".to_owned(),
             input_format: "json".to_owned(),
             format: "ansi".to_owned(),
             templates: PathBuf::from("live_check_templates"),
             no_stream: false,
             no_stats: false,
+            search_all_attributes: false,
             fail_on: FailOnLevel::default(),
             output: None,
             advice_policies: None,
@@ -152,13 +178,13 @@ impl Default for LiveCheckConfig {
 
 /// OTLP listener settings for live-check.
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct LiveCheckOtlpConfig {
     /// Address used by the gRPC OTLP listener.
     pub grpc_address: String,
-    /// Port used by the gRPC OTLP listener.
+    /// Port used by the gRPC OTLP listener. `0` picks a free port.
     pub grpc_port: u16,
-    /// Port used by the HTTP admin port (endpoints: `/stop`, `/health`).
+    /// Port used by the HTTP admin port (endpoints: `/health`, `/stop`, `/report`, `/shutdown`).
     pub admin_port: u16,
     /// Max inactivity time in seconds before stopping the listener.
     pub inactivity_timeout: u64,
@@ -167,7 +193,7 @@ pub struct LiveCheckOtlpConfig {
 impl Default for LiveCheckOtlpConfig {
     fn default() -> Self {
         Self {
-            grpc_address: "0.0.0.0".to_owned(),
+            grpc_address: "127.0.0.1".to_owned(),
             grpc_port: 4317,
             admin_port: 4320,
             inactivity_timeout: 10,
@@ -176,29 +202,21 @@ impl Default for LiveCheckOtlpConfig {
 }
 
 /// OTLP log emission settings for live-check.
-#[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
-#[serde(default)]
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, JsonSchema)]
+#[serde(default, deny_unknown_fields)]
 pub struct LiveCheckEmitConfig {
     /// Enable OTLP log emission for live-check policy findings.
     pub otlp_logs: bool,
-    /// OTLP endpoint for log emission.
-    pub otlp_logs_endpoint: String,
+    /// OTLP endpoint for log emission. When not set, `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`,
+    /// then `OTEL_EXPORTER_OTLP_ENDPOINT`, apply. The default is `http://localhost:4317`.
+    pub otlp_logs_endpoint: Option<String>,
     /// Use stdout for OTLP log emission (debug mode).
     pub otlp_logs_stdout: bool,
 }
 
-impl Default for LiveCheckEmitConfig {
-    fn default() -> Self {
-        Self {
-            otlp_logs: false,
-            otlp_logs_endpoint: "http://localhost:4317".to_owned(),
-            otlp_logs_stdout: false,
-        }
-    }
-}
-
 /// A filter that drops findings by ID exclusion or minimum level.
-/// Optional `signal_type` scopes the filter to a specific signal type.
+/// Optional `signal_type` and `sample_names` scope the filter to a specific
+/// signal type and/or set of sample names.
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
 pub struct FindingFilter {
     /// Drop findings with these IDs.
@@ -208,12 +226,110 @@ pub struct FindingFilter {
     /// Optional signal type scope. When set, this filter only applies to
     /// findings with a matching signal_type.
     pub signal_type: Option<String>,
-    /// Drop all findings for samples with these names.
+    /// Drop all findings for samples with these names (supports glob
+    /// wildcards, e.g. `"trace.*"`).
     /// For attribute samples, this matches the attribute key — e.g.
     /// `["trace.parent_id", "trace.span_id"]` suppresses all findings
     /// (e.g. `missing_attribute`) for those attribute keys.
     #[serde(default)]
     pub exclude_samples: Vec<String>,
+    /// Optional sample name scope (supports glob wildcards, e.g. `"http.*"`).
+    /// When set, this filter only applies to samples whose name matches one
+    /// of these patterns, in addition to any `signal_type` scope.
+    #[serde(default)]
+    pub sample_names: Vec<String>,
+}
+
+/// A rule that overrides the level of matching findings instead of dropping
+/// them. Optional `signal_type` and `sample_names` scope the rule the same
+/// way as `FindingFilter`.
+#[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
+pub struct FindingLevelOverride {
+    /// Override the level of findings with these IDs. When unset, applies to
+    /// any finding ID within scope.
+    pub ids: Option<Vec<String>>,
+    /// The level to set on matching findings.
+    pub level: FindingLevel,
+    /// Optional signal type scope. When set, this rule only applies to
+    /// findings with a matching signal_type.
+    pub signal_type: Option<String>,
+    /// Optional sample name scope (supports glob wildcards, e.g. `"http.*"`).
+    /// When set, this rule only applies to samples whose name matches one of
+    /// these patterns, in addition to any `signal_type` scope.
+    #[serde(default)]
+    pub sample_names: Vec<String>,
+}
+
+/// The kind of sample a matcher applies to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum MatcherSampleType {
+    /// A span.
+    Span,
+    /// An event attached to a span.
+    SpanEvent,
+    /// A link between spans.
+    SpanLink,
+    /// A log record.
+    Log,
+    /// A metric.
+    Metric,
+    /// A resource.
+    Resource,
+    /// An instrumentation scope.
+    InstrumentationScope,
+    /// A profile.
+    Profile,
+}
+
+impl fmt::Display for MatcherSampleType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Span => "span",
+            Self::SpanEvent => "span_event",
+            Self::SpanLink => "span_link",
+            Self::Log => "log",
+            Self::Metric => "metric",
+            Self::Resource => "resource",
+            Self::InstrumentationScope => "instrumentation_scope",
+            Self::Profile => "profile",
+        };
+        f.write_str(s)
+    }
+}
+
+/// A rule that gives a sample a registry signal, extra attribute groups, or
+/// both, when its name alone does not identify it.
+///
+/// The rule applies to a sample of kind `sample_type` when `when` is true.
+/// `signal` replaces the signal the sample is otherwise checked against. The
+/// attribute groups are checked in addition to the signal. Every name is
+/// looked up in the registry at startup.
+#[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MatcherConfig {
+    /// The name used for this matcher in findings, statistics and coverage.
+    pub id: String,
+
+    /// The kind of sample this matcher applies to.
+    pub sample_type: MatcherSampleType,
+
+    /// A CEL expression. The matcher applies when it is true. When unset, the
+    /// matcher applies to every sample of its `sample_type`.
+    pub when: Option<String>,
+
+    /// The registry signal the sample is checked against. When unset, the
+    /// sample is checked against the signal its name resolves to.
+    pub signal: Option<String>,
+
+    /// Registry attribute groups whose attributes are allowed on the sample,
+    /// in priority order. Their requirement levels are not enforced.
+    #[serde(default)]
+    pub attribute_groups: Vec<String>,
+
+    /// Registry attribute groups whose requirement levels are enforced.
+    #[serde(default)]
+    pub strict_attribute_groups: Vec<String>,
 }
 
 #[cfg(test)]
@@ -223,7 +339,163 @@ mod tests {
     use std::path::Path;
 
     fn live_check(config: &WeaverConfig) -> LiveCheckConfig {
-        config.command_config("live-check")
+        config
+            .command_config("live-check")
+            .expect("the fixture section deserializes")
+    }
+
+    #[test]
+    fn matchers_are_read_in_declaration_order() {
+        let toml = r#"
+[["live-check".matchers]]
+id = "myapp.checkout"
+sample_type = "span"
+when = """
+"myapp.checkout.id" in attributes
+  && attributes["myapp.checkout.stage"].matches("^(cart|payment)$")
+"""
+signal = "myapp.checkout"
+attribute_groups = ["myapp.common"]
+
+[["live-check".matchers]]
+id = "myapp.common.log"
+sample_type = "log"
+attribute_groups = ["myapp.common"]
+"#;
+        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
+        let lc = live_check(&config);
+
+        assert_eq!(lc.matchers.len(), 2);
+
+        let checkout = &lc.matchers[0];
+        assert_eq!(checkout.id, "myapp.checkout");
+        assert_eq!(checkout.sample_type, MatcherSampleType::Span);
+        assert!(checkout
+            .when
+            .as_deref()
+            .expect("it has a when")
+            .contains("myapp.checkout.id"));
+        assert_eq!(checkout.signal.as_deref(), Some("myapp.checkout"));
+        assert_eq!(checkout.attribute_groups, ["myapp.common"]);
+
+        // With no `when` and no `signal`, the matcher applies to every log and
+        // adds an attribute group.
+        let log = &lc.matchers[1];
+        assert_eq!(log.sample_type, MatcherSampleType::Log);
+        assert!(log.when.is_none());
+        assert!(log.signal.is_none());
+    }
+
+    #[test]
+    fn matchers_default_to_empty() {
+        let config: WeaverConfig = toml::from_str("").expect("Failed to parse TOML");
+        assert!(live_check(&config).matchers.is_empty());
+    }
+
+    #[test]
+    fn every_sample_type_a_matcher_can_target_parses() {
+        for sample_type in [
+            "span",
+            "span_event",
+            "span_link",
+            "log",
+            "metric",
+            "resource",
+            "instrumentation_scope",
+            "profile",
+        ] {
+            let toml = format!(
+                r#"
+[["live-check".matchers]]
+id = "test"
+sample_type = "{sample_type}"
+"#
+            );
+            let config: WeaverConfig =
+                toml::from_str(&toml).unwrap_or_else(|e| panic!("{sample_type} should parse: {e}"));
+            assert_eq!(
+                live_check(&config).matchers[0].sample_type.to_string(),
+                sample_type
+            );
+        }
+    }
+
+    /// Deserializes the `live-check` section and returns the error message
+    /// when that fails.
+    fn parse_live_check_section(toml_str: &str) -> Result<LiveCheckConfig, String> {
+        let config: WeaverConfig = toml::from_str(toml_str).expect("Failed to parse TOML");
+        config
+            .command_config::<LiveCheckConfig>("live-check")
+            .map_err(|e| e.to_string())
+    }
+
+    #[test]
+    fn an_unknown_sample_type_is_rejected() {
+        let error = parse_live_check_section(
+            r#"
+[["live-check".matchers]]
+id = "test"
+sample_type = "number_data_point"
+"#,
+        )
+        .expect_err("it should not deserialize");
+        assert!(error.contains("number_data_point"), "{error}");
+    }
+
+    #[test]
+    fn a_matcher_without_an_id_is_rejected() {
+        let error = parse_live_check_section(
+            r#"
+[["live-check".matchers]]
+sample_type = "span"
+"#,
+        )
+        .expect_err("it should not deserialize");
+        assert!(error.contains("id"), "{error}");
+    }
+
+    /// A misspelled matcher key is an error, not a matcher that adds nothing.
+    #[test]
+    fn an_unknown_matcher_key_is_rejected() {
+        let error = parse_live_check_section(
+            r#"
+[["live-check".matchers]]
+id = "test"
+sample_type = "span"
+attribute_group = ["myapp.common"]
+"#,
+        )
+        .expect_err("it should not deserialize");
+        assert!(error.contains("attribute_group"), "{error}");
+    }
+
+    #[test]
+    fn an_unknown_live_check_key_is_rejected() {
+        let error = parse_live_check_section(
+            r#"
+[live-check]
+search_all_attribute = true
+"#,
+        )
+        .expect_err("it should not deserialize");
+        assert!(error.contains("search_all_attribute"), "{error}");
+    }
+
+    /// An invalid matcher is an error. It must not make the section fall back
+    /// to its defaults.
+    #[test]
+    fn a_bad_matcher_does_not_fall_back_to_the_default_section() {
+        let toml = r#"
+[live-check]
+format = "json"
+
+[["live-check".matchers]]
+id = "test"
+sample_type = "number_data_point"
+"#;
+        let error = parse_live_check_section(toml).expect_err("it should not deserialize");
+        assert!(error.contains("live-check"), "{error}");
+        assert!(error.contains("number_data_point"), "{error}");
     }
 
     #[test]
@@ -326,8 +598,18 @@ otlp_logs_stdout = false
         assert!(lc.no_stats);
         assert_eq!(lc.fail_on, FailOnLevel::Improvement);
         assert_eq!(lc.output.as_deref(), Some(Path::new("reports")));
-        assert_eq!(lc.advice_policies.as_deref(), Some(Path::new("policies")));
-        assert_eq!(lc.advice_data.as_deref(), Some("data"));
+        assert_eq!(
+            lc.advice_policies,
+            Some(VirtualDirectoryPath::LocalFolder {
+                path: "policies".to_owned()
+            })
+        );
+        assert_eq!(
+            lc.advice_data,
+            Some(VirtualDirectoryPath::LocalFolder {
+                path: "data".to_owned()
+            })
+        );
         assert_eq!(lc.advice_preprocessor.as_deref(), Some(Path::new("pre.jq")));
 
         assert_eq!(lc.otlp.grpc_address, "127.0.0.1");
@@ -336,7 +618,10 @@ otlp_logs_stdout = false
         assert_eq!(lc.otlp.inactivity_timeout, 30);
 
         assert!(lc.emit.otlp_logs);
-        assert_eq!(lc.emit.otlp_logs_endpoint, "http://localhost:4317");
+        assert_eq!(
+            lc.emit.otlp_logs_endpoint.as_deref(),
+            Some("http://localhost:4317")
+        );
         assert!(!lc.emit.otlp_logs_stdout);
     }
 
@@ -349,7 +634,7 @@ grpc_port = 9999
         let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
         let lc = live_check(&config);
         assert_eq!(lc.otlp.grpc_port, 9999);
-        assert_eq!(lc.otlp.grpc_address, "0.0.0.0");
+        assert_eq!(lc.otlp.grpc_address, "127.0.0.1");
         assert_eq!(lc.otlp.admin_port, 4320);
         assert_eq!(lc.format, "ansi");
         assert!(!lc.emit.otlp_logs);
@@ -397,6 +682,89 @@ min_level = "violation"
     }
 
     #[test]
+    fn test_parse_sample_names() {
+        let toml = r#"
+[["live-check".finding_filters]]
+exclude = ["illegal_namespace"]
+sample_names = ["server.address", "server.port", "http.*"]
+
+[["live-check".finding_filters]]
+signal_type = "span"
+sample_names = ["custom.internal_id"]
+exclude = ["not_stable"]
+"#;
+        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
+        let lc = live_check(&config);
+        assert_eq!(lc.finding_filters.len(), 2);
+
+        let f0 = &lc.finding_filters[0];
+        assert!(f0.signal_type.is_none());
+        assert_eq!(
+            f0.exclude.as_deref(),
+            Some(&["illegal_namespace".to_owned()][..])
+        );
+        assert_eq!(
+            f0.sample_names,
+            vec!["server.address", "server.port", "http.*"]
+        );
+
+        let f1 = &lc.finding_filters[1];
+        assert_eq!(f1.signal_type.as_deref(), Some("span"));
+        assert_eq!(f1.exclude.as_deref(), Some(&["not_stable".to_owned()][..]));
+        assert_eq!(f1.sample_names, vec!["custom.internal_id"]);
+    }
+
+    #[test]
+    fn test_parse_sample_names_defaults_to_empty() {
+        let toml = r#"
+[["live-check".finding_filters]]
+min_level = "violation"
+"#;
+        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
+        let lc = live_check(&config);
+        assert!(lc.finding_filters[0].sample_names.is_empty());
+    }
+
+    #[test]
+    fn test_parse_finding_level_overrides() {
+        let toml = r#"
+[["live-check".finding_level_overrides]]
+ids = ["undefined_enum_variant"]
+level = "violation"
+
+[["live-check".finding_level_overrides]]
+signal_type = "span"
+sample_names = ["custom.*"]
+ids = ["undefined_enum_variant"]
+level = "improvement"
+"#;
+        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
+        let lc = live_check(&config);
+        assert_eq!(lc.finding_level_overrides.len(), 2);
+
+        let o0 = &lc.finding_level_overrides[0];
+        assert!(o0.signal_type.is_none());
+        assert!(o0.sample_names.is_empty());
+        assert_eq!(
+            o0.ids.as_deref(),
+            Some(&["undefined_enum_variant".to_owned()][..])
+        );
+        assert_eq!(o0.level, FindingLevel::Violation);
+
+        let o1 = &lc.finding_level_overrides[1];
+        assert_eq!(o1.signal_type.as_deref(), Some("span"));
+        assert_eq!(o1.sample_names, vec!["custom.*"]);
+        assert_eq!(o1.level, FindingLevel::Improvement);
+    }
+
+    #[test]
+    fn test_parse_finding_level_overrides_defaults_to_empty() {
+        let config: WeaverConfig = toml::from_str("").expect("Failed to parse empty TOML");
+        let lc = live_check(&config);
+        assert!(lc.finding_level_overrides.is_empty());
+    }
+
+    #[test]
     fn test_fail_on_default_is_violation() {
         let lc = LiveCheckConfig::default();
         assert_eq!(lc.fail_on, FailOnLevel::Violation);
@@ -419,8 +787,6 @@ min_level = "violation"
 
     #[test]
     fn test_fail_on_invalid_value_errors() {
-        // Deserialize the typed config directly so we observe the error
-        // instead of `command_config`'s silent `unwrap_or_default()`.
         let toml = "fail_on = \"bogus\"\ninput_source = \"x\"\ninput_format = \"y\"\nformat = \"z\"\ntemplates = \"t\"\n";
         let err = toml::from_str::<LiveCheckConfig>(toml).expect_err("expected parse error");
         let msg = err.to_string();

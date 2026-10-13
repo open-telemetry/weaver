@@ -1,11 +1,11 @@
 # `weaver-live-check-stop`
 
 > **Note:** Despite the name, this action does **more than just stop**
-> the listener. It also fetches the live-check report, renders a job
-> step summary, exposes counts as outputs, and (by default) **fails the
-> job** when findings reach the configured severity. Named `stop` for
-> symmetry with `weaver-live-check-start` and because it calls weaver's
-> admin `/stop` endpoint.
+> the listener. It also fetches the live-check report, shuts weaver
+> down, renders a job step summary, exposes counts as outputs, and (by
+> default) **fails the job** when findings reach the configured
+> severity. Named `stop` for symmetry with `weaver-live-check-start`
+> and because it starts with weaver's admin `/stop` endpoint.
 
 Pair with [`weaver-live-check-start`](../weaver-live-check-start/). See
 that action's README for an end-to-end example.
@@ -35,8 +35,9 @@ Linux runners only in v1.
 ## Behavior
 
 - Validates `fail-on`, `stop-timeout`, and `upload-report` inputs.
-- POSTs to weaver's admin `/stop`, capturing the in-memory report body to
-  `state-dir/live_check.json`.
+- POSTs `/stop`, which returns once the report is ready. GETs `/report`
+  into `state-dir/live_check.json`. POSTs `/shutdown`. (Older weaver
+  returns the report in the `/stop` body and exits on its own.)
 - Waits for the weaver process to exit cleanly (up to `stop-timeout`);
   hard-kills if it does not.
 - Parses the report with `parse-report.py` (a Python script bundled

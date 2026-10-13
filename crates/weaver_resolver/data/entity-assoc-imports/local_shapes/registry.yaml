@@ -1,0 +1,69 @@
+file_format: definition/2
+attributes:
+  - key: host.id
+    type: string
+    stability: stable
+    brief: Unique host ID.
+    examples: ["abc123"]
+  - key: host.os.build
+    type: string
+    stability: stable
+    brief: Build of the host operating system.
+    examples: ["22621"]
+  - key: service.name
+    type: string
+    stability: stable
+    brief: Service name.
+    examples: ["cart"]
+entities:
+  - type: host
+    requirement_level: recommended
+    stability: stable
+    brief: A host.
+    identity:
+      - ref: host.id
+  - type: service
+    requirement_level: recommended
+    stability: stable
+    brief: A service.
+    identity:
+      - ref: service.name
+entity_refinements:
+  - id: entity.host.windows
+    ref: host
+    brief: A host running Windows.
+    description:
+      - ref: host.os.build
+metrics:
+  - name: shapes.request.count
+    brief: A nested expression over local entities.
+    requirement_level: recommended
+    instrument: counter
+    unit: "{request}"
+    stability: stable
+    entity_associations:
+      - all_of:
+          - service
+          - one_of:
+              # An entity type, and a refinement of that same entity.
+              - host
+              - host.windows
+events:
+  - name: shapes.started
+    brief: An event carries associations too.
+    requirement_level: recommended
+    stability: stable
+    entity_associations:
+      - service
+spans:
+  - type: shapes.request
+    brief: A span carries associations too.
+    requirement_level: recommended
+    stability: stable
+    kind: client
+    name:
+      note: The request span.
+    entity_associations:
+      - one_of:
+          - service
+          - host

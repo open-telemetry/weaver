@@ -1,0 +1,7 @@
+name: main
+description: v1 definition manifest declaring its dependency by `name` + `registry_path`.
+semconv_version: 0.1.0
+schema_base_url: https://example.com/main/
+dependencies:
+  - name: dep
+    registry_path: data/v1-dependency-syntax/dep

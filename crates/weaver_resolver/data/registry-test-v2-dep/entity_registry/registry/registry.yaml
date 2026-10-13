@@ -1,9 +1,16 @@
 file_format: definition/2
 entity_refinements:
-  # Refines `host` from the dependency: only the brief is refined. The
-  # identity attributes (`host.id` required, `host.arch` recommended) and the
-  # description attribute (`host.name` recommended) are not mentioned and must
-  # be inherited from the dependency with their requirement levels and roles.
+  # Refines the `host` entity from the dependency: `host.id` (an identity
+  # attribute of the base entity) is refined under `identity` and keeps the
+  # identifying role; `host.name` (a descriptive attribute) gets a refined
+  # brief; `host.arch` is not mentioned and must be inherited from the
+  # dependency with the identifying role.
   - id: refined.host
     ref: host
     brief: Refined host entity
+    identity:
+      - ref: host.id
+        brief: Refined host ID
+    description:
+      - ref: host.name
+        brief: Refined host name

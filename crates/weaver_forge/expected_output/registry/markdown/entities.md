@@ -40,3 +40,20 @@ Attributes used by non-OTLP exporters to represent OpenTelemetry Scope's concept
 | `otel.scope.version` | `string` | Recommended | The version of the instrumentation scope - (`InstrumentationScope.Version` in OTLP).
  |
 
+## Namespace: `service`
+
+### `entity.service`
+
+A service, named in the `entity_associations` of this registry.
+
+| Property | Value |
+|----------|-------|
+| Stability | Stable |
+
+#### Attributes
+
+| Attribute | Type | Requirement Level | Description |
+|-----------|------|-------------------|-------------|
+| `service.name` | `string` | Required | Service name
+ |
+

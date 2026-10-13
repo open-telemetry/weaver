@@ -1,0 +1,94 @@
+file_format: resolved/2.0
+schema_url: https://bare-ref-consumer.example.com/schemas/1.0.0
+attribute_catalog:
+- key: host.arch
+  type: string
+  examples:
+  - amd64
+  brief: Host architecture.
+  stability: stable
+  provenance:
+    source: 0
+- key: host.name
+  type: string
+  examples:
+  - opentelemetry-test
+  brief: Name of the host.
+  stability: stable
+  provenance:
+    source: 0
+- key: server.address
+  type: string
+  examples:
+  - example.com
+  brief: Different brief
+  note: Different note
+  stability: stable
+  provenance:
+    source: 0
+- key: server.port
+  type: int
+  examples:
+  - 80
+  - 443
+  brief: Server port.
+  stability: stable
+  provenance:
+    source: 0
+registry:
+  attributes: []
+  attribute_groups:
+  - id: bare.host
+    attributes:
+    # Bare `ref: host.name`: the default applies.
+    - base: 1
+      requirement_level: recommended
+    brief: Host attributes.
+    stability: stable
+  spans: []
+  metrics:
+  - name: bare.request.count
+    instrument: counter
+    unit: '{request}'
+    attributes:
+    # Bare `ref: server.port`: the default applies.
+    - base: 3
+      requirement_level: recommended
+    requirement_level: recommended
+    brief: Count of requests.
+    stability: stable
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics:
+  - id: bare.duration
+    name: server.request.duration
+    instrument: histogram
+    unit: s
+    attributes:
+    # Bare `ref: host.arch`, which the parent metric does not carry: the default applies.
+    - base: 0
+      requirement_level: recommended
+    # Inherited from the parent metric, unchanged.
+    - base: 2
+      requirement_level: required
+    - base: 3
+      requirement_level: recommended
+    brief: Server request duration with the host architecture.
+    stability: stable
+  - id: bare.request.count
+    name: bare.request.count
+    instrument: counter
+    unit: '{request}'
+    attributes:
+    # Bare `ref: server.port`: the default applies.
+    - base: 3
+      requirement_level: recommended
+    requirement_level: recommended
+    brief: Count of requests.
+    stability: stable
+  events: []
+  entities: []
+dependencies:
+- https://server.example.com/schemas/1.0.0

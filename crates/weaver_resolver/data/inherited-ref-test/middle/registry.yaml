@@ -1,0 +1,10 @@
+file_format: definition/2
+metrics:
+  - name: middle.metric
+    brief: Metric defined by middle.
+    instrument: counter
+    unit: "1"
+    stability: stable
+    requirement_level: recommended
+    attributes:
+      - ref: base.attr

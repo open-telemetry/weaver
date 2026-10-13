@@ -48,7 +48,9 @@ pub struct RegistryUpdateMarkdownArgs {
     registry: RegistryArgs,
 
     /// Whether or not to run updates in dry-run mode.
-    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    /// A bare `--dry-run` means `true`; when passing an explicit value, the
+    /// `=` form is required (e.g. `--dry-run=false`).
+    #[arg(long, num_args = 0..=1, default_missing_value = "true", require_equals = true)]
     #[config(default = "false")]
     pub dry_run: Option<bool>,
 
@@ -101,7 +103,7 @@ pub(crate) fn command(
         path.is_file() && extension == "md"
     }
 
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     let config = cmd_config.config;
 
     let markdown_dir = config.markdown_dir.ok_or_else(|| {
@@ -144,7 +146,12 @@ pub(crate) fn command(
         crate::registry::apply_template_config(&mut config, cfg);
         OutputProcessor::from_template_config(config, loader, params, OutputTarget::Stdout)?
     };
-    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let weaver = WeaverEngine::new(
+        &cmd_config.registry,
+        &cmd_config.policy,
+        &cmd_config.resolve,
+        auth,
+    );
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let generator: Box<dyn MarkdownSnippetGenerator> = match resolved {
         crate::weaver::Resolved::V2(resolved_v2) => {
@@ -220,6 +227,7 @@ mod tests {
     use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
     use crate::registry::{RegistryArgs, RegistryCommand, RegistrySubCommand};
     use crate::run_command;
+    use clap::Parser;
     use std::io::Write;
     use weaver_common::vdir::VirtualDirectoryPath;
     use zip::write::FileOptions;
@@ -448,6 +456,62 @@ mod tests {
         assert_eq!(
             exit_directive_verify.exit_code, 0,
             "Second run (verification) failed"
+        );
+    }
+
+    #[test]
+    fn test_registry_update_markdown_parse_bare_dry_run() {
+        let cli = Cli::try_parse_from([
+            "weaver",
+            "registry",
+            "update-markdown",
+            "--registry=./data/update_markdown/registry",
+            "--templates=./data/update_markdown/templates",
+            "--target=markdown",
+            "--dry-run",
+            "./data/update_markdown/markdown",
+        ])
+        .expect("expected bare --dry-run to parse");
+
+        let Commands::Registry(registry_cmd) = cli.command.expect("command should be set") else {
+            panic!("expected registry command");
+        };
+        let RegistrySubCommand::UpdateMarkdown(args) = registry_cmd.command else {
+            panic!("expected update-markdown command");
+        };
+
+        assert_eq!(args.dry_run, Some(true));
+        assert_eq!(
+            args.markdown_dir.as_deref(),
+            Some("./data/update_markdown/markdown")
+        );
+    }
+
+    #[test]
+    fn test_registry_update_markdown_parse_dry_run_equals_false() {
+        let cli = Cli::try_parse_from([
+            "weaver",
+            "registry",
+            "update-markdown",
+            "--registry=./data/update_markdown/registry",
+            "--templates=./data/update_markdown/templates",
+            "--target=markdown",
+            "--dry-run=false",
+            "./data/update_markdown/markdown",
+        ])
+        .expect("expected --dry-run=false to parse");
+
+        let Commands::Registry(registry_cmd) = cli.command.expect("command should be set") else {
+            panic!("expected registry command");
+        };
+        let RegistrySubCommand::UpdateMarkdown(args) = registry_cmd.command else {
+            panic!("expected update-markdown command");
+        };
+
+        assert_eq!(args.dry_run, Some(false));
+        assert_eq!(
+            args.markdown_dir.as_deref(),
+            Some("./data/update_markdown/markdown")
         );
     }
 }

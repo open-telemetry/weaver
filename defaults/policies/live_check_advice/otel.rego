@@ -119,8 +119,10 @@ make_advice_with_signal_info(advice_type, advice_level, advice_context, signal_n
 	"message": message,
 }
 
-# Helper function to check if name is a template type
+# Helper function to check if name is a template type, extending it across a dot
 is_template_type(name) if {
 	some template in object.keys(templates_set)
-	startswith(name, template)
+	prefix := concat("", [trim_suffix(template, "."), "."])
+	startswith(name, prefix)
+	count(name) > count(prefix)
 }

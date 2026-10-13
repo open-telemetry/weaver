@@ -1,0 +1,12 @@
+groups:
+  - id: entity.service
+    type: entity
+    name: service
+    stability: stable
+    brief: "A service, named in the `entity_associations` of this registry."
+    attributes:
+      - id: service.name
+        type: string
+        stability: stable
+        brief: "Service name"
+        requirement_level: required

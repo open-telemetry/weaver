@@ -1,0 +1,31 @@
+file_format: definition/2
+attributes:
+  - key: test.attr
+    type: int
+    brief: Test attribute
+    stability: stable
+
+entities:
+  - type: base.entity
+    requirement_level: recommended
+    identity:
+      - ref: test.attr
+    brief: Base entity
+    stability: stable
+
+entity_refinements:
+  # Valid: refines the identity attribute under `identity`.
+  - id: entity.refined.entity
+    ref: base.entity
+    brief: Refined entity
+    identity:
+      - ref: test.attr
+        brief: Refined identity attribute
+  # Invalid: test.attr is an identity attribute of base.entity and must be
+  # refined under `identity`, not `description`.
+  - id: entity.demoting.entity
+    ref: base.entity
+    brief: Demoting entity
+    description:
+      - ref: test.attr
+        brief: Demoted identity attribute

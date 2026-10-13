@@ -10,7 +10,7 @@
           "note": "A database client span."
         },
         "root_namespace": "db",
-        "stability": "alpha",
+        "stability": "development",
         "type": "db.client"
       }
     ]

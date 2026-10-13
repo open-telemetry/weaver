@@ -1,0 +1,7 @@
+description: Registry refining signals from two dependencies, one reached transitively.
+schema_url: https://deep-consumer.example.com/schemas/1.0.0
+dependencies:
+  - schema_url: https://consumer.example.com/schemas/1.0.0
+    registry_path: data/registry-test-v2-dep/consumer_registry
+  - schema_url: https://server.example.com/schemas/1.0.0
+    registry_path: data/registry-test-v2-dep/published

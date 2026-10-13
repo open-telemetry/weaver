@@ -12,21 +12,14 @@ use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 
-pub mod any_value;
-pub mod attribute;
+pub mod convert;
 pub mod deprecated;
-pub mod entity_association;
-pub mod group;
 pub mod json_schema;
-pub mod manifest;
 pub mod provenance;
-pub mod registry;
 pub mod registry_repo;
 pub mod schema_url;
 pub mod semconv;
-pub mod signal_requirement_level;
-pub mod stability;
-pub mod stats;
+pub mod v1;
 pub mod v2;
 
 /// An error that can occur while loading a semantic convention registry.
@@ -241,6 +234,33 @@ pub enum Error {
         group_id: String,
     },
 
+    /// An attribute is listed under both `identity` and `description` of the
+    /// same entity or entity refinement.
+    #[error("The attribute `{attribute_id}` is listed under both `identity` and `description` of `{group_id}`.\nProvenance: {path_or_url:?}")]
+    #[diagnostic(help(
+        "List the attribute only once: under `identity` if it identifies the entity, under `description` otherwise."
+    ))]
+    AttributeInIdentityAndDescription {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The id of the entity or entity refinement.
+        group_id: String,
+        /// The attribute listed in both lists.
+        attribute_id: String,
+    },
+
+    /// An entity does not declare any `identity` attributes.
+    #[error("The entity `{group_id}` does not declare any `identity` attributes.\nProvenance: {path_or_url:?}")]
+    #[diagnostic(help(
+        "List at least one attribute under `identity`; these are the attributes that uniquely identify the entity."
+    ))]
+    EntityMissingIdentity {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The id of the entity.
+        group_id: String,
+    },
+
     /// The semantic convention asset contains an invalid metric definition.
     #[error("Invalid metric definition in {path_or_url:?}.\ngroup_id=`{group_id}`. {error}")]
     InvalidMetric {
@@ -362,6 +382,16 @@ pub enum Error {
         path: PathBuf,
     },
 
+    /// This warning is raised when a `manifest.yaml` file is missing the `file_format` field.
+    #[diagnostic(severity(Warning))]
+    #[error("The registry manifest at {path:?} is missing the 'file_format' field. It is assumed to be a V2 definition manifest ('{expected_format}'). Please add 'file_format: {expected_format}' to the manifest.")]
+    MissingManifestFileFormat {
+        /// The path to the registry manifest file.
+        path: PathBuf,
+        /// The expected file format string.
+        expected_format: String,
+    },
+
     /// This error is raised when a registry manifest includes deprecated properties.
     #[error("The syntax used in the registry manifest at {path:?} is deprecated. {error}")]
     #[diagnostic(severity(Warning))]
@@ -388,6 +418,22 @@ pub enum Error {
     UnexpectedPublicationManifest {
         /// The schema URL of the publication manifest.
         schema_url: String,
+    },
+
+    /// Failed to resolve the schema URL for a registry.
+    #[error("Schema URL is missing in the manifest and cannot be constructed from the registry name and version.")]
+    #[diagnostic(severity(Error))]
+    FailToResolveSchemaUrl {},
+
+    /// A registry whose dependencies do not pin a version cannot be packaged.
+    #[error("Dependency `{schema_url}` (registry_path: {}) does not pin a version, which a publication manifest requires. Declare it with a versioned `schema_url` before packaging.", .registry_path.as_deref().unwrap_or("not specified"))]
+    #[diagnostic(severity(Error))]
+    UnversionedDependencyInPublication {
+        /// The schema URL of the dependency, which carries no usable version.
+        /// It is a placeholder when the dependency is declared by `name`.
+        schema_url: String,
+        /// Where the dependency's files were declared to live, if anywhere.
+        registry_path: Option<String>,
     },
 
     /// A schema_url has an invalid version component.
@@ -740,7 +786,7 @@ impl std::hash::Hash for YamlValue {
 
 #[cfg(test)]
 mod tests {
-    use crate::{registry::SemConvRegistry, schema_url::SchemaUrl, YamlValue};
+    use crate::{schema_url::SchemaUrl, v1::registry::SemConvRegistry, YamlValue};
     use std::{error::Error, vec};
     use weaver_common::diagnostic::DiagnosticMessages;
 

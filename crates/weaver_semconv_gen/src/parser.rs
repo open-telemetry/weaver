@@ -332,6 +332,7 @@ pub(crate) enum RefinementLookup {
     Span { id: SignalId },
     Metric { id: SignalId },
     Event { id: SignalId },
+    Entity { id: SignalId },
 }
 
 fn parse_partial_id(input: &str) -> IResult<&str, &str> {
@@ -425,6 +426,12 @@ fn parse_refinement_lookup(input: &str) -> IResult<&str, RefinementLookup> {
         "events" => Ok((
             input,
             RefinementLookup::Event {
+                id: id_rest.to_owned().into(),
+            },
+        )),
+        "entities" => Ok((
+            input,
+            RefinementLookup::Entity {
                 id: id_rest.to_owned().into(),
             },
         )),
@@ -594,6 +601,12 @@ mod tests {
         assert_eq!(
             parse_id_lookup_v2("refinements.events.one")?,
             IdLookupV2::Refinement(RefinementLookup::Event {
+                id: "one".to_owned().into()
+            })
+        );
+        assert_eq!(
+            parse_id_lookup_v2("refinements.entities.one")?,
+            IdLookupV2::Refinement(RefinementLookup::Entity {
                 id: "one".to_owned().into()
             })
         );

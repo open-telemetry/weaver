@@ -1,0 +1,9 @@
+file_format: definition/2
+metrics:
+  - name: middle.throughput
+    brief: Throughput metric defined in middle, using `host.id` from the base dependency.
+    instrument: gauge
+    unit: "By"
+    stability: stable
+    attributes:
+      - ref: host.id

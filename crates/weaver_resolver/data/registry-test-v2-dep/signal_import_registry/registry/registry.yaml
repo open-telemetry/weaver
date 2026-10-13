@@ -1,0 +1,12 @@
+file_format: definition/2
+# Importing a signal brings its attributes along, but they stay the dependency's:
+# none of them is defined here, so `registry.attributes` must stay empty.
+imports:
+  spans:
+    - server.request
+  metrics:
+    - server.request.duration
+  events:
+    - server.error
+  entities:
+    - host

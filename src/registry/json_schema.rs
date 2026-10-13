@@ -12,10 +12,11 @@ use std::path::PathBuf;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_config::{
-    AuthEntry, DiagnosticsConfig, LiveCheckConfig, PolicyConfig, RegistryConfig, TemplateConfig,
-    WeaverConfig,
+    AuthEntry, DiagnosticsConfig, InferConfig, LiveCheckConfig, PolicyConfig, RegistryConfig,
+    ResolveConfig, TemplateConfig, WeaverConfig,
 };
-use weaver_forge::registry::ResolvedRegistry;
+use weaver_forge::config::Params;
+use weaver_forge::v1::registry::ResolvedRegistry;
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_semconv::semconv::SemConvSpecV1;
 
@@ -27,13 +28,14 @@ struct WeaverConfigSchema {
     pub registry: RegistryConfig,
     pub policy: PolicyConfig,
     pub diagnostics: DiagnosticsConfig,
+    pub resolve: ResolveConfig,
     pub template: TemplateConfig,
     pub auth: Vec<AuthEntry>,
     pub check: super::check::CheckConfig,
     pub diff: super::diff::DiffConfig,
     pub emit: super::emit::EmitConfig,
     pub generate: super::generate::GenerateConfig,
-    pub infer: super::infer::InferConfig,
+    pub infer: InferConfig,
     #[serde(rename = "live-check")]
     pub live_check: LiveCheckConfig,
     pub mcp: super::mcp::McpConfig,
@@ -108,10 +110,10 @@ pub(crate) fn command(
         JsonSchemaType::Diff => schema_for!(weaver_version::schema_changes::SchemaChanges),
         JsonSchemaType::DiffV2 => schema_for!(weaver_version::v2::SchemaChanges),
         JsonSchemaType::DefinitionManifestV2 => {
-            schema_for!(weaver_semconv::manifest::DefinitionRegistryManifest)
+            schema_for!(weaver_semconv::v2::manifest::DefinitionRegistryManifest)
         }
         JsonSchemaType::PublicationManifestV2 => {
-            schema_for!(weaver_semconv::manifest::PublicationRegistryManifest)
+            schema_for!(weaver_semconv::v2::manifest::PublicationRegistryManifest)
         }
         JsonSchemaType::PolicyFinding => schema_for!(weaver_checker::PolicyFinding),
         JsonSchemaType::WeaverConfig => schema_for!(WeaverConfigSchema),
@@ -121,8 +123,9 @@ pub(crate) fn command(
         info!("Writing JSON schema to `{}`", p.display());
     }
     let target = OutputTarget::from_optional_file(args.output.as_ref());
-    let mut output = OutputProcessor::new("json", "json_schema", None, None, target)
-        .map_err(DiagnosticMessages::from)?;
+    let mut output =
+        OutputProcessor::new("json", "json_schema", None, None, target, Params::default())
+            .map_err(DiagnosticMessages::from)?;
     output
         .generate(&json_schema)
         .map_err(DiagnosticMessages::from)?;

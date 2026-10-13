@@ -3,31 +3,19 @@
 //! Integration test: emit findings via `OtlpEmitter` into a `weaver registry live-check`
 //! instance that uses the live_check model as its registry. Validates that the emitted
 //! OTLP log records conform to the model (zero violations).
+//!
+//! It also guards the fix for #1657: the report is read from `GET /report` while the
+//! process is alive, so a client that drains a large body late still gets all of it.
 
-use std::process::{Child, Command as StdCommand};
+mod common;
+
+use std::io::Read;
 use std::rc::Rc;
 use std::thread::sleep;
 use std::time::Duration;
+
+use common::{shutdown, start_live_check, stop, wait_for_health, ChildGuard};
 use weaver_test_support::reserve_test_port;
-
-/// Guard that kills the child process on drop (e.g., on panic) to prevent orphaned processes.
-struct ChildGuard(Option<Child>);
-
-impl Drop for ChildGuard {
-    fn drop(&mut self) {
-        if let Some(ref mut child) = self.0 {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-    }
-}
-
-impl ChildGuard {
-    /// Take ownership of the child, disabling the kill-on-drop behavior.
-    fn take(&mut self) -> Child {
-        self.0.take().expect("child already taken")
-    }
-}
 
 use serde_json::json;
 use weaver_checker::{FindingLevel, PolicyFinding};
@@ -38,35 +26,55 @@ use weaver_live_check::sample_metric::{SampleInstrument, SampleMetric};
 use weaver_live_check::sample_resource::SampleResource;
 use weaver_live_check::sample_span::SampleSpan;
 use weaver_live_check::{Sample, SampleRef};
-use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
+use weaver_semconv::v1::group::{InstrumentSpec, SpanKindSpec};
 
-/// Poll GET /health until it returns 200, with retries.
-fn wait_for_health(port: u16) {
-    let url = format!("http://127.0.0.1:{port}/health");
-    let max_attempts = 60;
-    for attempt in 0..max_attempts {
-        match ureq::get(&url).call() {
-            Ok(resp) if resp.status() == 200 => return,
-            _ => {
-                if attempt == max_attempts - 1 {
-                    panic!(
-                        "weaver live-check did not become healthy on port {port} after {max_attempts} attempts"
-                    );
-                }
-                sleep(Duration::from_millis(500));
-            }
-        }
-    }
-}
+/// Larger than a socket send buffer, so the server cannot finish writing the
+/// report until the client reads it. Kept under tonic's 4 MiB gRPC message
+/// limit (travels as a flattened `weaver.finding.context.padding` attribute —
+/// see Finding 4).
+const RESPONSE_PADDING_SIZE: usize = 2 * 1024 * 1024;
 
-/// POST /stop and return the response body.
-fn stop_and_collect_report(port: u16) -> String {
-    let url = format!("http://127.0.0.1:{port}/stop");
-    let response = ureq::post(&url).send("").expect("POST /stop failed");
-    response
+/// Delay between receiving the `/report` headers and reading its body. A busy
+/// CI client drains late; #1657 showed that used to truncate the body.
+const DELAYED_READ: Duration = Duration::from_secs(1);
+
+/// `GET /report` over HTTP/1.1, read the headers, wait, then drain the body.
+/// Asserts the child is still alive and that the whole body arrived.
+fn collect_report_slowly(admin_port: u16, guard: &mut ChildGuard) -> String {
+    let response = ureq::get(format!("http://127.0.0.1:{admin_port}/report"))
+        .call()
+        .expect("GET /report failed");
+    assert_eq!(response.status(), 200);
+    let content_length: usize = response
+        .headers()
+        .get("content-length")
+        .expect("/report sets Content-Length")
+        .to_str()
+        .expect("Content-Length is ASCII")
+        .parse()
+        .expect("Content-Length is a number");
+
+    sleep(DELAYED_READ);
+
+    assert!(
+        guard
+            .0
+            .as_mut()
+            .expect("child is running")
+            .try_wait()
+            .expect("failed to check child process status")
+            .is_none(),
+        "weaver exited before the /report response was fully read"
+    );
+
+    let mut body = String::new();
+    let _ = response
         .into_body()
-        .read_to_string()
-        .expect("Failed to read /stop response body")
+        .as_reader()
+        .read_to_string(&mut body)
+        .expect("failed to read the /report body");
+    assert_eq!(body.len(), content_length, "the /report body was cut short");
+    body
 }
 
 fn make_finding(
@@ -122,7 +130,7 @@ fn collect_violation_messages(value: &serde_json::Value, messages: &mut Vec<Stri
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[cfg_attr(tarpaulin, ignore)]
 async fn test_livecheck_emit_roundtrip() {
     // 1. Allocate dynamic ports
@@ -132,30 +140,7 @@ async fn test_livecheck_emit_roundtrip() {
     // 2. Start weaver live-check as a child process using the live_check model as registry
     //    The model dir is relative to this crate's manifest, so build an absolute path.
     let model_dir = format!("{}/model", env!("CARGO_MANIFEST_DIR"));
-    #[allow(deprecated)] // cargo_bin() is the only cross-crate way to find the binary
-    let weaver_bin = assert_cmd::cargo::cargo_bin("weaver");
-
-    let mut guard = ChildGuard(Some(
-        StdCommand::new(weaver_bin)
-            .args([
-                "registry",
-                "live-check",
-                "-r",
-                &model_dir,
-                "--format",
-                "json",
-                "--output",
-                "http",
-                "--otlp-grpc-port",
-                &grpc_port.to_string(),
-                "--admin-port",
-                &admin_port.to_string(),
-                "--inactivity-timeout",
-                "15",
-            ])
-            .spawn()
-            .expect("Failed to start weaver live-check process"),
-    ));
+    let mut guard = start_live_check(&model_dir, grpc_port, admin_port, &[]);
 
     // 3. Wait for the health endpoint to respond
     wait_for_health(admin_port);
@@ -173,8 +158,15 @@ async fn test_livecheck_emit_roundtrip() {
             attributes: vec![],
             span_events: vec![],
             span_links: vec![],
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
+            trace_id: Some("00000000000000000000000000000001".to_owned()),
+            span_id: Some("0000000000000001".to_owned()),
+            parent_span_id: None,
+            trace_state: None,
+            start_time: None,
+            end_time: None,
         };
         let parent = Sample::Span(span.clone());
         let sample_ref = SampleRef::Span(&span);
@@ -196,6 +188,7 @@ async fn test_livecheck_emit_roundtrip() {
             instrument: SampleInstrument::Supported(InstrumentSpec::Histogram),
             unit: "s".to_owned(),
             data_points: None,
+            instrumentation_scope: None,
             live_check_result: None,
             resource: None,
         };
@@ -229,6 +222,7 @@ async fn test_livecheck_emit_roundtrip() {
     }
 
     // --- Finding 4: Complex nested context ---
+    // Carries a large padding value to reproduce the shutdown race below.
     {
         let attr = make_attribute("db.system");
         let parent = Sample::Attribute(attr.clone());
@@ -242,7 +236,8 @@ async fn test_livecheck_emit_roundtrip() {
             json!({
                 "attribute_key": "db.system",
                 "attribute_value": "postgresql",
-                "expected": "postgres"
+                "expected": "postgres",
+                "padding": "x".repeat(RESPONSE_PADDING_SIZE),
             }),
         );
         emitter.emit_finding(&finding, &sample_ref, &parent);
@@ -274,8 +269,15 @@ async fn test_livecheck_emit_roundtrip() {
             attributes: vec![],
             span_events: vec![],
             span_links: vec![],
+            instrumentation_scope: None,
             live_check_result: None,
             resource: Some(Rc::new(resource)),
+            trace_id: None,
+            span_id: None,
+            parent_span_id: None,
+            trace_state: None,
+            start_time: None,
+            end_time: None,
         };
         let parent = Sample::Span(span.clone());
         let sample_ref = SampleRef::Span(&span);
@@ -309,8 +311,10 @@ async fn test_livecheck_emit_roundtrip() {
             attributes: vec![],
             trace_id: None,
             span_id: None,
+            instrumentation_scope: None,
             live_check_result: None,
             resource: Some(Rc::new(resource)),
+            timestamp: None,
         };
         let parent = Sample::Log(log.clone());
         let sample_ref = SampleRef::Log(&log);
@@ -332,19 +336,14 @@ async fn test_livecheck_emit_roundtrip() {
     emitter.force_flush().expect("Failed to flush OtlpEmitter");
     emitter.shutdown().expect("Failed to shutdown OtlpEmitter");
 
-    // Brief delay for weaver to finish processing the received log records.
-    sleep(Duration::from_millis(500));
+    // 6. Stop the run. The report is ready once /stop returns, so no sleep is needed.
+    stop(admin_port);
 
-    // 6. Collect report via POST /stop
-    let report_body = stop_and_collect_report(admin_port);
-
-    // 7. Wait for weaver to exit
+    // 7. Read the (large) report late, the way a busy client does; see
+    //    `collect_report_slowly`. Then shut weaver down and wait for it to exit.
     //    Exit code may be non-zero if there are violations — we check that separately below.
-    //    Take the child out of the guard so it won't be killed again on drop.
-    let _status = guard
-        .take()
-        .wait()
-        .expect("Failed to wait for weaver live-check to exit");
+    let report_body = collect_report_slowly(admin_port, &mut guard);
+    shutdown(guard, admin_port);
 
     // 8. Validate the report
     let report: serde_json::Value =
@@ -360,6 +359,35 @@ async fn test_livecheck_emit_roundtrip() {
     assert!(
         total_entities > 0,
         "Expected total_entities > 0 (data flowed through), got {total_entities}"
+    );
+
+    let samples = report["samples"].as_array().expect("report samples");
+    let emitted_finding = samples
+        .iter()
+        .filter_map(|sample| sample.get("log"))
+        .find(|log| {
+            log["trace_id"] == "00000000000000000000000000000001"
+                && log["span_id"] == "0000000000000001"
+        })
+        .expect("captured finding log correlated with its source span");
+    assert!(
+        emitted_finding["timestamp"].is_string(),
+        "captured finding log should retain its OTLP timestamp"
+    );
+    let attributes = emitted_finding["attributes"]
+        .as_array()
+        .expect("captured finding log attributes");
+    assert!(
+        attributes
+            .iter()
+            .any(|attribute| attribute["name"] == "weaver.finding.id"),
+        "captured finding log should retain generated finding attributes"
+    );
+    assert!(
+        attributes
+            .iter()
+            .any(|attribute| attribute["name"] == "weaver.finding.context.attribute_key"),
+        "captured finding log should retain generated finding context attributes"
     );
 
     // Read violation count from statistics

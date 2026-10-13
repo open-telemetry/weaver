@@ -41,6 +41,7 @@ Url:
 
 # Resource
 
+- [entity.service](resource/entity_service.md)
 - [otel.library](resource/otel_library.md)
 - [otel.scope](resource/otel_scope.md)
 

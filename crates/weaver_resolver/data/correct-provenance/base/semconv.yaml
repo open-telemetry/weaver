@@ -1,0 +1,15 @@
+file_format: definition/2
+attributes:
+  - key: host.id
+    type: string
+    stability: stable
+    brief: Unique host ID.
+    examples: ["abc123"]
+metrics:
+  - name: base.uptime
+    brief: Uptime metric defined in base.
+    instrument: gauge
+    unit: "s"
+    stability: stable
+    attributes:
+      - ref: host.id

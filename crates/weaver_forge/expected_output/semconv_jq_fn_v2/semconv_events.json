@@ -6,7 +6,7 @@
         "brief": "",
         "name": "db.query",
         "root_namespace": "db",
-        "stability": "alpha"
+        "stability": "development"
       }
     ],
     "root_namespace": "db"

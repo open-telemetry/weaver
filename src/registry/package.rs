@@ -11,8 +11,8 @@ use log::info;
 use weaver_common::log_success;
 
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
-use weaver_semconv::manifest::{PublicationRegistryManifest, RegistryManifest};
 use weaver_semconv::registry_repo::RegistryRepo;
+use weaver_semconv::v2::manifest::{PublicationRegistryManifest, RegistryManifest};
 
 use crate::registry::{load_config, Error, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
@@ -70,7 +70,7 @@ pub(crate) fn command(
     cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     let output = cmd_config.config.output;
     if std::env::args()
         .any(|a| a == "--resolved-schema-uri" || a.starts_with("--resolved-schema-uri="))
@@ -92,7 +92,12 @@ pub(crate) fn command(
     }
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let weaver = WeaverEngine::new(
+        &cmd_config.registry,
+        &cmd_config.policy,
+        &cmd_config.resolve,
+        auth,
+    );
     let registry_path = &cmd_config.registry.registry;
 
     let mut nfes = vec![];
@@ -100,12 +105,12 @@ pub(crate) fn command(
     diag_msgs.extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
 
     // we require a definition manifest file to be present for packaging
-    let manifest = repo
-        .manifest()
-        .ok_or_else(|| Error::PackagingRequiresManifest {
-            registry: registry_path.to_string(),
-        })?
-        .clone();
+    let manifest =
+        repo.v2_manifest()
+            .transpose()?
+            .ok_or_else(|| Error::PackagingRequiresManifest {
+                registry: registry_path.to_string(),
+            })?;
 
     let definition_manifest = match manifest {
         RegistryManifest::Definition(m) => m,
@@ -136,7 +141,7 @@ pub(crate) fn command(
     let publication_manifest = PublicationRegistryManifest::try_from_registry_manifest(
         &definition_manifest,
         resolved_registry_uri,
-    );
+    )?;
 
     write_yaml(&output.join("resolved.yaml"), resolved_v2.resolved_schema())?;
     write_yaml(&output.join("manifest.yaml"), &publication_manifest)?;
@@ -156,7 +161,7 @@ pub(crate) fn command(
 mod tests {
     use super::*;
     use weaver_common::vdir::VirtualDirectoryPath;
-    use weaver_semconv::manifest::PUBLICATION_MANIFEST_FILE_FORMAT;
+    use weaver_semconv::v2::manifest::PUBLICATION_MANIFEST_FILE_FORMAT;
 
     use crate::registry::{PolicyArgs, RegistryArgs};
 
@@ -221,10 +226,10 @@ mod tests {
         // manifest.yaml must exist and contain the correct fields
         let manifest_path = output.path().join("manifest.yaml");
         assert!(manifest_path.exists(), "manifest.yaml not written");
-        let manifest_content =
-            fs::read_to_string(&manifest_path).expect("failed to read manifest.yaml");
-        let manifest: PublicationRegistryManifest =
-            serde_yaml::from_str(&manifest_content).expect("manifest.yaml is not valid YAML");
+        let manifest = match RegistryManifest::try_from_file(&manifest_path, &mut vec![]) {
+            Ok(RegistryManifest::Publication(manifest)) => manifest,
+            other => panic!("expected manifest.yaml to be a publication manifest, got: {other:?}"),
+        };
 
         assert_eq!(manifest.file_format, PUBLICATION_MANIFEST_FILE_FORMAT);
         assert_eq!(manifest.schema_url.as_str(), "https://test/schemas/1.0.0");
