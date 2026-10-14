@@ -183,7 +183,7 @@ impl Selection<'_> {
 /// declared in the config; with no arguments, every repo runs at its configured ref.
 #[cfg(not(tarpaulin_include))]
 pub fn run(repos: Vec<String>) -> anyhow::Result<()> {
-    let config: Config = serde_yaml::from_str(
+    let config: Config = serde_saphyr::from_str(
         &std::fs::read_to_string(CONFIG_FILE)
             .with_context(|| format!("Failed to read {CONFIG_FILE}"))?,
     )
@@ -560,7 +560,7 @@ mod tests {
             "/../../",
             "downstream-check.yaml"
         );
-        serde_yaml::from_str(&std::fs::read_to_string(path).expect("failed to read the config"))
+        serde_saphyr::from_str(&std::fs::read_to_string(path).expect("failed to read the config"))
             .expect("failed to parse the config")
     }
 

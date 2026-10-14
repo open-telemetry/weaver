@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use clap::Args;
 use log::info;
-use serde_yaml::Value;
+use serde_json::Value;
 
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::log_success;
@@ -83,7 +83,7 @@ pub(crate) fn parse_key_val(s: &str) -> Result<(String, Value), Error> {
         param: s.to_owned(),
         error: "A valid parameter definition is `--param <name>=<yaml-value>`".to_owned(),
     })?;
-    let value = serde_yaml::from_str(&s[pos + 1..]).map_err(|e| Error::InvalidParam {
+    let value = serde_saphyr::from_str(&s[pos + 1..]).map_err(|e| Error::InvalidParam {
         param: s.to_owned(),
         error: format!("A valid parameter definition is `--param <name>=<yaml-value>`. Error: {e}"),
     })?;
@@ -196,7 +196,7 @@ pub(crate) fn generate_params_shared(
             params_file: params_file.clone(),
             error: e.to_string(),
         })?;
-        serde_yaml::from_reader(file).map_err(|e| Error::InvalidParams {
+        serde_saphyr::from_reader(file).map_err(|e| Error::InvalidParams {
             params_file: params_file.clone(),
             error: e.to_string(),
         })?

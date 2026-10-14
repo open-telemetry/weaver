@@ -1700,7 +1700,7 @@ mod tests {
             let settings: TestSettings = if PathBuf::from(&settings_file).exists() {
                 let settings_str =
                     std::fs::read_to_string(&settings_file).expect("Failed to read settings file");
-                serde_yaml::from_str(&settings_str).expect("Failed to parse settings file")
+                serde_saphyr::from_str(&settings_str).expect("Failed to parse settings file")
             } else {
                 TestSettings::default()
             };
@@ -1812,17 +1812,17 @@ mod tests {
                     .expect("Failed to resolve the registry")
                     .try_into()
                     .expect("Failed to convert to v2 schema");
-                let observed_schema_file = OpenOptions::new()
+                let mut observed_schema_file = OpenOptions::new()
                     .create(true)
                     .write(true)
                     .truncate(true)
                     .open(observed_output_dir.join(OBSERVED_V2_SCHEMA_FILE))
                     .expect("Failed to open observed output file");
-                serde_yaml::to_writer(observed_schema_file, &observed_schema)
+                serde_saphyr::to_io_writer(&mut observed_schema_file, &observed_schema)
                     .expect("Failed to write observed output.");
 
                 // Check that the resolved registry matches the expected registry.
-                let expected_schema: ResolvedTelemetrySchema = serde_yaml::from_reader(
+                let expected_schema: ResolvedTelemetrySchema = serde_saphyr::from_reader(
                     std::fs::File::open(format!("{test_dir}/{EXPECTED_V2_SCHEMA_FILE}"))
                         .expect("Failed to open expected schema"),
                 )

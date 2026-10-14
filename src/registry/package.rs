@@ -57,9 +57,11 @@ fn write_yaml(path: &Path, data: &impl serde::Serialize) -> Result<(), Diagnosti
         path: path.to_path_buf(),
         error: e.to_string(),
     })?;
-    serde_yaml::to_writer(BufWriter::new(file), data).map_err(|e| Error::OutputWrite {
-        path: path.to_path_buf(),
-        error: e.to_string(),
+    serde_saphyr::to_io_writer(&mut BufWriter::new(file), data).map_err(|e| {
+        Error::OutputWrite {
+            path: path.to_path_buf(),
+            error: e.to_string(),
+        }
     })?;
     Ok(())
 }
@@ -215,8 +217,8 @@ mod tests {
         assert!(resolved_path.exists(), "resolved.yaml not written");
         let resolved_content =
             fs::read_to_string(&resolved_path).expect("failed to read resolved.yaml");
-        let resolved: serde_yaml::Value =
-            serde_yaml::from_str(&resolved_content).expect("resolved.yaml is not valid YAML");
+        let resolved: serde_json::Value =
+            serde_saphyr::from_str(&resolved_content).expect("resolved.yaml is not valid YAML");
         assert_eq!(
             resolved["file_format"].as_str(),
             Some("resolved/2.0"),

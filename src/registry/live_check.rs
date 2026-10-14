@@ -12,7 +12,7 @@ use axum::http::Uri;
 
 use clap::Args;
 use include_dir::{include_dir, Dir};
-use serde_yaml::Value;
+use serde_json::Value;
 
 use log::info;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};

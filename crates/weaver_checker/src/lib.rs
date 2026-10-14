@@ -367,7 +367,7 @@ impl Engine {
             }
             "yaml" | "yml" => {
                 log::debug!("Including YAML data file {}", file_path.display());
-                serde_yaml::from_str(&content).map_err(|e| Error::InvalidData {
+                serde_saphyr::from_str(&content).map_err(|e| Error::InvalidData {
                     error: format!("Invalid YAML file {}: {}", file_path.display(), e),
                 })?
             }
@@ -638,7 +638,7 @@ fn is_hidden(entry: &DirEntry) -> bool {
 mod tests {
     use std::collections::HashMap;
 
-    use serde_yaml::Value;
+    use serde_json::Value;
 
     use weaver_common::error::format_errors;
 
@@ -652,11 +652,11 @@ mod tests {
         assert_eq!(policy_package, "data.before_resolution");
 
         let old_semconv = std::fs::read_to_string("data/registries/registry.network.old.yaml")?;
-        let old_semconv: Value = serde_yaml::from_str(&old_semconv)?;
+        let old_semconv: Value = serde_saphyr::from_str(&old_semconv)?;
         engine.add_data(&old_semconv)?;
 
         let new_semconv = std::fs::read_to_string("data/registries/registry.network.new.yaml")?;
-        let new_semconv: Value = serde_yaml::from_str(&new_semconv)?;
+        let new_semconv: Value = serde_saphyr::from_str(&new_semconv)?;
         engine.set_input(&new_semconv)?;
 
         let expected_violations: HashMap<String, PolicyFinding> = vec![
@@ -720,7 +720,7 @@ mod tests {
     /// The main registry and its dependency both define `host`, and each brief
     /// says where the definition came from. `core` is transitive: only `dep`
     /// depends on it.
-    fn entity_input(associations: serde_json::Value) -> serde_json::Value {
+    fn entity_input(associations: Value) -> Value {
         serde_json::json!({
             "schema_url": "https://example.com/main/1.0.0",
             "registry": {
@@ -748,7 +748,7 @@ mod tests {
     }
 
     /// A reference into the dependency.
-    fn dep_ref(r#type: &str) -> serde_json::Value {
+    fn dep_ref(r#type: &str) -> Value {
         serde_json::json!({
             "type": r#type,
             "provenance": {"source": "https://example.com/dep/1.0.0"},
@@ -756,7 +756,7 @@ mod tests {
     }
 
     /// A reference into the dependency of the dependency.
-    fn core_ref(r#type: &str) -> serde_json::Value {
+    fn core_ref(r#type: &str) -> Value {
         serde_json::json!({
             "type": r#type,
             "provenance": {"source": "https://example.com/core/1.0.0"},
@@ -765,7 +765,7 @@ mod tests {
 
     /// Runs the entity policy over an input and returns the messages it reports,
     /// sorted.
-    fn resolved_entities(input: &serde_json::Value) -> Vec<String> {
+    fn resolved_entities(input: &Value) -> Vec<String> {
         let mut engine = Engine::new();
         _ = engine
             .add_policy("defaults/rego/semconv.rego", SEMCONV_REGO)
@@ -863,7 +863,7 @@ mod tests {
 
         let new_semconv =
             std::fs::read_to_string("data/registries/registry.network.new.yaml").unwrap();
-        let new_semconv: Value = serde_yaml::from_str(&new_semconv).unwrap();
+        let new_semconv: Value = serde_saphyr::from_str(&new_semconv).unwrap();
         engine.set_input(&new_semconv).unwrap();
 
         let result = engine.check(PolicyStage::BeforeResolution);
@@ -897,11 +897,11 @@ mod tests {
         assert!(result.is_ok());
 
         let old_semconv = std::fs::read_to_string("data/registries/registry.network.old.yaml")?;
-        let old_semconv: Value = serde_yaml::from_str(&old_semconv)?;
+        let old_semconv: Value = serde_saphyr::from_str(&old_semconv)?;
         engine.add_data(&old_semconv)?;
 
         let new_semconv = std::fs::read_to_string("data/registries/registry.network.new.yaml")?;
-        let new_semconv: Value = serde_yaml::from_str(&new_semconv)?;
+        let new_semconv: Value = serde_saphyr::from_str(&new_semconv)?;
         engine.set_input(&new_semconv)?;
 
         let expected_violations: HashMap<String, PolicyFinding> = vec![

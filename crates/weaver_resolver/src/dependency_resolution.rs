@@ -26,8 +26,8 @@ pub(crate) const EXCLUDE_KEY: &str = "exclude";
 pub(crate) fn is_excluded(annotations: &BTreeMap<String, YamlValue>) -> bool {
     annotations
         .get(DEPENDENCY_RESOLUTION_KEY)
-        .and_then(|v| v.0.as_mapping())
-        .and_then(|m| m.get(serde_yaml::Value::String(EXCLUDE_KEY.to_owned())))
+        .and_then(|v| v.0.as_object())
+        .and_then(|m| m.get(EXCLUDE_KEY))
         .and_then(|v| v.as_bool())
         .unwrap_or(false)
 }
@@ -53,7 +53,7 @@ mod tests {
     use super::*;
 
     fn yaml(s: &str) -> YamlValue {
-        YamlValue(serde_yaml::from_str(s).expect("valid yaml"))
+        YamlValue(serde_saphyr::from_str(s).expect("valid yaml"))
     }
 
     #[test]
@@ -87,7 +87,7 @@ mod tests {
         let mut a = BTreeMap::new();
         _ = a.insert(
             "dependency_resolution".to_owned(),
-            YamlValue(serde_yaml::Value::Bool(true)),
+            YamlValue(serde_json::Value::Bool(true)),
         );
         assert!(!is_excluded(&a));
     }

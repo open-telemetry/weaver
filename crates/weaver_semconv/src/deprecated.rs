@@ -264,7 +264,7 @@ mod tests {
     note: Replaced by a new attribute `foo.unique_id`.
 "#;
 
-        let items: Vec<Item> = serde_yaml::from_str(yaml_data).unwrap();
+        let items: Vec<Item> = serde_saphyr::from_str(yaml_data).unwrap();
         assert_eq!(items.len(), 5);
         assert_eq!(
             items[0].deprecated,
