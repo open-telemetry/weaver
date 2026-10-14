@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Fix the JSON Schema of `SchemaUrl` to describe a string, matching how it is serialized. ([#1825](https://github.com/open-telemetry/weaver/pull/1825) by @lmolkova)
 - Live-check no longer reports false `invalid_format` and `extends_namespace` advice for v2 attributes and templates referenced from a dependency. The advice now finds attributes the same way as the other checks: in the matched signal and attribute groups, or also in the whole registry and its dependencies with `--search-all-attributes`. Fixes [#1814](https://github.com/open-telemetry/weaver/issues/1814) - ([#1819](https://github.com/open-telemetry/weaver/pull/1819) by @jerbly)
 - Add vdir documentation and safety features. We no longer untar symlinks or allow
   non-local files to be extracted. ([#1817](https://github.com/open-telemetry/weaver/pull/1817) by @jsuereth)

@@ -271,5 +271,15 @@ mod tests {
             components.schemas.contains_key("EntityAssociation"),
             "the recursive EntityAssociation schema should be registered as a component",
         );
+        let provenance = components
+            .schemas
+            .get("Provenance")
+            .expect("Provenance should be registered as a component");
+        let provenance_json = serde_json::to_value(provenance).unwrap();
+        assert_eq!(
+            provenance_json["properties"]["source"]["type"],
+            serde_json::json!(["string", "null"]),
+            "Provenance.source (SchemaUrl) should be typed as nullable string: {provenance_json}",
+        );
     }
 }

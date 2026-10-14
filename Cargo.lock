@@ -6418,6 +6418,7 @@ dependencies = [
  "jaq-core",
  "jaq-json",
  "jaq-std",
+ "jsonschema",
  "log",
  "markdown",
  "miette",

@@ -60,3 +60,4 @@ opentelemetry.workspace = true
 opentelemetry_sdk.workspace = true
 opentelemetry-stdout.workspace = true
 tempfile.workspace = true
+jsonschema = { version = "0.46.4", default-features = false }
