@@ -10,11 +10,47 @@ use serde::{Deserialize, Serialize};
 use crate::{
     deprecated::Deprecated,
     v2::{
-        attribute::AttributeRef, signal_id::SignalId,
-        signal_requirement_level::SignalRequirementLevel, stability::Stability, CommonFields,
+        attribute::{AttributeRef, AttributeUnref, Examples, RequirementLevel},
+        signal_id::SignalId,
+        signal_requirement_level::SignalRequirementLevel,
+        stability::Stability,
+        CommonFields,
     },
     YamlValue,
 };
+
+/// A refinement of an Attribute for an entity's identity.
+///
+/// Identity attributes are always required and do not accept a `requirement_level`.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub struct IdentityAttributeRef {
+    /// Reference an existing attribute by key.
+    pub r#ref: String,
+    /// Refines the brief description of the attribute.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brief: Option<String>,
+    /// Refined sequence of example values for the attribute or single example
+    /// value. They are required only for string and string array
+    /// attributes. Example values must be of the same type of the
+    /// attribute. If only a single example is provided, it can directly
+    /// be reported without encapsulating it into a sequence/dictionary.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub examples: Option<Examples>,
+    /// Deprecated: Identity attributes are always required and should not specify `requirement_level`.
+    #[serde(default, skip_serializing)]
+    #[schemars(skip)]
+    pub requirement_level: Option<RequirementLevel>,
+    /// Refines the more elaborate description of the attribute.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    /// Additional annotations for the attribute. These will be
+    /// merged with annotations from the definition.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub annotations: BTreeMap<String, YamlValue>,
+}
 
 /// Defines a new entity.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
@@ -23,7 +59,7 @@ pub struct Entity {
     /// The type of the Entity.
     pub r#type: SignalId,
     /// The attributes that make the identity of the Entity.
-    pub identity: Vec<AttributeRef>,
+    pub identity: Vec<IdentityAttributeRef>,
     /// The attributes that make the description of the Entity.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -36,6 +72,31 @@ pub struct Entity {
     pub common: CommonFields,
 }
 
+/// An attribute reference or removal in an entity refinement.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[serde(untagged)]
+#[schemars(inline)]
+pub enum EntityAttributeRefinement {
+    /// An attribute reference supported by the signal.
+    Ref(AttributeRef),
+    /// An inherited attribute to unreference.
+    Unref(AttributeUnref),
+}
+
+impl EntityAttributeRefinement {
+    /// Includes or overrides an attribute reference.
+    #[must_use]
+    pub fn reference(reference: impl Into<AttributeRef>) -> Self {
+        Self::Ref(reference.into())
+    }
+
+    /// Removes an inherited attribute by key.
+    #[must_use]
+    pub fn unref(key: impl Into<String>) -> Self {
+        Self::Unref(AttributeUnref { unref: key.into() })
+    }
+}
+
 /// A refinement of an existing entity.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -44,20 +105,16 @@ pub struct EntityRefinement {
     pub id: SignalId,
     /// The name of the entity being refined.
     pub r#ref: SignalId,
-    /// Refinements of the base entity's identity attributes.
-    ///
-    /// A refinement must not change *which* attributes identify the entity: it
-    /// may only refine attributes the base entity already lists under
-    /// `identity`.
+    /// Overrides of the base entity's identity attributes; identity cannot be removed.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub identity: Vec<AttributeRef>,
-    /// Refinements or additional attributes to describe the Entity.
+    pub identity: Vec<IdentityAttributeRef>,
+    /// References, overrides, or removals of descriptive attributes.
     ///
     /// Attributes listed here have the descriptive role.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub description: Vec<AttributeRef>,
+    pub description: Vec<EntityAttributeRefinement>,
     /// Refines the brief description of the signal.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub brief: Option<String>,
@@ -94,5 +151,35 @@ stability: stable
         assert_eq!(entity.r#type.to_string(), "my_entity");
         assert_eq!(entity.identity.len(), 1);
         assert_eq!(entity.description.len(), 1);
+    }
+
+    #[test]
+    fn test_entity_identity_accepts_deprecated_requirement_level() {
+        let entity_yaml = r#"type: my_entity
+identity:
+  - ref: some_attr
+    requirement_level: required
+brief: Test entity
+stability: stable
+"#;
+        let entity = serde_yaml::from_str::<Entity>(entity_yaml)
+            .expect("requirement_level on entity identity should deserialize for warning emission");
+        assert!(entity.identity[0].requirement_level.is_some());
+        let serialized = serde_yaml::to_string(&entity).expect("Failed to serialize entity");
+        assert!(!serialized.contains("requirement_level"));
+
+        let refinement_yaml = r#"id: my_entity.refined
+ref: my_entity
+identity:
+  - ref: some_attr
+    requirement_level: required
+"#;
+        let refinement = serde_yaml::from_str::<EntityRefinement>(refinement_yaml).expect(
+            "requirement_level on entity refinement identity should deserialize for warning emission",
+        );
+        assert!(refinement.identity[0].requirement_level.is_some());
+        let serialized_ref =
+            serde_yaml::to_string(&refinement).expect("Failed to serialize entity refinement");
+        assert!(!serialized_ref.contains("requirement_level"));
     }
 }

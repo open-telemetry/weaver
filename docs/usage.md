@@ -468,7 +468,7 @@ This uses the standard OpenTelemetry SDK, defaulting to OTLP gRPC on localhost:4
 
   Possible values: `true`, `false`
 
-* `--endpoint <ENDPOINT>` — Endpoint for the OTLP receiver. OTEL_EXPORTER_OTLP_ENDPOINT env var will override this. [default: http://localhost:4317]
+* `--endpoint <ENDPOINT>` — Endpoint for the OTLP receiver. When not set here or in the config file, `OTEL_EXPORTER_OTLP_<SIGNAL>_ENDPOINT`, then `OTEL_EXPORTER_OTLP_ENDPOINT`, apply. The default is `http://localhost:4317`
 
 
 
@@ -536,7 +536,7 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 
   Possible values: `true`, `false`
 
-* `--otlp-logs-endpoint <OTLP_LOGS_ENDPOINT>` — OTLP endpoint for log emission
+* `--otlp-logs-endpoint <OTLP_LOGS_ENDPOINT>` — OTLP endpoint for log emission. When not set here or in the config file, `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`, then `OTEL_EXPORTER_OTLP_ENDPOINT`, apply. The default is `http://localhost:4317`
 * `--otlp-logs-stdout <OTLP_LOGS_STDOUT>` — Use stdout for OTLP log emission (debug mode)
 
   Possible values: `true`, `false`

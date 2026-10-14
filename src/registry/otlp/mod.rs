@@ -202,9 +202,17 @@ pub struct OtlpListener {
 pub struct ListenerHandle {
     state: Arc<AppState>,
     thread: Option<JoinHandle<()>>,
+    addrs: [SocketAddr; 2],
 }
 
 impl ListenerHandle {
+    /// Every bound address, with the real port when `0` was requested. Each
+    /// one serves the full router, OTLP included.
+    #[must_use]
+    pub fn addrs(&self) -> &[SocketAddr] {
+        &self.addrs
+    }
+
     /// The run is over and the report went to stdout or a directory. A waiting
     /// `/stop` returns, the listeners stop, and this returns when the thread ends.
     pub fn finish(mut self) {
@@ -323,6 +331,7 @@ pub fn listen_otlp_requests(
         handle: ListenerHandle {
             state,
             thread: Some(thread),
+            addrs: [grpc_addr, admin_addr],
         },
     })
 }

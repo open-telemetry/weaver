@@ -33,12 +33,12 @@ use crate::v2::{
         AttributeDef, AttributeOrGroupRef, AttributeRef, AttributeType as V2AttributeType,
         BasicRequirementLevelSpec as V2BasicRequirementLevelSpec,
         EnumEntriesSpec as V2EnumEntriesSpec, Examples as V2Examples,
-        PrimitiveOrArrayTypeSpec as V2PrimitiveOrArrayTypeSpec,
+        PrimitiveOrArrayTypeSpec as V2PrimitiveOrArrayTypeSpec, RefinementAttributeOrGroupRef,
         RequirementLevel as V2RequirementLevel, TemplateTypeSpec as V2TemplateTypeSpec,
         ValueSpec as V2ValueSpec,
     },
     attribute_group::AttributeGroup,
-    entity::{Entity, EntityRefinement},
+    entity::{Entity, EntityAttributeRefinement, EntityRefinement, IdentityAttributeRef},
     entity_association::EntityAssociation as V2EntityAssociation,
     event::{Event, EventRefinement},
     manifest::{
@@ -50,7 +50,8 @@ use crate::v2::{
     span::{
         LinkAttributeRef as V2LinkAttributeRef, Span, SpanAttributeOrGroupRef, SpanAttributeRef,
         SpanKindSpec as V2SpanKindSpec, SpanLink as V2SpanLink, SpanName as V2SpanName,
-        SpanNameTemplate as V2SpanNameTemplate, SpanRefinement, TemplatePart as V2TemplatePart,
+        SpanNameTemplate as V2SpanNameTemplate, SpanRefinement, SpanRefinementAttributeOrGroupRef,
+        TemplatePart as V2TemplatePart,
     },
     stability::Stability as V2Stability,
     Imports as V2Imports, SemConvSpecV2,
@@ -224,6 +225,33 @@ pub(crate) fn v2_attribute_ref_to_v1(attr_ref: AttributeRef) -> V1AttributeSpec 
     }
 }
 
+/// Converts a V2 entity identity attribute ref into a V1 AttributeSpec.
+///
+/// Identity attributes are always `required` with the `identifying` role in V1.
+#[must_use]
+pub(crate) fn v2_identity_attribute_ref_to_v1(attr_ref: IdentityAttributeRef) -> V1AttributeSpec {
+    V1AttributeSpec::Ref {
+        r#ref: attr_ref.r#ref,
+        brief: attr_ref.brief,
+        examples: attr_ref.examples.map(v2_examples_to_v1),
+        tag: None,
+        requirement_level: Some(V1RequirementLevel::Basic(
+            V1BasicRequirementLevelSpec::Required,
+        )),
+        sampling_relevant: None,
+        note: attr_ref.note,
+        stability: None,
+        deprecated: None,
+        prefix: false,
+        annotations: if attr_ref.annotations.is_empty() {
+            None
+        } else {
+            Some(attr_ref.annotations)
+        },
+        role: Some(V1AttributeRole::Identifying),
+    }
+}
+
 /// Converts a V2 attribute ref with a specific role into a V1 AttributeSpec.
 #[must_use]
 pub(crate) fn v2_attribute_ref_to_v1_with_role(
@@ -318,6 +346,46 @@ pub(crate) fn split_span_attributes_and_groups_to_v1(
     }
 
     (attribute_refs, groups)
+}
+
+fn split_attribute_refinements_to_v1(
+    refinements: Vec<RefinementAttributeOrGroupRef>,
+) -> (Vec<V1AttributeSpec>, Vec<String>, Vec<String>) {
+    let mut attributes = Vec::new();
+    let mut groups = Vec::new();
+    let mut unrefs = Vec::new();
+    for refinement in refinements {
+        match refinement {
+            RefinementAttributeOrGroupRef::Attribute(attr) => {
+                attributes.push(v2_attribute_ref_to_v1(attr));
+            }
+            RefinementAttributeOrGroupRef::Group(group) => {
+                groups.push(group.ref_group.into_v1());
+            }
+            RefinementAttributeOrGroupRef::Unref(attr) => unrefs.push(attr.unref),
+        }
+    }
+    (attributes, groups, unrefs)
+}
+
+fn split_span_attribute_refinements_to_v1(
+    refinements: Vec<SpanRefinementAttributeOrGroupRef>,
+) -> (Vec<V1AttributeSpec>, Vec<String>, Vec<String>) {
+    let mut attributes = Vec::new();
+    let mut groups = Vec::new();
+    let mut unrefs = Vec::new();
+    for refinement in refinements {
+        match refinement {
+            SpanRefinementAttributeOrGroupRef::Attribute(attr) => {
+                attributes.push(v2_span_attribute_ref_to_v1(attr));
+            }
+            SpanRefinementAttributeOrGroupRef::Group(group) => {
+                groups.push(group.ref_group);
+            }
+            SpanRefinementAttributeOrGroupRef::Unref(attr) => unrefs.push(attr.unref),
+        }
+    }
+    (attributes, groups, unrefs)
 }
 
 /// Converts a V2 instrument to V1.
@@ -542,6 +610,7 @@ pub(crate) fn v2_metric_to_v1(metric: Metric) -> V1GroupSpec {
         prefix: Default::default(),
         extends: None,
         include_groups,
+        attribute_unrefs: vec![],
         stability: Some(v2_stability_to_v1(metric.common.stability)),
         deprecated: metric.common.deprecated,
         attributes: attribute_refs,
@@ -576,7 +645,8 @@ pub(crate) fn v2_metric_to_v1(metric: Metric) -> V1GroupSpec {
 /// Converts a V2 metric refinement into a V1 GroupSpec.
 #[must_use]
 pub(crate) fn v2_metric_refinement_to_v1(r: MetricRefinement) -> V1GroupSpec {
-    let (attribute_refs, include_groups) = split_attributes_and_groups_to_v1(r.attributes);
+    let (attribute_refs, include_groups, attribute_unrefs) =
+        split_attribute_refinements_to_v1(r.attributes);
     V1GroupSpec {
         id: r.id.to_string(),
         r#type: V1GroupType::Metric,
@@ -585,6 +655,7 @@ pub(crate) fn v2_metric_refinement_to_v1(r: MetricRefinement) -> V1GroupSpec {
         prefix: Default::default(),
         extends: Some(format!("metric.{}", &r.r#ref)),
         include_groups,
+        attribute_unrefs,
         stability: r.stability.map(v2_stability_to_v1),
         deprecated: r.deprecated,
         attributes: attribute_refs,
@@ -626,6 +697,7 @@ pub(crate) fn v2_span_to_v1(span: Span) -> V1GroupSpec {
         prefix: Default::default(),
         extends: None,
         include_groups,
+        attribute_unrefs: vec![],
         stability: Some(v2_stability_to_v1(span.common.stability)),
         deprecated: span.common.deprecated,
         attributes: attribute_refs,
@@ -660,7 +732,8 @@ pub(crate) fn v2_span_to_v1(span: Span) -> V1GroupSpec {
 /// Converts a V2 span refinement into a V1 GroupSpec.
 #[must_use]
 pub(crate) fn v2_span_refinement_to_v1(r: SpanRefinement) -> V1GroupSpec {
-    let (attribute_refs, include_groups) = split_span_attributes_and_groups_to_v1(r.attributes);
+    let (attribute_refs, include_groups, attribute_unrefs) =
+        split_span_attribute_refinements_to_v1(r.attributes);
     V1GroupSpec {
         id: r.id.to_string(),
         r#type: V1GroupType::Span,
@@ -669,6 +742,7 @@ pub(crate) fn v2_span_refinement_to_v1(r: SpanRefinement) -> V1GroupSpec {
         prefix: Default::default(),
         extends: Some(format!("span.{}", &r.r#ref)),
         include_groups,
+        attribute_unrefs,
         stability: r.stability.map(v2_stability_to_v1),
         deprecated: r.deprecated,
         attributes: attribute_refs,
@@ -710,6 +784,7 @@ pub(crate) fn v2_event_to_v1(event: Event) -> V1GroupSpec {
         prefix: Default::default(),
         extends: None,
         include_groups,
+        attribute_unrefs: vec![],
         stability: Some(v2_stability_to_v1(event.common.stability)),
         deprecated: event.common.deprecated,
         attributes: attribute_refs,
@@ -744,7 +819,8 @@ pub(crate) fn v2_event_to_v1(event: Event) -> V1GroupSpec {
 /// Converts a V2 event refinement into a V1 GroupSpec.
 #[must_use]
 pub(crate) fn v2_event_refinement_to_v1(r: EventRefinement) -> V1GroupSpec {
-    let (attribute_refs, include_groups) = split_attributes_and_groups_to_v1(r.attributes);
+    let (attribute_refs, include_groups, attribute_unrefs) =
+        split_attribute_refinements_to_v1(r.attributes);
     V1GroupSpec {
         id: r.id.to_string(),
         r#type: V1GroupType::Event,
@@ -753,6 +829,7 @@ pub(crate) fn v2_event_refinement_to_v1(r: EventRefinement) -> V1GroupSpec {
         prefix: Default::default(),
         extends: Some(format!("event.{}", &r.r#ref)),
         include_groups,
+        attribute_unrefs,
         stability: r.stability.map(v2_stability_to_v1),
         deprecated: r.deprecated,
         attributes: attribute_refs,
@@ -788,7 +865,7 @@ pub(crate) fn v2_entity_to_v1(entity: Entity) -> V1GroupSpec {
     let attributes = entity
         .identity
         .into_iter()
-        .map(|a| v2_attribute_ref_to_v1_with_role(a, V1AttributeRole::Identifying))
+        .map(v2_identity_attribute_ref_to_v1)
         .chain(
             entity
                 .description
@@ -805,6 +882,7 @@ pub(crate) fn v2_entity_to_v1(entity: Entity) -> V1GroupSpec {
         prefix: Default::default(),
         extends: None,
         include_groups: vec![],
+        attribute_unrefs: vec![],
         stability: Some(v2_stability_to_v1(entity.common.stability)),
         deprecated: entity.common.deprecated,
         attributes,
@@ -835,16 +913,20 @@ pub(crate) fn v2_entity_to_v1(entity: Entity) -> V1GroupSpec {
 /// Converts a V2 entity refinement into a V1 GroupSpec.
 #[must_use]
 pub(crate) fn v2_entity_refinement_to_v1(r: EntityRefinement) -> V1GroupSpec {
-    let attributes = r
+    let mut attributes: Vec<_> = r
         .identity
         .into_iter()
-        .map(|a| v2_attribute_ref_to_v1_with_role(a, V1AttributeRole::Identifying))
-        .chain(
-            r.description
-                .into_iter()
-                .map(|a| v2_attribute_ref_to_v1_with_role(a, V1AttributeRole::Descriptive)),
-        )
+        .map(v2_identity_attribute_ref_to_v1)
         .collect();
+    let mut attribute_unrefs = Vec::new();
+    for attr in r.description {
+        match attr {
+            EntityAttributeRefinement::Ref(attr) => attributes.push(
+                v2_attribute_ref_to_v1_with_role(attr, V1AttributeRole::Descriptive),
+            ),
+            EntityAttributeRefinement::Unref(attr) => attribute_unrefs.push(attr.unref),
+        }
+    }
 
     V1GroupSpec {
         id: r.id.to_string(),
@@ -854,6 +936,7 @@ pub(crate) fn v2_entity_refinement_to_v1(r: EntityRefinement) -> V1GroupSpec {
         prefix: Default::default(),
         extends: Some(format!("entity.{}", &r.r#ref)),
         include_groups: vec![],
+        attribute_unrefs,
         stability: r.stability.map(v2_stability_to_v1),
         deprecated: r.deprecated,
         attributes,
@@ -895,6 +978,7 @@ pub(crate) fn v2_attribute_group_to_v1(ag: AttributeGroup) -> V1GroupSpec {
                 prefix: Default::default(),
                 extends: None,
                 include_groups,
+                attribute_unrefs: vec![],
                 stability: None,
                 deprecated: None,
                 attributes: attribute_refs,
@@ -926,6 +1010,7 @@ pub(crate) fn v2_attribute_group_to_v1(ag: AttributeGroup) -> V1GroupSpec {
                 prefix: Default::default(),
                 extends: None,
                 include_groups,
+                attribute_unrefs: vec![],
                 stability: Some(v2_stability_to_v1(public.common.stability)),
                 deprecated: public.common.deprecated,
                 attributes,
@@ -1896,7 +1981,7 @@ attributes:
             note: Some("Refined note".to_owned()),
             stability: Some(V2Stability::Stable),
             deprecated: None,
-            attributes: vec![AttributeOrGroupRef::Attribute(AttributeRef {
+            attributes: vec![RefinementAttributeOrGroupRef::reference(AttributeRef {
                 r#ref: "extra_attr".to_owned(),
                 brief: None,
                 examples: None,
@@ -2089,6 +2174,37 @@ stability: stable
         assert_eq!(v1_group.id, "entity.my_entity");
         assert_eq!(v1_group.r#type, V1GroupType::Entity);
         assert_eq!(v1_group.attributes.len(), 2);
+        match &v1_group.attributes[0] {
+            V1AttributeSpec::Ref {
+                r#ref,
+                requirement_level,
+                role,
+                ..
+            } => {
+                assert_eq!(r#ref, "some_attr");
+                assert_eq!(
+                    *requirement_level,
+                    Some(V1RequirementLevel::Basic(
+                        V1BasicRequirementLevelSpec::Required
+                    ))
+                );
+                assert_eq!(*role, Some(V1AttributeRole::Identifying));
+            }
+            V1AttributeSpec::Id { .. } => panic!("Expected V1AttributeSpec::Ref"),
+        }
+        match &v1_group.attributes[1] {
+            V1AttributeSpec::Ref {
+                r#ref,
+                requirement_level,
+                role,
+                ..
+            } => {
+                assert_eq!(r#ref, "some_other_attr");
+                assert_eq!(*requirement_level, None);
+                assert_eq!(*role, Some(V1AttributeRole::Descriptive));
+            }
+            V1AttributeSpec::Id { .. } => panic!("Expected V1AttributeSpec::Ref"),
+        }
         assert!(v1_group.is_v2);
     }
 
@@ -2097,7 +2213,7 @@ stability: stable
         let refinement = EntityRefinement {
             id: SignalId::from("host.refined"),
             r#ref: SignalId::from("host"),
-            identity: vec![AttributeRef {
+            identity: vec![IdentityAttributeRef {
                 r#ref: "host.id".to_owned(),
                 brief: None,
                 examples: None,
@@ -2105,14 +2221,14 @@ stability: stable
                 note: None,
                 annotations: Default::default(),
             }],
-            description: vec![AttributeRef {
+            description: vec![EntityAttributeRefinement::reference(AttributeRef {
                 r#ref: "host.name".to_owned(),
                 brief: None,
                 examples: None,
                 requirement_level: None,
                 note: None,
                 annotations: Default::default(),
-            }],
+            })],
             brief: Some("Refined host".to_owned()),
             note: None,
             stability: Some(V2Stability::Stable),
@@ -2125,6 +2241,24 @@ stability: stable
         assert_eq!(v1_group.r#type, V1GroupType::Entity);
         assert_eq!(v1_group.extends, Some("entity.host".to_owned()));
         assert_eq!(v1_group.attributes.len(), 2);
+        match &v1_group.attributes[0] {
+            V1AttributeSpec::Ref {
+                r#ref,
+                requirement_level,
+                role,
+                ..
+            } => {
+                assert_eq!(r#ref, "host.id");
+                assert_eq!(
+                    *requirement_level,
+                    Some(V1RequirementLevel::Basic(
+                        V1BasicRequirementLevelSpec::Required
+                    ))
+                );
+                assert_eq!(*role, Some(V1AttributeRole::Identifying));
+            }
+            V1AttributeSpec::Id { .. } => panic!("Expected V1AttributeSpec::Ref"),
+        }
         assert!(v1_group.is_v2);
     }
 

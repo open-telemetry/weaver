@@ -26,7 +26,7 @@ use weaver_resolved_schema::v2::span::SpanLink as V2SpanLink;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::v2::Signal;
 use weaver_semconv::schema_url::SchemaUrl;
-use weaver_semconv::v1::attribute::{AttributeRole, RequirementLevel};
+use weaver_semconv::v1::attribute::{AttributeRole, BasicRequirementLevelSpec, RequirementLevel};
 use weaver_semconv::v1::group::{
     AttributeGroupVisibilitySpec, GroupType, GroupWildcard, ImportsWithProvenance,
     LinkAttributeRef as V1LinkAttributeRef, SpanLink as V1SpanLink,
@@ -570,10 +570,8 @@ fn upgrade_imported_group_v2<C: crate::SchemaCacheLookup>(
                     .iter()
                     .map(|ar| {
                         V2SignalAttribute::new(
-                            &ar.base,
-                            weaver_semconv::convert::v2_requirement_level_to_v1(
-                                ar.requirement_level.clone(),
-                            ),
+                            ar,
+                            RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
                         )
                         .with_role(AttributeRole::Identifying)
                     })
@@ -1163,10 +1161,8 @@ impl ImportableDependency for V2Schema {
                     .iter()
                     .map(|ar| {
                         V2SignalAttribute::new(
-                            &ar.base,
-                            weaver_semconv::convert::v2_requirement_level_to_v1(
-                                ar.requirement_level.clone(),
-                            ),
+                            ar,
+                            RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
                         )
                         .with_role(AttributeRole::Identifying)
                     })

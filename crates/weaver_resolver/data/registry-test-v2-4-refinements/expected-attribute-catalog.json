@@ -3,7 +3,15 @@
     "name": "test.attr",
     "type": "int",
     "brief": "Refined identity attribute",
-    "requirement_level": "recommended",
+    "requirement_level": "required",
+    "stability": "stable",
+    "role": "identifying"
+  },
+  {
+    "name": "test.attr",
+    "type": "int",
+    "brief": "Test attribute",
+    "requirement_level": "required",
     "stability": "stable",
     "role": "identifying"
   },
@@ -13,14 +21,6 @@
     "brief": "Test attribute",
     "requirement_level": "recommended",
     "stability": "stable"
-  },
-  {
-    "name": "test.attr",
-    "type": "int",
-    "brief": "Test attribute",
-    "requirement_level": "recommended",
-    "stability": "stable",
-    "role": "identifying"
   },
   {
     "name": "test.attr",
