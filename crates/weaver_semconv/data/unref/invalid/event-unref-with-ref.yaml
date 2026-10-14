@@ -1,0 +1,7 @@
+file_format: definition/2
+event_refinements:
+  - id: refined
+    ref: base
+    attributes:
+      - unref: test.attr
+        ref: test.attr

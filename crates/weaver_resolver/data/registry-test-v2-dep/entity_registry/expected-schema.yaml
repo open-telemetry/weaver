@@ -40,10 +40,8 @@ refinements:
   - id: refined.host
     type: host
     identity:
-    - base: 0
-      requirement_level: recommended
-    - base: 1
-      requirement_level: required
+    - 0
+    - 1
     description:
     - base: 2
       requirement_level: recommended

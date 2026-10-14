@@ -476,6 +476,47 @@ pub struct AttributeDef {
     pub common: CommonFields,
 }
 
+/// Removes an attribute inherited by a signal refinement.
+///
+/// Resolution must fail if the attribute is not inherited or is also included
+/// locally. Policies should reject removing required attributes.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct AttributeUnref {
+    /// The inherited attribute key to unreference.
+    pub unref: String,
+}
+
+/// An attribute inclusion, override, or removal within a signal refinement.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[serde(untagged)]
+#[schemars(inline)]
+pub enum RefinementAttributeOrGroupRef {
+    /// Reference to an attribute.
+    Attribute(AttributeRef),
+    /// Reference to an attribute group.
+    Group(GroupRef),
+    /// An inherited attribute to unreference.
+    Unref(AttributeUnref),
+}
+
+impl RefinementAttributeOrGroupRef {
+    /// Includes or overrides an attribute or group.
+    #[must_use]
+    pub fn reference(reference: impl Into<AttributeOrGroupRef>) -> Self {
+        match reference.into() {
+            AttributeOrGroupRef::Attribute(attribute) => Self::Attribute(attribute),
+            AttributeOrGroupRef::Group(group) => Self::Group(group),
+        }
+    }
+
+    /// Removes an inherited attribute by key.
+    #[must_use]
+    pub fn unref(key: impl Into<String>) -> Self {
+        Self::Unref(AttributeUnref { unref: key.into() })
+    }
+}
+
 /// A reference to an attribute group.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -492,6 +533,18 @@ pub enum AttributeOrGroupRef {
     Attribute(AttributeRef),
     /// Reference to an attribute group.
     Group(GroupRef),
+}
+
+impl From<AttributeRef> for AttributeOrGroupRef {
+    fn from(attribute: AttributeRef) -> Self {
+        Self::Attribute(attribute)
+    }
+}
+
+impl From<GroupRef> for AttributeOrGroupRef {
+    fn from(group: GroupRef) -> Self {
+        Self::Group(group)
+    }
 }
 
 /// Helper function to split a vector of AttributeOrGroupRef into separate vectors

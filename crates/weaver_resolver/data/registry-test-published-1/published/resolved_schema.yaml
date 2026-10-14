@@ -35,8 +35,7 @@ registry:
   entities:
     - type: imported.entity.a
       identity:
-      - base: 0
-        requirement_level: required
+      - 0
       brief: a fun entity
       note: an entity note
       stability: stable

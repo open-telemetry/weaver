@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 # Unreleased
 
 - Live-check no longer reports false `invalid_format` and `extends_namespace` advice for v2 attributes and templates referenced from a dependency. The advice now finds attributes the same way as the other checks: in the matched signal and attribute groups, or also in the whole registry and its dependencies with `--search-all-attributes`. Fixes [#1814](https://github.com/open-telemetry/weaver/issues/1814) - ([#1819](https://github.com/open-telemetry/weaver/pull/1819) by @jerbly)
+- Add vdir documentation and safety features. We no longer untar symlinks or allow
+  non-local files to be extracted. ([#1817](https://github.com/open-telemetry/weaver/pull/1817) by @jsuereth)
+- Fix `registry live-check --emit-otlp-logs` sending findings back to its own OTLP listener, which with the default ports made every finding a new sample to check. Live-check now stops at startup with an error when the logs endpoint is its own listener, and logs the endpoint it uses. ([#1782](https://github.com/open-telemetry/weaver/pull/1782) by @jerbly)
+- Fix `OTEL_EXPORTER_OTLP_ENDPOINT` being ignored by `registry emit` and `registry live-check --emit-otlp-logs`. When no endpoint is set with `--endpoint` / `--otlp-logs-endpoint` or in `.weaver.toml`, the signal's `OTEL_EXPORTER_OTLP_<SIGNAL>_ENDPOINT`, then `OTEL_EXPORTER_OTLP_ENDPOINT`, now apply before the `http://localhost:4317` default. ([#1782](https://github.com/open-telemetry/weaver/pull/1782) by @jerbly)
+- Add `unref` to v2 signal refinements to unreference inherited attributes. ([#1799](https://github.com/open-telemetry/weaver/pull/1799) by @lmolkova)
 
 # [0.27.0] - 2026-10-02
 

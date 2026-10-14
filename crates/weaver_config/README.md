@@ -91,6 +91,8 @@ exclude = ["missing_namespace"]
 
 See `schemas/weaver-config.json` for the full JSON schema (with VS Code / taplo completion support via the `#:schema` annotation above).
 
+Location fields such as `[registry].path`, `[policy].paths`, `[resolve.schema_url_overrides]`, `[generate].templates`, `[update-markdown].templates`, `[live-check].advice_policies`, `[live-check].advice_data`, `[mcp].advice_policies`, and `[mcp].advice_data` accept [Virtual Directory (`vdir`)](/docs/vdir.md) references (`source[@refspec][[sub_folder]]`).
+
 `jq_modules` is appended to any modules declared by the template package's
 `weaver.yaml`. Paths are relative to the `.weaver.toml` file. Modules are
 loaded in list order; a later definition wins on a filter-name collision,
@@ -113,7 +115,7 @@ The `[resolve]` section configures how dependencies and schema URLs are resolved
 "https://opentelemetry.io/schemas/1.26.0" = "https://github.com/my-fork/semconv.git[model]"
 ```
 
-Aliases `[resolve.overrides]` and `[resolve.dependency_overrides]` are also supported. When Weaver loads and resolves dependencies during commands such as `check`, `generate`, `package`, or `live-check`, any dependency with a matching schema URL will be redirected to the configured override path.
+Aliases `[resolve.overrides]` and `[resolve.dependency_overrides]` are also supported. When Weaver loads and resolves dependencies during commands such as `check`, `generate`, `package`, or `live-check`, any dependency with a matching schema URL will be redirected to the configured [Virtual Directory (`vdir`)](/docs/vdir.md) override path.
 
 ## Architecture
 
@@ -309,3 +311,34 @@ This test verifies that every field in `MyCommandConfig` has a corresponding CLI
 - **`SocketAddr` fields**: the macro automatically adds `#[schemars(with = "String")]` so the JSON schema renders it as a string.
 - **Template paths** (`Option<String>` pointing to a directory or archive): parse via `VirtualDirectoryPath::from_str` in the command body — a `.zip` suffix is treated as a local archive, local paths become `LocalFolder`, and HTTP(S) URLs become remote sources.
 - **Custom template context**: if your command generates a custom context struct (rather than the standard registry template schema), build it explicitly in your `match resolved { ... }` arms instead of calling `v.template_schema()`. See `src/registry/stats.rs` for an example.
+
+## Policy finding filters
+
+Policy checks share ID exclusion and scope matching with
+[live-check finding filters](../weaver_live_check/README.md#finding-filters):
+
+```toml
+[[policy.finding_filters]]
+exclude = ["compatibility_entity_missing"]
+signal_type = "entity"
+signal_names = ["device*"]
+```
+
+The `exclude` list contains finding IDs to suppress. Optional `signal_type`,
+`signal_names`, and `context` narrow the scope; all supplied scopes must match.
+Signal names support glob patterns and match the finding's `signal_name`.
+A name-scoped rule does not match findings without a signal name.
+
+Context matches supplied keys exactly and permits additional keys in the finding.
+For attribute findings, use context fields emitted by that policy:
+
+```toml
+[[policy.finding_filters]]
+exclude = ["compatibility_removed_attribute"]
+context = { attribute_key = "example.retired" }
+```
+
+Unknown filter fields and invalid glob patterns are rejected.
+Schema errors and policy evaluation errors cannot be filtered.
+
+These settings use the normal `.weaver.toml` discovery and `--config` selection.

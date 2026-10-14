@@ -234,14 +234,14 @@ impl Registry {
 #[cfg(test)]
 mod test {
     use weaver_semconv::v2::{
-        attribute::{BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel},
+        attribute::PrimitiveOrArrayTypeSpec,
         metric::InstrumentSpec,
         span::{SpanKindSpec, SpanName},
         stability::Stability,
         CommonFields,
     };
 
-    use crate::v2::{attribute::Attribute, entity::EntityAttributeRef};
+    use crate::v2::attribute::Attribute;
 
     use super::*;
 
@@ -351,10 +351,7 @@ mod test {
             }],
             entities: vec![Entity {
                 r#type: "test.entity".to_owned().into(),
-                identity: vec![EntityAttributeRef {
-                    base: AttributeRef(0),
-                    requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
-                }],
+                identity: vec![AttributeRef(0)],
                 description: vec![],
                 requirement_level: None,
                 common: CommonFields {

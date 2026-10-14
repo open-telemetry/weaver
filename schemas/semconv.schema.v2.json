@@ -343,6 +343,20 @@
         }
       ]
     },
+    "AttributeUnref": {
+      "description": "Removes an attribute inherited by a signal refinement.\n\nResolution must fail if the attribute is not inherited or is also included\nlocally. Policies should reject removing required attributes.",
+      "type": "object",
+      "properties": {
+        "unref": {
+          "description": "The inherited attribute key to unreference.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "unref"
+      ]
+    },
     "BasicRequirementLevelSpec": {
       "description": "The different types of basic requirement levels.",
       "oneOf": [
@@ -484,7 +498,7 @@
           "description": "The attributes that make the identity of the Entity.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/AttributeRef"
+            "$ref": "#/$defs/IdentityAttributeRef"
           }
         },
         "note": {
@@ -590,10 +604,20 @@
           ]
         },
         "description": {
-          "description": "Refinements or additional attributes to describe the Entity.\n\nAttributes listed here have the descriptive role.",
+          "description": "References, overrides, or removals of descriptive attributes.\n\nAttributes listed here have the descriptive role.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/AttributeRef"
+            "description": "An attribute reference or removal in an entity refinement.",
+            "anyOf": [
+              {
+                "description": "An attribute reference supported by the signal.",
+                "$ref": "#/$defs/AttributeRef"
+              },
+              {
+                "description": "An inherited attribute to unreference.",
+                "$ref": "#/$defs/AttributeUnref"
+              }
+            ]
           }
         },
         "id": {
@@ -601,10 +625,10 @@
           "$ref": "#/$defs/SignalId"
         },
         "identity": {
-          "description": "Refinements of the base entity's identity attributes.\n\nA refinement must not change *which* attributes identify the entity: it\nmay only refine attributes the base entity already lists under\n`identity`.",
+          "description": "Overrides of the base entity's identity attributes; identity cannot be removed.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/AttributeRef"
+            "$ref": "#/$defs/IdentityAttributeRef"
           }
         },
         "note": {
@@ -790,10 +814,24 @@
           }
         },
         "attributes": {
-          "description": "List of attributes that belong to the semantic convention.",
+          "description": "Attribute and group references, overrides, or inherited attribute removals.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/AttributeOrGroupRef"
+            "description": "An attribute inclusion, override, or removal within a signal refinement.",
+            "anyOf": [
+              {
+                "description": "Reference to an attribute.",
+                "$ref": "#/$defs/AttributeRef"
+              },
+              {
+                "description": "Reference to an attribute group.",
+                "$ref": "#/$defs/GroupRef"
+              },
+              {
+                "description": "An inherited attribute to unreference.",
+                "$ref": "#/$defs/AttributeUnref"
+              }
+            ]
           }
         },
         "brief": {
@@ -978,6 +1016,52 @@
       "description": "Represents a wildcard expression to import one or several groups defined in an imported\nregistry.",
       "type": "string"
     },
+    "IdentityAttributeRef": {
+      "description": "A refinement of an Attribute for an entity's identity.\n\nIdentity attributes are always required and do not accept a `requirement_level`.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Additional annotations for the attribute. These will be\nmerged with annotations from the definition.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/YamlValue"
+          }
+        },
+        "brief": {
+          "description": "Refines the brief description of the attribute.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "examples": {
+          "description": "Refined sequence of example values for the attribute or single example\nvalue. They are required only for string and string array\nattributes. Example values must be of the same type of the\nattribute. If only a single example is provided, it can directly\nbe reported without encapsulating it into a sequence/dictionary.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Examples"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "note": {
+          "description": "Refines the more elaborate description of the attribute.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ref": {
+          "description": "Reference an existing attribute by key.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "ref"
+      ]
+    },
     "Imports": {
       "description": "Imports are used to reference groups defined in a dependent registry.",
       "type": "object",
@@ -1153,10 +1237,24 @@
           }
         },
         "attributes": {
-          "description": "List of attributes that belong to the semantic convention.",
+          "description": "Attribute and group references, overrides, or inherited attribute removals.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/AttributeOrGroupRef"
+            "description": "An attribute inclusion, override, or removal within a signal refinement.",
+            "anyOf": [
+              {
+                "description": "Reference to an attribute.",
+                "$ref": "#/$defs/AttributeRef"
+              },
+              {
+                "description": "Reference to an attribute group.",
+                "$ref": "#/$defs/GroupRef"
+              },
+              {
+                "description": "An inherited attribute to unreference.",
+                "$ref": "#/$defs/AttributeUnref"
+              }
+            ]
           }
         },
         "brief": {
@@ -1600,10 +1698,24 @@
           }
         },
         "attributes": {
-          "description": "List of attributes that belong to the semantic convention.",
+          "description": "Attribute and group references, overrides, or inherited attribute removals.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/SpanAttributeOrGroupRef"
+            "description": "An attribute reference or removal in a span refinement.",
+            "anyOf": [
+              {
+                "description": "Reference to a span attribute.",
+                "$ref": "#/$defs/SpanAttributeRef"
+              },
+              {
+                "description": "Reference to an attribute group.",
+                "$ref": "#/$defs/SpanGroupRef"
+              },
+              {
+                "description": "An inherited attribute to unreference.",
+                "$ref": "#/$defs/AttributeUnref"
+              }
+            ]
           }
         },
         "brief": {
