@@ -134,8 +134,9 @@ fn run_emit_with_live_check_test(use_v2: bool) {
 
     // The emitted traces, metrics, and logs each add one instrumentation-scope
     // carrier. v2 compares an attribute with its signal alone, and v1 with the
-    // whole registry, so v2 reports many more attributes as missing.
-    let (no_advice, advisories) = if use_v2 { (37, 39) } else { (62, 14) };
+    // whole registry, so v2 reports many more attributes as missing, each also
+    // with `extends_namespace`.
+    let (no_advice, advisories) = if use_v2 { (37, 73) } else { (62, 14) };
     assert_eq!(no_advice_count, no_advice);
     assert_eq!(total_advisories, advisories);
     assert_eq!(total_entities, 76);
