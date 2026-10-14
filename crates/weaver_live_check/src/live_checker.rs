@@ -2,7 +2,8 @@
 
 //! Holds the registry, helper structs, and the advisors for the live check
 
-use serde::Serialize;
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -95,7 +96,6 @@ fn index_attributes<'a>(
 }
 
 /// Holds the registry, helper structs, and the advisors for the live check
-#[derive(Serialize)]
 pub struct LiveChecker {
     /// The resolved registry
     pub registry: Arc<VersionedRegistry>,
@@ -105,49 +105,53 @@ pub struct LiveChecker {
     semconv_events: HashMap<String, Rc<VersionedSignal>>,
     /// v2 spans keyed by type, and v2 attribute groups keyed by id. Both are
     /// empty for a v1 registry, which has neither.
-    #[serde(skip)]
     semconv_spans: HashMap<String, Rc<VersionedSignal>>,
-    #[serde(skip)]
     semconv_attribute_groups: HashMap<String, Rc<AttributeGroup>>,
     /// The attributes each v2 signal declares, which hold its refinements.
     /// Empty for a v1 registry.
-    #[serde(skip)]
     refined_span_attributes: RefinedAttributes,
-    #[serde(skip)]
     refined_metric_attributes: RefinedAttributes,
-    #[serde(skip)]
     refined_event_attributes: RefinedAttributes,
     /// The attributes each v2 attribute group declares, keyed by the attribute
     /// group's id.
-    #[serde(skip)]
     attribute_group_attributes: RefinedAttributes,
     /// The base attributes of this registry and its dependencies, keyed by
     /// attribute key. Empty unless `search_all_attributes` is called.
-    #[serde(skip)]
     base_attributes: HashMap<String, BaseAttribute>,
     /// The keys of the template attributes in `base_attributes`, longest
     /// first.
-    #[serde(skip)]
     base_template_keys: Vec<String>,
     /// Whether `search_all_attributes` was called.
-    #[serde(skip)]
     searching_all_attributes: bool,
-    #[serde(skip)]
     semconv_entities: HashMap<String, VersionedEntity>,
     /// The advisors to run
-    #[serde(skip)]
     pub advisors: Vec<Box<dyn Advisor>>,
-    #[serde(skip)]
     templates_by_length: Vec<(String, Rc<VersionedAttribute>)>,
     /// Optional OTLP emitter for emitting findings as log records
-    #[serde(skip)]
     pub otlp_emitter: Option<Rc<OtlpEmitter>>,
     /// Optional finding modifier for overriding/filtering findings
-    #[serde(skip)]
     pub finding_modifier: Option<FindingModifier>,
     /// The configured matchers, compiled and checked against the registry
-    #[serde(skip)]
     matchers: Matchers,
+}
+
+/// Serializes the input of the advice preprocessor.
+impl Serialize for LiveChecker {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct("LiveChecker", 5)?;
+        state.serialize_field("registry", &self.registry)?;
+        state.serialize_field(
+            "semconv_attributes",
+            &self.known_attributes(&self.semconv_attributes, false),
+        )?;
+        state.serialize_field(
+            "semconv_templates",
+            &self.known_attributes(&self.semconv_templates, true),
+        )?;
+        state.serialize_field("semconv_metrics", &self.semconv_metrics)?;
+        state.serialize_field("semconv_events", &self.semconv_events)?;
+        state.end()
+    }
 }
 
 impl LiveChecker {
@@ -467,6 +471,30 @@ impl LiveChecker {
         template_keys.sort_by_key(|key| Reverse(key.len()));
         self.base_template_keys = template_keys;
         Ok(())
+    }
+
+    /// The registry's own attributes or templates, plus the base ones of the
+    /// registry and its dependencies when `search_all_attributes` was called.
+    fn known_attributes<'a>(
+        &'a self,
+        own: &'a HashMap<String, Rc<VersionedAttribute>>,
+        templates: bool,
+    ) -> HashMap<&'a str, &'a VersionedAttribute> {
+        self.base_attributes
+            .iter()
+            .filter(|(_, base)| {
+                matches!(
+                    base.attribute.as_ref(),
+                    VersionedAttribute::V2(attribute)
+                        if matches!(attribute.r#type, V2AttributeType::Template(_)) == templates
+                )
+            })
+            .map(|(key, base)| (key.as_str(), base.attribute.as_ref()))
+            .chain(
+                own.iter()
+                    .map(|(key, attribute)| (key.as_str(), attribute.as_ref())),
+            )
+            .collect()
     }
 
     /// Find the longest base template attribute that `key` extends, in this
@@ -4053,6 +4081,202 @@ mod tests {
             advice.iter().all(|a| a.id != "unexpected_entity_id_prefix"),
             "a value that matches the prefix must not trigger the policy, got {advice:?}"
         );
+    }
+
+    /// Builds a stable v2 attribute.
+    fn v2_attribute(key: &str, r#type: V2AttributeType) -> V2Attribute {
+        V2Attribute {
+            key: key.to_owned(),
+            r#type,
+            examples: None,
+            common: v2_common(),
+            provenance: Default::default(),
+        }
+    }
+
+    #[test]
+    fn test_default_advice_policy_knows_dependency_attributes_v2() {
+        const DEP_URL: &str = "https://example.com/base/1.0.0";
+        let method = v2_attribute(
+            "http.request.method",
+            V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
+        );
+        let header = v2_attribute(
+            "http.request.header",
+            V2AttributeType::Template(V2TemplateTypeSpec::Strings),
+        );
+        let mut dependency = v2_dependency(vec![], vec![]);
+        // `url.full` and `http.response.header` are not on the event.
+        dependency.registry.attributes = vec![
+            method.clone(),
+            header.clone(),
+            v2_attribute(
+                "url.full",
+                V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
+            ),
+            v2_attribute(
+                "http.response.header",
+                V2AttributeType::Template(V2TemplateTypeSpec::Strings),
+            ),
+        ];
+
+        let mut event = v2_assoc_event("http.client.request", vec![]);
+        event.attributes = [method, header]
+            .into_iter()
+            .map(|base| EventAttribute {
+                base,
+                requirement_level: V2RequirementLevel::Basic(
+                    V2BasicRequirementLevelSpec::Recommended,
+                ),
+            })
+            .collect();
+        let mut registry = v2_assoc_registry(
+            "https://example.com/top/1.0.0",
+            vec![event],
+            vec![],
+            vec![],
+            vec![(DEP_URL, dependency)],
+        );
+        // Defined by the registry but not on the event. Puts `http.request` in
+        // the namespaces the default policy checks.
+        registry.registry.attributes = vec![v2_attribute(
+            "http.request.body.content",
+            V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
+        )];
+
+        for search_all in [false, true] {
+            let (mut live_checker, mut stats) = v2_live_checker(registry.clone());
+            if search_all {
+                live_checker
+                    .search_all_attributes()
+                    .expect("the registry is v2");
+            }
+            let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
+                .expect("the default policies load");
+            live_checker.add_advisor(Box::new(rego_advisor));
+
+            let Sample::Log(mut log) = make_log_sample("http.client.request", vec![]) else {
+                panic!("expected log sample");
+            };
+            log.attributes = vec![
+                string_sample_attr("http.request.method", "GET"),
+                string_sample_attr("http.request.header.content-type", "application/json"),
+                string_sample_attr("http.request.body.content", "{}"),
+                string_sample_attr("url.full", "https://example.com"),
+                string_sample_attr("http.response.header.X-Id", "1"),
+                string_sample_attr("http.request.custom", "x"),
+                string_sample_attr("url.custom", "x"),
+            ];
+            let mut sample = Sample::Log(log);
+            let snapshot = sample.clone();
+            sample
+                .run_live_check(&mut live_checker, &mut stats, None, &snapshot)
+                .expect("live check should not error");
+            let Sample::Log(log) = &sample else {
+                panic!("expected log sample");
+            };
+            let has = |key: &str, id: &str| -> bool {
+                log.attributes
+                    .iter()
+                    .find(|attribute| attribute.name == key)
+                    .and_then(|attribute| attribute.live_check_result.as_ref())
+                    .is_some_and(|result| result.all_advice.iter().any(|a| a.id == id))
+            };
+
+            let mut known = vec!["http.request.method", "http.request.header.content-type"];
+            if search_all {
+                known.extend([
+                    "http.request.body.content",
+                    "url.full",
+                    "http.response.header.X-Id",
+                ]);
+            }
+            for key in known {
+                assert!(
+                    !has(key, "invalid_format") && !has(key, "extends_namespace"),
+                    "search_all = {search_all}, {key}"
+                );
+            }
+            assert!(has("http.request.custom", "extends_namespace"));
+            // Not on the event, so unknown unless all attributes are searched.
+            assert_eq!(
+                has("http.request.body.content", "extends_namespace"),
+                !search_all
+            );
+            // The `url` namespace and the `http.response.header` template are
+            // only in the dependency.
+            assert_eq!(has("url.custom", "extends_namespace"), search_all);
+            assert_eq!(
+                has("http.response.header.X-Id", "invalid_format"),
+                !search_all
+            );
+        }
+    }
+
+    #[test]
+    fn test_rego_data_sets_hold_dependency_attributes_only_when_searching_all_v2() {
+        let mut deprecated = v2_attribute(
+            "url.full",
+            V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
+        );
+        deprecated.common.deprecated =
+            Some(weaver_semconv::deprecated::Deprecated::Uncategorized {
+                note: String::new(),
+            });
+        let mut dependency = v2_dependency(vec![], vec![]);
+        dependency.registry.attributes = vec![
+            deprecated,
+            v2_attribute(
+                "http.response.header",
+                V2AttributeType::Template(V2TemplateTypeSpec::Strings),
+            ),
+        ];
+        let mut registry = v2_assoc_registry(
+            "https://example.com/top/1.0.0",
+            vec![],
+            vec![],
+            vec![],
+            vec![("https://example.com/base/1.0.0", dependency)],
+        );
+        registry.registry.attributes = vec![v2_attribute(
+            "http.request.body.content",
+            V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
+        )];
+
+        for search_all in [false, true] {
+            let mut live_checker = LiveChecker::new(
+                Arc::new(VersionedRegistry::V2(Box::new(registry.clone()))),
+                vec![],
+            );
+            if search_all {
+                live_checker
+                    .search_all_attributes()
+                    .expect("the registry is v2");
+            }
+            let data = rego_data(&live_checker);
+            let (attributes, deprecated, templates, namespaces) = if search_all {
+                (
+                    json!({"http.request.body.content": true, "url.full": true}),
+                    json!({"url.full": true}),
+                    json!({"http.response.header": true}),
+                    json!({"http": true, "http.request": true, "http.request.body": true, "url": true}),
+                )
+            } else {
+                (
+                    json!({"http.request.body.content": true}),
+                    json!({}),
+                    json!({}),
+                    json!({"http": true, "http.request": true, "http.request.body": true}),
+                )
+            };
+            assert_eq!(
+                data["attributes_set"], attributes,
+                "search_all = {search_all}"
+            );
+            assert_eq!(data["deprecated_attributes_set"], deprecated);
+            assert_eq!(data["templates_set"], templates);
+            assert_eq!(data["namespaces_to_check_set"], namespaces);
+        }
     }
 
     #[test]
