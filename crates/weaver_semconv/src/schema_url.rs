@@ -410,6 +410,15 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "openapi")]
+    fn test_openapi_schema_matches_serialization() {
+        use utoipa::PartialSchema as _;
+
+        let schema = serde_json::to_value(SchemaUrl::schema()).unwrap();
+        assert_eq!(schema["type"], "string");
+    }
+
+    #[test]
     fn test_name_caching() {
         let schema_url: SchemaUrl = "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap();
 
