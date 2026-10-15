@@ -64,16 +64,7 @@
     },
     "SchemaUrl": {
       "description": "Represents the schema URL of a registry, which serves as a unique identifier for the registry\nalong with its version.",
-      "type": "object",
-      "properties": {
-        "url": {
-          "description": "The schema URL string.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "url"
-      ]
+      "type": "string"
     },
     "Stability": {
       "description": "The level of stability for a definition. Defined in [OTEP-232](https://github.com/open-telemetry/oteps/blob/main/text/0232-maturity-of-otel.md)",

@@ -6,7 +6,7 @@ use miette::Diagnostic;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::Serialize;
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
-use weaver_checker::{Engine, PolicyStage, SEMCONV_REGO};
+use weaver_checker::{Engine, FindingMatcher, PolicyStage, SEMCONV_REGO};
 use weaver_common::diagnostic::DiagnosticMessage;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::log_success;
@@ -22,7 +22,9 @@ use weaver_semconv::semconv::Versioned;
 use weaver_semconv::{registry_repo::RegistryRepo, semconv::SemConvSpecWithProvenance};
 use weaver_version::schema_changes::SchemaChanges;
 
-use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig, EffectiveResolveConfig};
+use weaver_config::{
+    EffectivePolicyConfig, EffectiveRegistryConfig, EffectiveResolveConfig, PolicyFindingFilter,
+};
 
 /// Visitor that runs Rego policy evaluation during semantic convention loading.
 struct PolicyVisitor<'a> {
@@ -598,6 +600,7 @@ fn prepare_policy_engine(
             registry_repo,
             &policy_paths,
             policy_args.display_policy_coverage,
+            &policy_args.finding_filters,
         )?))
     } else {
         Ok(None)
@@ -621,8 +624,14 @@ fn init_policy_engine(
     registry_repo: &RegistryRepo,
     policies: &[PathBuf],
     policy_coverage: bool,
+    finding_filters: &[PolicyFindingFilter],
 ) -> Result<Engine, Error> {
     let mut engine = Engine::new();
+    let matchers = finding_filters
+        .iter()
+        .map(FindingMatcher::try_from)
+        .collect::<Result<Vec<_>, _>>()?;
+    engine.set_finding_filters(matchers);
 
     if policy_coverage {
         engine.enable_coverage();
@@ -786,6 +795,7 @@ mod tests {
             policies: vec![],
             skip_policies: true,
             display_policy_coverage: false,
+            finding_filters: vec![],
         };
         let auth = HttpAuthResolver::default();
         let resolve_config = EffectiveResolveConfig::default();

@@ -1178,7 +1178,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3628,9 +3628,9 @@ dependencies = [
 
 [[package]]
 name = "opentelemetry"
-version = "0.33.0"
+version = "0.33.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6cdb0b1b267eb9db3331b434ed9ddab10d50e280a9adf9d13e5233e2002b61b5"
+checksum = "8c1f1a6ac9c875a4941e4c7c085b61e8f4daa326de03b4701768c3491a6ad9ee"
 dependencies = [
  "futures-core",
  "futures-sink",
@@ -3642,9 +3642,9 @@ dependencies = [
 
 [[package]]
 name = "opentelemetry-http"
-version = "0.33.0"
+version = "0.33.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee2c3625b8aa04209f7e01e513bc8044da9687fa38a9eacf59628ca5f3b87300"
+checksum = "302249bd8ee804789faaa7b5b2cbf79bc61cb864714079c644e3828af5b7e811"
 dependencies = [
  "async-trait",
  "bytes",
@@ -3655,9 +3655,9 @@ dependencies = [
 
 [[package]]
 name = "opentelemetry-otlp"
-version = "0.33.0"
+version = "0.33.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "699a67345e21962a231955b9059a157e428b219fa5df8efe11f08346fb23a344"
+checksum = "0756af24841e367128ef31c831999937b8b5c5197d47914590d8f4e2e88c2e1a"
 dependencies = [
  "http",
  "httpdate",
@@ -3675,9 +3675,9 @@ dependencies = [
 
 [[package]]
 name = "opentelemetry-proto"
-version = "0.33.0"
+version = "0.33.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25da1ac11a0aeccf38d7f77ee0348715adaf8340f65ad46c94a02c6b20e2f65d"
+checksum = "d576f5dddc3299341bcd85a04be17b2564844c0c9563214f02d85f2524d1afae"
 dependencies = [
  "opentelemetry",
  "opentelemetry_sdk",
@@ -3688,9 +3688,9 @@ dependencies = [
 
 [[package]]
 name = "opentelemetry-stdout"
-version = "0.33.0"
+version = "0.33.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f71803f481d3f5ccbe477edb42a78f473613712b2327835911a9ea0ab069824"
+checksum = "2afbc6661934787ce79bef1e35d0ffe9d62e945f07f664dc1283ce83292b908a"
 dependencies = [
  "chrono",
  "opentelemetry",
@@ -3699,9 +3699,9 @@ dependencies = [
 
 [[package]]
 name = "opentelemetry_sdk"
-version = "0.33.0"
+version = "0.33.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb39533d9d1c912123efd7d41d7e0c29d16917b60ce15b4c8d87cb1af7f67520"
+checksum = "372a912db2974d1990207006fd0e3aa0ef3fd4ad3be43c65cfaadf2206866061"
 dependencies = [
  "futures-channel",
  "futures-executor",
@@ -4680,7 +4680,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4752,7 +4752,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4852,9 +4852,9 @@ dependencies = [
 
 [[package]]
 name = "schemars"
-version = "1.2.2"
+version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "687274d293b6cdc6e73e0fee520bf2049650090d7164f87672d212a3c530cf4a"
+checksum = "ab508826f74a77ca9d5aba6ff19b522583ee3eaf28a19384ff3d0e5835fadf6e"
 dependencies = [
  "chrono",
  "dyn-clone",
@@ -4867,9 +4867,9 @@ dependencies = [
 
 [[package]]
 name = "schemars_derive"
-version = "1.2.2"
+version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d98c67716b46af2f0b8cf752abc930f6f9aecfbf671ecfb531db8a31dbe4e2ba"
+checksum = "e1c3a92094fa7d61aa124645844facb6b554dfc797136d0f5fd1f890e2bffc69"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5000,9 +5000,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.151"
+version = "1.0.154"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14"
+checksum = "e7e9cc8b1b85264074fbcc02a88680c4096b1e47df8f739dceb03bf482f04bd6"
 dependencies = [
  "itoa",
  "memchr",
@@ -5400,7 +5400,7 @@ dependencies = [
  "getrandom 0.4.2",
  "once_cell",
  "rustix 1.1.4",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -6294,7 +6294,7 @@ dependencies = [
 
 [[package]]
 name = "weaver"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "assert_cmd",
  "axum",
@@ -6353,7 +6353,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_checker"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "globset",
  "log",
@@ -6371,7 +6371,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_codegen_test"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "dirs",
  "log",
@@ -6386,7 +6386,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_common"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "axum",
  "dirs",
@@ -6415,11 +6415,12 @@ dependencies = [
 
 [[package]]
 name = "weaver_config"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "log",
  "schemars",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.21",
  "toml",
@@ -6431,7 +6432,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_diff"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "serde_json",
  "similar",
@@ -6440,7 +6441,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_emit"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "futures-util",
  "miette",
@@ -6459,7 +6460,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_forge"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "convert_case 0.11.0",
  "dirs",
@@ -6470,6 +6471,7 @@ dependencies = [
  "jaq-core",
  "jaq-json",
  "jaq-std",
+ "jsonschema",
  "log",
  "markdown",
  "miette",
@@ -6498,7 +6500,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_infer"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "convert_case 0.11.0",
  "log",
@@ -6511,7 +6513,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_live_check"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "assert_cmd",
  "cel",
@@ -6543,7 +6545,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_macros"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6552,7 +6554,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_mcp"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "log",
  "miette",
@@ -6581,7 +6583,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolved_schema"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "log",
  "schemars",
@@ -6596,7 +6598,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolver"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "glob",
  "globset",
@@ -6621,7 +6623,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_search"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "schemars",
  "serde",
@@ -6633,7 +6635,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "glob",
  "globset",
@@ -6659,7 +6661,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv_gen"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "miette",
  "nom 8.0.0",
@@ -6676,11 +6678,11 @@ dependencies = [
 
 [[package]]
 name = "weaver_test_support"
-version = "0.27.0"
+version = "0.28.0"
 
 [[package]]
 name = "weaver_version"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "schemars",
  "semver",
@@ -6805,7 +6807,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
