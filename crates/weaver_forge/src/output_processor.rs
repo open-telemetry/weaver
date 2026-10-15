@@ -94,7 +94,7 @@ impl BuiltinFormat {
                 })
             }
             BuiltinFormat::Yaml => {
-                serde_yaml::to_string(data).map_err(|e| Error::SerializationError {
+                serde_saphyr::to_string(data).map_err(|e| Error::SerializationError {
                     error: e.to_string(),
                 })
             }
@@ -586,7 +586,7 @@ mod tests {
 
         let file_path = path.join("test.yaml");
         let content = fs::read_to_string(&file_path).expect("should read output file");
-        let parsed: TestData = serde_yaml::from_str(&content).expect("should parse YAML");
+        let parsed: TestData = serde_saphyr::from_str(&content).expect("should parse YAML");
         assert_eq!(parsed, test_data());
     }
 
@@ -875,7 +875,7 @@ mod tests {
         let result = output
             .generate_to_string(&test_data())
             .expect("generate_to_string should succeed");
-        let parsed: TestData = serde_yaml::from_str(&result).expect("should parse YAML");
+        let parsed: TestData = serde_saphyr::from_str(&result).expect("should parse YAML");
         assert_eq!(parsed, test_data());
     }
 

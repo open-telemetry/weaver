@@ -109,11 +109,11 @@ const SCHEMA_URL_HELP: &str = "The schema_url uniquely identifies the dependency
 const UNKNOWN_VERSION: &str = "unknown";
 
 /// Parses a dependency declaration strictly requiring `schema_url`.
-fn parse_dependency(value: serde_yaml::Value) -> Result<Dependency, String> {
+fn parse_dependency(value: serde_json::Value) -> Result<Dependency, String> {
     if value.get("schema_url").is_some() {
-        return serde_yaml::from_value(value).map_err(|e| e.to_string());
+        return serde_json::from_value(value).map_err(|e| e.to_string());
     }
-    let name = value.get("name").and_then(serde_yaml::Value::as_str);
+    let name = value.get("name").and_then(serde_json::Value::as_str);
     let subject = name.map_or_else(
         || "a dependency".to_owned(),
         |name| format!("dependency '{name}'"),
@@ -135,7 +135,7 @@ struct RawManifestFields {
     /// Legacy V1 field detected for clear error messaging.
     schema_base_url: Option<String>,
     #[serde(default)]
-    dependencies: Vec<serde_yaml::Value>,
+    dependencies: Vec<serde_json::Value>,
     #[serde(default)]
     stability: Stability,
     resolved_registry_uri: Option<String>,
@@ -283,7 +283,7 @@ impl RegistryManifest {
         })?;
         let reader = std::io::BufReader::new(file);
         let raw: RawManifestFields =
-            serde_yaml::from_reader(reader).map_err(|e| InvalidRegistryManifest {
+            serde_saphyr::from_reader(reader).map_err(|e| InvalidRegistryManifest {
                 path: manifest_path_buf.clone(),
                 error: e.to_string(),
             })?;
@@ -403,7 +403,7 @@ mod tests {
     }
 
     fn dep_from_yaml_strict(yaml: &str) -> Result<Dependency, String> {
-        parse_dependency(serde_yaml::from_str(yaml).expect("invalid YAML"))
+        parse_dependency(serde_saphyr::from_str(yaml).expect("invalid YAML"))
     }
 
     fn dep(schema_url: &str, registry_path: Option<&str>) -> Dependency {
@@ -475,7 +475,7 @@ registry_path: "./registry"
 
     #[test]
     fn test_dependency_serialize() {
-        let yaml = serde_yaml::to_string(&dep("https://opentelemetry.io/schemas/1.0.0", None))
+        let yaml = serde_saphyr::to_string(&dep("https://opentelemetry.io/schemas/1.0.0", None))
             .expect("Failed to serialize");
         assert!(yaml.contains("schema_url"));
         assert!(yaml.contains("https://opentelemetry.io/schemas/1.0.0"));
@@ -484,7 +484,7 @@ registry_path: "./registry"
 
     #[test]
     fn test_dependency_serialize_with_registry_path() {
-        let yaml = serde_yaml::to_string(&dep(
+        let yaml = serde_saphyr::to_string(&dep(
             "https://opentelemetry.io/schemas/1.0.0",
             Some("./registry"),
         ))
@@ -496,7 +496,7 @@ registry_path: "./registry"
     #[test]
     fn test_dependency_roundtrip_serialization() {
         let original = dep("https://example.com/schemas/1.0.0", Some("./test/registry"));
-        let yaml = serde_yaml::to_string(&original).expect("Failed to serialize");
+        let yaml = serde_saphyr::to_string(&original).expect("Failed to serialize");
         let deserialized = dep_from_yaml_strict(&yaml).expect("Failed to deserialize");
 
         assert_eq!(original.schema_url, deserialized.schema_url);
@@ -660,7 +660,7 @@ dependencies:
         );
         assert!(dependency.registry_path.is_none());
 
-        let yaml = serde_yaml::to_string(&publication).expect("Failed to serialize");
+        let yaml = serde_saphyr::to_string(&publication).expect("Failed to serialize");
         let reparsed =
             manifest_from_yaml(&yaml, &mut vec![]).expect("publication manifest is not readable");
         assert!(matches!(reparsed, RegistryManifest::Publication(_)));
@@ -769,7 +769,7 @@ schema_url: "https://example.com/schemas/1.0.0"
 resolved_registry_uri: "https://example.com/resolved/1.0.0/resolved.yaml"
 "#;
         let parsed: RegistryManifest =
-            serde_yaml::from_str(yaml).expect("serde_yaml::from_str should succeed");
+            serde_saphyr::from_str(yaml).expect("serde_saphyr::from_str should succeed");
         assert!(
             matches!(parsed, RegistryManifest::Publication(_)),
             "expected Publication variant from untagged serde deserialization, got {parsed:?}"

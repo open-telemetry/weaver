@@ -535,7 +535,7 @@ mod tests {
             ("deprecated:\n  reason: obsoleted", "deprecated"),
         ] {
             let yaml = format!("ref: my.attribute\n{field}\n");
-            let err = serde_yaml::from_str::<SpanAttributeRef>(&yaml)
+            let err = serde_saphyr::from_str::<SpanAttributeRef>(&yaml)
                 .expect_err("stability/deprecated must not be allowed on span attribute refs");
             assert!(err.to_string().contains(&format!("unknown field `{name}`")));
         }
@@ -746,7 +746,7 @@ templates:
   - "HTTP"
 note: "test note"
 "#;
-        let parsed: SpanName = serde_yaml::from_str(yaml).unwrap();
+        let parsed: SpanName = serde_saphyr::from_str(yaml).unwrap();
         assert_eq!(parsed.templates.len(), 3);
         assert_eq!(
             parsed.templates[0].pattern,
@@ -757,13 +757,13 @@ note: "test note"
 
         // Backwards compatibility: note only
         let yaml_note_only = "note: free form note\n";
-        let parsed_note: SpanName = serde_yaml::from_str(yaml_note_only).unwrap();
+        let parsed_note: SpanName = serde_saphyr::from_str(yaml_note_only).unwrap();
         assert!(parsed_note.templates.is_empty());
         assert_eq!(parsed_note.note.as_deref(), Some("free form note"));
 
         // Roundtrip serialization: templates serialize as objects with pattern, attributes, parts
-        let serialized = serde_yaml::to_string(&parsed).unwrap();
-        let roundtrip: SpanName = serde_yaml::from_str(&serialized).unwrap();
+        let serialized = serde_saphyr::to_string(&parsed).unwrap();
+        let roundtrip: SpanName = serde_saphyr::from_str(&serialized).unwrap();
         assert_eq!(roundtrip, parsed);
 
         // JSON roundtrip
@@ -776,14 +776,14 @@ note: "test note"
 pattern: "HTTP"
 unknown_key: "val"
 "#;
-        assert!(serde_yaml::from_str::<SpanNameTemplate>(invalid_yaml).is_err());
+        assert!(serde_saphyr::from_str::<SpanNameTemplate>(invalid_yaml).is_err());
 
         // Inconsistent attributes rejected
         let inconsistent_yaml = r#"
 pattern: "{a}"
 attributes: ["b"]
 "#;
-        assert!(serde_yaml::from_str::<SpanNameTemplate>(inconsistent_yaml).is_err());
+        assert!(serde_saphyr::from_str::<SpanNameTemplate>(inconsistent_yaml).is_err());
 
         let inconsistent_parts = r#"
 pattern: "{a}"
@@ -791,7 +791,7 @@ parts:
   - type: literal
     value: "a"
 "#;
-        assert!(serde_yaml::from_str::<SpanNameTemplate>(inconsistent_parts).is_err());
+        assert!(serde_saphyr::from_str::<SpanNameTemplate>(inconsistent_parts).is_err());
 
         let complete_object = r#"
 pattern: "{a}"
@@ -800,9 +800,9 @@ parts:
   - type: attribute
     attribute: "a"
 "#;
-        assert!(serde_yaml::from_str::<SpanNameTemplate>(complete_object).is_ok());
-        assert!(serde_yaml::from_str::<SpanNameTemplate>("{}").is_err());
-        assert!(serde_yaml::from_str::<SpanNameTemplate>("pattern: ''").is_err());
+        assert!(serde_saphyr::from_str::<SpanNameTemplate>(complete_object).is_ok());
+        assert!(serde_saphyr::from_str::<SpanNameTemplate>("{}").is_err());
+        assert!(serde_saphyr::from_str::<SpanNameTemplate>("pattern: ''").is_err());
 
         let invalid_type = serde_json::from_str::<SpanNameTemplate>("42").unwrap_err();
         assert!(invalid_type

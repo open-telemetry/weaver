@@ -1092,7 +1092,7 @@
           "{controller}/{action}/{id?}"
         ],
         "name": "http.route",
-        "note": "MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.\nSHOULD include the [application root](/docs/http/http-spans.md#http-server-definitions) if there is one.",
+        "note": "MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.\nSHOULD include the [application root](/docs/http/http-spans.md#http-server-definitions) if there is one.\n",
         "requirement_level": "recommended",
         "root_namespace": "http",
         "stability": "stable",

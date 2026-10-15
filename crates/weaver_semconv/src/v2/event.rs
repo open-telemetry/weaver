@@ -93,7 +93,7 @@ mod tests {
 brief: Test event
 stability: stable
 "#;
-        let event = serde_yaml::from_str::<Event>(yaml).expect("Failed to parse YAML string");
+        let event = serde_saphyr::from_str::<Event>(yaml).expect("Failed to parse YAML string");
         assert_eq!(event.name.to_string(), "my_event");
     }
 }
