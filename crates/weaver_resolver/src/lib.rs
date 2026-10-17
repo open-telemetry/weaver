@@ -1247,6 +1247,47 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn test_v2_refinement_requirement_level_inheritance() {
+        let resolved = match resolve_at("data/refinement-requirement-levels") {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+        for (id, expected_level, inherited) in [
+            ("inherited.level", BasicRequirementLevelSpec::Required, true),
+            (
+                "overridden.level",
+                BasicRequirementLevelSpec::Recommended,
+                false,
+            ),
+        ] {
+            let group = resolved.group(id).expect("Refinement not found");
+            let attr = resolved.catalog.attribute(&group.attributes[0]).unwrap();
+            assert_eq!(
+                attr.requirement_level,
+                RequirementLevel::Basic(expected_level)
+            );
+            let lineage = group
+                .lineage
+                .as_ref()
+                .unwrap()
+                .attribute("test.attr")
+                .unwrap();
+            assert_eq!(
+                lineage.inherited_fields.contains("requirement_level"),
+                inherited,
+                "{id}: requirement level inheritance"
+            );
+            assert_eq!(
+                lineage
+                    .locally_overridden_fields
+                    .contains("requirement_level"),
+                !inherited,
+                "{id}: requirement level override"
+            );
+        }
+    }
+
     fn resolve_at(path: &str) -> WResult<ResolvedTelemetrySchema, Error> {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: path.to_owned(),
@@ -1447,6 +1488,7 @@ metrics:
     #[test]
     fn test_v2_attribute_annotations_merge_in_refs_and_refinements() {
         use weaver_resolved_schema::v2::catalog::AttributeCatalog;
+        use weaver_semconv::v2::attribute::{BasicRequirementLevelSpec, RequirementLevel};
 
         let loaded = LoadedSemconvRegistry::create_from_string(
             r#"
@@ -1456,6 +1498,7 @@ attributes:
     type: string
     stability: stable
     brief: HTTP method.
+    note: Definition note.
     examples: ["GET"]
     annotations:
       from_definition: yes
@@ -1464,6 +1507,33 @@ attributes:
         from_definition: yes
         shared_key: definition_value
       list: [definition]
+      map_to_array: {old: 1}
+      map_to_scalar: {old: 1}
+      deep:
+        replaced: {old: 1}
+  - key: test.extra
+    type: int
+    stability: stable
+    brief: Extra attribute.
+    annotations:
+      settings: {old: 1}
+attribute_groups:
+  - id: inner.overrides
+    visibility: internal
+    attributes:
+      - ref: http.request.method
+        annotations:
+          map_to_array: {from_group: 3}
+      - ref: test.extra
+        annotations:
+          settings: []
+  - id: refinement.overrides
+    visibility: internal
+    attributes:
+      - ref_group: inner.overrides
+      - ref: test.extra
+        annotations:
+          settings: {new: 2}
 metrics:
   - name: http.server.request.duration
     brief: Duration.
@@ -1473,6 +1543,8 @@ metrics:
     stability: stable
     attributes:
       - ref: http.request.method
+        note: Parent note.
+        requirement_level: required
         annotations:
           from_ref: yes
           shared_key: ref_value
@@ -1480,10 +1552,15 @@ metrics:
             from_ref: yes
             shared_key: ref_value
           list: [ref]
+          map_to_array: []
+          map_to_scalar: replaced
+          deep:
+            replaced: null
 metric_refinements:
-  - id: refined.duration
+  - id: metric.refined.duration
     ref: http.server.request.duration
     attributes:
+      - ref_group: refinement.overrides
       - ref: http.request.method
         annotations:
           from_refinement: yes
@@ -1492,6 +1569,19 @@ metric_refinements:
             from_refinement: yes
             shared_key: refinement_value
           list: [refinement]
+          map_to_array: {new: 2}
+          map_to_scalar: {new: 2}
+          deep:
+            replaced: {new: 2}
+  - id: further.duration
+    ref: refined.duration
+    attributes:
+      - ref: http.request.method
+        annotations:
+          map_to_array: {last: 3}
+          map_to_scalar: {last: 3}
+          deep:
+            replaced: {last: 3}
 "#,
         )
         .expect("Failed to load semconv spec");
@@ -1524,6 +1614,9 @@ metric_refinements:
                         "shared_key": "ref_value",
                     },
                     "list": ["ref"],
+                    "map_to_array": [],
+                    "map_to_scalar": "replaced",
+                    "deep": {"replaced": null},
                 }),
             ),
             (
@@ -1540,15 +1633,57 @@ metric_refinements:
                         "shared_key": "refinement_value",
                     },
                     "list": ["refinement"],
+                    "map_to_array": {"from_group": 3, "new": 2},
+                    "map_to_scalar": {"new": 2},
+                    "deep": {"replaced": {"new": 2}},
                 }),
             ),
         ] {
             let attribute = resolved.attribute_catalog.attribute(attribute_ref).unwrap();
+            assert_eq!(attribute.common.note, "Parent note.");
             assert_eq!(
                 serde_json::to_value(&attribute.common.annotations).unwrap(),
                 expected
             );
         }
+        let further = resolved
+            .refinements
+            .metrics
+            .iter()
+            .find(|refinement| &*refinement.id == "further.duration")
+            .expect("further.duration not found");
+        let attribute = resolved
+            .attribute_catalog
+            .attribute(&further.metric.attributes[0].base)
+            .unwrap();
+        let annotations = serde_json::to_value(&attribute.common.annotations).unwrap();
+        assert_eq!(
+            annotations["map_to_array"],
+            serde_json::json!({"from_group": 3, "new": 2, "last": 3})
+        );
+        assert_eq!(
+            annotations["map_to_scalar"],
+            serde_json::json!({"new": 2, "last": 3})
+        );
+        assert_eq!(
+            annotations["deep"]["replaced"],
+            serde_json::json!({"new": 2, "last": 3})
+        );
+        for metric in [metric, refinement, &further.metric] {
+            assert_eq!(
+                metric.attributes[0].requirement_level,
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Required)
+            );
+        }
+        let extra = resolved
+            .attribute_catalog
+            .attribute(&refinement.attributes[1].base)
+            .unwrap();
+        assert_eq!(extra.key, "test.extra");
+        assert_eq!(
+            serde_json::to_value(&extra.common.annotations).unwrap(),
+            serde_json::json!({"settings": {"new": 2}})
+        );
     }
 
     fn create_registry_from_string(

@@ -421,8 +421,7 @@ impl AttributeLineage {
         }
     }
 
-    /// Recursively merges parent and local annotations, with local values winning conflicts.
-    /// Marks the field as locally overridden when local annotations are provided.
+    /// Recursively merges annotations, with local values winning conflicts.
     pub fn annotations(
         &mut self,
         local_value: &Option<BTreeMap<String, YamlValue>>,
