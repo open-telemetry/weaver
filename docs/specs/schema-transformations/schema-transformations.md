@@ -102,16 +102,17 @@ Distribution is out of scope: likely shipped with the resolved schema, but files
 
 Weaver resolves both schemas, applies the policies to the **source definitions** (metrics, spans, events, entities) and compares the result with the **target definitions**. It also applies them to the target definitions, which must come out unchanged. Value matchers "may match" attributes whose type or enum allows the value. Spans are matched by kind, name and attributes until span identity is on the wire.
 
-| Check | Fails when |
-|---|---|
-| Names exist | a read name isn't in the source, or a written name (`to`, `add`) isn't in the target |
-| Types match | a moved or added value's type differs from the target attribute's, without `convert` |
-| Signals line up | a transformed metric's instrument or unit (after `scale`) differs from the target's |
-| Values allowed | an added value isn't in the target attribute's enum |
-| Required attributes | a target-required attribute isn't produced, and the gap isn't explicitly accepted in the file |
-| Target-safe | a policy changes a target definition |
-| No conflicts | overlapping policies write the same field differently |
-| Units convertible | `scale` units have different dimensions |
+Examples of checks:
+
+- Signal ids and attribute keys exist in the source (read) and target (written) schemas.
+- Signal properties match when a signal is renamed: span kind, metric instrument, unit after `scale`.
+- Attributes after transformation have a compatible type and are referenced by the target signal.
+- Added values are allowed by the target attribute (enum members).
+- Required attributes are present on the target signal after transformation, unless the gap is explicitly accepted.
+- Optional: all required and recommended target attributes can be populated.
+- Target-shaped definitions come out unchanged.
+- Policies that can match the same record don't write the same field differently.
+- `scale` units have the same dimension.
 
 Validation doesn't check coverage (not a goal) or real data.
 
