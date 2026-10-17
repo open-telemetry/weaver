@@ -79,16 +79,6 @@ policies:
           - {datapoint_attribute: [rpc.system.name], value: grpc}
 ```
 
-Distribution is out of scope: likely shipped with the resolved schema, but files can come from anywhere.
-
-## Constraints
-
-1. **Unambiguous.** Each rule has exactly one correct result for every record it matches. Changed meaning under the same name, ambiguous splits and data the source never captured are not rules.
-2. **Target-safe.** Target-shaped telemetry passes through unchanged. Rules match on something only the source has.
-3. **No conflicts.** Rules that can match the same record don't write the same field differently.
-
----
-
 ## Validation at check-in
 
 Weaver resolves both schemas, applies the policies to the **source definitions** (metrics, spans, events, entities) and compares the result with the **target definitions**. It also applies them to the target definitions, which must come out unchanged. Value matchers "may match" attributes whose type or enum allows the value. Spans are matched by kind, name and attributes until span identity is on the wire.
