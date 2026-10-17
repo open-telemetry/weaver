@@ -121,7 +121,7 @@ mod tests {
             requirement_level: None,
             common: CommonFields {
                 brief: "Client span".to_owned(),
-                note: "".to_owned(),
+                note: None,
                 stability: Default::default(),
                 deprecated: None,
                 annotations: Default::default(),

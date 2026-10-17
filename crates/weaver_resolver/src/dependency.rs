@@ -372,7 +372,7 @@ fn attr_spec(
             tag: None,
             requirement_level,
             sampling_relevant,
-            note: a.common.note.clone(),
+            note: a.common.note.clone().unwrap_or_default(),
             stability: Some(a.common.stability.clone().into()),
             deprecated: a.common.deprecated.clone(),
             annotations: Some(a.common.annotations.clone()),
@@ -392,7 +392,7 @@ fn signal_summary(
     GroupSummary {
         r#type,
         brief: common.brief.clone(),
-        note: common.note.clone(),
+        note: common.note.clone().unwrap_or_default(),
         stability: Some(common.stability.clone().into()),
         deprecated: common.deprecated.clone(),
         metric_name: None,

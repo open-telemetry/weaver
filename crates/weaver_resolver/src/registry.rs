@@ -68,6 +68,10 @@ pub struct UnresolvedGroup {
     #[serde(default)]
     pub attribute_unrefs: Vec<String>,
 
+    /// The note before refinement inheritance is resolved.
+    #[serde(default)]
+    pub note: Option<String>,
+
     /// Visibility of the group.
     pub visibility: Option<AttributeGroupVisibilitySpec>,
 
@@ -435,7 +439,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             id: group.spec.id,
             r#type: group.spec.r#type,
             brief: group.spec.brief,
-            note: group.spec.note,
+            note: String::new(),
             prefix: group.spec.prefix,
             extends: group.spec.extends,
             stability: group.spec.stability,
@@ -461,6 +465,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
         provenance: Some(group.provenance),
         include_groups: group.spec.include_groups,
         attribute_unrefs: group.spec.attribute_unrefs,
+        note: group.spec.note,
         visibility: group.spec.visibility,
         is_v2: group.spec.is_v2,
     }
@@ -535,6 +540,7 @@ fn resolve_dependency_imports<C: crate::SchemaCacheLookup>(
             path,
         });
         ureg.groups.push(UnresolvedGroup {
+            note: Some(group.note.clone()),
             group,
             attributes: vec![],
             include_groups: vec![],
@@ -823,6 +829,7 @@ fn add_resolved_group_to_index(
     unresolved_group.attribute_unrefs.clear();
     let mut summary =
         GroupSummary::from_without_attributes(&unresolved_group.group, GroupSource::Local);
+    summary.note = unresolved_group.note.clone().unwrap_or_default();
     summary.attributes = unresolved_group.attributes.clone();
     _ = group_index.insert(unresolved_group.group.id.clone(), summary);
     *resolved_group_count += 1;
@@ -944,8 +951,8 @@ fn inherit_v2_refinement_fields(
     if refinement.group.brief.is_empty() {
         refinement.group.brief = parent.brief.clone();
     }
-    if refinement.group.note.is_empty() {
-        refinement.group.note = parent.note.clone();
+    if refinement.note.is_none() {
+        refinement.note = Some(parent.note.clone());
     }
     if refinement.group.span_name.is_none() {
         refinement.group.span_name = parent.span_name.clone();
@@ -985,6 +992,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                 );
                 let mut summary =
                     GroupSummary::from_without_attributes(&group.group, GroupSource::Local);
+                summary.note = group.note.clone().unwrap_or_default();
                 summary.attributes = group.attributes.clone();
                 _ = group_index.insert(group.group.id.clone(), summary);
             }
@@ -1502,6 +1510,7 @@ pub(crate) fn cleanup_and_stabilize_catalog_and_registry(
         .into_iter()
         .filter(|g| g.visibility != Some(AttributeGroupVisibilitySpec::Internal))
         .map(|mut g| {
+            g.group.note = g.note.unwrap_or_default();
             g.group.attributes.sort();
             g.group
         })
@@ -2097,6 +2106,7 @@ groups:
                 attributes: Default::default(),
                 include_groups: Default::default(),
                 attribute_unrefs: vec![],
+                note: None,
                 visibility: Default::default(),
                 is_v2: false,
                 provenance: Some(Provenance {
@@ -2199,6 +2209,7 @@ groups:
                     attributes: Default::default(),
                     include_groups: Default::default(),
                     attribute_unrefs: vec![],
+                    note: None,
                     visibility: Default::default(),
                     is_v2: false,
                     provenance: Some(Provenance {
@@ -2236,6 +2247,7 @@ groups:
                     attributes: Default::default(),
                     include_groups: Default::default(),
                     attribute_unrefs: vec![],
+                    note: None,
                     visibility: Default::default(),
                     is_v2: false,
                     provenance: Some(Provenance {
@@ -2273,6 +2285,7 @@ groups:
                     attributes: Default::default(),
                     include_groups: Default::default(),
                     attribute_unrefs: vec![],
+                    note: None,
                     visibility: Default::default(),
                     is_v2: false,
                     provenance: Some(Provenance {

@@ -88,8 +88,11 @@
           "type": "string"
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
-          "type": "string"
+          "description": "A more elaborate description of the attribute or signal.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "provenance": {
           "description": "The provenance of the attribute.",
@@ -150,8 +153,11 @@
           "$ref": "#/$defs/SignalId"
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
-          "type": "string"
+          "description": "A more elaborate description of the attribute or signal.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "provenance": {
           "description": "The provenance of the AttributeGroup.",
@@ -375,8 +381,11 @@
           }
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
-          "type": "string"
+          "description": "A more elaborate description of the attribute or signal.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "provenance": {
           "description": "The provenance of the Entity.",
@@ -533,8 +542,11 @@
           }
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
-          "type": "string"
+          "description": "A more elaborate description of the attribute or signal.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "provenance": {
           "description": "The provenance of the Entity.",
@@ -684,8 +696,11 @@
           "$ref": "#/$defs/SignalId"
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
-          "type": "string"
+          "description": "A more elaborate description of the attribute or signal.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "provenance": {
           "description": "The provenance of the Event.",
@@ -782,8 +797,11 @@
           "$ref": "#/$defs/SignalId"
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
-          "type": "string"
+          "description": "A more elaborate description of the attribute or signal.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "provenance": {
           "description": "The provenance of the Event.",
@@ -992,8 +1010,11 @@
           "$ref": "#/$defs/SignalId"
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
-          "type": "string"
+          "description": "A more elaborate description of the attribute or signal.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "provenance": {
           "description": "The provenance of this metric.",
@@ -1100,8 +1121,11 @@
           "$ref": "#/$defs/SignalId"
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
-          "type": "string"
+          "description": "A more elaborate description of the attribute or signal.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "provenance": {
           "description": "The provenance of this metric.",
@@ -1421,8 +1445,11 @@
           "$ref": "#/$defs/SpanName"
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
-          "type": "string"
+          "description": "A more elaborate description of the attribute or signal.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "provenance": {
           "description": "The provenance of the Span.",
@@ -1618,8 +1645,11 @@
           "$ref": "#/$defs/SpanName"
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
-          "type": "string"
+          "description": "A more elaborate description of the attribute or signal.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "provenance": {
           "description": "The provenance of the Span.",

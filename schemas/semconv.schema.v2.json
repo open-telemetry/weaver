@@ -135,8 +135,11 @@
           "type": "string"
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
-          "type": "string"
+          "description": "A more elaborate description of the attribute or signal.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
@@ -222,8 +225,11 @@
               "$ref": "#/$defs/SignalId"
             },
             "note": {
-              "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
-              "type": "string"
+              "description": "A more elaborate description of the attribute or signal.",
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "stability": {
               "description": "Specifies the stability of the attribute or signal.",
@@ -502,8 +508,11 @@
           }
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
-          "type": "string"
+          "description": "A more elaborate description of the attribute or signal.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "requirement_level": {
           "description": "The requirement level of the entity. Defaults to 'recommended' when omitted.",
@@ -776,8 +785,11 @@
           "$ref": "#/$defs/SignalId"
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
-          "type": "string"
+          "description": "A more elaborate description of the attribute or signal.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "requirement_level": {
           "description": "The requirement level of the event. Defaults to 'recommended' when omitted.",
@@ -1193,8 +1205,11 @@
           "$ref": "#/$defs/SignalId"
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
-          "type": "string"
+          "description": "A more elaborate description of the attribute or signal.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "requirement_level": {
           "description": "The requirement level of the metric. Defaults to 'recommended' when omitted.",
@@ -1481,8 +1496,11 @@
           "$ref": "#/$defs/SpanName"
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
-          "type": "string"
+          "description": "A more elaborate description of the attribute or signal.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "requirement_level": {
           "description": "The requirement level of the span. Defaults to 'recommended' when omitted.",

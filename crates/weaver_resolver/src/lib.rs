@@ -1701,6 +1701,66 @@ attributes:
     }
 
     #[test]
+    fn test_v2_refinement_note_inheritance() {
+        for (signal, definition) in [
+            (
+                "span",
+                "type: example.client\n    kind: client\n    name:\n      note: Use the operation name.",
+            ),
+            (
+                "metric",
+                "name: example.client\n    instrument: counter\n    unit: '1'",
+            ),
+            ("event", "name: example.client"),
+            (
+                "entity",
+                "type: example.client\n    identity:\n      - ref: example.id",
+            ),
+        ] {
+            let collection = if signal == "entity" {
+                "entities".to_owned()
+            } else {
+                format!("{signal}s")
+            };
+            for (note, expected) in [
+                ("", "Parent note."),
+                ("    note: \"\"", ""),
+                ("    note: Child note.", "Child note."),
+            ] {
+                let yaml = format!(
+                    r#"
+file_format: definition/2
+{collection}:
+  - {definition}
+    requirement_level: recommended
+    stability: development
+    brief: Example signal.
+    note: Parent note.
+attributes:
+  - key: example.id
+    type: int
+    stability: development
+    brief: Entity identifier.
+{signal}_refinements:
+  - id: example.special.client
+    ref: example.client
+{note}
+"#
+                );
+                let resolved = create_registry_from_string(&yaml)
+                    .into_result_failing_non_fatal()
+                    .expect("Failed to resolve refinement");
+                let refinement = resolved
+                    .groups
+                    .iter()
+                    .find(|group| group.id == "example.special.client")
+                    .expect("Refinement not found");
+                assert_eq!(refinement.note, expected, "{signal} with {note:?}");
+            }
+        }
+    }
+
+    #[test]
     fn test_v2_refinement_attribute_precedence() {
         // Precedence for an attribute a refinement inherits from its parent,
         // re-declares via `ref_group`, and overrides inline must be:

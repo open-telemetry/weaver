@@ -68,7 +68,7 @@ impl V2CatalogBuilder {
                         && a.r#type == v2_type
                         && a.examples == v2_examples
                         && a.common.brief == attribute.brief
-                        && a.common.note == attribute.note
+                        && a.common.note.as_deref().unwrap_or_default() == attribute.note
                         && a.common.stability == expected_v2_stability
                         && a.common.deprecated == expected_v2_deprecated
                         && attribute
@@ -201,7 +201,7 @@ fn group_common_fields(g: &V1Group) -> CommonFields {
     let (stability, deprecated) = convert_v1_stability_and_deprecated(&g.stability, &g.deprecated);
     CommonFields {
         brief: g.brief.clone(),
-        note: g.note.clone(),
+        note: (!g.note.is_empty()).then(|| g.note.clone()),
         stability,
         deprecated,
         annotations: g.annotations.clone().unwrap_or_default(),
@@ -348,7 +348,7 @@ pub fn convert_v1_to_v2(
                 examples,
                 common: CommonFields {
                     brief: a.brief,
-                    note: a.note,
+                    note: (!a.note.is_empty()).then_some(a.note),
                     stability,
                     deprecated,
                     annotations: a.annotations.unwrap_or_default(),
@@ -2387,7 +2387,7 @@ mod tests {
             examples: None,
             common: CommonFields {
                 brief: "Server port".to_owned(),
-                note: String::new(),
+                note: None,
                 stability: Stability::Stable,
                 deprecated: None,
                 annotations: Default::default(),
@@ -2401,7 +2401,7 @@ mod tests {
             examples: None,
             common: CommonFields {
                 brief: "Server address".to_owned(),
-                note: String::new(),
+                note: None,
                 stability: Stability::Stable,
                 deprecated: None,
                 annotations: Default::default(),
@@ -2434,7 +2434,7 @@ mod tests {
             examples: None,
             common: CommonFields {
                 brief: "brief".to_owned(),
-                note: "note".to_owned(),
+                note: Some("note".to_owned()),
                 // What `convert_v1_to_v2` stores for an attribute with no stability.
                 stability: Stability::default(),
                 deprecated: None,
@@ -2483,7 +2483,7 @@ mod tests {
             examples: None,
             common: CommonFields {
                 brief: brief.clone(),
-                note: note.clone(),
+                note: Some(note.clone()),
                 stability: stability.clone(),
                 deprecated: None,
                 annotations: annotations.clone(),

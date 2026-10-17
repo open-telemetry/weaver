@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Fix explicitly empty notes on V2 signal refinements inheriting the parent note. Omitted notes still inherit. Fixes [#1840](https://github.com/open-telemetry/weaver/issues/1840).
+
 # [0.28.0] - 2026-10-14
 
 - Fix the JSON Schema of `SchemaUrl` to describe a string, matching how it is serialized. ([#1825](https://github.com/open-telemetry/weaver/pull/1825) by @lmolkova)
