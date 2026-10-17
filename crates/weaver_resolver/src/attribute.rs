@@ -322,7 +322,6 @@ impl AttributeCatalog {
     }
 
     /// Tries to resolve the given attribute spec (ref or id) from the catalog.
-    /// Returns its catalog reference and an `Id` spec for subsequent refinements.
     /// Returns `None` if the attribute spec is a ref and it does not exist yet
     /// in the catalog.
     pub(crate) fn resolve<C: crate::SchemaCacheLookup>(

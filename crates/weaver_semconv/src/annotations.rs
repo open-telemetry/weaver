@@ -6,7 +6,12 @@ use crate::YamlValue;
 use serde_yaml::Value;
 use std::collections::BTreeMap;
 
-/// Recursively merges annotation maps, with local values replacing scalars and arrays.
+/// Merges 'override_map' into 'base_map', key by key.
+///
+/// This allows annotatoins to be extended "piecemeal" in refinements, e.g.
+///
+/// We allow `x.y.z = "a"` and `x.y.v = "b"` to merge such that the result is
+/// `x.y = { z = "a", v = "b" }`.
 #[must_use]
 pub fn merge_annotations(
     mut base_map: BTreeMap<String, YamlValue>,

@@ -846,7 +846,6 @@ fn resolve_attribute_references<C: crate::SchemaCacheLookup>(
     Ok(())
 }
 
-/// Applies attribute sources in priority order, resolving new references before later overrides.
 fn resolve_attribute_sources<C: crate::SchemaCacheLookup>(
     group: &mut UnresolvedGroup,
     sources: Vec<(&str, &[UnresolvedAttribute])>,
@@ -1105,8 +1104,6 @@ fn resolve_extends_references<C: crate::SchemaCacheLookup>(
 ) -> Result<(), Error> {
     let mut fatal_errors: Vec<Error> = vec![];
     let mut group_index = HashMap::new();
-    // Includes retain their overrides so omitted fields preserve the consuming parent's values.
-    let mut include_index = HashMap::new();
     loop {
         let mut errors = vec![];
         let mut resolved_group_count = 0;
@@ -1119,7 +1116,8 @@ fn resolve_extends_references<C: crate::SchemaCacheLookup>(
             {
                 continue;
             }
-            let resolved = if group.is_v2 && group.group.r#type != GroupType::AttributeGroup {
+            let resolve_attributes = group.is_v2 && group.group.r#type != GroupType::AttributeGroup;
+            if resolve_attributes {
                 let own = group.attributes.clone();
                 let id = group.group.id.clone();
                 match resolve_attribute_sources(
@@ -1130,17 +1128,12 @@ fn resolve_extends_references<C: crate::SchemaCacheLookup>(
                     cache_lookup,
                     &mut errors,
                 )? {
-                    Some(attrs) => Some(attrs),
+                    Some(attrs) => group.attributes = attrs,
                     None => continue,
                 }
-            } else {
-                None
-            };
+            }
             add_resolved_group_to_index(&mut group_index, group, &mut resolved_group_count);
-            let summary = group_index.get_mut(&group.group.id).expect("indexed group");
-            _ = include_index.insert(group.group.id.clone(), summary.clone());
-            if let Some(resolved) = resolved {
-                summary.attributes = resolved;
+            if resolve_attributes {
                 group.attributes.clear();
             }
         }
@@ -1157,7 +1150,7 @@ fn resolve_extends_references<C: crate::SchemaCacheLookup>(
 
             // Attribute priority, low to high: parent (`extends`), included (`ref_group`), own (`ref`)
             let included =
-                match collect_included_group_attrs(unresolved_group, &include_index, &mut errors) {
+                match collect_included_group_attrs(unresolved_group, &group_index, &mut errors) {
                     Some(included) => included,
                     None => continue,
                 };
@@ -1222,7 +1215,6 @@ fn resolve_extends_references<C: crate::SchemaCacheLookup>(
                 }
             }
 
-            // Apply groups and inline refs to the resolved parent without resolving their defaults first.
             let mut bases: Vec<(&str, &[UnresolvedAttribute])> = Vec::new();
             if let Some((parent_ref, parent_attrs)) = &parent {
                 bases.push((parent_ref.as_str(), parent_attrs.as_slice()));
@@ -1232,32 +1224,30 @@ fn resolve_extends_references<C: crate::SchemaCacheLookup>(
                     .iter()
                     .map(|(group_ref, attrs)| (group_ref.as_str(), *attrs)),
             );
-            let resolved = if unresolved_group.is_v2 {
+            if unresolved_group.is_v2 {
                 let own = unresolved_group.attributes.clone();
                 let id = unresolved_group.group.id.clone();
                 bases.push((&id, &own));
-                let raw = bases
-                    .iter()
-                    .flat_map(|(_, attrs)| attrs.iter().cloned())
-                    .collect();
-                let resolved = if unresolved_group.group.r#type == GroupType::AttributeGroup {
-                    None
-                } else {
-                    let Some(resolved) = resolve_attribute_sources(
-                        unresolved_group,
-                        bases,
-                        attr_catalog,
-                        dependencies,
-                        cache_lookup,
-                        &mut errors,
-                    )?
-                    else {
-                        continue;
+                unresolved_group.attributes =
+                    if unresolved_group.group.r#type == GroupType::AttributeGroup {
+                        bases
+                            .iter()
+                            .flat_map(|(_, attrs)| attrs.iter().cloned())
+                            .collect()
+                    } else {
+                        let Some(resolved) = resolve_attribute_sources(
+                            unresolved_group,
+                            bases,
+                            attr_catalog,
+                            dependencies,
+                            cache_lookup,
+                            &mut errors,
+                        )?
+                        else {
+                            continue;
+                        };
+                        resolved
                     };
-                    Some(resolved)
-                };
-                unresolved_group.attributes = raw;
-                resolved
             } else {
                 unresolved_group.attributes = resolve_inheritance_attrs_unified(
                     &unresolved_group.group.id,
@@ -1265,19 +1255,14 @@ fn resolve_extends_references<C: crate::SchemaCacheLookup>(
                     bases,
                     unresolved_group.group.lineage.as_mut(),
                 );
-                None
-            };
+            }
             add_resolved_group_to_index(
                 &mut group_index,
                 unresolved_group,
                 &mut resolved_group_count,
             );
-            let summary = group_index
-                .get_mut(&unresolved_group.group.id)
-                .expect("indexed group");
-            _ = include_index.insert(unresolved_group.group.id.clone(), summary.clone());
-            if let Some(resolved) = resolved {
-                summary.attributes = resolved;
+            if unresolved_group.is_v2 && unresolved_group.group.r#type != GroupType::AttributeGroup
+            {
                 unresolved_group.attributes.clear();
             }
         }

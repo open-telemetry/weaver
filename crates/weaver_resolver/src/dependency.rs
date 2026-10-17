@@ -36,7 +36,7 @@ pub(crate) enum GroupSource {
     Dependency,
 }
 
-/// A group and its attributes used during refinement and include resolution.
+/// A summary of a group, used during refinement and extends resolution, along with its unresolved attributes.
 #[derive(Debug, Clone)]
 pub(crate) struct GroupSummary {
     /// The type of the semantic convention.
@@ -62,7 +62,7 @@ pub(crate) struct GroupSummary {
     /// The v2 span name specification, inherited by refinements that do not
     /// override it.
     pub span_name: Option<weaver_semconv::v1::group::SpanName>,
-    /// Resolved attributes for signal parents, or partial overrides for included attribute groups.
+    /// The attributes from this group before being completely resolved to a catalog.
     pub attributes: Vec<UnresolvedAttribute>,
     /// The annotations of the group.
     pub annotations: Option<std::collections::BTreeMap<String, weaver_semconv::YamlValue>>,
