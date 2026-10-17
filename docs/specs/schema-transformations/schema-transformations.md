@@ -37,15 +37,6 @@ policies:
           - {span_attribute: [net.peer.name], to: server.address}
 ```
 
-| Field | Required | Meaning |
-|---|---|---|
-| `source`, `target` | yes | Same shape as a Weaver manifest dependency. |
-| `.schema_url` | yes | Identifies the schema and version. Must be a valid schema URL; doesn't have to be fetchable. |
-| `.registry_path` | no | Where the schema files are ([vdir](https://github.com/open-telemetry/weaver/blob/main/docs/vdir.md): local dir, archive, Git repo, …). Default: resolved from `schema_url`. `.weaver.toml` schema URL overrides apply. |
-| `policies` | yes | Telemetry Policies, unchanged. Without the wrapper they're a policy set the Collector or an SDK can run. |
-
-**Policies.** One signal each (`trace`, `metric`, `log`, `entity`). All `matches` must hold: `equals`, `in`, `glob`, `exists`, `gt`/`gte`/`lt`/`lte`, `negate`. Operations: `rename` (optionally with type `convert`), `add` (typed; also sets signal names), `remove`, `redact`, `keep: false`. `metric_view` policies hold aggregation changes: dropping attributes and `scale` (unit change).
-
 **Metric rename + unit change:**
 
 ```yaml
