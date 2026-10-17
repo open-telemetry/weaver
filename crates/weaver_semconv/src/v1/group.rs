@@ -311,8 +311,9 @@ pub struct GroupSpec {
     /// A more elaborate description of the semantic convention.
     /// It defaults to an empty string.
     #[serde(default)]
-    #[serde(skip_serializing_if = "String::is_empty")]
-    pub note: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "String")]
+    pub note: Option<String>,
     /// Prefix for the attributes for this semantic convention.
     /// It defaults to an empty string.
     #[serde(default)]
@@ -1043,7 +1044,7 @@ mod tests {
             id: "test".to_owned(),
             r#type: GroupType::Span,
             brief: "test".to_owned(),
-            note: "test".to_owned(),
+            note: Some("test".to_owned()),
             prefix: "".to_owned(),
             extends: None,
             include_groups: vec![],
@@ -1214,7 +1215,7 @@ mod tests {
             id: "test".to_owned(),
             r#type: GroupType::Span,
             brief: "test".to_owned(),
-            note: "test".to_owned(),
+            note: Some("test".to_owned()),
             prefix: "".to_owned(),
             extends: None,
             include_groups: vec![],
@@ -1522,7 +1523,7 @@ mod tests {
             r#type: GroupType::Event,
             name: Some("test_event".to_owned()),
             brief: "test".to_owned(),
-            note: "test".to_owned(),
+            note: Some("test".to_owned()),
             prefix: "".to_owned(),
             extends: None,
             include_groups: vec![],
@@ -1745,7 +1746,7 @@ mod tests {
             r#type: GroupType::Event,
             name: Some("test_event".to_owned()),
             brief: "test".to_owned(),
-            note: "test".to_owned(),
+            note: Some("test".to_owned()),
             prefix: "".to_owned(),
             extends: None,
             include_groups: vec![],
@@ -1890,7 +1891,7 @@ mod tests {
             id: "test".to_owned(),
             r#type: GroupType::AttributeGroup,
             brief: "test".to_owned(),
-            note: "test".to_owned(),
+            note: Some("test".to_owned()),
             prefix: "".to_owned(),
             extends: None,
             include_groups: vec![],
@@ -2081,7 +2082,7 @@ mod tests {
             id: "test".to_owned(),
             r#type: GroupType::AttributeGroup,
             brief: "test".to_owned(),
-            note: "test".to_owned(),
+            note: Some("test".to_owned()),
             prefix: "".to_owned(),
             extends: None,
             include_groups: vec![],
@@ -2239,7 +2240,7 @@ mod tests {
             id: "test".to_owned(),
             r#type: GroupType::AttributeGroup,
             brief: "test".to_owned(),
-            note: "test".to_owned(),
+            note: Some("test".to_owned()),
             prefix: "".to_owned(),
             extends: None,
             include_groups: vec![],
@@ -2290,7 +2291,7 @@ mod tests {
             id: "test".to_owned(),
             r#type: GroupType::Metric,
             brief: "test".to_owned(),
-            note: "test".to_owned(),
+            note: Some("test".to_owned()),
             prefix: "".to_owned(),
             extends: None,
             include_groups: vec![],

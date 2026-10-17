@@ -731,7 +731,7 @@ mod tests {
             examples: Some(Examples::String("v2_example".to_owned())),
             common: CommonFields {
                 brief: "Test v2 attribute".to_owned(),
-                note: String::new(),
+                note: None,
                 stability: V2Stability::Stable,
                 deprecated: None,
                 annotations: BTreeMap::new(),

@@ -104,7 +104,7 @@ mod tests {
             requirement_level: None,
             common: CommonFields {
                 brief: "Exception event".to_owned(),
-                note: "".to_owned(),
+                note: None,
                 stability: Default::default(),
                 deprecated: None,
                 annotations: Default::default(),
