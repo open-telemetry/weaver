@@ -12,6 +12,7 @@ use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 
+pub mod annotations;
 pub mod convert;
 pub mod deprecated;
 pub mod json_schema;

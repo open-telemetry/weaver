@@ -6,8 +6,8 @@ use std::collections::{HashMap, HashSet};
 
 use serde::Deserialize;
 
-use weaver_resolved_schema::v1::attribute::AttributeRef;
 use weaver_resolved_schema::v1::attribute::{self};
+use weaver_resolved_schema::v1::attribute::{AttributeRef, UnresolvedAttribute};
 use weaver_resolved_schema::v1::catalog::{Catalog, RootAttribute};
 use weaver_resolved_schema::v1::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::v1::ResolvedTelemetrySchema as V1Schema;
@@ -55,6 +55,34 @@ pub struct AttributeWithSource {
 }
 
 impl AttributeCatalog {
+    fn resolved_attribute(
+        &mut self,
+        attr: attribute::Attribute,
+        origin: Option<SchemaUrl>,
+    ) -> (AttributeRef, UnresolvedAttribute) {
+        let attr_ref = self.attribute_ref(attr.clone());
+        (
+            attr_ref,
+            UnresolvedAttribute {
+                origin,
+                spec: AttributeSpec::Id {
+                    id: attr.name,
+                    r#type: attr.r#type,
+                    brief: Some(attr.brief),
+                    examples: attr.examples,
+                    tag: attr.tag,
+                    requirement_level: attr.requirement_level,
+                    sampling_relevant: attr.sampling_relevant,
+                    note: attr.note,
+                    stability: attr.stability,
+                    deprecated: attr.deprecated,
+                    annotations: attr.annotations,
+                    role: attr.role,
+                },
+            },
+        )
+    }
+
     /// Returns an attribute from a reference.
     /// NOTE: this is inefficient and should only be used in tests.
     #[cfg(test)]
@@ -306,7 +334,7 @@ impl AttributeCatalog {
         lineage: Option<&mut GroupLineage>,
         dependencies: &Vec<ResolvedDependency>,
         cache_lookup: &C,
-    ) -> Result<Option<AttributeRef>, Error> {
+    ) -> Result<Option<(AttributeRef, UnresolvedAttribute)>, Error> {
         match attr {
             AttributeSpec::Ref {
                 r#ref,
@@ -402,7 +430,12 @@ impl AttributeCatalog {
                             .annotations(annotations, &root_attr.attribute.annotations),
                     };
 
-                    let attr_ref = self.attribute_ref(resolved_attr.clone());
+                    let origin = match &root_attr.source {
+                        AttributeSource::Dependency { schema_url } if !*prefix => {
+                            Some(schema_url.clone())
+                        }
+                        _ => None,
+                    };
 
                     // Update the lineage based on the inherited fields.
                     // Note: the lineage is only updated if a group lineage is provided.
@@ -416,7 +449,7 @@ impl AttributeCatalog {
                         _ = self.root_attributes.insert(
                             name,
                             AttributeWithSource {
-                                attribute: resolved_attr,
+                                attribute: resolved_attr.clone(),
                                 source: AttributeSource::Local {
                                     group_id: group_id.to_owned(),
                                 },
@@ -425,7 +458,7 @@ impl AttributeCatalog {
                         );
                     }
 
-                    Ok(Some(attr_ref))
+                    Ok(Some(self.resolved_attribute(resolved_attr, origin)))
                 } else {
                     Ok(None)
                 }
@@ -494,7 +527,7 @@ impl AttributeCatalog {
                     None => root_attr,
                 };
                 _ = self.root_attributes.insert(id.to_owned(), root_attr);
-                Ok(Some(self.attribute_ref(attr)))
+                Ok(Some(self.resolved_attribute(attr, origin.cloned())))
             }
         }
     }

@@ -19,6 +19,7 @@ use weaver_resolved_schema::convert::v2_namespace_id;
 use weaver_resolved_schema::v1::attribute::{AttributeRef, UnresolvedAttribute};
 use weaver_resolved_schema::v1::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::v1::registry::{EntityAssociationOrigins, Group, Registry};
+use weaver_semconv::annotations::merge_annotations;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::schema_url::SchemaUrl;
@@ -158,7 +159,27 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
         return WResult::FatalErr(e);
     }
 
-    if let Err(e) = resolve_extends_references(&mut ureg) {
+    // Definitions must be available before any parent signal is resolved.
+    for group in &ureg.groups {
+        for attr in &group.attributes {
+            if matches!(attr.spec, AttributeSpec::Id { .. }) {
+                if let Err(e) = attr_catalog.resolve(
+                    &group.group.id,
+                    &group.group.prefix,
+                    true,
+                    &attr.spec,
+                    attr.origin.as_ref(),
+                    None,
+                    &ureg.dependencies,
+                    cache_lookup,
+                ) {
+                    return WResult::FatalErr(e);
+                }
+            }
+        }
+    }
+
+    if let Err(e) = resolve_extends_references(&mut ureg, attr_catalog, cache_lookup) {
         return WResult::FatalErr(e);
     }
 
@@ -690,6 +711,28 @@ fn resolve_attribute_references<C: crate::SchemaCacheLookup>(
     attr_catalog: &mut AttributeCatalog,
     cache_lookup: &C,
 ) -> Result<(), Error> {
+    let mut group_errors = Vec::new();
+    for group in &mut ureg.groups {
+        if group.is_v2 && group.group.r#type == GroupType::AttributeGroup {
+            let own = group.attributes.clone();
+            let id = group.group.id.clone();
+            if resolve_attribute_sources(
+                group,
+                vec![(&id, &own)],
+                attr_catalog,
+                &ureg.dependencies,
+                cache_lookup,
+                &mut group_errors,
+            )?
+            .is_some()
+            {
+                group.attributes.clear();
+            }
+        }
+    }
+    if !group_errors.is_empty() {
+        return Err(Error::CompoundError(group_errors));
+    }
     // First, resolve all attribute definitions (AttributeSpec::Id) across all groups.
     // This populates the catalog with all local and refinement attribute definitions
     // before resolving attribute references (AttributeSpec::Ref), preventing dependency
@@ -715,7 +758,7 @@ fn resolve_attribute_references<C: crate::SchemaCacheLookup>(
                     &ureg.dependencies,
                     cache_lookup,
                 ) {
-                    Ok(Some(attr_ref)) => {
+                    Ok(Some((attr_ref, _))) => {
                         resolved_attr.push(attr_ref);
                     }
                     Ok(None) => still_unresolved.push(attr),
@@ -761,7 +804,7 @@ fn resolve_attribute_references<C: crate::SchemaCacheLookup>(
                     &ureg.dependencies,
                     cache_lookup,
                 ) {
-                    Ok(Some(attr_ref)) => {
+                    Ok(Some((attr_ref, _))) => {
                         resolved_attr.push(attr_ref);
                         resolved_attr_count += 1;
                     }
@@ -801,6 +844,92 @@ fn resolve_attribute_references<C: crate::SchemaCacheLookup>(
     }
 
     Ok(())
+}
+
+fn resolve_attribute_sources<C: crate::SchemaCacheLookup>(
+    group: &mut UnresolvedGroup,
+    sources: Vec<(&str, &[UnresolvedAttribute])>,
+    catalog: &mut AttributeCatalog,
+    dependencies: &Vec<ResolvedDependency>,
+    cache_lookup: &C,
+    errors: &mut Vec<Error>,
+) -> Result<Option<Vec<UnresolvedAttribute>>, Error> {
+    let mut attributes: BTreeMap<String, (AttributeRef, UnresolvedAttribute)> = BTreeMap::new();
+    let excluded = is_group_excluded(
+        &group.group.annotations,
+        group.visibility.as_ref(),
+        &group.group.r#type,
+    );
+    let mut complete = true;
+    for (source, attrs) in sources {
+        for attr in attrs {
+            let key = attr.spec.id();
+            let effective = if let Some((_, parent)) = attributes.get(&key) {
+                let mut lineage = group
+                    .group
+                    .lineage
+                    .as_ref()
+                    .and_then(|lineage| lineage.attribute(&key))
+                    .cloned()
+                    .unwrap_or_else(|| AttributeLineage::inherit_from(source, &parent.spec));
+                let spec = resolve_inheritance_attr(&attr.spec, &parent.spec, &mut lineage);
+                if let Some(group_lineage) = &mut group.group.lineage {
+                    group_lineage.add_attribute_lineage(key.clone(), lineage);
+                }
+                UnresolvedAttribute {
+                    spec,
+                    origin: if matches!(attr.spec, AttributeSpec::Id { .. }) {
+                        attr.origin.clone()
+                    } else {
+                        parent.origin.clone()
+                    },
+                }
+            } else {
+                if source != group.group.id && matches!(attr.spec, AttributeSpec::Id { .. }) {
+                    if let Some(lineage) = &mut group.group.lineage {
+                        lineage.add_attribute_lineage(
+                            key.clone(),
+                            AttributeLineage::inherit_from(source, &attr.spec),
+                        );
+                    }
+                }
+                attr.clone()
+            };
+            match catalog.resolve(
+                &group.group.id,
+                &group.group.prefix,
+                excluded,
+                &effective.spec,
+                effective.origin.as_ref(),
+                group.group.lineage.as_mut(),
+                dependencies,
+                cache_lookup,
+            ) {
+                Ok(Some(resolved)) => {
+                    _ = attributes.insert(key, resolved);
+                }
+                Ok(None) => {
+                    complete = false;
+                    errors.push(Error::UnresolvedAttributeRef {
+                        group_id: group.group.id.clone(),
+                        attribute_ref: key,
+                        provenance: group.provenance.clone().map(Box::new),
+                    });
+                }
+                Err(e @ Error::ExcludedFromDependencyResolution { .. }) => {
+                    complete = false;
+                    errors.push(e);
+                }
+                Err(e) => return Err(e),
+            }
+        }
+    }
+    if !complete {
+        return Ok(None);
+    }
+    let (refs, attrs) = attributes.into_values().unzip();
+    group.group.attributes = refs;
+    Ok(Some(attrs))
 }
 
 /// Helper function to add a resolved group to the index and update its state
@@ -855,11 +984,16 @@ fn collect_included_group_attrs<'a>(
             all_resolved = false;
             continue;
         }
-        for attr in &summary.attributes {
-            if !seen_attr_ids.insert(attr.spec.id()) {
+        let group_attr_ids: HashSet<_> = summary
+            .attributes
+            .iter()
+            .map(|attr| attr.spec.id())
+            .collect();
+        for attr_id in group_attr_ids {
+            if !seen_attr_ids.insert(attr_id.clone()) {
                 errors.push(Error::DuplicateAttributeId {
                     group_ids: group.include_groups.clone(),
-                    attribute_id: attr.spec.id().clone(),
+                    attribute_id: attr_id,
                 });
                 all_resolved = false;
             }
@@ -953,7 +1087,7 @@ fn inherit_v2_refinement_fields(
 
     let mut merged_annotations = parent.annotations.clone().unwrap_or_default();
     if let Some(child_annotations) = &refinement.group.annotations {
-        merged_annotations = crate::merge::merge_annotations(merged_annotations, child_annotations);
+        merged_annotations = merge_annotations(merged_annotations, child_annotations);
     }
     refinement.group.annotations = (!merged_annotations.is_empty()).then_some(merged_annotations);
 }
@@ -963,30 +1097,44 @@ fn inherit_v2_refinement_fields(
 /// be resolved in an iteration.
 ///
 /// Returns true if all the `extends` references have been resolved.
-fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error> {
+fn resolve_extends_references<C: crate::SchemaCacheLookup>(
+    ureg: &mut UnresolvedRegistry,
+    attr_catalog: &mut AttributeCatalog,
+    cache_lookup: &C,
+) -> Result<(), Error> {
     let mut fatal_errors: Vec<Error> = vec![];
+    let mut group_index = HashMap::new();
     loop {
         let mut errors = vec![];
         let mut resolved_group_count = 0;
 
-        let mut group_index = HashMap::new();
         let dependencies = &ureg.dependencies;
-        // TODO - we need to add in the *dependencies* registry here for lookups.
-        for group in ureg.groups.iter() {
-            if group.group.extends.is_none() && group.include_groups.is_empty() {
-                log::debug!(
-                    "Adding group {} to index with attribute ids: {:#?}",
-                    group.group.id,
-                    group
-                        .attributes
-                        .iter()
-                        .map(|a| a.spec.id().clone())
-                        .collect::<Vec<_>>()
-                );
-                let mut summary =
-                    GroupSummary::from_without_attributes(&group.group, GroupSource::Local);
-                summary.attributes = group.attributes.clone();
-                _ = group_index.insert(group.group.id.clone(), summary);
+        for group in &mut ureg.groups {
+            if group.group.extends.is_some()
+                || !group.include_groups.is_empty()
+                || group_index.contains_key(&group.group.id)
+            {
+                continue;
+            }
+            let resolve_attributes = group.is_v2 && group.group.r#type != GroupType::AttributeGroup;
+            if resolve_attributes {
+                let own = group.attributes.clone();
+                let id = group.group.id.clone();
+                match resolve_attribute_sources(
+                    group,
+                    vec![(&id, &own)],
+                    attr_catalog,
+                    dependencies,
+                    cache_lookup,
+                    &mut errors,
+                )? {
+                    Some(attrs) => group.attributes = attrs,
+                    None => continue,
+                }
+            }
+            add_resolved_group_to_index(&mut group_index, group, &mut resolved_group_count);
+            if resolve_attributes {
+                group.attributes.clear();
             }
         }
         // Resolve every group's `extends` (parent signal) and `include_groups`
@@ -1067,9 +1215,6 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                 }
             }
 
-            // Each source is (label, attributes); the label feeds attribute lineage.
-            // Lowest priority first: parent, then included groups. Inline `ref:`
-            // attributes are applied as overrides by `resolve_inheritance_attrs_unified`.
             let mut bases: Vec<(&str, &[UnresolvedAttribute])> = Vec::new();
             if let Some((parent_ref, parent_attrs)) = &parent {
                 bases.push((parent_ref.as_str(), parent_attrs.as_slice()));
@@ -1079,17 +1224,47 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                     .iter()
                     .map(|(group_ref, attrs)| (group_ref.as_str(), *attrs)),
             );
-            unresolved_group.attributes = resolve_inheritance_attrs_unified(
-                &unresolved_group.group.id,
-                &unresolved_group.attributes,
-                bases,
-                unresolved_group.group.lineage.as_mut(),
-            );
+            if unresolved_group.is_v2 {
+                let own = unresolved_group.attributes.clone();
+                let id = unresolved_group.group.id.clone();
+                bases.push((&id, &own));
+                unresolved_group.attributes =
+                    if unresolved_group.group.r#type == GroupType::AttributeGroup {
+                        bases
+                            .iter()
+                            .flat_map(|(_, attrs)| attrs.iter().cloned())
+                            .collect()
+                    } else {
+                        let Some(resolved) = resolve_attribute_sources(
+                            unresolved_group,
+                            bases,
+                            attr_catalog,
+                            dependencies,
+                            cache_lookup,
+                            &mut errors,
+                        )?
+                        else {
+                            continue;
+                        };
+                        resolved
+                    };
+            } else {
+                unresolved_group.attributes = resolve_inheritance_attrs_unified(
+                    &unresolved_group.group.id,
+                    &unresolved_group.attributes,
+                    bases,
+                    unresolved_group.group.lineage.as_mut(),
+                );
+            }
             add_resolved_group_to_index(
                 &mut group_index,
                 unresolved_group,
                 &mut resolved_group_count,
             );
+            if unresolved_group.is_v2 && unresolved_group.group.r#type != GroupType::AttributeGroup
+            {
+                unresolved_group.attributes.clear();
+            }
         }
 
         if errors.is_empty() {
