@@ -45,7 +45,8 @@ pub struct CommonFields {
     /// A brief description of the attribute or signal.
     pub brief: String,
     /// A more elaborate description of the attribute or signal.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "is_empty_note")]
+    #[schemars(with = "String")]
     pub note: Option<String>,
     /// Specifies the stability of the attribute or signal.
     pub stability: Stability,
@@ -57,6 +58,10 @@ pub struct CommonFields {
     /// Annotations for the attribute or signal.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub annotations: BTreeMap<String, YamlValue>,
+}
+
+fn is_empty_note(note: &Option<String>) -> bool {
+    note.as_ref().is_none_or(String::is_empty)
 }
 
 /// Represents a wildcard expression to import one or several groups defined in an imported
@@ -400,7 +405,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_common_fields_note_preserves_omitted_and_empty() {
+    fn test_common_fields_note_schema_is_optional_string() {
+        let schema = serde_json::to_value(schemars::schema_for!(CommonFields)).unwrap();
+        assert_eq!(schema["properties"]["note"]["type"], "string");
+        assert!(!schema["required"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|field| field == "note"));
+    }
+
+    #[test]
+    fn test_common_fields_note_serialization() {
         for (note, expected) in [
             ("", None),
             ("note: \"\"", Some("")),
@@ -410,12 +426,12 @@ mod tests {
             let common: CommonFields = serde_yaml::from_str(&yaml).unwrap();
             assert_eq!(common.note.as_deref(), expected);
             let json = serde_json::to_value(&common).unwrap();
-            assert_eq!(json.get("note").and_then(|value| value.as_str()), expected);
-            assert_eq!(json.get("note").is_some(), expected.is_some());
+            let serialized_note = expected.filter(|note| !note.is_empty());
             assert_eq!(
-                serde_json::from_value::<CommonFields>(json).unwrap(),
-                common
+                json.get("note").and_then(|value| value.as_str()),
+                serialized_note
             );
+            assert_eq!(json.get("note").is_some(), serialized_note.is_some());
         }
     }
 

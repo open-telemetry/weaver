@@ -136,10 +136,7 @@
         },
         "note": {
           "description": "A more elaborate description of the attribute or signal.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "stability": {
           "description": "Specifies the stability of the attribute or signal.",
@@ -226,10 +223,7 @@
             },
             "note": {
               "description": "A more elaborate description of the attribute or signal.",
-              "type": [
-                "string",
-                "null"
-              ]
+              "type": "string"
             },
             "stability": {
               "description": "Specifies the stability of the attribute or signal.",
@@ -509,10 +503,7 @@
         },
         "note": {
           "description": "A more elaborate description of the attribute or signal.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "requirement_level": {
           "description": "The requirement level of the entity. Defaults to 'recommended' when omitted.",
@@ -786,10 +777,7 @@
         },
         "note": {
           "description": "A more elaborate description of the attribute or signal.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "requirement_level": {
           "description": "The requirement level of the event. Defaults to 'recommended' when omitted.",
@@ -1206,10 +1194,7 @@
         },
         "note": {
           "description": "A more elaborate description of the attribute or signal.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "requirement_level": {
           "description": "The requirement level of the metric. Defaults to 'recommended' when omitted.",
@@ -1497,10 +1482,7 @@
         },
         "note": {
           "description": "A more elaborate description of the attribute or signal.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "requirement_level": {
           "description": "The requirement level of the span. Defaults to 'recommended' when omitted.",

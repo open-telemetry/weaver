@@ -89,10 +89,7 @@
         },
         "note": {
           "description": "A more elaborate description of the attribute or signal.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "provenance": {
           "description": "The provenance of the attribute.",
@@ -154,10 +151,7 @@
         },
         "note": {
           "description": "A more elaborate description of the attribute or signal.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "provenance": {
           "description": "The provenance of the AttributeGroup.",
@@ -382,10 +376,7 @@
         },
         "note": {
           "description": "A more elaborate description of the attribute or signal.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "provenance": {
           "description": "The provenance of the Entity.",
@@ -543,10 +534,7 @@
         },
         "note": {
           "description": "A more elaborate description of the attribute or signal.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "provenance": {
           "description": "The provenance of the Entity.",
@@ -697,10 +685,7 @@
         },
         "note": {
           "description": "A more elaborate description of the attribute or signal.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "provenance": {
           "description": "The provenance of the Event.",
@@ -798,10 +783,7 @@
         },
         "note": {
           "description": "A more elaborate description of the attribute or signal.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "provenance": {
           "description": "The provenance of the Event.",
@@ -1011,10 +993,7 @@
         },
         "note": {
           "description": "A more elaborate description of the attribute or signal.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "provenance": {
           "description": "The provenance of this metric.",
@@ -1122,10 +1101,7 @@
         },
         "note": {
           "description": "A more elaborate description of the attribute or signal.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "provenance": {
           "description": "The provenance of this metric.",
@@ -1446,10 +1422,7 @@
         },
         "note": {
           "description": "A more elaborate description of the attribute or signal.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "provenance": {
           "description": "The provenance of the Span.",
@@ -1646,10 +1619,7 @@
         },
         "note": {
           "description": "A more elaborate description of the attribute or signal.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "provenance": {
           "description": "The provenance of the Span.",

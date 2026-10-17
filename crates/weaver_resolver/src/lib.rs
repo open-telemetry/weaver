@@ -1769,6 +1769,7 @@ attributes:
                     .iter()
                     .find(|group| group["id"] == "example.special.client")
                     .expect("Refinement not found");
+                let expected = expected.filter(|note| !note.is_empty());
                 assert_eq!(
                     refinement.get("note").and_then(|value| value.as_str()),
                     expected,
