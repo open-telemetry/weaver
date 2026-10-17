@@ -1722,10 +1722,17 @@ attributes:
             } else {
                 format!("{signal}s")
             };
-            for (note, expected) in [
-                ("", "Parent note."),
-                ("    note: \"\"", ""),
-                ("    note: Child note.", "Child note."),
+            for (parent_note, note, expected) in [
+                ("    note: Parent note.", "", Some("Parent note.")),
+                ("    note: Parent note.", "    note: \"\"", Some("")),
+                (
+                    "    note: Parent note.",
+                    "    note: Child note.",
+                    Some("Child note."),
+                ),
+                ("", "", None),
+                ("", "    note: \"\"", Some("")),
+                ("    note: \"\"", "", Some("")),
             ] {
                 let yaml = format!(
                     r#"
@@ -1735,7 +1742,7 @@ file_format: definition/2
     requirement_level: recommended
     stability: development
     brief: Example signal.
-    note: Parent note.
+{parent_note}
 attributes:
   - key: example.id
     type: int
@@ -1747,15 +1754,27 @@ attributes:
 {note}
 "#
                 );
-                let resolved = create_registry_from_string(&yaml)
+                let loaded = LoadedSemconvRegistry::create_from_string(&yaml).unwrap();
+                let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+                let resolved = resolver
+                    .resolve_loaded(loaded)
                     .into_result_failing_non_fatal()
                     .expect("Failed to resolve refinement");
-                let refinement = resolved
-                    .groups
+                let v2: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+                    Arc::unwrap_or_clone(resolved).into_v1().unwrap().try_into().unwrap();
+                let json = serde_json::to_value(v2).unwrap();
+                let refinement = json["refinements"][&collection]
+                    .as_array()
+                    .unwrap()
                     .iter()
-                    .find(|group| group.id == "example.special.client")
+                    .find(|group| group["id"] == "example.special.client")
                     .expect("Refinement not found");
-                assert_eq!(refinement.note, expected, "{signal} with {note:?}");
+                assert_eq!(
+                    refinement.get("note").and_then(|value| value.as_str()),
+                    expected,
+                    "{signal} with parent {parent_note:?} and refinement {note:?}"
+                );
+                assert_eq!(refinement.get("note").is_some(), expected.is_some());
             }
         }
     }

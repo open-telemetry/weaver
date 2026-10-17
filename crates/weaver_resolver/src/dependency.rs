@@ -44,7 +44,7 @@ pub(crate) struct GroupSummary {
     /// The brief description of the semantic convention.
     pub brief: String,
     /// The note of the semantic convention.
-    pub note: String,
+    pub note: Option<String>,
     /// Specifies the stability of the semantic convention.
     pub stability: Option<Stability>,
     /// Specifies if the semantic convention is deprecated.
@@ -392,7 +392,7 @@ fn signal_summary(
     GroupSummary {
         r#type,
         brief: common.brief.clone(),
-        note: common.note.clone().unwrap_or_default(),
+        note: common.note.clone(),
         stability: Some(common.stability.clone().into()),
         deprecated: common.deprecated.clone(),
         metric_name: None,
