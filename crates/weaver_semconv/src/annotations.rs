@@ -1,14 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! Annotation merging shared by attribute and signal resolution.
+
+use crate::YamlValue;
 use serde_yaml::Value;
 use std::collections::BTreeMap;
-use weaver_semconv::YamlValue;
 
-/// Merges 'override_map' into 'base_map', key by key.
-///
-/// This allows annotatoins to be extended "piecemeal" in refinements, e.g.
-///
-/// We allow `x.y.z = "a"` and `x.y.v = "b"` to merge such that the result is
-/// `x.y = { z = "a", v = "b" }`.
-pub(crate) fn merge_annotations(
+/// Recursively merges annotation maps, with local values replacing scalars and arrays.
+#[must_use]
+pub fn merge_annotations(
     mut base_map: BTreeMap<String, YamlValue>,
     override_map: &BTreeMap<String, YamlValue>,
 ) -> BTreeMap<String, YamlValue> {

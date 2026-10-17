@@ -27,7 +27,6 @@ mod dependency_resolution;
 mod error;
 mod imports;
 mod loader;
-pub(crate) mod merge;
 mod registry;
 
 use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
@@ -1443,6 +1442,113 @@ metrics:
             resolve_inline_with_parent(consumer, PUBLISHED_V2_PATH),
             &[("parent.excluded", "metric.consumer.also.excluded")],
         );
+    }
+
+    #[test]
+    fn test_v2_attribute_annotations_merge_in_refs_and_refinements() {
+        use weaver_resolved_schema::v2::catalog::AttributeCatalog;
+
+        let loaded = LoadedSemconvRegistry::create_from_string(
+            r#"
+file_format: definition/2
+attributes:
+  - key: http.request.method
+    type: string
+    stability: stable
+    brief: HTTP method.
+    examples: ["GET"]
+    annotations:
+      from_definition: yes
+      shared_key: definition_value
+      nested:
+        from_definition: yes
+        shared_key: definition_value
+      list: [definition]
+metrics:
+  - name: http.server.request.duration
+    brief: Duration.
+    requirement_level: recommended
+    instrument: histogram
+    unit: s
+    stability: stable
+    attributes:
+      - ref: http.request.method
+        annotations:
+          from_ref: yes
+          shared_key: ref_value
+          nested:
+            from_ref: yes
+            shared_key: ref_value
+          list: [ref]
+metric_refinements:
+  - id: refined.duration
+    ref: http.server.request.duration
+    attributes:
+      - ref: http.request.method
+        annotations:
+          from_refinement: yes
+          shared_key: refinement_value
+          nested:
+            from_refinement: yes
+            shared_key: refinement_value
+          list: [refinement]
+"#,
+        )
+        .expect("Failed to load semconv spec");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let resolved = match resolver.resolve_loaded(loaded) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => {
+                Arc::unwrap_or_clone(r).into_v1().unwrap()
+            }
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+        let resolved: V2Schema = resolved.try_into().unwrap();
+        let metric = &resolved.registry.metrics[0];
+        let refinement = &resolved
+            .refinements
+            .metrics
+            .iter()
+            .find(|refinement| &*refinement.id == "refined.duration")
+            .expect("refined.duration not found")
+            .metric;
+        for (attribute_ref, expected) in [
+            (
+                &metric.attributes[0].base,
+                serde_json::json!({
+                    "from_definition": "yes",
+                    "from_ref": "yes",
+                    "shared_key": "ref_value",
+                    "nested": {
+                        "from_definition": "yes",
+                        "from_ref": "yes",
+                        "shared_key": "ref_value",
+                    },
+                    "list": ["ref"],
+                }),
+            ),
+            (
+                &refinement.attributes[0].base,
+                serde_json::json!({
+                    "from_definition": "yes",
+                    "from_ref": "yes",
+                    "from_refinement": "yes",
+                    "shared_key": "refinement_value",
+                    "nested": {
+                        "from_definition": "yes",
+                        "from_ref": "yes",
+                        "from_refinement": "yes",
+                        "shared_key": "refinement_value",
+                    },
+                    "list": ["refinement"],
+                }),
+            ),
+        ] {
+            let attribute = resolved.attribute_catalog.attribute(attribute_ref).unwrap();
+            assert_eq!(
+                serde_json::to_value(&attribute.common.annotations).unwrap(),
+                expected
+            );
+        }
     }
 
     fn create_registry_from_string(

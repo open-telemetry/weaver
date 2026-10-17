@@ -19,6 +19,7 @@ use weaver_resolved_schema::convert::v2_namespace_id;
 use weaver_resolved_schema::v1::attribute::{AttributeRef, UnresolvedAttribute};
 use weaver_resolved_schema::v1::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::v1::registry::{EntityAssociationOrigins, Group, Registry};
+use weaver_semconv::annotations::merge_annotations;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::schema_url::SchemaUrl;
@@ -953,7 +954,7 @@ fn inherit_v2_refinement_fields(
 
     let mut merged_annotations = parent.annotations.clone().unwrap_or_default();
     if let Some(child_annotations) = &refinement.group.annotations {
-        merged_annotations = crate::merge::merge_annotations(merged_annotations, child_annotations);
+        merged_annotations = merge_annotations(merged_annotations, child_annotations);
     }
     refinement.group.annotations = (!merged_annotations.is_empty()).then_some(merged_annotations);
 }

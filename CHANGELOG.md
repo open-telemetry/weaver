@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Recursively merge attribute reference annotations with the definition's annotations, including in refinements. Reference values override conflicting scalars and arrays. Fixes [#1705](https://github.com/open-telemetry/weaver/issues/1705).
+
 # [0.28.0] - 2026-10-14
 
 - Fix the JSON Schema of `SchemaUrl` to describe a string, matching how it is serialized. ([#1825](https://github.com/open-telemetry/weaver/pull/1825) by @lmolkova)
