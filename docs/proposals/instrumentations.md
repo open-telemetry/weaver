@@ -54,12 +54,12 @@ instrumentation:
     attributes:
       - ref: server.address
         brief: The ip address or dns name which the http request is sent to.
-spans:
+span_refinements:
   - ref: http.server
     requirement_level: required
     instrumentations:
       - http.server
-metrics:
+metric_refinements:
   - ref: http.server.request.duration
     requirement_level: required
     instrumentations:
@@ -116,4 +116,5 @@ check if it is at a lower level. For instance a scope attribute is allowed to in
 ### Import instrumentations
 
 When importing a registry to a new project/registry it should be possible to specify the instrumentation to be imported.
-This enables a user if instrumenting a rabbitmq client to get everything which is part of that instrumentation without needing to explicitly list all signals.
+This enables a user if instrumenting a rabbitmq client to get everything which is part of that instrumentation without needing to explicitly list all signals,
+after which they can opt-out of signals they are not supporting.
