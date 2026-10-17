@@ -159,27 +159,15 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
         return WResult::FatalErr(e);
     }
 
-    // Definitions must be available before any parent signal is resolved.
-    for group in &ureg.groups {
-        for attr in &group.attributes {
-            if matches!(attr.spec, AttributeSpec::Id { .. }) {
-                if let Err(e) = attr_catalog.resolve(
-                    &group.group.id,
-                    &group.group.prefix,
-                    true,
-                    &attr.spec,
-                    attr.origin.as_ref(),
-                    None,
-                    &ureg.dependencies,
-                    cache_lookup,
-                ) {
-                    return WResult::FatalErr(e);
-                }
-            }
-        }
+    if let Err(e) = register_attribute_definitions(&ureg, attr_catalog, cache_lookup) {
+        return WResult::FatalErr(e);
     }
 
     if let Err(e) = resolve_extends_references(&mut ureg, attr_catalog, cache_lookup) {
+        return WResult::FatalErr(e);
+    }
+
+    if let Err(e) = resolve_attribute_groups(&mut ureg, attr_catalog, cache_lookup) {
         return WResult::FatalErr(e);
     }
 
@@ -697,16 +685,33 @@ fn resolve_entity_associations(ureg: &mut UnresolvedRegistry) -> Result<(), Erro
     Ok(())
 }
 
-/// Resolves attribute references in the given registry.
-/// The resolution process is iterative. The process stops when all the
-/// attribute references are resolved or when no attribute reference could
-/// be resolved in an iteration.
-///
-/// The resolve method of the attribute catalog is used to resolve the
-/// attribute references.
-///
-/// Returns true if all the attribute references could be resolved.
-fn resolve_attribute_references<C: crate::SchemaCacheLookup>(
+/// Registers attribute definitions in the catalog.
+fn register_attribute_definitions<C: crate::SchemaCacheLookup>(
+    ureg: &UnresolvedRegistry,
+    attr_catalog: &mut AttributeCatalog,
+    cache_lookup: &C,
+) -> Result<(), Error> {
+    for group in &ureg.groups {
+        for attr in &group.attributes {
+            if matches!(attr.spec, AttributeSpec::Id { .. }) {
+                _ = attr_catalog.resolve(
+                    &group.group.id,
+                    &group.group.prefix,
+                    true,
+                    &attr.spec,
+                    attr.origin.as_ref(),
+                    None,
+                    &ureg.dependencies,
+                    cache_lookup,
+                )?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Resolves v2 attribute groups into catalog entries.
+fn resolve_attribute_groups<C: crate::SchemaCacheLookup>(
     ureg: &mut UnresolvedRegistry,
     attr_catalog: &mut AttributeCatalog,
     cache_lookup: &C,
@@ -733,6 +738,23 @@ fn resolve_attribute_references<C: crate::SchemaCacheLookup>(
     if !group_errors.is_empty() {
         return Err(Error::CompoundError(group_errors));
     }
+    Ok(())
+}
+
+/// Resolves attribute references in the given registry.
+/// The resolution process is iterative. The process stops when all the
+/// attribute references are resolved or when no attribute reference could
+/// be resolved in an iteration.
+///
+/// The resolve method of the attribute catalog is used to resolve the
+/// attribute references.
+///
+/// Returns true if all the attribute references could be resolved.
+fn resolve_attribute_references<C: crate::SchemaCacheLookup>(
+    ureg: &mut UnresolvedRegistry,
+    attr_catalog: &mut AttributeCatalog,
+    cache_lookup: &C,
+) -> Result<(), Error> {
     // First, resolve all attribute definitions (AttributeSpec::Id) across all groups.
     // This populates the catalog with all local and refinement attribute definitions
     // before resolving attribute references (AttributeSpec::Ref), preventing dependency
@@ -846,6 +868,38 @@ fn resolve_attribute_references<C: crate::SchemaCacheLookup>(
     Ok(())
 }
 
+/// Applies inherited and local attributes to a v2 group, retaining partial overrides for attribute groups.
+fn resolve_v2_group_attributes<C: crate::SchemaCacheLookup>(
+    group: &mut UnresolvedGroup,
+    sources: Vec<(&str, &[UnresolvedAttribute])>,
+    catalog: &mut AttributeCatalog,
+    dependencies: &Vec<ResolvedDependency>,
+    cache_lookup: &C,
+    errors: &mut Vec<Error>,
+) -> Result<bool, Error> {
+    let own = group.attributes.clone();
+    let id = group.group.id.clone();
+    let sources: Vec<_> = sources
+        .into_iter()
+        .chain([(id.as_str(), own.as_slice())])
+        .collect();
+    group.attributes = if group.group.r#type == GroupType::AttributeGroup {
+        sources
+            .iter()
+            .flat_map(|(_, attrs)| attrs.iter().cloned())
+            .collect()
+    } else {
+        let Some(resolved) =
+            resolve_attribute_sources(group, sources, catalog, dependencies, cache_lookup, errors)?
+        else {
+            return Ok(false);
+        };
+        resolved
+    };
+    Ok(true)
+}
+
+/// Resolves attribute sources in order, applies overrides, and updates the group's attributes and lineage.
 fn resolve_attribute_sources<C: crate::SchemaCacheLookup>(
     group: &mut UnresolvedGroup,
     sources: Vec<(&str, &[UnresolvedAttribute])>,
@@ -1116,24 +1170,20 @@ fn resolve_extends_references<C: crate::SchemaCacheLookup>(
             {
                 continue;
             }
-            let resolve_attributes = group.is_v2 && group.group.r#type != GroupType::AttributeGroup;
-            if resolve_attributes {
-                let own = group.attributes.clone();
-                let id = group.group.id.clone();
-                match resolve_attribute_sources(
+            if group.is_v2
+                && !resolve_v2_group_attributes(
                     group,
-                    vec![(&id, &own)],
+                    Vec::new(),
                     attr_catalog,
                     dependencies,
                     cache_lookup,
                     &mut errors,
-                )? {
-                    Some(attrs) => group.attributes = attrs,
-                    None => continue,
-                }
+                )?
+            {
+                continue;
             }
             add_resolved_group_to_index(&mut group_index, group, &mut resolved_group_count);
-            if resolve_attributes {
+            if group.is_v2 && group.group.r#type != GroupType::AttributeGroup {
                 group.attributes.clear();
             }
         }
@@ -1225,29 +1275,16 @@ fn resolve_extends_references<C: crate::SchemaCacheLookup>(
                     .map(|(group_ref, attrs)| (group_ref.as_str(), *attrs)),
             );
             if unresolved_group.is_v2 {
-                let own = unresolved_group.attributes.clone();
-                let id = unresolved_group.group.id.clone();
-                bases.push((&id, &own));
-                unresolved_group.attributes =
-                    if unresolved_group.group.r#type == GroupType::AttributeGroup {
-                        bases
-                            .iter()
-                            .flat_map(|(_, attrs)| attrs.iter().cloned())
-                            .collect()
-                    } else {
-                        let Some(resolved) = resolve_attribute_sources(
-                            unresolved_group,
-                            bases,
-                            attr_catalog,
-                            dependencies,
-                            cache_lookup,
-                            &mut errors,
-                        )?
-                        else {
-                            continue;
-                        };
-                        resolved
-                    };
+                if !resolve_v2_group_attributes(
+                    unresolved_group,
+                    bases,
+                    attr_catalog,
+                    dependencies,
+                    cache_lookup,
+                    &mut errors,
+                )? {
+                    continue;
+                }
             } else {
                 unresolved_group.attributes = resolve_inheritance_attrs_unified(
                     &unresolved_group.group.id,

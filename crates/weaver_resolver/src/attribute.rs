@@ -55,6 +55,7 @@ pub struct AttributeWithSource {
 }
 
 impl AttributeCatalog {
+    /// Adds an attribute to the catalog and returns its reference and an `Id` spec with its origin.
     fn resolved_attribute(
         &mut self,
         attr: attribute::Attribute,
