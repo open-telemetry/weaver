@@ -1999,6 +1999,73 @@ span_refinements:
     }
 
     #[test]
+    fn test_v2_unresolved_attribute_sources_report_consuming_group() {
+        for (group_id, definitions) in [
+            (
+                "unused.group",
+                r#"
+attribute_groups:
+  - id: unused.group
+    visibility: internal
+    attributes:
+      - ref: missing.attr
+"#,
+            ),
+            (
+                "metric.base.metric",
+                r#"
+metrics:
+  - name: base.metric
+    requirement_level: recommended
+    instrument: counter
+    unit: '1'
+    brief: Base metric
+    stability: stable
+    attributes:
+      - ref: missing.attr
+"#,
+            ),
+            (
+                "refined.metric",
+                r#"
+metrics:
+  - name: base.metric
+    requirement_level: recommended
+    instrument: counter
+    unit: '1'
+    brief: Base metric
+    stability: stable
+metric_refinements:
+  - id: refined.metric
+    ref: base.metric
+    attributes:
+      - ref: missing.attr
+"#,
+            ),
+        ] {
+            let result =
+                create_registry_from_string(&format!("file_format: definition/2\n{definitions}"));
+            let WResult::FatalErr(error) = result else {
+                panic!("{group_id}: expected a fatal unresolved attribute error");
+            };
+            let mut errors = vec![];
+            collect_errors(&error, &mut errors);
+            assert_eq!(errors.len(), 1, "{group_id}: {errors:?}");
+            assert!(
+                matches!(
+                    errors[0],
+                    Error::UnresolvedAttributeRef {
+                        group_id: actual_group,
+                        attribute_ref,
+                        provenance: Some(_),
+                    } if actual_group == group_id && attribute_ref == "missing.attr"
+                ),
+                "{group_id}: {errors:?}"
+            );
+        }
+    }
+
+    #[test]
     fn test_v2_unresolved_ref_group() {
         // A `ref_group` pointing at a group that does not exist reports
         // `UnresolvedIncludeRef` (not the `extends`-flavored error).
