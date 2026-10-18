@@ -1029,6 +1029,47 @@ mod tests {
         assert_resolved_v2_schema("data/registry-test-v2-dep/entity_registry")
     }
 
+    #[test]
+    fn test_v2_entity_refinement_preserves_inherited_v1_identity(
+    ) -> Result<(), weaver_semconv::Error> {
+        use weaver_resolved_schema::v2::catalog::AttributeCatalog;
+
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/entity-identity-inheritance".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let resolved = resolver
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .into_result_failing_non_fatal()
+            .expect("A refinement must preserve identity inherited from a v1 attribute definition")
+            .into_v1()
+            .unwrap();
+        let schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+            resolved.try_into().expect("Failed to convert to v2 schema");
+        let base = schema
+            .registry
+            .entities
+            .iter()
+            .find(|entity| entity.r#type.to_string() == "host")
+            .expect("Missing base entity");
+        let refinement = schema
+            .refinements
+            .entities
+            .iter()
+            .find(|refinement| refinement.id.to_string() == "refined.host")
+            .expect("Missing entity refinement");
+        for entity in [base, &refinement.entity] {
+            assert_eq!(entity.identity.len(), 1);
+            assert_eq!(
+                schema.attribute_catalog.attribute_key(&entity.identity[0].base),
+                Some("host.id")
+            );
+            assert!(entity.description.is_empty());
+        }
+        Ok(())
+    }
+
     /// Refinements over two dependencies, where the attributes of one of them
     /// are defined a level deeper. Provenance must name the registry that
     /// defines an attribute, not the one it was reached through.
