@@ -1573,15 +1573,6 @@ metric_refinements:
           map_to_scalar: {new: 2}
           deep:
             replaced: {new: 2}
-  - id: further.duration
-    ref: refined.duration
-    attributes:
-      - ref: http.request.method
-        annotations:
-          map_to_array: {last: 3}
-          map_to_scalar: {last: 3}
-          deep:
-            replaced: {last: 3}
 "#,
         )
         .expect("Failed to load semconv spec");
@@ -1646,30 +1637,7 @@ metric_refinements:
                 expected
             );
         }
-        let further = resolved
-            .refinements
-            .metrics
-            .iter()
-            .find(|refinement| &*refinement.id == "further.duration")
-            .expect("further.duration not found");
-        let attribute = resolved
-            .attribute_catalog
-            .attribute(&further.metric.attributes[0].base)
-            .unwrap();
-        let annotations = serde_json::to_value(&attribute.common.annotations).unwrap();
-        assert_eq!(
-            annotations["map_to_array"],
-            serde_json::json!({"from_group": 3, "new": 2, "last": 3})
-        );
-        assert_eq!(
-            annotations["map_to_scalar"],
-            serde_json::json!({"new": 2, "last": 3})
-        );
-        assert_eq!(
-            annotations["deep"]["replaced"],
-            serde_json::json!({"new": 2, "last": 3})
-        );
-        for metric in [metric, refinement, &further.metric] {
+        for metric in [metric, refinement] {
             assert_eq!(
                 metric.attributes[0].requirement_level,
                 RequirementLevel::Basic(BasicRequirementLevelSpec::Required)

@@ -30,24 +30,46 @@ combined with the distinction between optional and required fields in the
 entities, ensures that the semantic conventions are validated in terms of
 structure during the parsing process.
 
-The resolution process for semantic conventions is a multistep process that
-involves the following steps:
+```mermaid
+flowchart LR
+    subgraph v1["V1"]
+        direction TB
+        V1A["Load registry and resolve dependencies"]
+        subgraph inheritance["Resolve group inheritance"]
+            direction TB
+            V1B["Inherit parent attributes"]
+            V1C["Apply local attribute overrides"]
+        end
+        V1D["Resolve attribute references for all groups"]
+        V1E["Import signals from dependencies"]
+        V1F["Resolve entity associations"]
+        V1G["Validate registry and finalize catalog"]
+        V1A --> V1B --> V1C --> V1D --> V1E --> V1F --> V1G
+    end
 
-- Load all semantic conventions from the registry
-- Resolve iteratively all semantic conventions. This involves the maintenance
-  of an unresolved semantic convention list and a resolved semantic convention
-  list. The resolution process involves the following steps:
-    - Resolve iteratively all `extends` parent/child clauses until no more
-      resolvable `extends` are found. The extended entity inherits attributes
-      from the parent entity.
-    - Resolve iteratively all attributes `ref` until no more resolvable `ref`are
-      found.
-- In the case of a registry importing another registry, the imports section is
-  used to import the metric, event, and entity groups specified by referencing
-  the names of these groups or by using a wildcard expression.
-- Validate the resolved semantic conventions
-    - No more unresolved `ref` or `extends` clauses. The unresolved list should
-      be empty.
+    subgraph v2["V2"]
+        direction TB
+        V2A["Load registry and resolve dependencies"]
+        subgraph signals["Resolve base signals"]
+            direction TB
+            V2B["Expand ref_groups and resolve attribute references<br/>with inline overrides"]
+        end
+        subgraph refinements["Resolve refinements"]
+            direction TB
+            V2C["Inherit signal fields and apply signal overrides"]
+            V2D["Apply attribute removals,<br/>ref_group overrides, then inline refs"]
+        end
+        V2E["Resolve remaining attribute references<br/>and finalize attribute groups"]
+        V2F["Import signals from dependencies"]
+        V2G["Resolve entity associations"]
+        V2H["Validate registry and finalize catalog"]
+        V2A --> V2B --> V2C --> V2D --> V2E --> V2F --> V2G --> V2H
+    end
+
+```
+
+Groups are resolved iteratively as their parents and included attribute groups
+become available. The diagrams show the logical order for each group.
 
 ## Lineage (experimental)
 
@@ -144,4 +166,4 @@ definitions coming from several attribute groups.
 > Semconv. The core question is whether lineage references will display relative
 > paths, URLs, or both. Additionally, there's worry about the scalability of
 > using the `source_file` string field to track origins as resolutions progress
-> from Semconv to application levels. 
+> from Semconv to application levels.
