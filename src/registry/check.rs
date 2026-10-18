@@ -44,7 +44,7 @@ pub(crate) fn command(
     cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     let mut diag_msgs = DiagnosticMessages::empty();
     info!("Weaver Registry Check");
     info!("Checking registry `{}`", cmd_config.registry.registry);
@@ -99,6 +99,74 @@ mod tests {
     fn test_config_cli_consistency() {
         use crate::registry::tests::assert_config_cli_consistency;
         assert_config_cli_consistency::<RegistryCheckArgs>();
+    }
+
+    #[test]
+    fn test_policy_finding_filter_config_reaches_engine() {
+        use clap::Parser;
+        let dir = tempfile::tempdir().unwrap();
+        let policy = dir.path().join("test.rego");
+        std::fs::write(
+            &policy,
+            r#"
+            package after_resolution
+            import rego.v1
+            deny contains {"id": "test_removed", "message": "removed", "level": "violation", "signal_type": "entity", "signal_name": "device"}
+        "#,
+        )
+        .unwrap();
+        let config = dir.path().join(".weaver.toml");
+        std::fs::write(
+            &config,
+            r#"
+            [[policy.finding_filters]]
+            exclude = ["test_removed"]
+            signal_type = "entity"
+            signal_names = ["dev*"]
+        "#,
+        )
+        .unwrap();
+        let model = dir.path().join("model");
+        std::fs::create_dir_all(&model).unwrap();
+        std::fs::write(
+            model.join("registry.yaml"),
+            r#"
+            groups:
+              - id: registry.example
+                type: attribute_group
+                brief: Example attributes.
+                attributes:
+                  - id: example.name
+                    type: string
+                    brief: Example name.
+                    stability: development
+                    examples: [example]
+        "#,
+        )
+        .unwrap();
+        let cli = Cli::try_parse_from([
+            "weaver",
+            "--config",
+            config.to_str().unwrap(),
+            "registry",
+            "check",
+            "-r",
+            model.to_str().unwrap(),
+            "-p",
+            policy.to_str().unwrap(),
+        ])
+        .unwrap();
+        assert_eq!(run_command(&cli).exit_code, 0);
+        std::fs::write(
+            &config,
+            r#"
+            [[policy.finding_filters]]
+            exclude = ["test_removed"]
+            signal_names = ["host"]
+        "#,
+        )
+        .unwrap();
+        assert_eq!(run_command(&cli).exit_code, 1);
     }
 
     #[test]

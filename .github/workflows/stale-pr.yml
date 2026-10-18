@@ -1,0 +1,29 @@
+name: "Close stale pull requests"
+on:
+  schedule:
+    - cron: "12 3 * * *"  # arbitrary time not to DDOS GitHub
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stale:
+    permissions:
+      actions: write # for actions/stale to delete its old cache before saving new one
+      pull-requests: write # required for closing stale PRs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@4391f3da665fdf50b6810c1a66712fb9ba21aa93 # v11.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          stale-pr-message: >
+            This PR has been labeled as stale due to lack of activity.
+            It will be automatically closed if there is no further activity over the next 14 days.
+          # opt out of defaults to avoid marking issues as stale
+          days-before-stale: -1
+          days-before-close: -1
+          # overrides the above only for pull requests
+          days-before-pr-stale: 14
+          days-before-pr-close: 14
+          operations-per-run: 1000

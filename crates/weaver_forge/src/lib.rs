@@ -165,7 +165,7 @@ pub fn run_filter_raw<T: Serialize>(context: &T, filter: &str) -> Result<serde_j
     let filter = Filter::new(filter);
     // TODO - create real filter params
     let filter_params = BTreeMap::new();
-    let filtered_context = filter.apply(context, &filter_params)?;
+    let filtered_context = filter.apply(&context, &filter_params)?;
     Ok(filtered_context)
 }
 
@@ -327,7 +327,7 @@ impl TemplateEngine {
         // Apply the filter
         let filter = Filter::new(filter);
         let filter_params = Self::prepare_jq_context(&params)?;
-        let filtered_context = filter.apply(context, &filter_params)?;
+        let filtered_context = self.apply_filter(filter, &context, &filter_params)?;
         engine.add_global("params", Value::from_object(ParamsObject::new(params)));
         let template = engine
             .get_template(&snippet_id)
@@ -361,7 +361,7 @@ impl TemplateEngine {
                 }
 
                 let filter = Filter::new(template.filter.as_str());
-                let filtered_result = filter.apply(context.clone(), &params)?;
+                let filtered_result = self.apply_filter(filter, &context, &params)?;
 
                 match template.application_mode {
                     ApplicationMode::Single => {
@@ -491,7 +491,7 @@ impl TemplateEngine {
             return Ok(true);
         };
 
-        let result = jq::execute_jq(context, when, params)?;
+        let result = self.apply_filter(Filter::new(when), context, params)?;
         match result {
             serde_json::Value::Bool(true) => Ok(true),
             serde_json::Value::Bool(false) => {
@@ -503,6 +503,20 @@ impl TemplateEngine {
                 actual: other.to_string(),
             }),
         }
+    }
+
+    fn apply_filter(
+        &self,
+        filter: Filter,
+        context: &serde_json::Value,
+        params: &BTreeMap<String, serde_json::Value>,
+    ) -> Result<serde_json::Value, Error> {
+        filter.apply_with_modules(
+            context,
+            params,
+            self.file_loader.root(),
+            self.target_config.jq_modules.as_deref().unwrap_or_default(),
+        )
     }
 
     /// Process a single template file with the given template configuration,
@@ -530,7 +544,7 @@ impl TemplateEngine {
         }
 
         let filter = Filter::new(template.filter.as_str());
-        let filtered_result = filter.apply(context.clone(), &params)?;
+        let filtered_result = self.apply_filter(filter, context, &params)?;
 
         match template.application_mode {
             ApplicationMode::Single => self.process_single_mode(
@@ -939,7 +953,7 @@ mod tests {
     use crate::file_loader::FileSystemFileLoader;
     use crate::v1::registry::ResolvedRegistry;
     use crate::v2::attribute::Attribute;
-    use crate::v2::entity::{Entity, EntityAssociation, EntityAttribute, EntityRef};
+    use crate::v2::entity::{Entity, EntityAssociation, EntityRef};
     use crate::v2::event::Event;
     use crate::v2::metric::Metric;
     use crate::v2::provenance::Provenance;
@@ -950,9 +964,7 @@ mod tests {
     use crate::{run_filter_raw, OutputDirective, TemplateEngine};
     use std::collections::BTreeMap;
     use weaver_semconv::v2::{
-        attribute::{
-            AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
-        },
+        attribute::{AttributeType, PrimitiveOrArrayTypeSpec},
         metric::InstrumentSpec,
         signal_id::SignalId,
         span::{SpanKindSpec, SpanName},
@@ -1094,7 +1106,8 @@ mod tests {
                     r#type: SignalId::from("db.client".to_owned()),
                     kind: SpanKindSpec::Client,
                     name: SpanName {
-                        note: "A database client span.".to_owned(),
+                        note: Some("A database client span.".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![],
                     entity_associations: vec![],
@@ -1338,6 +1351,53 @@ mod tests {
             .expect("Failed to generate registry assets");
 
         assert!(diff_dir("expected_output/test", "observed_output/test").unwrap());
+    }
+
+    #[test]
+    fn test_when_with_modules_preserves_boolean_contract_and_errors() {
+        let (mut engine, _) = prepare_test_readonly("test", Params::default(), true);
+        let dir = tempfile::tempdir().unwrap();
+        let module = dir.path().join("conditions.jq");
+        fs::write(
+            &module,
+            "def condition: .enabled; def broken: error(\"condition failed\");",
+        )
+        .unwrap();
+        engine.target_config.jq_modules = Some(vec![module]);
+        let mut template = TemplateConfig {
+            template: Glob::new("converter.md").unwrap(),
+            filter: ".".to_owned(),
+            application_mode: ApplicationMode::Single,
+            params: None,
+            file_name: None,
+            auto_escape: AutoEscapeMode::None,
+            when: Some("condition".to_owned()),
+        };
+        for enabled in [true, false, true] {
+            assert_eq!(
+                engine
+                    .evaluate_when(
+                        &template,
+                        &serde_json::json!({"enabled": enabled}),
+                        &BTreeMap::new()
+                    )
+                    .unwrap(),
+                enabled
+            );
+        }
+        for expression in ["empty", "true, false", "42", "null"] {
+            template.when = Some(expression.to_owned());
+            assert!(matches!(
+                engine.evaluate_when(&template, &serde_json::json!({}), &BTreeMap::new()),
+                Err(Error::WhenClauseNotBoolean { .. })
+            ));
+        }
+        template.when = Some("broken".to_owned());
+        assert!(engine
+            .evaluate_when(&template, &serde_json::json!({}), &BTreeMap::new())
+            .unwrap_err()
+            .to_string()
+            .contains("condition failed"));
     }
 
     #[test]
@@ -1594,16 +1654,13 @@ mod tests {
     /// A registry with a span that names an entity of its dependency and one of
     /// its own.
     fn prepare_association_registry() -> ForgeResolvedRegistry {
-        fn identity(key: &str) -> EntityAttribute {
-            EntityAttribute {
-                base: Attribute {
-                    key: key.to_owned(),
-                    r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                    examples: None,
-                    common: CommonFields::default(),
-                    provenance: Default::default(),
-                },
-                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+        fn identity(key: &str) -> Attribute {
+            Attribute {
+                key: key.to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                examples: None,
+                common: CommonFields::default(),
+                provenance: Default::default(),
             }
         }
         fn entity(r#type: &str, identity_keys: &[&str]) -> Entity {
@@ -1665,7 +1722,8 @@ mod tests {
                     r#type: SignalId::from("db.client".to_owned()),
                     kind: SpanKindSpec::Client,
                     name: SpanName {
-                        note: "A database client span.".to_owned(),
+                        note: Some("A database client span.".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![],
                     entity_associations: vec![
@@ -2076,5 +2134,100 @@ mod tests {
                 "<p>&lt;b&gt;hello&lt;&#x2f;b&gt; &amp; &quot;world&quot;</p><raw><b>hello</b> & \"world\"</raw>"
             );
         }
+    }
+
+    fn make_v1_dep_resolution_setup(
+        v1_schema_url: &str,
+    ) -> (
+        SchemaUrl,
+        weaver_resolved_schema::v2::ResolvedTelemetrySchema,
+        crate::v2::registry::tests::MockSchemaResolver,
+    ) {
+        use std::collections::BTreeSet;
+        use weaver_resolved_schema::v2::{self, refinements, ResolvedTelemetrySchema};
+
+        let dep_url: SchemaUrl = "https://example.com/dep-v1".try_into().unwrap();
+        let v1_schema = weaver_resolved_schema::v1::ResolvedTelemetrySchema {
+            file_format: "resolved/1.0".to_owned(),
+            schema_url: v1_schema_url.to_owned(),
+            registry_id: "test".to_owned(),
+            registry: weaver_resolved_schema::v1::registry::Registry {
+                registry_url: v1_schema_url.to_owned(),
+                entity_association_origins: Default::default(),
+                groups: vec![],
+            },
+            catalog: weaver_resolved_schema::v1::catalog::Catalog::default(),
+            resource: None,
+            instrumentation_library: None,
+            dependencies: BTreeSet::new(),
+            versions: None,
+            registry_manifest: None,
+        };
+
+        let root_schema = ResolvedTelemetrySchema {
+            file_format: "2.0.0".to_owned(),
+            schema_url: "https://example.com/root".try_into().unwrap(),
+            attribute_catalog: vec![],
+            dependencies: {
+                let mut deps = BTreeSet::new();
+                let _ = deps.insert(dep_url.clone());
+                deps
+            },
+            registry: v2::registry::Registry {
+                attributes: vec![],
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+                attribute_groups: vec![],
+            },
+            refinements: refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+        };
+
+        let mut mock_resolver = crate::v2::registry::tests::MockSchemaResolver::new();
+        mock_resolver.add_resolved_schema(
+            dep_url.clone(),
+            weaver_resolver::WeaverResolvedSchema::V1(v1_schema),
+        );
+
+        (dep_url, root_schema, mock_resolver)
+    }
+
+    #[test]
+    fn test_dependency_resolution_v1_schema_success() {
+        use weaver_common::result::WResult;
+
+        let (dep_url, root_schema, mut mock_resolver) =
+            make_v1_dep_resolution_setup("https://example.com/dep-v1");
+
+        let forge = match ForgeResolvedRegistry::try_from_resolved_schema(
+            root_schema,
+            &mut mock_resolver,
+        ) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
+        };
+
+        assert_eq!(
+            forge.dependencies.keys().collect::<Vec<_>>(),
+            vec![&dep_url]
+        );
+    }
+
+    #[test]
+    fn test_dependency_resolution_v1_schema_conversion_error() {
+        use weaver_common::result::WResult;
+
+        let (_dep_url, root_schema, mut mock_resolver) =
+            make_v1_dep_resolution_setup("invalid schema url with spaces");
+
+        let result =
+            ForgeResolvedRegistry::try_from_resolved_schema(root_schema, &mut mock_resolver);
+        assert!(matches!(result, WResult::FatalErr(Error::SchemaError(_))));
     }
 }

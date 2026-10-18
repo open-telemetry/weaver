@@ -16,6 +16,7 @@ use crate::{
 };
 
 /// An advisor which runs a rego policy on the attribute
+#[derive(Clone)]
 pub struct RegoAdvisor {
     engine: Engine,
 }
@@ -30,8 +31,8 @@ impl RegoAdvisor {
     ) -> Result<Self, Error> {
         let mut engine = Engine::new();
         if let Some(path) = policy_dir {
-            let _ = engine
-                .add_policies(path, "*.rego")
+            engine
+                .add_policy_from_file_or_dir(path)
                 .map_err(|e| Error::AdviceError {
                     error: e.to_string(),
                 })?;

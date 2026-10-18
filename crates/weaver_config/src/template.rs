@@ -8,13 +8,13 @@
 //! list of acronyms used by the `acronym` filter, or the `text_maps` used by
 //! the `map_text` filter — without editing each package.
 //!
-//! Only `acronyms` and `text_maps` are wired today. Additional settings from
-//! the design (`template_syntax`, `whitespace_control`, `params`) can be added
-//! here as they are implemented.
+//! `acronyms`, `text_maps`, and `jq_modules` are wired today. Additional
+//! settings from the design (`template_syntax`, `whitespace_control`, `params`)
+//! can be added here as they are implemented.
 
 use schemars::JsonSchema;
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 /// Project-level template settings shared across all template packages.
 ///
@@ -30,6 +30,9 @@ pub struct TemplateConfig {
     /// Named text mappings used by the `map_text` filter (e.g. a
     /// `namespace_mapping` from `CICD` to `CI/CD`).
     pub text_maps: Option<HashMap<String, HashMap<String, String>>>,
+
+    /// JQ modules added to Weaver's built-in filter prelude for template generation.
+    pub jq_modules: Option<Vec<PathBuf>>,
 }
 
 #[cfg(test)]
@@ -82,9 +85,28 @@ CICD = "CI/CD"
     }
 
     #[test]
+    fn test_parse_template_jq_modules() {
+        let toml = r#"
+[template]
+jq_modules = ["jq/common.jq", "jq/rust.jq"]
+"#;
+        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
+        assert_eq!(
+            config.template.jq_modules.as_deref(),
+            Some(
+                &[
+                    std::path::PathBuf::from("jq/common.jq"),
+                    std::path::PathBuf::from("jq/rust.jq"),
+                ][..]
+            )
+        );
+    }
+
+    #[test]
     fn test_template_absent() {
         let config: WeaverConfig = toml::from_str("").expect("Failed to parse empty TOML");
         assert!(config.template.acronyms.is_none());
+        assert!(config.template.jq_modules.is_none());
         assert!(config.template.text_maps.is_none());
     }
 

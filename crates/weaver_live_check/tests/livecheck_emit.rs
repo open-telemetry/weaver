@@ -3,31 +3,19 @@
 //! Integration test: emit findings via `OtlpEmitter` into a `weaver registry live-check`
 //! instance that uses the live_check model as its registry. Validates that the emitted
 //! OTLP log records conform to the model (zero violations).
+//!
+//! It also guards the fix for #1657: the report is read from `GET /report` while the
+//! process is alive, so a client that drains a large body late still gets all of it.
 
-use std::process::{Child, Command as StdCommand};
+mod common;
+
+use std::io::Read;
 use std::rc::Rc;
 use std::thread::sleep;
 use std::time::Duration;
+
+use common::{shutdown, start_live_check, stop, wait_for_health, ChildGuard};
 use weaver_test_support::reserve_test_port;
-
-/// Guard that kills the child process on drop (e.g., on panic) to prevent orphaned processes.
-struct ChildGuard(Option<Child>);
-
-impl Drop for ChildGuard {
-    fn drop(&mut self) {
-        if let Some(ref mut child) = self.0 {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-    }
-}
-
-impl ChildGuard {
-    /// Take ownership of the child, disabling the kill-on-drop behavior.
-    fn take(&mut self) -> Child {
-        self.0.take().expect("child already taken")
-    }
-}
 
 use serde_json::json;
 use weaver_checker::{FindingLevel, PolicyFinding};
@@ -40,67 +28,53 @@ use weaver_live_check::sample_span::SampleSpan;
 use weaver_live_check::{Sample, SampleRef};
 use weaver_semconv::v1::group::{InstrumentSpec, SpanKindSpec};
 
-/// Poll GET /health until it returns 200, with retries.
-fn wait_for_health(port: u16) {
-    let url = format!("http://127.0.0.1:{port}/health");
-    let max_attempts = 60;
-    for attempt in 0..max_attempts {
-        match ureq::get(&url).call() {
-            Ok(resp) if resp.status() == 200 => return,
-            _ => {
-                if attempt == max_attempts - 1 {
-                    panic!(
-                        "weaver live-check did not become healthy on port {port} after {max_attempts} attempts"
-                    );
-                }
-                sleep(Duration::from_millis(500));
-            }
-        }
-    }
-}
-
-/// Larger than a typical HTTP/2 flow-control window, so the admin server
-/// can't finish writing the `/stop` response until the client reads it.
-/// Kept under tonic's 4 MiB gRPC message limit (travels as a flattened
-/// `weaver.finding.context.padding` attribute — see Finding 4).
+/// Larger than a socket send buffer, so the server cannot finish writing the
+/// report until the client reads it. Kept under tonic's 4 MiB gRPC message
+/// limit (travels as a flattened `weaver.finding.context.padding` attribute —
+/// see Finding 4).
 const RESPONSE_PADDING_SIZE: usize = 2 * 1024 * 1024;
 
-/// Delay between receiving `/stop`'s headers and reading its body. There's
-/// no deterministic signal for "the kernel send buffer is full", so this
-/// pairs a real oversized body with a bounded sleep to reliably reproduce
-/// the shutdown race this test guards against.
-const DELAYED_READ: Duration = Duration::from_millis(300);
+/// Delay between receiving the `/report` headers and reading its body. A busy
+/// CI client drains late; #1657 showed that used to truncate the body.
+const DELAYED_READ: Duration = Duration::from_secs(1);
 
-/// POST /stop over HTTP/2, delay before reading the body, assert the
-/// child is still alive, then return the body.
-async fn stop_and_collect_report(admin_port: u16, child: &mut Child) -> String {
-    let client = reqwest::Client::builder()
-        .http2_prior_knowledge()
-        .build()
-        .expect("Failed to build HTTP/2 client");
-    let url = format!("http://127.0.0.1:{admin_port}/stop");
-    let response = client
-        .post(&url)
-        .send()
-        .await
-        .expect("POST /stop failed")
-        .error_for_status()
-        .expect("POST /stop returned an error status");
+/// `GET /report` over HTTP/1.1, read the headers, wait, then drain the body.
+/// Asserts the child is still alive and that the whole body arrived.
+fn collect_report_slowly(admin_port: u16, guard: &mut ChildGuard) -> String {
+    let response = ureq::get(format!("http://127.0.0.1:{admin_port}/report"))
+        .call()
+        .expect("GET /report failed");
+    assert_eq!(response.status(), 200);
+    let content_length: usize = response
+        .headers()
+        .get("content-length")
+        .expect("/report sets Content-Length")
+        .to_str()
+        .expect("Content-Length is ASCII")
+        .parse()
+        .expect("Content-Length is a number");
 
-    tokio::time::sleep(DELAYED_READ).await;
+    sleep(DELAYED_READ);
 
     assert!(
-        child
+        guard
+            .0
+            .as_mut()
+            .expect("child is running")
             .try_wait()
             .expect("failed to check child process status")
             .is_none(),
-        "weaver exited before the /stop response was fully read"
+        "weaver exited before the /report response was fully read"
     );
 
-    response
-        .text()
-        .await
-        .expect("failed to read /stop response body")
+    let mut body = String::new();
+    let _ = response
+        .into_body()
+        .as_reader()
+        .read_to_string(&mut body)
+        .expect("failed to read the /report body");
+    assert_eq!(body.len(), content_length, "the /report body was cut short");
+    body
 }
 
 fn make_finding(
@@ -156,7 +130,7 @@ fn collect_violation_messages(value: &serde_json::Value, messages: &mut Vec<Stri
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[cfg_attr(tarpaulin, ignore)]
 async fn test_livecheck_emit_roundtrip() {
     // 1. Allocate dynamic ports
@@ -166,30 +140,7 @@ async fn test_livecheck_emit_roundtrip() {
     // 2. Start weaver live-check as a child process using the live_check model as registry
     //    The model dir is relative to this crate's manifest, so build an absolute path.
     let model_dir = format!("{}/model", env!("CARGO_MANIFEST_DIR"));
-    #[allow(deprecated)] // cargo_bin() is the only cross-crate way to find the binary
-    let weaver_bin = assert_cmd::cargo::cargo_bin("weaver");
-
-    let mut guard = ChildGuard(Some(
-        StdCommand::new(weaver_bin)
-            .args([
-                "registry",
-                "live-check",
-                "-r",
-                &model_dir,
-                "--format",
-                "json",
-                "--output",
-                "http",
-                "--otlp-grpc-port",
-                &grpc_port.to_string(),
-                "--admin-port",
-                &admin_port.to_string(),
-                "--inactivity-timeout",
-                "15",
-            ])
-            .spawn()
-            .expect("Failed to start weaver live-check process"),
-    ));
+    let mut guard = start_live_check(&model_dir, grpc_port, admin_port, &[]);
 
     // 3. Wait for the health endpoint to respond
     wait_for_health(admin_port);
@@ -385,21 +336,14 @@ async fn test_livecheck_emit_roundtrip() {
     emitter.force_flush().expect("Failed to flush OtlpEmitter");
     emitter.shutdown().expect("Failed to shutdown OtlpEmitter");
 
-    // Brief delay for weaver to finish processing the received log records.
-    sleep(Duration::from_millis(500));
+    // 6. Stop the run. The report is ready once /stop returns, so no sleep is needed.
+    stop(admin_port);
 
-    // 6. Collect report via POST /stop — delays reading the (large) body
-    //    to reproduce the shutdown race; see `stop_and_collect_report`.
-    let report_body =
-        stop_and_collect_report(admin_port, guard.0.as_mut().expect("child already taken")).await;
-
-    // 7. Wait for weaver to exit
+    // 7. Read the (large) report late, the way a busy client does; see
+    //    `collect_report_slowly`. Then shut weaver down and wait for it to exit.
     //    Exit code may be non-zero if there are violations — we check that separately below.
-    //    Take the child out of the guard so it won't be killed again on drop.
-    let _status = guard
-        .take()
-        .wait()
-        .expect("Failed to wait for weaver live-check to exit");
+    let report_body = collect_report_slowly(admin_port, &mut guard);
+    shutdown(guard, admin_port);
 
     // 8. Validate the report
     let report: serde_json::Value =

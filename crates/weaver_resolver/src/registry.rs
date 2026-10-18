@@ -64,6 +64,10 @@ pub struct UnresolvedGroup {
     /// List of groups to include in the semantic convention group.
     pub include_groups: Vec<String>,
 
+    /// Inherited attributes to unreference before merging local references.
+    #[serde(default)]
+    pub attribute_unrefs: Vec<String>,
+
     /// Visibility of the group.
     pub visibility: Option<AttributeGroupVisibilitySpec>,
 
@@ -229,6 +233,7 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
     );
     check_root_attribute_id_duplicates(&result, &attr_name_index, &mut errors);
     check_v2_signal_id_collisions(&result, &mut errors);
+    check_span_name_attributes(&result, &attr_name_index, &mut errors);
 
     WResult::OkWithNFEs(result, errors)
 }
@@ -269,6 +274,52 @@ fn check_v2_signal_id_collisions(registry: &Registry, errors: &mut Vec<Error>) {
                 .unique()
                 .collect(),
         });
+    }
+}
+
+/// Checks that every attribute referenced in a span's name templates is present
+/// on the span itself (either declared directly or inherited).
+fn check_span_name_attributes(
+    registry: &Registry,
+    attr_name_index: &[String],
+    errors: &mut Vec<Error>,
+) {
+    for group in registry.groups.iter() {
+        if group.r#type != GroupType::Span {
+            continue;
+        }
+
+        let Some(span_name) = &group.span_name else {
+            continue;
+        };
+
+        if span_name.templates.is_empty() {
+            continue;
+        }
+
+        // Collect all attribute names present on this span
+        let span_attr_names: HashSet<&str> = group
+            .attributes
+            .iter()
+            .filter_map(|attr_ref| attr_name_index.get(attr_ref.0 as usize).map(String::as_str))
+            .collect();
+
+        let mut missing_attrs = HashSet::new();
+        for template in &span_name.templates {
+            for attr in &template.attributes {
+                if !span_attr_names.contains(attr.as_str()) {
+                    let _ = missing_attrs.insert(attr.as_str());
+                }
+            }
+        }
+
+        for attr in missing_attrs {
+            errors.push(Error::SpanNameAttributeNotOnSpan {
+                span_id: group.id.clone(),
+                attribute_key: attr.to_owned(),
+                provenance: group.provenance().map(Box::new),
+            });
+        }
     }
 }
 
@@ -409,6 +460,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
         attributes: attrs,
         provenance: Some(group.provenance),
         include_groups: group.spec.include_groups,
+        attribute_unrefs: group.spec.attribute_unrefs,
         visibility: group.spec.visibility,
         is_v2: group.spec.is_v2,
     }
@@ -486,6 +538,7 @@ fn resolve_dependency_imports<C: crate::SchemaCacheLookup>(
             group,
             attributes: vec![],
             include_groups: vec![],
+            attribute_unrefs: vec![],
             visibility: None,
             is_v2,
             provenance,
@@ -767,6 +820,7 @@ fn add_resolved_group_to_index(
     );
     _ = unresolved_group.group.extends.take();
     unresolved_group.include_groups.clear();
+    unresolved_group.attribute_unrefs.clear();
     let mut summary =
         GroupSummary::from_without_attributes(&unresolved_group.group, GroupSource::Local);
     summary.attributes = unresolved_group.attributes.clone();
@@ -952,7 +1006,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                     Some(included) => included,
                     None => continue,
                 };
-            let parent = match unresolved_group.group.extends.clone() {
+            let mut parent = match unresolved_group.group.extends.clone() {
                 Some(parent_ref) => match resolve_refinement_parent(
                     unresolved_group,
                     &parent_ref,
@@ -992,6 +1046,19 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                 },
                 None => None,
             };
+
+            if !unresolved_group.attribute_unrefs.is_empty() {
+                if let Some((parent_ref, parent_attrs)) = &mut parent {
+                    fatal_errors.extend(attribute_unref_errors(
+                        unresolved_group,
+                        parent_ref,
+                        parent_attrs,
+                        &included,
+                    ));
+                    let unrefs: HashSet<_> = unresolved_group.attribute_unrefs.iter().collect();
+                    parent_attrs.retain(|attr| !unrefs.contains(&attr.spec.id()));
+                }
+            }
 
             // Help V2 mapping reverse-engineer private groups
             if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
@@ -1046,6 +1113,54 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
     } else {
         Err(Error::CompoundError(fatal_errors))
     }
+}
+
+fn attribute_unref_errors(
+    group: &UnresolvedGroup,
+    parent_ref: &str,
+    parent_attrs: &[UnresolvedAttribute],
+    included: &[(String, &[UnresolvedAttribute])],
+) -> Vec<Error> {
+    use weaver_semconv::v1::attribute::AttributeRole;
+
+    let inherited: HashMap<_, _> = parent_attrs
+        .iter()
+        .map(|a| (a.spec.id(), &a.spec))
+        .collect();
+    let local: HashSet<_> = group.attributes.iter().map(|a| a.spec.id()).collect();
+    let included: HashMap<_, _> = included
+        .iter()
+        .flat_map(|(source, attrs)| attrs.iter().map(move |attr| (attr.spec.id(), source)))
+        .collect();
+    let mut seen = HashSet::new();
+    group.attribute_unrefs.iter().filter_map(|key| {
+        let reason = if !seen.insert(key) {
+            "duplicate unref entry".to_owned()
+        } else if local.contains(key) {
+            "the attribute is also explicitly referenced by this refinement".to_owned()
+        } else if let Some(source) = included.get(key) {
+            format!("the attribute is also included by ref_group `{source}`")
+        } else if let Some(spec) = inherited.get(key) {
+            let role = match spec {
+                AttributeSpec::Ref { role, .. } | AttributeSpec::Id { role, .. } => role,
+            };
+            if group.group.r#type == GroupType::Entity && *role == Some(AttributeRole::Identifying) {
+                format!("the attribute identifies entity `{parent_ref}`; refinements must preserve identity")
+            } else if spec.is_required() {
+                format!("the attribute is required by `{parent_ref}`")
+            } else {
+                return None;
+            }
+        } else {
+            format!("the attribute is not inherited from `{parent_ref}`")
+        };
+        Some(Error::InvalidAttributeUnref {
+            refinement_id: group.group.id.clone(),
+            attribute_key: key.clone(),
+            reason,
+            provenance: group.provenance.clone().map(Box::new),
+        })
+    }).collect()
 }
 
 /// Errors when an entity refinement alters the identity of the base entity
@@ -1665,6 +1780,14 @@ mod tests {
                         )
                     )
                 })
+                .ignore(|e| {
+                    matches!(
+                        e,
+                        crate::Error::FailToResolveDefinition(
+                            weaver_semconv::Error::MissingManifestFileFormat { .. }
+                        )
+                    )
+                })
                 .into_result_failing_non_fatal()
                 .expect("Failed to load semconv specs");
 
@@ -1987,6 +2110,7 @@ groups:
                 },
                 attributes: Default::default(),
                 include_groups: Default::default(),
+                attribute_unrefs: vec![],
                 visibility: Default::default(),
                 is_v2: false,
                 provenance: Some(Provenance {
@@ -2088,6 +2212,7 @@ groups:
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
+                    attribute_unrefs: vec![],
                     visibility: Default::default(),
                     is_v2: false,
                     provenance: Some(Provenance {
@@ -2124,6 +2249,7 @@ groups:
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
+                    attribute_unrefs: vec![],
                     visibility: Default::default(),
                     is_v2: false,
                     provenance: Some(Provenance {
@@ -2160,6 +2286,7 @@ groups:
                     },
                     attributes: Default::default(),
                     include_groups: Default::default(),
+                    attribute_unrefs: vec![],
                     visibility: Default::default(),
                     is_v2: false,
                     provenance: Some(Provenance {
@@ -2296,6 +2423,70 @@ groups:
             other @ AttributeSpec::Id { .. } => {
                 panic!("expected a Ref attribute, got {other:?}")
             }
+        }
+    }
+
+    #[test]
+    fn test_check_span_name_attributes_reports_missing_attribute() {
+        use crate::registry::check_span_name_attributes;
+        use crate::Error as ResolverError;
+        use std::collections::BTreeMap;
+        use weaver_resolved_schema::v1::attribute::AttributeRef;
+        use weaver_semconv::v1::group::{SpanName, SpanNameTemplate};
+
+        let attr_name_index = vec!["http.request.method".to_owned()];
+        let group = Group {
+            id: "span.http.client".to_owned(),
+            r#type: GroupType::Span,
+            brief: "".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: None,
+            deprecated: None,
+            attributes: vec![AttributeRef(0)], // only http.request.method
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            name: None,
+            lineage: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: true,
+            span_name: Some(SpanName {
+                templates: vec![
+                    SpanNameTemplate::parse("{http.request.method} {url.template}").unwrap(),
+                ],
+                note: None,
+            }),
+            requirement_level: None,
+        };
+
+        let registry = Registry {
+            registry_url: "test".to_owned(),
+            groups: vec![group],
+            entity_association_origins: BTreeMap::new(),
+        };
+
+        let mut errors = vec![];
+        check_span_name_attributes(&registry, &attr_name_index, &mut errors);
+
+        assert_eq!(errors.len(), 1);
+        match &errors[0] {
+            ResolverError::SpanNameAttributeNotOnSpan {
+                span_id,
+                attribute_key,
+                ..
+            } => {
+                assert_eq!(span_id, "span.http.client");
+                assert_eq!(attribute_key, "url.template");
+            }
+            other => panic!("expected SpanNameAttributeNotOnSpan, got {other:?}"),
         }
     }
 }

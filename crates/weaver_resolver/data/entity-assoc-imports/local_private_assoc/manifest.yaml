@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: local_private_assoc
 description: >
   The `host` entity is kept out of the surface offered to dependents, and a

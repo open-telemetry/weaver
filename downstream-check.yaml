@@ -87,9 +87,10 @@ repos:
           out="$(mktemp -d)/resolved.json" &&
           {weaver} registry resolve -r ./model -o "$out"
       # From live-check-basic.yml: start the OTLP listener, run the example
-      # against it, stop it, and fail on any violation. That workflow drives this
-      # through the weaver-live-check-{start,stop} actions in this repo; the same
-      # calls are inlined here so it runs outside GitHub Actions too.
+      # against it, stop it, fetch the report, shut it down, and fail on any
+      # violation. That workflow drives this through the
+      # weaver-live-check-{start,stop} actions in this repo; the same calls are
+      # inlined here so it runs outside GitHub Actions too.
       - name: basic - live-check otlp
         dir: basic
         run: |
@@ -97,7 +98,7 @@ repos:
           state=$(mktemp -d)
           make build
           {weaver} registry live-check --registry ./model --input-source otlp \
-            --otlp-grpc-port 4317 --admin-port 4320 --inactivity-timeout 30 \
+            --otlp-grpc-port 4317 --admin-port 4320 --inactivity-timeout 0 \
             --format json --output http >"$state/weaver.log" 2>&1 &
           pid=$!
           trap 'kill $pid 2>/dev/null || true; cat "$state/weaver.log" || true' EXIT
@@ -108,7 +109,10 @@ repos:
           done
           if [ -z "$ready" ]; then echo "live-check never became healthy"; exit 1; fi
           OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4317 cargo run -- "Hello, World!"
-          curl -fsS -X POST http://127.0.0.1:4320/stop -o "$state/report.json"
+          curl -fsS -X POST http://127.0.0.1:4320/stop -o /dev/null
+          curl -fsS http://127.0.0.1:4320/report -o "$state/report.json"
+          curl -fsS -X POST http://127.0.0.1:4320/shutdown -o /dev/null
+          wait $pid || true
           python3 -c 'import json,sys
           counts = json.load(open(sys.argv[1]))["statistics"]["advice_level_counts"]
           violations = counts.get("violation", 0)

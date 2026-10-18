@@ -427,6 +427,25 @@ mod tests {
             .unwrap();
         assert!(matches!(v1.spec, Versioned::V1(_)));
 
+        let v1_with_templates = r#"
+        groups:
+          - id: "span1"
+            brief: "description1"
+            stability: "stable"
+            type: span
+            span_kind: "internal"
+            attributes:
+              - id: "attr1"
+                type: "string"
+                brief: "test attr"
+                examples: "test"
+            span_name:
+              templates:
+                - pattern: "{foo}"
+        "#;
+        let res = semconv_from_file(v1_with_templates).into_result_failing_non_fatal();
+        assert!(res.is_err(), "v1 yaml must reject span name templates");
+
         let v2_yaml = r#"
         file_format: definition/2
         attributes:

@@ -13,12 +13,12 @@ use weaver_common::result::WResult;
 
 use crate::{
     deprecated::Deprecated,
-    stability::Stability,
     v2::{
         attribute::AttributeDef, attribute::AttributeRef, attribute_group::AttributeGroup,
-        entity::Entity, entity::EntityRefinement, event::Event, event::EventRefinement,
-        metric::Metric, metric::MetricRefinement, signal_id::SignalId, span::Span,
-        span::SpanRefinement,
+        entity::Entity, entity::EntityAttributeRefinement, entity::EntityRefinement,
+        entity::IdentityAttributeRef, event::Event, event::EventRefinement, metric::Metric,
+        metric::MetricRefinement, signal_id::SignalId, span::Span, span::SpanRefinement,
+        stability::Stability,
     },
     Error, YamlValue,
 };
@@ -26,10 +26,14 @@ use crate::{
 pub mod attribute;
 pub mod attribute_group;
 pub mod entity;
+pub mod entity_association;
 pub mod event;
+pub mod manifest;
 pub mod metric;
 pub mod signal_id;
+pub mod signal_requirement_level;
 pub mod span;
+pub mod stability;
 
 /// Common fields we want on all major components of semantic conventions.
 #[derive(
@@ -283,6 +287,24 @@ impl SemConvSpecV2 {
         }
         for s in &self.spans {
             check(s.requirement_level.is_none(), format!("span.{}", s.r#type));
+            if s.name.templates.is_empty() && s.name.note.is_none() {
+                fatal_errors.push(Error::InvalidGroup {
+                    path_or_url: provenance.to_owned(),
+                    group_id: format!("span.{}", s.r#type),
+                    error: "Span must specify `templates` or a `note` for its name".to_owned(),
+                });
+            }
+        }
+        for r in &self.span_refinements {
+            if let Some(name) = &r.name {
+                if name.templates.is_empty() && name.note.is_none() {
+                    fatal_errors.push(Error::InvalidGroup {
+                        path_or_url: provenance.to_owned(),
+                        group_id: r.id.to_string(),
+                        error: "Span refinement must specify `templates` or a `note` when overriding name".to_owned(),
+                    });
+                }
+            }
         }
         for e in &self.events {
             check(e.requirement_level.is_none(), format!("event.{}", e.name));
@@ -294,25 +316,25 @@ impl SemConvSpecV2 {
             );
         }
 
-        let check_identity_overlap =
-            |identity: &[AttributeRef], description: &[AttributeRef], group_id: &SignalId| {
-                let mut overlaps = vec![];
-                for attr in description {
-                    if identity.iter().any(|i| i.r#ref == attr.r#ref) {
-                        overlaps.push(Error::AttributeInIdentityAndDescription {
+        let mut check_identity_requirement_level =
+            |identity: &[IdentityAttributeRef], group_id: String| {
+                for attr in identity {
+                    if attr.requirement_level.is_some() {
+                        errors.push(Error::InvalidAttributeWarning {
                             path_or_url: provenance.to_owned(),
-                            group_id: group_id.to_string(),
+                            group_id: group_id.clone(),
                             attribute_id: attr.r#ref.clone(),
+                            error: "Identity attributes are always required. Setting 'requirement_level' on an identity attribute is deprecated and has no effect.".to_owned(),
                         });
                     }
                 }
-                overlaps
             };
         for e in &self.entities {
             fatal_errors.extend(check_identity_overlap(
                 &e.identity,
-                &e.description,
+                e.description.iter(),
                 &e.r#type,
+                provenance,
             ));
             if e.identity.is_empty() {
                 fatal_errors.push(Error::EntityMissingIdentity {
@@ -320,9 +342,20 @@ impl SemConvSpecV2 {
                     group_id: e.r#type.to_string(),
                 });
             }
+            check_identity_requirement_level(&e.identity, format!("entity.{}", e.r#type));
         }
         for r in &self.entity_refinements {
-            fatal_errors.extend(check_identity_overlap(&r.identity, &r.description, &r.id));
+            let description = r.description.iter().filter_map(|attr| match attr {
+                EntityAttributeRefinement::Ref(attr) => Some(attr),
+                EntityAttributeRefinement::Unref(_) => None,
+            });
+            fatal_errors.extend(check_identity_overlap(
+                &r.identity,
+                description,
+                &r.id,
+                provenance,
+            ));
+            check_identity_requirement_level(&r.identity, r.id.to_string());
         }
 
         if !fatal_errors.is_empty() {
@@ -345,6 +378,22 @@ impl SemConvSpecV2 {
             && self.metric_refinements.is_empty()
             && self.span_refinements.is_empty()
     }
+}
+
+fn check_identity_overlap<'a>(
+    identity: &[IdentityAttributeRef],
+    description: impl Iterator<Item = &'a AttributeRef>,
+    group_id: &SignalId,
+    provenance: &str,
+) -> Vec<Error> {
+    description
+        .filter(|attr| identity.iter().any(|i| i.r#ref == attr.r#ref))
+        .map(|attr| Error::AttributeInIdentityAndDescription {
+            path_or_url: provenance.to_owned(),
+            group_id: group_id.to_string(),
+            attribute_id: attr.r#ref.clone(),
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -471,7 +520,8 @@ mod tests {
                 r#type: "http.server".into(),
                 kind: span::SpanKindSpec::Server,
                 name: span::SpanName {
-                    note: "HTTP GET".to_owned(),
+                    note: Some("HTTP GET".to_owned()),
+                    ..Default::default()
                 },
                 attributes: vec![],
                 entity_associations: vec![],
@@ -627,7 +677,7 @@ mod tests {
             attributes: vec![],
             entities: vec![Entity {
                 r#type: SignalId::from("k8s.pod"),
-                identity: vec![AttributeRef {
+                identity: vec![IdentityAttributeRef {
                     r#ref: "k8s.pod.uid".to_owned(),
                     brief: None,
                     examples: None,
@@ -663,6 +713,90 @@ mod tests {
                 assert!(matches!(
                     warnings[0],
                     Error::MissingRequirementLevelWarning { .. }
+                ));
+            }
+            _ => panic!("Expected OkWithNFEs"),
+        }
+    }
+
+    #[test]
+    fn test_validate_identity_requirement_level_warning() {
+        use crate::v2::attribute::{BasicRequirementLevelSpec, RequirementLevel};
+        use crate::v2::signal_requirement_level::SignalRequirementLevel;
+
+        let spec = SemConvSpecV2 {
+            attributes: vec![],
+            entities: vec![Entity {
+                r#type: SignalId::from("k8s.pod"),
+                identity: vec![IdentityAttributeRef {
+                    r#ref: "k8s.pod.uid".to_owned(),
+                    brief: None,
+                    examples: None,
+                    requirement_level: Some(RequirementLevel::Basic(
+                        BasicRequirementLevelSpec::Required,
+                    )),
+                    note: None,
+                    annotations: Default::default(),
+                }],
+                description: vec![],
+                common: CommonFields {
+                    brief: "Kubernetes pod".to_owned(),
+                    note: "".to_owned(),
+                    stability: Stability::Stable,
+                    deprecated: None,
+                    annotations: Default::default(),
+                },
+                requirement_level: Some(SignalRequirementLevel::Recommended),
+            }],
+            events: vec![],
+            metrics: vec![],
+            spans: vec![],
+            attribute_groups: vec![],
+            entity_refinements: vec![EntityRefinement {
+                id: SignalId::from("entity.k8s.pod.refined"),
+                r#ref: SignalId::from("k8s.pod"),
+                identity: vec![IdentityAttributeRef {
+                    r#ref: "k8s.pod.uid".to_owned(),
+                    brief: None,
+                    examples: None,
+                    requirement_level: Some(RequirementLevel::Basic(
+                        BasicRequirementLevelSpec::Recommended,
+                    )),
+                    note: None,
+                    annotations: Default::default(),
+                }],
+                description: vec![],
+                brief: None,
+                note: None,
+                stability: None,
+                deprecated: None,
+                annotations: Default::default(),
+            }],
+            event_refinements: vec![],
+            metric_refinements: vec![],
+            span_refinements: vec![],
+            imports: None,
+        };
+
+        let result = spec.validate("test_prov");
+        match result {
+            WResult::OkWithNFEs(_, warnings) => {
+                assert_eq!(warnings.len(), 2);
+                assert!(matches!(
+                    &warnings[0],
+                    Error::InvalidAttributeWarning {
+                        group_id,
+                        attribute_id,
+                        ..
+                    } if group_id == "entity.k8s.pod" && attribute_id == "k8s.pod.uid"
+                ));
+                assert!(matches!(
+                    &warnings[1],
+                    Error::InvalidAttributeWarning {
+                        group_id,
+                        attribute_id,
+                        ..
+                    } if group_id == "entity.k8s.pod.refined" && attribute_id == "k8s.pod.uid"
                 ));
             }
             _ => panic!("Expected OkWithNFEs"),
@@ -707,7 +841,7 @@ mod tests {
             attributes: vec![],
             entities: vec![Entity {
                 r#type: SignalId::from("overlap.entity"),
-                identity: vec![AttributeRef {
+                identity: vec![IdentityAttributeRef {
                     r#ref: "shared.attr".to_owned(),
                     brief: None,
                     examples: None,
@@ -746,4 +880,67 @@ mod tests {
         let result = spec.validate("test_prov");
         assert!(matches!(result, WResult::FatalErr(_)));
     }
+
+    #[test]
+    fn test_validate_span_missing_templates_and_note() {
+        use crate::v2::span::{Span, SpanKindSpec, SpanName};
+
+        let spec = SemConvSpecV2 {
+            attributes: vec![],
+            entities: vec![],
+            events: vec![],
+            metrics: vec![],
+            spans: vec![Span {
+                r#type: "test.span".into(),
+                kind: SpanKindSpec::Internal,
+                name: SpanName {
+                    templates: vec![],
+                    note: None,
+                },
+                attributes: vec![],
+                entity_associations: vec![],
+                requirement_level: None,
+                common: Default::default(),
+            }],
+            attribute_groups: vec![],
+            entity_refinements: vec![],
+            event_refinements: vec![],
+            metric_refinements: vec![],
+            span_refinements: vec![],
+            imports: None,
+        };
+
+        let result = spec.validate("test_prov");
+        assert!(matches!(result, WResult::FatalErr(_)));
+    }
+
+    #[test]
+    fn test_validate_span_refinement_missing_templates_and_note() {
+        use crate::v2::span::SpanName;
+
+        let spec = SemConvSpecV2 {
+            span_refinements: vec![SpanRefinement {
+                id: "test.refinement".into(),
+                r#ref: "test.span".into(),
+                name: Some(SpanName {
+                    templates: vec![],
+                    note: None,
+                }),
+                attributes: vec![],
+                entity_associations: vec![],
+                brief: None,
+                note: None,
+                stability: None,
+                deprecated: None,
+                annotations: Default::default(),
+            }],
+            ..SemConvSpecV2::new(vec![], vec![], vec![], vec![], vec![])
+        };
+
+        let result = spec.validate("test_prov");
+        assert!(matches!(result, WResult::FatalErr(_)));
+    }
 }
+
+#[cfg(test)]
+mod unref_tests;

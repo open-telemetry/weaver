@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: legacy_by_id
 description: >
   A legacy `type: resource` group holds its entity type in `name`. An

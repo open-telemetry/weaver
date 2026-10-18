@@ -148,12 +148,14 @@ impl OutputProcessor {
     /// * `embedded_templates` - Embedded template directory (required only for template formats)
     /// * `templates_path` - Path to override templates (required only for template formats)
     /// * `output` - Where to write output
+    /// * `params` - Values a template reads as the `params` global. A builtin format ignores them.
     pub fn new(
         format: &str,
         prefix: &str,
         embedded_templates: Option<&'static Dir<'static>>,
         templates_path: Option<PathBuf>,
         output: OutputTarget,
+        params: Params,
     ) -> Result<Self, Error> {
         // Check for mute output target
         if matches!(output, OutputTarget::Mute) {
@@ -173,7 +175,7 @@ impl OutputProcessor {
         } else if has_templates
             && Self::has_template_dir(format, embedded_templates, templates_path.as_ref())
         {
-            Self::load_template_kind(format, embedded_templates, templates_path, output)?
+            Self::load_template_kind(format, embedded_templates, templates_path, output, params)?
         } else if let Some(builtin) = BuiltinFormat::from_name(&format_lower) {
             OutputKind::Builtin {
                 format: builtin,
@@ -184,7 +186,7 @@ impl OutputProcessor {
         } else {
             // Not a builtin and no template directory found — attempt template
             // load anyway to produce a descriptive error message.
-            Self::load_template_kind(format, embedded_templates, templates_path, output)?
+            Self::load_template_kind(format, embedded_templates, templates_path, output, params)?
         };
 
         Ok(Self { kind })
@@ -216,6 +218,7 @@ impl OutputProcessor {
         embedded_templates: Option<&'static Dir<'static>>,
         templates_path: Option<PathBuf>,
         output: OutputTarget,
+        params: Params,
     ) -> Result<OutputKind, Error> {
         let embedded = embedded_templates.ok_or_else(|| Error::InvalidTemplateDir {
             template_dir: PathBuf::from(format),
@@ -224,7 +227,7 @@ impl OutputProcessor {
         let templates = templates_path.unwrap_or_default();
         let loader = EmbeddedFileLoader::try_new(embedded, templates, format)?;
         let config = WeaverConfig::try_from_loader(&loader)?;
-        let engine = TemplateEngine::try_new(config, loader, Params::default())?;
+        let engine = TemplateEngine::try_new(config, loader, params)?;
         Ok(OutputKind::Template(Box::new(TemplateOutput {
             engine,
             target: output,
@@ -453,16 +456,30 @@ mod tests {
 
     #[test]
     fn test_mute_format() {
-        let output = OutputProcessor::new("mute", "test", None, None, OutputTarget::Stdout)
-            .expect("mute format should succeed");
+        let output = OutputProcessor::new(
+            "mute",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("mute format should succeed");
         assert!(!output.is_file_output());
         assert!(!output.is_line_oriented());
     }
 
     #[test]
     fn test_mute_via_output_target() {
-        let output = OutputProcessor::new("json", "test", None, None, OutputTarget::Mute)
-            .expect("json with Mute target should succeed");
+        let output = OutputProcessor::new(
+            "json",
+            "test",
+            None,
+            None,
+            OutputTarget::Mute,
+            Params::default(),
+        )
+        .expect("json with Mute target should succeed");
         assert!(!output.is_file_output());
         assert!(!output.is_line_oriented());
     }
@@ -471,7 +488,7 @@ mod tests {
     fn test_mute_via_from_optional_dir() {
         let none_path = PathBuf::from("none");
         let target = OutputTarget::from_optional_dir(Some(&none_path));
-        let output = OutputProcessor::new("json", "test", None, None, target)
+        let output = OutputProcessor::new("json", "test", None, None, target, Params::default())
             .expect("json with 'none' dir target should succeed");
         assert!(!output.is_file_output());
         assert!(!output.is_line_oriented());
@@ -481,8 +498,15 @@ mod tests {
     fn test_all_builtin_formats_stdout() {
         let formats = ["json", "yaml", "jsonl"];
         for name in formats {
-            let mut output = OutputProcessor::new(name, "test", None, None, OutputTarget::Stdout)
-                .unwrap_or_else(|e| panic!("Failed to create {name}: {e}"));
+            let mut output = OutputProcessor::new(
+                name,
+                "test",
+                None,
+                None,
+                OutputTarget::Stdout,
+                Params::default(),
+            )
+            .unwrap_or_else(|e| panic!("Failed to create {name}: {e}"));
             assert!(!output.is_file_output(), "{name}");
             output
                 .generate(&test_data())
@@ -500,6 +524,7 @@ mod tests {
             None,
             None,
             OutputTarget::Directory(path.clone()),
+            Params::default(),
         )
         .expect("json directory output should succeed");
         assert!(!output.is_line_oriented());
@@ -525,6 +550,7 @@ mod tests {
             None,
             None,
             OutputTarget::File(file_path.clone()),
+            Params::default(),
         )
         .expect("json file output should succeed");
         assert!(output.is_file_output());
@@ -548,6 +574,7 @@ mod tests {
             None,
             None,
             OutputTarget::Directory(path.clone()),
+            Params::default(),
         )
         .expect("yaml directory output should succeed");
         assert!(!output.is_line_oriented());
@@ -573,6 +600,7 @@ mod tests {
             None,
             None,
             OutputTarget::Directory(path.clone()),
+            Params::default(),
         )
         .expect("jsonl directory output should succeed");
         assert!(output.is_line_oriented());
@@ -603,8 +631,15 @@ mod tests {
 
     #[test]
     fn test_mute_generate_does_nothing() {
-        let mut output = OutputProcessor::new("mute", "test", None, None, OutputTarget::Stdout)
-            .expect("mute format should succeed");
+        let mut output = OutputProcessor::new(
+            "mute",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("mute format should succeed");
         assert!(output.generate(&test_data()).is_ok());
         assert!(!output.is_file_output());
     }
@@ -612,13 +647,27 @@ mod tests {
     #[test]
     fn test_is_file_output() {
         // Mute is not file output
-        let mute = OutputProcessor::new("mute", "test", None, None, OutputTarget::Stdout)
-            .expect("mute format should succeed");
+        let mute = OutputProcessor::new(
+            "mute",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("mute format should succeed");
         assert!(!mute.is_file_output());
 
         // Stdout is not file output
-        let stdout = OutputProcessor::new("json", "test", None, None, OutputTarget::Stdout)
-            .expect("json stdout should succeed");
+        let stdout = OutputProcessor::new(
+            "json",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("json stdout should succeed");
         assert!(!stdout.is_file_output());
 
         // Directory output is file output
@@ -630,6 +679,7 @@ mod tests {
             None,
             None,
             OutputTarget::Directory(path.clone()),
+            Params::default(),
         )
         .expect("json directory output should succeed");
         assert!(dir.is_file_output());
@@ -641,6 +691,7 @@ mod tests {
             None,
             None,
             OutputTarget::File(path.join("test.json")),
+            Params::default(),
         )
         .expect("json file output should succeed");
         assert!(file.is_file_output());
@@ -649,27 +700,55 @@ mod tests {
     #[test]
     fn test_format_case_insensitive() {
         // JSON (uppercase) should create a valid non-line-oriented processor
-        let json_upper = OutputProcessor::new("JSON", "test", None, None, OutputTarget::Stdout)
-            .expect("JSON uppercase should succeed");
+        let json_upper = OutputProcessor::new(
+            "JSON",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("JSON uppercase should succeed");
         assert!(!json_upper.is_line_oriented());
         assert!(!json_upper.is_file_output());
 
         // Json (mixed case) should also work
-        let json_mixed = OutputProcessor::new("Json", "test", None, None, OutputTarget::Stdout)
-            .expect("Json mixed case should succeed");
+        let json_mixed = OutputProcessor::new(
+            "Json",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("Json mixed case should succeed");
         assert!(!json_mixed.is_line_oriented());
         assert!(!json_mixed.is_file_output());
 
         // MUTE (uppercase) should create a mute processor
-        let mute = OutputProcessor::new("MUTE", "test", None, None, OutputTarget::Stdout)
-            .expect("MUTE uppercase should succeed");
+        let mute = OutputProcessor::new(
+            "MUTE",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("MUTE uppercase should succeed");
         assert!(!mute.is_file_output());
         assert!(!mute.is_line_oriented());
     }
 
     #[test]
     fn test_template_format_requires_embedded_templates() {
-        let result = OutputProcessor::new("ansi", "test", None, None, OutputTarget::Stdout);
+        let result = OutputProcessor::new(
+            "ansi",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        );
         assert!(result.is_err());
     }
 
@@ -681,6 +760,7 @@ mod tests {
             Some(&EMBEDDED_TEMPLATES),
             None,
             OutputTarget::Stdout,
+            Params::default(),
         )
         .expect("template format should succeed");
         assert!(!output.is_line_oriented());
@@ -700,6 +780,7 @@ mod tests {
             Some(&EMBEDDED_TEMPLATES),
             None,
             OutputTarget::Directory(path.clone()),
+            Params::default(),
         )
         .expect("template directory output should succeed");
         assert!(!output.is_line_oriented());
@@ -717,27 +798,62 @@ mod tests {
 
     #[test]
     fn test_is_line_oriented() {
-        let json = OutputProcessor::new("json", "test", None, None, OutputTarget::Stdout)
-            .expect("json format should succeed");
+        let json = OutputProcessor::new(
+            "json",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("json format should succeed");
         assert!(!json.is_line_oriented());
 
-        let yaml = OutputProcessor::new("yaml", "test", None, None, OutputTarget::Stdout)
-            .expect("yaml format should succeed");
+        let yaml = OutputProcessor::new(
+            "yaml",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("yaml format should succeed");
         assert!(!yaml.is_line_oriented());
 
-        let jsonl = OutputProcessor::new("jsonl", "test", None, None, OutputTarget::Stdout)
-            .expect("jsonl format should succeed");
+        let jsonl = OutputProcessor::new(
+            "jsonl",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("jsonl format should succeed");
         assert!(jsonl.is_line_oriented());
 
-        let mute = OutputProcessor::new("mute", "test", None, None, OutputTarget::Stdout)
-            .expect("mute format should succeed");
+        let mute = OutputProcessor::new(
+            "mute",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("mute format should succeed");
         assert!(!mute.is_line_oriented());
     }
 
     #[test]
     fn test_generate_to_string_json() {
-        let output = OutputProcessor::new("json", "test", None, None, OutputTarget::Stdout)
-            .expect("json format should succeed");
+        let output = OutputProcessor::new(
+            "json",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("json format should succeed");
         let result = output
             .generate_to_string(&test_data())
             .expect("generate_to_string should succeed");
@@ -747,8 +863,15 @@ mod tests {
 
     #[test]
     fn test_generate_to_string_yaml() {
-        let output = OutputProcessor::new("yaml", "test", None, None, OutputTarget::Stdout)
-            .expect("yaml format should succeed");
+        let output = OutputProcessor::new(
+            "yaml",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("yaml format should succeed");
         let result = output
             .generate_to_string(&test_data())
             .expect("generate_to_string should succeed");
@@ -758,8 +881,15 @@ mod tests {
 
     #[test]
     fn test_generate_to_string_jsonl() {
-        let output = OutputProcessor::new("jsonl", "test", None, None, OutputTarget::Stdout)
-            .expect("jsonl format should succeed");
+        let output = OutputProcessor::new(
+            "jsonl",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("jsonl format should succeed");
         let result = output
             .generate_to_string(&test_data())
             .expect("generate_to_string should succeed");
@@ -769,8 +899,15 @@ mod tests {
 
     #[test]
     fn test_generate_to_string_mute() {
-        let output = OutputProcessor::new("mute", "test", None, None, OutputTarget::Stdout)
-            .expect("mute format should succeed");
+        let output = OutputProcessor::new(
+            "mute",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("mute format should succeed");
         let result = output
             .generate_to_string(&test_data())
             .expect("generate_to_string should succeed");
@@ -785,6 +922,7 @@ mod tests {
             Some(&EMBEDDED_TEMPLATES),
             None,
             OutputTarget::Stdout,
+            Params::default(),
         )
         .expect("template format should succeed");
         let result = output
@@ -807,6 +945,7 @@ mod tests {
             Some(&EMBEDDED_TEMPLATES),
             None,
             OutputTarget::Stdout,
+            Params::default(),
         )
         .expect("each_test template should succeed");
 
@@ -857,6 +996,7 @@ mod tests {
             Some(&EMBEDDED_TEMPLATES),
             None,
             OutputTarget::Stdout,
+            Params::default(),
         )
         .expect("each_test template should succeed");
 
@@ -877,16 +1017,37 @@ mod tests {
 
     #[test]
     fn test_content_type() {
-        let json = OutputProcessor::new("json", "test", None, None, OutputTarget::Stdout)
-            .expect("json format should succeed");
+        let json = OutputProcessor::new(
+            "json",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("json format should succeed");
         assert_eq!(json.content_type(), "application/json");
 
-        let yaml = OutputProcessor::new("yaml", "test", None, None, OutputTarget::Stdout)
-            .expect("yaml format should succeed");
+        let yaml = OutputProcessor::new(
+            "yaml",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("yaml format should succeed");
         assert_eq!(yaml.content_type(), "application/yaml");
 
-        let jsonl = OutputProcessor::new("jsonl", "test", None, None, OutputTarget::Stdout)
-            .expect("jsonl format should succeed");
+        let jsonl = OutputProcessor::new(
+            "jsonl",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("jsonl format should succeed");
         assert_eq!(jsonl.content_type(), "application/jsonl");
 
         let template = OutputProcessor::new(
@@ -895,12 +1056,20 @@ mod tests {
             Some(&EMBEDDED_TEMPLATES),
             None,
             OutputTarget::Stdout,
+            Params::default(),
         )
         .expect("template format should succeed");
         assert_eq!(template.content_type(), "text/plain");
 
-        let mute = OutputProcessor::new("mute", "test", None, None, OutputTarget::Stdout)
-            .expect("mute format should succeed");
+        let mute = OutputProcessor::new(
+            "mute",
+            "test",
+            None,
+            None,
+            OutputTarget::Stdout,
+            Params::default(),
+        )
+        .expect("mute format should succeed");
         assert_eq!(mute.content_type(), "text/plain");
     }
 
@@ -942,8 +1111,15 @@ mod tests {
     fn test_all_builtin_formats_stderr() {
         let formats = ["json", "yaml", "jsonl"];
         for name in formats {
-            let mut output = OutputProcessor::new(name, "test", None, None, OutputTarget::Stderr)
-                .unwrap_or_else(|e| panic!("Failed to create {name}: {e}"));
+            let mut output = OutputProcessor::new(
+                name,
+                "test",
+                None,
+                None,
+                OutputTarget::Stderr,
+                Params::default(),
+            )
+            .unwrap_or_else(|e| panic!("Failed to create {name}: {e}"));
             assert!(!output.is_file_output(), "{name}");
             output
                 .generate(&test_data())
@@ -959,6 +1135,7 @@ mod tests {
             Some(&EMBEDDED_TEMPLATES),
             None,
             OutputTarget::Stderr,
+            Params::default(),
         )
         .expect("template stderr output should succeed");
         assert!(!output.is_line_oriented());

@@ -3,9 +3,11 @@
 use crate::v2::{attribute_group::AttributeGroupAttribute, provenance::Provenance};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet, VecDeque};
 use weaver_common::result::WResult;
-use weaver_resolved_schema::v2::{catalog::AttributeCatalog, entity::EntityAttributeRef};
+use weaver_resolved_schema::v2::{
+    attribute::AttributeRef, catalog::AttributeCatalog, entity::EntityAttributeRef,
+};
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::schema_url::SchemaUrl;
 
@@ -141,6 +143,40 @@ impl ForgeResolvedRegistry {
         })
     }
 
+    /// Every registry this one depends on, nearest first. The order is a
+    /// breadth-first walk of `dependency_graph`. A registry the graph does not
+    /// reach comes last, in key order.
+    #[must_use]
+    pub fn dependencies_nearest_first(&self) -> Vec<(&SchemaUrl, &ForgeDependency)> {
+        let mut ordered = Vec::with_capacity(self.dependencies.len());
+        let mut seen = HashSet::with_capacity(self.dependencies.len() + 1);
+        let _ = seen.insert(&self.schema_url);
+        let mut queue: VecDeque<&SchemaUrl> = self
+            .dependency_graph
+            .get(&self.schema_url)
+            .map(|direct| direct.iter().collect())
+            .unwrap_or_default();
+
+        while let Some(url) = queue.pop_front() {
+            if !seen.insert(url) {
+                continue;
+            }
+            if let Some(entry) = self.dependencies.get_key_value(url) {
+                ordered.push(entry);
+            }
+            if let Some(direct) = self.dependency_graph.get(url) {
+                queue.extend(direct.iter());
+            }
+        }
+
+        ordered.extend(
+            self.dependencies
+                .iter()
+                .filter(|(url, _)| !seen.contains(url)),
+        );
+        ordered
+    }
+
     /// Create a new template registry from a resolved schema registry, resolving
     /// all dependencies via the provided schema resolver.
     ///
@@ -242,9 +278,7 @@ impl ForgeResolvedRegistry {
                 from_resolved_associations(assocs, &deps_list)
             };
 
-        let attribute_lookup = |r: &weaver_resolved_schema::v2::attribute::AttributeRef| {
-            schema.attribute_catalog.attribute(r)
-        };
+        let attribute_lookup = |r: &AttributeRef| schema.attribute_catalog.attribute(r);
         // We create an attribute lookup map.
         let mut attributes: Vec<Attribute> = schema
             .registry
@@ -498,6 +532,29 @@ impl ForgeResolvedRegistry {
         }
         event_refinements.sort_by(|l, r| l.id.cmp(&r.id));
 
+        let convert_identity_attrs =
+            |attrs: &[AttributeRef], group_id: &str, errors: &mut Vec<Error>| -> Vec<Attribute> {
+                attrs
+                    .iter()
+                    .filter_map(|ar| {
+                        let attr = attribute_lookup(ar).map(|a| Attribute {
+                            key: a.key.clone(),
+                            r#type: a.r#type.clone(),
+                            examples: a.examples.clone(),
+                            common: a.common.clone(),
+                            provenance: resolve_provenance(&a.provenance),
+                        });
+                        if attr.is_none() {
+                            errors.push(Error::AttributeNotFound {
+                                group_id: group_id.to_owned(),
+                                attr_ref: ar.0,
+                            });
+                        }
+                        attr
+                    })
+                    .collect()
+            };
+
         let convert_entity_attrs = |attrs: &[EntityAttributeRef],
                                     group_id: &str,
                                     errors: &mut Vec<Error>|
@@ -529,7 +586,7 @@ impl ForgeResolvedRegistry {
         let mut entities = Vec::new();
         for e in schema.registry.entities {
             let group_id = format!("entity.{}", &e.r#type);
-            let identity = convert_entity_attrs(&e.identity, &group_id, &mut errors);
+            let identity = convert_identity_attrs(&e.identity, &group_id, &mut errors);
             let description = convert_entity_attrs(&e.description, &group_id, &mut errors);
             entities.push(Entity {
                 r#type: e.r#type,
@@ -545,7 +602,7 @@ impl ForgeResolvedRegistry {
         let mut entity_refinements = Vec::new();
         for e in schema.refinements.entities {
             let group_id = format!("entity.{}", &e.id);
-            let identity = convert_entity_attrs(&e.entity.identity, &group_id, &mut errors);
+            let identity = convert_identity_attrs(&e.entity.identity, &group_id, &mut errors);
             let description = convert_entity_attrs(&e.entity.description, &group_id, &mut errors);
             entity_refinements.push(EntityRefinement {
                 id: e.id,
@@ -622,7 +679,7 @@ impl ForgeResolvedRegistry {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::collections::{BTreeMap, BTreeSet, HashMap};
     use std::sync::Arc;
 
@@ -638,8 +695,6 @@ mod tests {
     use weaver_resolver::NullSchemaResolver;
     use weaver_semconv::{
         schema_url::SchemaUrl,
-        signal_requirement_level::SignalRequirementLevel,
-        stability::Stability,
         v2::{
             attribute::{
                 AttributeType, BasicRequirementLevelSpec, Examples, PrimitiveOrArrayTypeSpec,
@@ -647,7 +702,9 @@ mod tests {
             },
             metric::InstrumentSpec,
             signal_id::SignalId,
+            signal_requirement_level::SignalRequirementLevel,
             span::{SpanKindSpec, SpanName},
+            stability::Stability,
             CommonFields,
         },
     };
@@ -663,13 +720,13 @@ mod tests {
         Fatal(weaver_resolver::Error),
     }
 
-    struct MockSchemaResolver {
+    pub(crate) struct MockSchemaResolver {
         schemas: HashMap<SchemaUrl, MockResolution>,
         direct_dependencies: HashMap<SchemaUrl, Vec<SchemaUrl>>,
     }
 
     impl MockSchemaResolver {
-        fn new() -> Self {
+        pub(crate) fn new() -> Self {
             Self {
                 schemas: HashMap::new(),
                 direct_dependencies: HashMap::new(),
@@ -683,15 +740,14 @@ mod tests {
             );
         }
 
-        fn add_v1_schema(
+        pub(crate) fn add_resolved_schema(
             &mut self,
             url: SchemaUrl,
-            schema: weaver_resolved_schema::v1::ResolvedTelemetrySchema,
+            schema: weaver_resolver::WeaverResolvedSchema,
         ) {
-            let _ = self.schemas.insert(
-                url,
-                MockResolution::Ok(Arc::new(weaver_resolver::WeaverResolvedSchema::V1(schema))),
-            );
+            let _ = self
+                .schemas
+                .insert(url, MockResolution::Ok(Arc::new(schema)));
         }
 
         fn add_with_nfes(
@@ -784,7 +840,8 @@ mod tests {
                     r#type: SignalId::from("my-span".to_owned()),
                     kind: SpanKindSpec::Internal,
                     name: SpanName {
-                        note: "My Span".to_owned(),
+                        note: Some("My Span".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![span::SpanAttributeRef {
                         base: AttributeRef(0),
@@ -837,12 +894,7 @@ mod tests {
                 }],
                 entities: vec![entity::Entity {
                     r#type: SignalId::from("my-entity".to_owned()),
-                    identity: vec![EntityAttributeRef {
-                        base: AttributeRef(0),
-                        requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Required,
-                        ),
-                    }],
+                    identity: vec![AttributeRef(0)],
                     description: vec![EntityAttributeRef {
                         base: AttributeRef(1),
                         requirement_level: RequirementLevel::Basic(
@@ -872,7 +924,8 @@ mod tests {
                         r#type: SignalId::from("my-span".to_owned()),
                         kind: SpanKindSpec::Client,
                         name: SpanName {
-                            note: "My Refined Span".to_owned(),
+                            note: Some("My Refined Span".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![span::SpanAttributeRef {
                             base: AttributeRef(0),
@@ -925,12 +978,7 @@ mod tests {
                     id: SignalId::from("my-refined-entity".to_owned()),
                     entity: entity::Entity {
                         r#type: SignalId::from("my-entity".to_owned()),
-                        identity: vec![EntityAttributeRef {
-                            base: AttributeRef(0),
-                            requirement_level: RequirementLevel::Basic(
-                                BasicRequirementLevelSpec::Required,
-                            ),
-                        }],
+                        identity: vec![AttributeRef(0)],
                         description: vec![EntityAttributeRef {
                             base: AttributeRef(1),
                             requirement_level: RequirementLevel::Basic(
@@ -1054,7 +1102,7 @@ mod tests {
         let entity = &forge_registry.registry.entities[0];
         assert_eq!(entity.r#type, "my-entity".to_owned().into());
         assert_eq!(entity.identity.len(), 1);
-        assert_eq!(entity.identity[0].base.key, "test.attr");
+        assert_eq!(entity.identity[0].key, "test.attr");
         assert_eq!(entity.description.len(), 1);
         assert_eq!(entity.description[0].base.key, "test.desc.attr");
         assert_eq!(
@@ -1092,12 +1140,14 @@ mod tests {
         assert_eq!(refined_entity.id, "my-refined-entity".to_owned().into());
         assert_eq!(refined_entity.entity.r#type, "my-entity".to_owned().into());
         assert_eq!(refined_entity.entity.identity.len(), 1);
-        assert_eq!(refined_entity.entity.identity[0].base.key, "test.attr");
+        assert_eq!(refined_entity.entity.identity[0].key, "test.attr");
         assert_eq!(refined_entity.entity.description.len(), 1);
         assert_eq!(
             refined_entity.entity.description[0].base.key,
             "test.desc.attr"
         );
+
+        assert_conforms_to_json_schema(&forge_registry);
     }
 
     fn forge_refinements_len(forge: &ForgeResolvedRegistry) -> (usize, usize, usize, usize) {
@@ -1107,6 +1157,23 @@ mod tests {
             forge.refinements.events.len(),
             forge.refinements.entities.len(),
         )
+    }
+
+    /// Asserts that the serialized registry conforms to the published JSON Schema of
+    /// `ForgeResolvedRegistry` (`weaver registry json-schema -j materialized-registry-v2`).
+    fn assert_conforms_to_json_schema(forge: &ForgeResolvedRegistry) {
+        let schema = serde_json::to_value(schema_for!(ForgeResolvedRegistry)).unwrap();
+        let validator = jsonschema::validator_for(&schema).expect("JSON Schema should compile");
+        let value = serde_json::to_value(forge).expect("serialization should succeed");
+        let errors: Vec<String> = validator
+            .iter_errors(&value)
+            .map(|e| format!("{}: {e}", e.instance_path()))
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "serialized registry does not match its JSON Schema:\n{}",
+            errors.join("\n")
+        );
     }
 
     #[test]
@@ -1146,7 +1213,8 @@ mod tests {
                         r#type: SignalId::from("z-span".to_owned()),
                         kind: SpanKindSpec::Internal,
                         name: SpanName {
-                            note: "".to_owned(),
+                            note: Some("".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![],
                         entity_associations: vec![],
@@ -1158,7 +1226,8 @@ mod tests {
                         r#type: SignalId::from("a-span".to_owned()),
                         kind: SpanKindSpec::Internal,
                         name: SpanName {
-                            note: "".to_owned(),
+                            note: Some("".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![],
                         entity_associations: vec![],
@@ -1235,7 +1304,8 @@ mod tests {
                             r#type: SignalId::from("z-span".to_owned()),
                             kind: SpanKindSpec::Internal,
                             name: SpanName {
-                                note: "".to_owned(),
+                                note: Some("".to_owned()),
+                                ..Default::default()
                             },
                             attributes: vec![],
                             entity_associations: vec![],
@@ -1250,7 +1320,8 @@ mod tests {
                             r#type: SignalId::from("a-span".to_owned()),
                             kind: SpanKindSpec::Internal,
                             name: SpanName {
-                                note: "".to_owned(),
+                                note: Some("".to_owned()),
+                                ..Default::default()
                             },
                             attributes: vec![],
                             entity_associations: vec![],
@@ -1542,7 +1613,8 @@ mod tests {
                     r#type: SignalId::from("my-span".to_owned()),
                     kind: SpanKindSpec::Internal,
                     name: SpanName {
-                        note: "".to_owned(),
+                        note: Some("".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![span::SpanAttributeRef {
                         base: AttributeRef(10),
@@ -1586,12 +1658,7 @@ mod tests {
                 }],
                 entities: vec![entity::Entity {
                     r#type: SignalId::from("my-entity".to_owned()),
-                    identity: vec![EntityAttributeRef {
-                        base: AttributeRef(13),
-                        requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Required,
-                        ),
-                    }],
+                    identity: vec![AttributeRef(13)],
                     description: vec![EntityAttributeRef {
                         base: AttributeRef(14),
                         requirement_level: RequirementLevel::Basic(
@@ -1621,7 +1688,8 @@ mod tests {
                         r#type: SignalId::from("my-span".to_owned()),
                         kind: SpanKindSpec::Internal,
                         name: SpanName {
-                            note: "".to_owned(),
+                            note: Some("".to_owned()),
+                            ..Default::default()
                         },
                         attributes: vec![span::SpanAttributeRef {
                             base: AttributeRef(16),
@@ -1674,12 +1742,7 @@ mod tests {
                     id: SignalId::from("refined-entity".to_owned()),
                     entity: entity::Entity {
                         r#type: SignalId::from("my-entity".to_owned()),
-                        identity: vec![EntityAttributeRef {
-                            base: AttributeRef(19),
-                            requirement_level: RequirementLevel::Basic(
-                                BasicRequirementLevelSpec::Required,
-                            ),
-                        }],
+                        identity: vec![AttributeRef(19)],
                         description: vec![EntityAttributeRef {
                             base: AttributeRef(20),
                             requirement_level: RequirementLevel::Basic(
@@ -1874,6 +1937,43 @@ mod tests {
         assert_eq!(edges(&forge, BRANCH), Some(vec![LEAF.to_owned()]));
     }
 
+    /// The urls of `dependencies_nearest_first`.
+    fn nearest_first(forge: &ForgeResolvedRegistry) -> Vec<String> {
+        forge
+            .dependencies_nearest_first()
+            .into_iter()
+            .map(|(url, _)| url.to_string())
+            .collect()
+    }
+
+    /// The `fork` fixture declares middle before branch, and both depend on leaf.
+    #[test]
+    fn dependencies_nearest_first_walks_the_graph_by_distance() {
+        let mut resolver =
+            weaver_resolver::WeaverResolver::new(weaver_resolver::WeaverResolverConfig::default());
+        let forge = dependency_tree_forge(&mut resolver, "data/dependency_tree/fork");
+
+        assert_eq!(nearest_first(&forge), vec![MIDDLE, BRANCH, SUB, LEAF]);
+    }
+
+    #[test]
+    fn dependencies_nearest_first_without_a_graph_keeps_every_dependency() {
+        let (root_url, middle_url, leaf_url, mut mock_resolver) = mock_dependencies();
+        let forge = match ForgeResolvedRegistry::try_from_resolved_schema(
+            mock_root_schema(&root_url, &middle_url, &leaf_url),
+            &mut mock_resolver,
+        ) {
+            WResult::Ok(f) | WResult::OkWithNFEs(f, _) => f,
+            WResult::FatalErr(e) => panic!("failed to build the forge registry: {e}"),
+        };
+
+        assert!(forge.dependency_graph.is_empty());
+        assert_eq!(
+            nearest_first(&forge),
+            vec![leaf_url.to_string(), middle_url.to_string()]
+        );
+    }
+
     /// The same graph, with `middle` consumed as an already-resolved artifact
     /// whose publication manifest is the only record of its dependencies.
     #[test]
@@ -2061,126 +2161,6 @@ mod tests {
     }
 
     #[test]
-    fn test_dependency_resolution_v1_schema_success() {
-        let dep_url: SchemaUrl = "https://example.com/dep-v1".try_into().unwrap();
-        let v1_schema = weaver_resolved_schema::v1::ResolvedTelemetrySchema {
-            file_format: "resolved/1.0".to_owned(),
-            schema_url: "https://example.com/dep-v1".to_owned(),
-            registry_id: "test".to_owned(),
-            registry: weaver_resolved_schema::v1::registry::Registry {
-                registry_url: "https://example.com/dep-v1".to_owned(),
-                entity_association_origins: Default::default(),
-                groups: vec![],
-            },
-            catalog: weaver_resolved_schema::v1::catalog::Catalog::default(),
-            resource: None,
-            instrumentation_library: None,
-            dependencies: BTreeSet::new(),
-            versions: None,
-            registry_manifest: None,
-        };
-
-        let root_schema = ResolvedTelemetrySchema {
-            file_format: "2.0.0".to_owned(),
-            schema_url: "https://example.com/root".try_into().unwrap(),
-            attribute_catalog: vec![],
-            dependencies: {
-                let mut deps = BTreeSet::new();
-                let _ = deps.insert(dep_url.clone());
-                deps
-            },
-            registry: v2::registry::Registry {
-                attributes: vec![],
-                spans: vec![],
-                metrics: vec![],
-                events: vec![],
-                entities: vec![],
-                attribute_groups: vec![],
-            },
-            refinements: refinements::Refinements {
-                spans: vec![],
-                metrics: vec![],
-                events: vec![],
-                entities: vec![],
-            },
-        };
-
-        let mut mock_resolver = MockSchemaResolver::new();
-        mock_resolver.add_v1_schema(dep_url.clone(), v1_schema);
-
-        let forge = match ForgeResolvedRegistry::try_from_resolved_schema(
-            root_schema,
-            &mut mock_resolver,
-        ) {
-            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
-            WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
-        };
-
-        assert_eq!(
-            forge.dependencies.keys().collect::<Vec<_>>(),
-            vec![&dep_url]
-        );
-    }
-
-    #[test]
-    fn test_dependency_resolution_v1_schema_conversion_error() {
-        let dep_url: SchemaUrl = "https://example.com/dep-v1".try_into().unwrap();
-        let invalid_v1_schema = weaver_resolved_schema::v1::ResolvedTelemetrySchema {
-            file_format: "resolved/1.0".to_owned(),
-            schema_url: "invalid schema url with spaces".to_owned(),
-            registry_id: "test".to_owned(),
-            registry: weaver_resolved_schema::v1::registry::Registry {
-                registry_url: "invalid schema url with spaces".to_owned(),
-                entity_association_origins: Default::default(),
-                groups: vec![],
-            },
-            catalog: weaver_resolved_schema::v1::catalog::Catalog::default(),
-            resource: None,
-            instrumentation_library: None,
-            dependencies: BTreeSet::new(),
-            versions: None,
-            registry_manifest: None,
-        };
-
-        let root_schema = ResolvedTelemetrySchema {
-            file_format: "2.0.0".to_owned(),
-            schema_url: "https://example.com/root".try_into().unwrap(),
-            attribute_catalog: vec![],
-            dependencies: {
-                let mut deps = BTreeSet::new();
-                let _ = deps.insert(dep_url.clone());
-                deps
-            },
-            registry: v2::registry::Registry {
-                attributes: vec![],
-                spans: vec![],
-                metrics: vec![],
-                events: vec![],
-                entities: vec![],
-                attribute_groups: vec![],
-            },
-            refinements: refinements::Refinements {
-                spans: vec![],
-                metrics: vec![],
-                events: vec![],
-                entities: vec![],
-            },
-        };
-
-        let mut mock_resolver = MockSchemaResolver::new();
-        mock_resolver.add_v1_schema(dep_url, invalid_v1_schema);
-
-        let result =
-            ForgeResolvedRegistry::try_from_resolved_schema(root_schema, &mut mock_resolver);
-        assert!(result.is_fatal());
-        if let WResult::FatalErr(Error::SchemaError(_)) = result {
-            // Expected
-        } else {
-            panic!("Expected FatalErr(SchemaError)");
-        }
-    }
-
-    #[test]
     fn test_dependency_recursive_fatal_error() {
         let dep_b_url: SchemaUrl = "https://example.com/dep-b".try_into().unwrap();
         // Dep B has a missing attribute error
@@ -2195,7 +2175,8 @@ mod tests {
                     r#type: SignalId::from("dep-b-span".to_owned()),
                     kind: SpanKindSpec::Internal,
                     name: SpanName {
-                        note: "".to_owned(),
+                        note: Some("".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![span::SpanAttributeRef {
                         base: AttributeRef(0),
@@ -2323,6 +2304,7 @@ mod tests {
         let json_val = serde_json::to_value(&empty_forge).expect("serialization should succeed");
         assert!(json_val.get("dependencies").is_none());
         assert!(json_val.get("dependency_graph").is_none());
+        assert_conforms_to_json_schema(&empty_forge);
 
         let round_trip: ForgeResolvedRegistry =
             serde_json::from_value(json_val).expect("deserialization should succeed");
@@ -2723,7 +2705,8 @@ mod tests {
                     r#type: "my-span".to_owned().into(),
                     kind: SpanKindSpec::Internal,
                     name: SpanName {
-                        note: "My Span".to_owned(),
+                        note: Some("My Span".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![],
                     entity_associations: vec![entity::EntityAssociation::Ref(entity::EntityRef {

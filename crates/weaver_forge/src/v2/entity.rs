@@ -5,8 +5,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::{
     schema_url::SchemaUrl,
-    signal_requirement_level::SignalRequirementLevel,
-    v2::{attribute::RequirementLevel, signal_id::SignalId, CommonFields},
+    v2::{
+        attribute::RequirementLevel, signal_id::SignalId,
+        signal_requirement_level::SignalRequirementLevel, CommonFields,
+    },
 };
 
 use crate::v2::attribute::Attribute;
@@ -22,7 +24,7 @@ pub struct Entity {
     /// List of attributes that identify this entity.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub identity: Vec<EntityAttribute>,
+    pub identity: Vec<Attribute>,
 
     /// List of attributes that describe this entity.
     #[serde(default)]

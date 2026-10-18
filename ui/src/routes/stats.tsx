@@ -15,7 +15,7 @@ import {
   YAxis,
 } from 'recharts'
 import { getRegistryStats } from '../lib/api'
-import type { Breakdown, CommonSignalStats, RegistryStats } from '../lib/api'
+import type { Breakdown, CommonSignalStats, RegistryStats, TypeFilter } from '../lib/api'
 import { useChartColors } from '../hooks/useChartColors'
 import type { ChartColors } from '../hooks/useChartColors'
 import {
@@ -288,19 +288,47 @@ function CoverageChart({ rows, colors }: { rows: CoverageRow[]; colors: ChartCol
   )
 }
 
-function SummaryStat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="rounded-box bg-base-200/50 px-4 py-3">
+function SummaryStat({
+  label,
+  value,
+  search,
+}: {
+  label: string
+  value: string | number
+  search?: Record<string, string>
+}) {
+  const content = (
+    <>
       <div className="text-xs uppercase tracking-wide text-base-content/60">{label}</div>
       <div className="mt-1 font-mono text-2xl font-semibold">
         {typeof value === 'number' ? value.toLocaleString() : value}
       </div>
-    </div>
+    </>
   )
+  if (search) {
+    return (
+      <Link
+        to="/search"
+        search={search}
+        className="rounded-box bg-base-200/50 hover:bg-base-300 px-4 py-3 cursor-pointer transition-colors block"
+      >
+        {content}
+      </Link>
+    )
+  }
+  return <div className="rounded-box bg-base-200/50 px-4 py-3">{content}</div>
 }
 
 /** A compact key-figures panel that partners a chart for a signal type. */
-function SignalSummary({ title, common }: { title: string; common: CommonSignalStats }) {
+function SignalSummary({
+  title,
+  type,
+  common,
+}: {
+  title: string
+  type: TypeFilter
+  common: CommonSignalStats
+}) {
   const documentedPct = common.count
     ? Math.round((common.total_with_note / common.count) * 100)
     : 0
@@ -309,9 +337,17 @@ function SignalSummary({ title, common }: { title: string; common: CommonSignalS
       <div className="card-body justify-center gap-1 p-4 sm:p-5">
         <h3 className="card-title text-base">{title}</h3>
         <div className="mt-2 grid grid-cols-2 gap-3">
-          <SummaryStat label="Total" value={common.count} />
-          <SummaryStat label="Stable" value={common.stability_breakdown.stable ?? 0} />
-          <SummaryStat label="Deprecated" value={common.deprecated_count} />
+          <SummaryStat label="Total" value={common.count} search={{ type }} />
+          <SummaryStat
+            label="Stable"
+            value={common.stability_breakdown.stable ?? 0}
+            search={{ type, stability: 'stable' }}
+          />
+          <SummaryStat
+            label="Deprecated"
+            value={common.deprecated_count}
+            search={{ type, deprecated: 'only' }}
+          />
           <SummaryStat label="Documented" value={`${documentedPct}%`} />
         </div>
       </div>
@@ -485,7 +521,11 @@ function Stats() {
             </ChartCard>
             <ChartCard
               title="Deprecated items"
-              subtitle={`${totalDeprecated.toLocaleString()} deprecated definitions in total`}
+              subtitle={
+                <Link to="/search" search={{ deprecated: 'only' }} className="link hover:underline">
+                  {`${totalDeprecated.toLocaleString()} deprecated definitions in total`}
+                </Link>
+              }
             >
               <HorizontalBars
                 data={deprecatedData}
@@ -546,7 +586,7 @@ function Stats() {
             <ChartCard title="Instruments" subtitle="Distribution of metric instrument kinds">
               <DonutChart data={instrumentData} colors={colors} />
             </ChartCard>
-            <SignalSummary title="Metric summary" common={r.metrics.common} />
+            <SignalSummary title="Metric summary" type="metric" common={r.metrics.common} />
           </div>
           <ChartCard
             title="Top units"
@@ -565,7 +605,7 @@ function Stats() {
             <ChartCard title="Span kinds" subtitle="Distribution of span kinds">
               <DonutChart data={spanKindData} colors={colors} />
             </ChartCard>
-            <SignalSummary title="Span summary" common={r.spans.common} />
+            <SignalSummary title="Span summary" type="span" common={r.spans.common} />
           </div>
         </section>
       ) : null}
@@ -586,7 +626,7 @@ function Stats() {
                 xLabel="Identity attributes"
               />
             </ChartCard>
-            <SignalSummary title="Entity summary" common={r.entities.common} />
+            <SignalSummary title="Entity summary" type="entity" common={r.entities.common} />
           </div>
         </section>
       ) : null}

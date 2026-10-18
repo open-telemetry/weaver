@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0
+
+params:
+  generate_public_attributes: true
+jq_modules:
+  - jq/helpers.jq
+templates:
+  - template: attributes.md
+    filter: public_attribute_names
+    application_mode: single
+    when: should_generate

@@ -103,7 +103,7 @@ pub(crate) fn command(
         path.is_file() && extension == "md"
     }
 
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     let config = cmd_config.config;
 
     let markdown_dir = config.markdown_dir.ok_or_else(|| {

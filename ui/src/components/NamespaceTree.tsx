@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import { maxFolderDepth, type TreeItem, type TreeNode } from '../lib/namespaceTree'
 import { getResultLink, getResultMeta } from '../lib/searchResults'
 import { InlineMarkdown } from './InlineMarkdown'
-import { StabilityDot } from './StabilityBadge'
+import { DeprecatedBadge, StabilityDot } from './StabilityBadge'
 import { TypeBadge } from './TypeBadge'
 
 const maxLevelButtons = 5
@@ -172,7 +172,7 @@ function LeafRow({ item }: { item: TreeItem }) {
         <TypeBadge type={result.result_type} size="xs" />
         {result.stability ? <StabilityDot stability={result.stability} /> : null}
         {result.deprecated ? (
-          <span className="badge badge-ghost badge-xs">deprecated</span>
+          <DeprecatedBadge deprecated={result.deprecated} size="xs" />
         ) : null}
         {getResultMeta(result).map((info) => (
           <span

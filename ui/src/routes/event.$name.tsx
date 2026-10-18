@@ -1,7 +1,7 @@
 import { createRoute, Link } from '@tanstack/react-router'
 import { getEvent, type EventAttribute, type EventResponse } from '../lib/api'
 import { Route as RootRoute } from './__root'
-import { StabilityBadge } from '../components/StabilityBadge'
+import { DeprecatedBadge, StabilityBadge } from '../components/StabilityBadge'
 import { Markdown } from '../components/Markdown'
 import { InlineMarkdown } from '../components/InlineMarkdown'
 import { EntityAssociations } from '../components/EntityAssociations'
@@ -76,7 +76,7 @@ function EventDetail() {
             <span className="badge badge-outline">Event</span>
             <StabilityBadge stability={data.stability} />
             {data.deprecated && (
-              <span className="badge badge-warning">deprecated</span>
+              <DeprecatedBadge deprecated={data.deprecated} />
             )}
           </div>
 
@@ -126,6 +126,7 @@ function EventDetail() {
                         <th>Attribute</th>
                         <th>Type</th>
                         <th>Requirement</th>
+                        <th>Stability</th>
                         <th>Brief</th>
                       </tr>
                     </thead>
@@ -142,6 +143,13 @@ function EventDetail() {
                             <td className="font-mono text-sm">{formatType(attr.type)}</td>
                             <td>
                               <span className={`badge ${badgeClass}`}>{label}</span>
+                            </td>
+                            <td>
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {attr.stability && <StabilityBadge stability={attr.stability} size="sm" />}
+                                {attr.deprecated && <DeprecatedBadge deprecated={attr.deprecated} size="sm" />}
+                                {!attr.stability && !attr.deprecated && '-'}
+                              </div>
                             </td>
                             <td className="max-w-xs truncate"><InlineMarkdown content={attr.brief || '-'} /></td>
                           </tr>

@@ -13,6 +13,7 @@ use std::path::PathBuf;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_config::{WeaverCommand, WeaverConfig};
+use weaver_forge::config::Params;
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_macros::weaver_command;
 
@@ -66,7 +67,7 @@ pub(crate) fn command(
     cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     info!("Weaver Registry Stats");
     info!(
         "Computing stats for registry `{}`",
@@ -95,6 +96,7 @@ pub(crate) fn command(
         Some(&DEFAULT_STATS_TEMPLATES),
         Some(templates),
         target,
+        Params::default(),
     )?;
 
     match resolved {

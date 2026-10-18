@@ -11,7 +11,8 @@ use weaver_forge::v2::entity::Entity;
 use weaver_forge::v2::event::Event;
 use weaver_forge::v2::metric::Metric;
 use weaver_forge::v2::span::Span;
-use weaver_semconv::stability::Stability;
+use weaver_semconv::deprecated::Deprecated;
+use weaver_semconv::v2::stability::Stability;
 
 /// Generic wrapper that adds a relevance score to any searchable object.
 #[derive(Debug, Serialize, Clone, ToSchema)]
@@ -43,6 +44,21 @@ pub enum SearchType {
     Entity,
 }
 
+/// Sort order for search results.
+#[derive(Debug, Deserialize, Default, Clone, Copy, PartialEq, Eq, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum SearchSort {
+    /// Default ordering (by relevance score when searching, or natural registry order when browsing).
+    #[default]
+    Default,
+    /// Sort alphabetically by item identifier (key/name/type).
+    Name,
+    /// Sort by maturity/stability level (stable -> release_candidate -> beta -> alpha -> development), then by name.
+    Stability,
+    /// Sort deprecated items first, then by relevance/name.
+    Deprecated,
+}
+
 /// A lightweight attribute summary used by `browse_namespace` and `check_attributes`.
 #[derive(Debug, Serialize, Clone)]
 pub struct NamespaceAttribute {
@@ -52,6 +68,9 @@ pub struct NamespaceAttribute {
     pub brief: String,
     /// Stability level.
     pub stability: Stability,
+    /// Deprecation info if deprecated.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<Deprecated>,
 }
 
 impl NamespaceAttribute {
@@ -62,6 +81,7 @@ impl NamespaceAttribute {
             key,
             brief: attr.common.brief.clone(),
             stability: attr.common.stability.clone(),
+            deprecated: attr.common.deprecated.clone(),
         }
     }
 }

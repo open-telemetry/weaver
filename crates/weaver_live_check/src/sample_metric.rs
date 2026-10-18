@@ -4,6 +4,7 @@
 
 use std::rc::Rc;
 
+use cel::{Context, SerializationError};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -11,13 +12,15 @@ use weaver_checker::FindingLevel;
 use weaver_semconv::v1::group::InstrumentSpec;
 
 use crate::{
-    advice::{check_entity_associations, emit_findings, FindingBuilder},
+    advice::{add_entity_association_findings, FindingBuilder},
+    cel::{bind_signal_context, AttributeMap, Matchable},
     live_checker::LiveChecker,
+    matcher::SampleMatch,
     sample_attribute::SampleAttribute,
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_resource::SampleResource,
     Advisable, Error, FindingId, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample,
-    SampleRef, VersionedSignal,
+    SampleRef, SampleType, VersionedSignal,
 };
 
 /// Represents the instrument type of a metric
@@ -81,15 +84,25 @@ impl LiveCheckRunner for SampleNumberDataPoint {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
+        let mut result = self.run_advisors(live_checker, stats, parent.clone(), parent_signal)?;
+        if let Some(sample_match) = parent.as_deref() {
+            sample_match.add_attribute_findings(
+                &SampleRef::NumberDataPoint(self),
+                &self.attributes,
+                &mut result,
+                live_checker,
+                parent_signal,
+            );
+        }
+        self.live_check_result = Some(result);
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
+            .run_live_check(live_checker, stats, parent.clone(), parent_signal)?;
         self.exemplars
-            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
+            .run_live_check(live_checker, stats, parent.clone(), parent_signal)?;
         Ok(())
     }
 }
@@ -147,15 +160,25 @@ impl LiveCheckRunner for SampleHistogramDataPoint {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
+        let mut result = self.run_advisors(live_checker, stats, parent.clone(), parent_signal)?;
+        if let Some(sample_match) = parent.as_deref() {
+            sample_match.add_attribute_findings(
+                &SampleRef::HistogramDataPoint(self),
+                &self.attributes,
+                &mut result,
+                live_checker,
+                parent_signal,
+            );
+        }
+        self.live_check_result = Some(result);
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
+            .run_live_check(live_checker, stats, parent.clone(), parent_signal)?;
         self.exemplars
-            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
+            .run_live_check(live_checker, stats, parent.clone(), parent_signal)?;
         Ok(())
     }
 }
@@ -228,15 +251,25 @@ impl LiveCheckRunner for SampleExponentialHistogramDataPoint {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
-        self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
+        let mut result = self.run_advisors(live_checker, stats, parent.clone(), parent_signal)?;
+        if let Some(sample_match) = parent.as_deref() {
+            sample_match.add_attribute_findings(
+                &SampleRef::ExponentialHistogramDataPoint(self),
+                &self.attributes,
+                &mut result,
+                live_checker,
+                parent_signal,
+            );
+        }
+        self.live_check_result = Some(result);
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         self.attributes
-            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
+            .run_live_check(live_checker, stats, parent.clone(), parent_signal)?;
         self.exemplars
-            .run_live_check(live_checker, stats, parent_group.clone(), parent_signal)?;
+            .run_live_check(live_checker, stats, parent.clone(), parent_signal)?;
         Ok(())
     }
 }
@@ -273,15 +306,16 @@ impl LiveCheckRunner for SampleExemplar {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<Rc<VersionedSignal>>,
+        parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         self.live_check_result =
-            Some(self.run_advisors(live_checker, stats, parent_group.clone(), parent_signal)?);
+            Some(self.run_advisors(live_checker, stats, parent.clone(), parent_signal)?);
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         self.filtered_attributes.run_live_check(
             live_checker,
             stats,
-            parent_group.clone(),
+            parent.clone(),
             parent_signal,
         )?;
         Ok(())
@@ -321,12 +355,24 @@ impl LiveCheckRunner for SampleMetric {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        _parent_group: Option<Rc<VersionedSignal>>,
+        _parent: Option<Rc<SampleMatch>>,
         parent_signal: &Sample,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
-        // find the metric in the registry
-        let semconv_metric = live_checker.find_metric(&self.name);
+        // The match runs before the advisors, so they check the instrument,
+        // unit and attributes against the matcher's `signal`.
+        let natural = live_checker.find_metric(&self.name);
+        let sample_match = live_checker.match_for(self, natural);
+        live_checker.record_match(&sample_match);
+        let semconv_metric = sample_match.signal.clone();
+        // Coverage counts against the signal the match resolved, which a
+        // matcher can change. A v1 group is the exception: its id is not the
+        // metric name.
+        let coverage_name = match semconv_metric.as_deref() {
+            Some(VersionedSignal::Metric(metric)) => metric.name.to_string(),
+            _ => self.name.clone(),
+        };
+        // Raised only when no matcher named a signal.
         if semconv_metric.is_none() {
             let finding = FindingBuilder::new(FindingId::MissingMetric)
                 .message("Metric does not exist in the registry.")
@@ -340,7 +386,7 @@ impl LiveCheckRunner for SampleMetric {
 
             let sample_ref = SampleRef::Metric(self);
             result.add_advice(finding, live_checker.finding_modifier.as_ref(), &sample_ref);
-        };
+        }
         for advisor in live_checker.advisors.iter_mut() {
             let sample_ref = SampleRef::Metric(self);
             let advice_list = advisor.advise(
@@ -356,42 +402,18 @@ impl LiveCheckRunner for SampleMetric {
                 &sample_ref,
             );
         }
-        // Check entity attribute requirements against the resource (empty slice if no resource)
-        let resource_attributes: &[SampleAttribute] = parent_signal
-            .resource()
-            .map(|r| r.attributes.as_slice())
-            .unwrap_or(&[]);
-        // A v1 group and a v2 metric hold the same expression in two shapes, so
-        // each arm calls the check with the shape it holds.
-        let findings = match semconv_metric.as_deref() {
-            Some(VersionedSignal::Group(g)) => check_entity_associations(
-                &g.entity_associations,
-                live_checker,
-                resource_attributes,
-                parent_signal,
-            ),
-            Some(VersionedSignal::Metric(m)) => check_entity_associations(
-                &m.entity_associations,
-                live_checker,
-                resource_attributes,
-                parent_signal,
-            ),
-            _ => Vec::new(),
-        };
-        if !findings.is_empty() {
-            let sample_ref = SampleRef::Metric(self);
-            emit_findings(
-                &findings,
-                &sample_ref,
-                live_checker.otlp_emitter.as_deref(),
-                parent_signal,
-            );
-            result.add_advice_list(
-                findings,
-                live_checker.finding_modifier.as_ref(),
-                &sample_ref,
-            );
-        }
+        add_entity_association_findings(
+            semconv_metric.as_deref(),
+            &SampleRef::Metric(self),
+            &mut result,
+            live_checker,
+            parent_signal,
+        );
+
+        // A metric's attributes are on its data points. Each data point checks
+        // them against this match.
+        sample_match.set_match_info(&SampleRef::Metric(self), &mut result, live_checker);
+        let semconv_metric = Some(Rc::new(sample_match));
 
         // Get advice for the data points
         match &mut self.data_points {
@@ -425,7 +447,102 @@ impl LiveCheckRunner for SampleMetric {
         self.live_check_result = Some(result);
         stats.inc_entity_count("metric");
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
-        stats.add_metric_name_to_coverage(self.name.clone());
+        stats.add_metric_name_to_coverage(coverage_name);
         Ok(())
+    }
+}
+
+impl Matchable for SampleMetric {
+    fn sample_type(&self) -> SampleType {
+        SampleType::Metric
+    }
+
+    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+        context.add_variable("name", &self.name)?;
+        context.add_variable("unit", &self.unit)?;
+        context.add_variable("instrument", &self.instrument)?;
+        context.add_variable("attributes", self.agreed_attributes())?;
+        bind_signal_context(
+            self.resource.as_deref(),
+            self.instrumentation_scope.as_deref(),
+            context,
+        )
+    }
+}
+
+impl SampleMetric {
+    /// The attributes that have the same value on every data point. A key
+    /// whose value differs between points is not included.
+    fn agreed_attributes(&self) -> AttributeMap<'_> {
+        let attributes: Box<dyn Iterator<Item = &SampleAttribute>> = match &self.data_points {
+            Some(DataPoints::Number(points)) => {
+                Box::new(points.iter().flat_map(|point| point.attributes.iter()))
+            }
+            Some(DataPoints::Histogram(points)) => {
+                Box::new(points.iter().flat_map(|point| point.attributes.iter()))
+            }
+            Some(DataPoints::ExponentialHistogram(points)) => {
+                Box::new(points.iter().flat_map(|point| point.attributes.iter()))
+            }
+            None => Box::new(std::iter::empty()),
+        };
+        let mut agreed = AttributeMap::new();
+        let mut disputed = Vec::new();
+        for attribute in attributes {
+            if let Some(held) = agreed.insert(attribute.name.as_str(), &attribute.value) {
+                if *held != attribute.value {
+                    disputed.push(attribute.name.as_str());
+                }
+            }
+        }
+        for name in disputed {
+            let _ = agreed.remove(name);
+        }
+        agreed
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cel::evaluate;
+
+    fn parse(json: &str) -> SampleMetric {
+        serde_json::from_str(json).expect("the fixture parses")
+    }
+
+    /// The attributes are the data points together.
+    #[test]
+    fn a_metric_binds_its_name_unit_instrument_and_attributes() {
+        let metric = parse(include_str!(
+            "../fixtures/cel/metric-common/metric-myapp-checkout-duration.json"
+        ));
+        let when = r#"name == "myapp.checkout.duration" && unit == "s" && instrument == "histogram"
+            && attributes["myapp.checkout.stage"] == "payment"
+            && attributes["myapp.tenant.code"] == "acme-eu""#;
+        assert!(evaluate(when, &metric).expect("it evaluates"));
+    }
+
+    #[test]
+    fn a_key_the_data_points_disagree_on_is_left_out() {
+        let metric = parse(
+            r#"{
+              "name": "myapp.checkout.duration",
+              "instrument": "histogram",
+              "unit": "s",
+              "data_points": [
+                { "attributes": [{ "name": "myapp.checkout.stage", "value": "payment" },
+                                 { "name": "myapp.tenant.code", "value": "acme-eu" }],
+                  "value": 0.42 },
+                { "attributes": [{ "name": "myapp.checkout.stage", "value": "cart" },
+                                 { "name": "myapp.tenant.code", "value": "acme-eu" }],
+                  "value": 1.13 }
+              ],
+              "live_check_result": null
+            }"#,
+        );
+        let when = r#"attributes["myapp.tenant.code"] == "acme-eu"
+            && !("myapp.checkout.stage" in attributes)"#;
+        assert!(evaluate(when, &metric).expect("it evaluates"));
     }
 }

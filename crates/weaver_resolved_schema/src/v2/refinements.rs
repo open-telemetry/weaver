@@ -61,7 +61,8 @@ mod tests {
                     r#type: "http.client".to_owned().into(),
                     kind: weaver_semconv::v2::span::SpanKindSpec::Client,
                     name: weaver_semconv::v2::span::SpanName {
-                        note: "HTTP GET".to_owned(),
+                        note: Some("HTTP GET".to_owned()),
+                        ..Default::default()
                     },
                     attributes: vec![],
                     entity_associations: vec![],

@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: middle
 description: >
   The metric is associated with an entity that exists nowhere in the dependency

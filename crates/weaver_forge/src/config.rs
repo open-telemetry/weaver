@@ -23,7 +23,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use convert_case::{Boundary, Converter, Pattern};
@@ -76,6 +76,8 @@ pub struct WeaverConfig {
     /// List of acronyms to be considered as unmodifiable words in the case
     /// conversion.
     pub(crate) acronyms: Option<Vec<String>>,
+    /// JQ modules added to Weaver's built-in filter prelude.
+    pub(crate) jq_modules: Option<Vec<PathBuf>>,
 }
 
 /// Case convention for naming of functions and structs.
@@ -491,6 +493,7 @@ impl Default for WeaverConfig {
             params: None,
             templates: None,
             acronyms: None,
+            jq_modules: None,
         }
     }
 }
@@ -555,11 +558,12 @@ impl WeaverConfig {
 
         // Each configuration is loaded and merged into the current configuration.
         for conf in configs {
-            let weaver_config: WeaverConfig =
+            let mut weaver_config: WeaverConfig =
                 serde_yaml::from_str(&conf.content).map_err(|e| InvalidConfigFile {
                     config_file: conf.path.clone(),
                     error: e.to_string(),
                 })?;
+            weaver_config.resolve_jq_modules(&conf.path);
             log::debug!("Loaded Weaver configuration from {}", conf.path.display());
             config.override_with(weaver_config);
         }
@@ -678,6 +682,7 @@ impl WeaverConfig {
         if child.acronyms.is_some() {
             self.acronyms = child.acronyms;
         }
+        self.merge_jq_modules(child.jq_modules);
     }
 
     /// Merge additional acronyms from a higher-precedence source, such as the
@@ -716,10 +721,41 @@ impl WeaverConfig {
             .get_or_insert_with(HashMap::new)
             .extend(incoming);
     }
+
+    /// Append JQ modules from a higher-precedence configuration source.
+    ///
+    /// Modules keep their declaration order. Later modules therefore take
+    /// precedence when they define the same filter.
+    pub fn merge_jq_modules(&mut self, jq_modules: Option<Vec<PathBuf>>) {
+        let Some(incoming) = jq_modules else {
+            return;
+        };
+        self.jq_modules
+            .get_or_insert_with(Vec::new)
+            .extend(incoming);
+    }
+
+    fn resolve_jq_modules(&mut self, config_path: &Path) {
+        let Some(jq_modules) = self.jq_modules.as_mut() else {
+            return;
+        };
+        let base = config_path
+            .parent()
+            .filter(|path| !path.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
+        let base = base.canonicalize().unwrap_or_else(|_| base.to_path_buf());
+        for module in jq_modules {
+            if module.is_relative() {
+                *module = base.join(&*module);
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use crate::config::{ApplicationMode, WeaverConfig};
     use crate::file_loader::FileContent;
 
@@ -1005,6 +1041,52 @@ mod tests {
         let local: WeaverConfig = serde_yaml::from_str("acronyms: []").unwrap();
         parent.override_with(local);
         assert_eq!(parent.acronyms, Some(vec![]));
+    }
+
+    #[test]
+    fn test_jq_modules_override_with() {
+        let mut parent: WeaverConfig =
+            serde_yaml::from_str("jq_modules: ['jq/common.jq']").unwrap();
+        let child: WeaverConfig = serde_yaml::from_str("jq_modules: ['jq/rust.jq']").unwrap();
+        parent.override_with(child);
+
+        assert_eq!(
+            parent.jq_modules,
+            Some(vec![
+                PathBuf::from("jq/common.jq"),
+                PathBuf::from("jq/rust.jq"),
+            ])
+        );
+    }
+
+    #[test]
+    fn test_load_resolves_jq_modules_from_each_config_file() {
+        let dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let parent_dir = dir.path().join("parent");
+        let child_dir = parent_dir.join("child");
+        std::fs::create_dir_all(&child_dir).expect("Failed to create config directories");
+        let parent_config = parent_dir.join("weaver.yaml");
+        let child_config = child_dir.join("weaver.yaml");
+        std::fs::write(&parent_config, "jq_modules: ['jq/parent.jq']")
+            .expect("Failed to write parent config");
+        std::fs::write(&child_config, "jq_modules: ['jq/child.jq']")
+            .expect("Failed to write child config");
+
+        let config = WeaverConfig::try_from_config_files(&[parent_config, child_config])
+            .expect("Failed to load template configs");
+        assert_eq!(
+            config.jq_modules,
+            Some(vec![
+                parent_dir
+                    .canonicalize()
+                    .expect("Failed to canonicalize parent directory")
+                    .join("jq/parent.jq"),
+                child_dir
+                    .canonicalize()
+                    .expect("Failed to canonicalize child directory")
+                    .join("jq/child.jq"),
+            ])
+        );
     }
 
     #[test]

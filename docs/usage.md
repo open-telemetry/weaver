@@ -468,7 +468,7 @@ This uses the standard OpenTelemetry SDK, defaulting to OTLP gRPC on localhost:4
 
   Possible values: `true`, `false`
 
-* `--endpoint <ENDPOINT>` — Endpoint for the OTLP receiver. OTEL_EXPORTER_OTLP_ENDPOINT env var will override this. [default: http://localhost:4317]
+* `--endpoint <ENDPOINT>` — Endpoint for the OTLP receiver. When not set here or in the config file, `OTEL_EXPORTER_OTLP_<SIGNAL>_ENDPOINT`, then `OTEL_EXPORTER_OTLP_ENDPOINT`, apply. The default is `http://localhost:4317`
 
 
 
@@ -504,6 +504,8 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 
   Possible values: `true`, `false`
 
+* `-D`, `--param <PARAM>` — Parameters key=value, defined in the command line, to pass to the templates. The value must be a valid YAML value
+* `--params <PARAMS>` — Parameters, defined in a YAML file, to pass to the templates
 * `--diagnostic-format <DIAGNOSTIC_FORMAT>` — Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command. [default: ansi]
 * `--diagnostic-template <DIAGNOSTIC_TEMPLATE>` — Path to the directory where the diagnostic templates are located. [default: diagnostic_templates]
 * `--diagnostic-stdout <DIAGNOSTIC_STDOUT>` — Send the output to stdout instead of stderr. [default: false]
@@ -522,23 +524,27 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 
   Possible values: `true`, `false`
 
+* `--search-all-attributes <SEARCH_ALL_ATTRIBUTES>` — Also search the base attribute definitions of the registry and its dependencies for an attribute that is not on the matched signal or its attribute groups. [default: false]
+
+  Possible values: `true`, `false`
+
 * `--fail-on <FAIL_ON>` — Findings at this level or higher cause a non-zero exit code. Levels (highest→lowest): violation, improvement, information. Use `none` to never fail. [default: violation]
-* `-o`, `--output <OUTPUT>` — Path to save generated artifacts. Use "none" to suppress output, "http" to send as the /stop response
+* `-o`, `--output <OUTPUT>` — Path to save generated artifacts. Use "none" to suppress output, "http" to serve the report at GET /report on the admin port until POST /shutdown (the inactivity timeout is then ignored)
 * `--otlp-grpc-address <OTLP_GRPC_ADDRESS>` — Address used by the gRPC OTLP listener
-* `--otlp-grpc-port <OTLP_GRPC_PORT>` — Port used by the gRPC OTLP listener
+* `--otlp-grpc-port <OTLP_GRPC_PORT>` — Port used by the gRPC OTLP listener. 0 picks a free port
 * `--emit-otlp-logs <EMIT_OTLP_LOGS>` — Enable OTLP log emission for live check policy findings
 
   Possible values: `true`, `false`
 
-* `--otlp-logs-endpoint <OTLP_LOGS_ENDPOINT>` — OTLP endpoint for log emission
+* `--otlp-logs-endpoint <OTLP_LOGS_ENDPOINT>` — OTLP endpoint for log emission. When not set here or in the config file, `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`, then `OTEL_EXPORTER_OTLP_ENDPOINT`, apply. The default is `http://localhost:4317`
 * `--otlp-logs-stdout <OTLP_LOGS_STDOUT>` — Use stdout for OTLP log emission (debug mode)
 
   Possible values: `true`, `false`
 
-* `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin port (endpoints: /stop)
+* `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin port (endpoints: /health, /stop, /report, /shutdown)
 * `--inactivity-timeout <INACTIVITY_TIMEOUT>` — Max inactivity time in seconds before stopping the listener
-* `--advice-policies <ADVICE_POLICIES>` — Advice policies directory. Set this to override the default policies
-* `--advice-data <ADVICE_DATA>` — Glob pattern pointing to additional JSON/YAML files to load into OPA rego data (other extensions are ignored). Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user)
+* `--advice-policies <ADVICE_POLICIES>` — Advice policies directory or virtual directory. Set this to override the default policies
+* `--advice-data <ADVICE_DATA>` — Virtual directory, file, or glob pattern pointing to additional JSON/YAML files to load into OPA rego data (other extensions are ignored). Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user)
 * `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego
 
 
@@ -576,10 +582,9 @@ The server communicates over stdio using JSON-RPC.
 
   Possible values: `true`, `false`
 
-* `--advice-policies <ADVICE_POLICIES>` — Advice policies directory. Set this to override the default policies
+* `--advice-policies <ADVICE_POLICIES>` — Advice policies directory or virtual directory. Set this to override the default policies
 * `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego
-* `--advice-data <ADVICE_DATA>` — Glob pattern pointing to additional JSON/YAML files to load into OPA rego data. Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user)
-* `--namespace-separator <NAMESPACE_SEPARATOR>` — Namespace separator used in attribute keys. Defaults to ".". Used by namespace browsing and search token splitting. [default: .]
+* `--advice-data <ADVICE_DATA>` — Virtual directory, file, or glob pattern pointing to additional JSON/YAML files to load into OPA rego data. Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user)
 
 
 
@@ -598,8 +603,8 @@ Generates a schema file by inferring the schema from a OTLP message.
   Possible values: `true`, `false`
 
 * `-o`, `--output <OUTPUT>` — Output folder for generated YAML files. [default: ./inferred-registry/]
-* `--grpc-address <GRPC_ADDRESS>` — Address used by the gRPC OTLP listener. [default: 127.0.0.1]
-* `--grpc-port <GRPC_PORT>` — Port used by the gRPC OTLP listener. [default: 4317]
+* `--otlp-grpc-address <OTLP_GRPC_ADDRESS>` — Address used by the gRPC OTLP listener. [default: 127.0.0.1]
+* `--otlp-grpc-port <OTLP_GRPC_PORT>` — Port used by the gRPC OTLP listener. [default: 4317]
 * `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin server (endpoints: /stop). [default: 8080]
 * `--inactivity-timeout <INACTIVITY_TIMEOUT>` — Seconds of inactivity before auto-stop (0 = never). [default: 60]
 

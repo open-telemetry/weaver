@@ -85,12 +85,6 @@ attributes:
       ```
     stability: stable
 
-  - key: render.attr.stability_deprecated
-    type: string
-    brief: An attribute whose stability level is `deprecated`.
-    stability: deprecated
-    examples: "value"
-
   - key: render.attr.deprecated_renamed
     type: string
     brief: A deprecated attribute that was renamed (renders a link to the successor).
@@ -103,7 +97,7 @@ attributes:
   - key: render.attr.deprecated_obsoleted
     type: string
     brief: A deprecated attribute that was obsoleted (no successor link).
-    stability: stable
+    stability: development
     examples: "gone"
     deprecated:
       reason: obsoleted

@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: top_transitive
 description: >
   Depends on `middle_assoc_export`, which names the `host` of base but does not

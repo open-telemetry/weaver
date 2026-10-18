@@ -1,3 +1,4 @@
+file_format: definition_manifest/2.0
 name: rival
 description: >
   An unrelated registry that happens to define its own `host` entity. It shares
