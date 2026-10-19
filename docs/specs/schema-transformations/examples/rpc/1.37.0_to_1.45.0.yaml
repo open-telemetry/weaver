@@ -1,0 +1,403 @@
+# RPC pre-stability (v1.37.0) -> stable RPC conventions (main after v1.44.0).
+#
+# Guide: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/non-normative/rpc-migration.md
+#
+# The source URL is v1.37.0, the version the guide starts from. The target URL
+# 1.45.0 is a placeholder for the first release that contains the stable RPC
+# conventions: rpc.status_code (#3921) and rpc.request.header.* (#3924) are
+# only on main (.chloggen) at the time of writing. Per `rules-cover-one-migration`
+# the set also carries the 1.39..1.44 -> target renames that are expressible
+# (rpc.response.status_code -> rpc.status_code) so data from intermediate
+# producers is covered too.
+#
+# Left out:
+#   - rpc.method short -> fully-qualified (rpc.service + "/" + rpc.method): needs
+#     `derive`; the short value is dropped instead (policies *-method-dropped).
+#   - server.address / server.port meaning change: not bridgeable.
+#   - rpc.{grpc,connect_rpc}.{request,response}.metadata.<key>: templated keys;
+#     response metadata split into header/trailer can't be derived.
+#   - error.type: would have to be derived from the status code and exceptions.
+#   - rpc.jsonrpc.error_message -> span status description: moves to a span field.
+#   - rpc.message span events, exception span events -> log events: events.
+#   - The ms -> s unit change of the duration histograms is declared with
+#     `scale` in metric_view policies (ids ending in -view); PromQL rejects
+#     queries that would need to rescale histograms.
+file_format: transform/2.0
+source:
+  schema_url: https://opentelemetry.io/schemas/1.37.0
+target:
+  schema_url: https://opentelemetry.io/schemas/1.45.0
+
+policies:
+  # --- Spans: rpc.system -> rpc.system.name ----------------------------------
+  - id: rpc-span-system-rename
+    name: rpc.system renamed to rpc.system.name on spans
+    description: >
+      Target-safe: stable spans never carry rpc.system. Dual-emitting (rpc/dup)
+      spans keep their rpc.system.name (upsert false) and lose rpc.system.
+    trace:
+      matches: [{span_attribute: [rpc.system], exists: true}]
+      transform:
+        rename: [{span_attribute: [rpc.system], to: rpc.system.name}]
+
+  - id: rpc-span-system-value-dubbo
+    name: rpc.system apache_dubbo becomes rpc.system.name dubbo
+    description: Single-value emulation of a value map (exact).
+    trace:
+      matches: [{span_attribute: [rpc.system], equals: apache_dubbo}]
+      transform:
+        add: [{span_attribute: [rpc.system.name], value: dubbo, upsert: true}]
+
+  - id: rpc-span-system-value-connectrpc
+    name: rpc.system connect_rpc becomes rpc.system.name connectrpc
+    description: Single-value emulation of a value map (exact).
+    trace:
+      matches: [{span_attribute: [rpc.system], equals: connect_rpc}]
+      transform:
+        add: [{span_attribute: [rpc.system.name], value: connectrpc, upsert: true}]
+
+  # --- Spans: removed attributes ---------------------------------------------
+  - id: rpc-span-removed-attributes
+    name: rpc.service, network.transport and network.type removed from RPC spans
+    description: >
+      rpc.service is folded into rpc.method in the target, which a rule can't
+      compute (no `derive`), so source spans simply lose it. Matching on
+      rpc.system (source-only) keeps the rule away from target-shaped spans.
+    trace:
+      matches: [{span_attribute: [rpc.system], exists: true}]
+      transform:
+        remove:
+          - {span_attribute: [rpc.service]}
+          - {span_attribute: [network.transport]}
+          - {span_attribute: [network.type]}
+
+  - id: rpc-span-server-client-address-removed
+    name: client.address and client.port removed from RPC server spans
+    trace:
+      matches:
+        - {span_kind: server}
+        - {span_attribute: [rpc.system], exists: true}
+      transform:
+        remove:
+          - {span_attribute: [client.address]}
+          - {span_attribute: [client.port]}
+
+  - id: rpc-span-method-dropped
+    name: Short rpc.method values are dropped from pre-stability spans
+    description: >
+      LOSSY. In the target rpc.method is the fully-qualified method
+      (service/method); in the source it is the short method name. The same key
+      changed meaning and the target value can't be derived, so source values
+      are removed rather than mixed with target values. Dual-emitting spans
+      (rpc.system.name present) are excluded since their rpc.method may already
+      be fully qualified. Delete this policy to keep the short names instead.
+    trace:
+      matches:
+        - {span_attribute: [rpc.system], exists: true}
+        - {span_attribute: [rpc.system.name], exists: false}
+      transform:
+        remove: [{span_attribute: [rpc.method]}]
+
+  # --- Spans: status codes ---------------------------------------------------
+  # rpc.grpc.status_code (int) -> rpc.status_code (string name): no `map` op,
+  # so one policy per value. Codes outside 0..16 stay as rpc.grpc.status_code.
+  # equals is typed: the matchers compare against int values.
+  - id: rpc-span-grpc-status-ok
+    name: rpc.grpc.status_code 0 becomes rpc.status_code OK
+    trace:
+      matches: [{span_attribute: [rpc.grpc.status_code], equals: 0}]
+      transform:
+        remove: [{span_attribute: [rpc.grpc.status_code]}]
+        add: [{span_attribute: [rpc.status_code], value: OK}]
+
+  - id: rpc-span-grpc-status-cancelled
+    name: rpc.grpc.status_code 1 becomes rpc.status_code CANCELLED
+    trace:
+      matches: [{span_attribute: [rpc.grpc.status_code], equals: 1}]
+      transform:
+        remove: [{span_attribute: [rpc.grpc.status_code]}]
+        add: [{span_attribute: [rpc.status_code], value: CANCELLED}]
+
+  - id: rpc-span-grpc-status-unknown
+    name: rpc.grpc.status_code 2 becomes rpc.status_code UNKNOWN
+    trace:
+      matches: [{span_attribute: [rpc.grpc.status_code], equals: 2}]
+      transform:
+        remove: [{span_attribute: [rpc.grpc.status_code]}]
+        add: [{span_attribute: [rpc.status_code], value: UNKNOWN}]
+
+  - id: rpc-span-grpc-status-invalid-argument
+    name: rpc.grpc.status_code 3 becomes rpc.status_code INVALID_ARGUMENT
+    trace:
+      matches: [{span_attribute: [rpc.grpc.status_code], equals: 3}]
+      transform:
+        remove: [{span_attribute: [rpc.grpc.status_code]}]
+        add: [{span_attribute: [rpc.status_code], value: INVALID_ARGUMENT}]
+
+  - id: rpc-span-grpc-status-deadline-exceeded
+    name: rpc.grpc.status_code 4 becomes rpc.status_code DEADLINE_EXCEEDED
+    trace:
+      matches: [{span_attribute: [rpc.grpc.status_code], equals: 4}]
+      transform:
+        remove: [{span_attribute: [rpc.grpc.status_code]}]
+        add: [{span_attribute: [rpc.status_code], value: DEADLINE_EXCEEDED}]
+
+  - id: rpc-span-grpc-status-not-found
+    name: rpc.grpc.status_code 5 becomes rpc.status_code NOT_FOUND
+    trace:
+      matches: [{span_attribute: [rpc.grpc.status_code], equals: 5}]
+      transform:
+        remove: [{span_attribute: [rpc.grpc.status_code]}]
+        add: [{span_attribute: [rpc.status_code], value: NOT_FOUND}]
+
+  - id: rpc-span-grpc-status-already-exists
+    name: rpc.grpc.status_code 6 becomes rpc.status_code ALREADY_EXISTS
+    trace:
+      matches: [{span_attribute: [rpc.grpc.status_code], equals: 6}]
+      transform:
+        remove: [{span_attribute: [rpc.grpc.status_code]}]
+        add: [{span_attribute: [rpc.status_code], value: ALREADY_EXISTS}]
+
+  - id: rpc-span-grpc-status-permission-denied
+    name: rpc.grpc.status_code 7 becomes rpc.status_code PERMISSION_DENIED
+    trace:
+      matches: [{span_attribute: [rpc.grpc.status_code], equals: 7}]
+      transform:
+        remove: [{span_attribute: [rpc.grpc.status_code]}]
+        add: [{span_attribute: [rpc.status_code], value: PERMISSION_DENIED}]
+
+  - id: rpc-span-grpc-status-resource-exhausted
+    name: rpc.grpc.status_code 8 becomes rpc.status_code RESOURCE_EXHAUSTED
+    trace:
+      matches: [{span_attribute: [rpc.grpc.status_code], equals: 8}]
+      transform:
+        remove: [{span_attribute: [rpc.grpc.status_code]}]
+        add: [{span_attribute: [rpc.status_code], value: RESOURCE_EXHAUSTED}]
+
+  - id: rpc-span-grpc-status-failed-precondition
+    name: rpc.grpc.status_code 9 becomes rpc.status_code FAILED_PRECONDITION
+    trace:
+      matches: [{span_attribute: [rpc.grpc.status_code], equals: 9}]
+      transform:
+        remove: [{span_attribute: [rpc.grpc.status_code]}]
+        add: [{span_attribute: [rpc.status_code], value: FAILED_PRECONDITION}]
+
+  - id: rpc-span-grpc-status-aborted
+    name: rpc.grpc.status_code 10 becomes rpc.status_code ABORTED
+    trace:
+      matches: [{span_attribute: [rpc.grpc.status_code], equals: 10}]
+      transform:
+        remove: [{span_attribute: [rpc.grpc.status_code]}]
+        add: [{span_attribute: [rpc.status_code], value: ABORTED}]
+
+  - id: rpc-span-grpc-status-out-of-range
+    name: rpc.grpc.status_code 11 becomes rpc.status_code OUT_OF_RANGE
+    trace:
+      matches: [{span_attribute: [rpc.grpc.status_code], equals: 11}]
+      transform:
+        remove: [{span_attribute: [rpc.grpc.status_code]}]
+        add: [{span_attribute: [rpc.status_code], value: OUT_OF_RANGE}]
+
+  - id: rpc-span-grpc-status-unimplemented
+    name: rpc.grpc.status_code 12 becomes rpc.status_code UNIMPLEMENTED
+    trace:
+      matches: [{span_attribute: [rpc.grpc.status_code], equals: 12}]
+      transform:
+        remove: [{span_attribute: [rpc.grpc.status_code]}]
+        add: [{span_attribute: [rpc.status_code], value: UNIMPLEMENTED}]
+
+  - id: rpc-span-grpc-status-internal
+    name: rpc.grpc.status_code 13 becomes rpc.status_code INTERNAL
+    trace:
+      matches: [{span_attribute: [rpc.grpc.status_code], equals: 13}]
+      transform:
+        remove: [{span_attribute: [rpc.grpc.status_code]}]
+        add: [{span_attribute: [rpc.status_code], value: INTERNAL}]
+
+  - id: rpc-span-grpc-status-unavailable
+    name: rpc.grpc.status_code 14 becomes rpc.status_code UNAVAILABLE
+    trace:
+      matches: [{span_attribute: [rpc.grpc.status_code], equals: 14}]
+      transform:
+        remove: [{span_attribute: [rpc.grpc.status_code]}]
+        add: [{span_attribute: [rpc.status_code], value: UNAVAILABLE}]
+
+  - id: rpc-span-grpc-status-data-loss
+    name: rpc.grpc.status_code 15 becomes rpc.status_code DATA_LOSS
+    trace:
+      matches: [{span_attribute: [rpc.grpc.status_code], equals: 15}]
+      transform:
+        remove: [{span_attribute: [rpc.grpc.status_code]}]
+        add: [{span_attribute: [rpc.status_code], value: DATA_LOSS}]
+
+  - id: rpc-span-grpc-status-unauthenticated
+    name: rpc.grpc.status_code 16 becomes rpc.status_code UNAUTHENTICATED
+    trace:
+      matches: [{span_attribute: [rpc.grpc.status_code], equals: 16}]
+      transform:
+        remove: [{span_attribute: [rpc.grpc.status_code]}]
+        add: [{span_attribute: [rpc.status_code], value: UNAUTHENTICATED}]
+
+  - id: rpc-span-connect-error-code
+    name: rpc.connect_rpc.error_code renamed to rpc.status_code
+    description: >
+      Values are unchanged (Connect codes, lower snake case). Source spans only
+      carry the code on errors; successful source spans have no rpc.status_code.
+    trace:
+      matches: [{span_attribute: [rpc.connect_rpc.error_code], exists: true}]
+      transform:
+        rename: [{span_attribute: [rpc.connect_rpc.error_code], to: rpc.status_code}]
+
+  - id: rpc-span-response-status-code
+    name: rpc.response.status_code (v1.39-v1.44) renamed to rpc.status_code
+    description: Covers intermediate producers; v1.37 data never has this key.
+    trace:
+      matches: [{span_attribute: [rpc.response.status_code], exists: true}]
+      transform:
+        rename: [{span_attribute: [rpc.response.status_code], to: rpc.status_code}]
+
+  # --- Spans: JSON-RPC (in the v1.39 changelog and schema, not in the guide) --
+  - id: rpc-span-jsonrpc-error-code
+    name: rpc.jsonrpc.error_code (int) becomes rpc.status_code (string)
+    trace:
+      matches: [{span_attribute: [rpc.jsonrpc.error_code], exists: true}]
+      transform:
+        rename: [{span_attribute: [rpc.jsonrpc.error_code], to: rpc.status_code, convert: string}]
+
+  - id: rpc-span-jsonrpc-request-id
+    name: rpc.jsonrpc.request_id renamed to jsonrpc.request.id
+    trace:
+      matches: [{span_attribute: [rpc.jsonrpc.request_id], exists: true}]
+      transform:
+        rename: [{span_attribute: [rpc.jsonrpc.request_id], to: jsonrpc.request.id}]
+
+  - id: rpc-span-jsonrpc-version
+    name: rpc.jsonrpc.version renamed to jsonrpc.protocol.version
+    trace:
+      matches: [{span_attribute: [rpc.jsonrpc.version], exists: true}]
+      transform:
+        rename: [{span_attribute: [rpc.jsonrpc.version], to: jsonrpc.protocol.version}]
+
+  # --- Metrics: rpc.server.duration (ms) -> rpc.server.call.duration (s) -------------
+  - id: rpc-server-duration
+    name: rpc.server.duration (ms) becomes rpc.server.call.duration (s)
+    description: >
+      Histogram; rescaling bucket bounds isn't possible in PromQL, so queries
+      that read source data of this metric are rejected there.
+    metric:
+      matches: [{metric_field: name, equals: rpc.server.duration}]
+      transform:
+        rename:
+          - {datapoint_attribute: [rpc.system], to: rpc.system.name}
+        add:
+          - {metric_field: name, value: rpc.server.call.duration, upsert: true}
+
+  - id: rpc-server-duration-view
+    name: rpc.server.duration unit ms -> s and rpc.service, network.transport, network.type dropped (view for rpc-server-duration)
+    metric_view:
+      matches: [{metric_field: name, equals: rpc.server.duration}]
+      view:
+        drop_attributes:
+          - {datapoint_attribute: [rpc.service]}
+          - {datapoint_attribute: [network.transport]}
+          - {datapoint_attribute: [network.type]}
+        scale: [{metric_field: unit, from: ms, to: s}]
+
+  - id: rpc-server-duration-system-value-dubbo
+    name: rpc.system apache_dubbo becomes rpc.system.name dubbo on rpc.server.duration
+    metric:
+      matches:
+        - {metric_field: name, equals: rpc.server.duration}
+        - {datapoint_attribute: [rpc.system], equals: apache_dubbo}
+      transform:
+        add: [{datapoint_attribute: [rpc.system.name], value: dubbo, upsert: true}]
+
+  - id: rpc-server-duration-system-value-connectrpc
+    name: rpc.system connect_rpc becomes rpc.system.name connectrpc on rpc.server.duration
+    metric:
+      matches:
+        - {metric_field: name, equals: rpc.server.duration}
+        - {datapoint_attribute: [rpc.system], equals: connect_rpc}
+      transform:
+        add: [{datapoint_attribute: [rpc.system.name], value: connectrpc, upsert: true}]
+
+  - id: rpc-server-duration-method-dropped-view
+    name: Short rpc.method values are dropped from rpc.server.duration
+    description: >
+      LOSSY, same reasoning as rpc-span-method-dropped. Target-safe: matches the
+      source-only metric name. Delete this policy to keep the short names.
+    metric_view:
+      matches: [{metric_field: name, equals: rpc.server.duration}]
+      view:
+        drop_attributes: [{datapoint_attribute: [rpc.method]}]
+
+  - id: rpc-server-call-duration-response-status-code
+    name: rpc.response.status_code (v1.39-v1.44) renamed to rpc.status_code on rpc.server.call.duration
+    metric:
+      matches:
+        - {metric_field: name, equals: rpc.server.call.duration}
+        - {datapoint_attribute: [rpc.response.status_code], exists: true}
+      transform:
+        rename: [{datapoint_attribute: [rpc.response.status_code], to: rpc.status_code}]
+
+  # --- Metrics: rpc.client.duration (ms) -> rpc.client.call.duration (s) -------------
+  - id: rpc-client-duration
+    name: rpc.client.duration (ms) becomes rpc.client.call.duration (s)
+    description: >
+      Histogram; rescaling bucket bounds isn't possible in PromQL, so queries
+      that read source data of this metric are rejected there.
+    metric:
+      matches: [{metric_field: name, equals: rpc.client.duration}]
+      transform:
+        rename:
+          - {datapoint_attribute: [rpc.system], to: rpc.system.name}
+        add:
+          - {metric_field: name, value: rpc.client.call.duration, upsert: true}
+
+  - id: rpc-client-duration-view
+    name: rpc.client.duration unit ms -> s and rpc.service, network.transport, network.type dropped (view for rpc-client-duration)
+    metric_view:
+      matches: [{metric_field: name, equals: rpc.client.duration}]
+      view:
+        drop_attributes:
+          - {datapoint_attribute: [rpc.service]}
+          - {datapoint_attribute: [network.transport]}
+          - {datapoint_attribute: [network.type]}
+        scale: [{metric_field: unit, from: ms, to: s}]
+
+  - id: rpc-client-duration-system-value-dubbo
+    name: rpc.system apache_dubbo becomes rpc.system.name dubbo on rpc.client.duration
+    metric:
+      matches:
+        - {metric_field: name, equals: rpc.client.duration}
+        - {datapoint_attribute: [rpc.system], equals: apache_dubbo}
+      transform:
+        add: [{datapoint_attribute: [rpc.system.name], value: dubbo, upsert: true}]
+
+  - id: rpc-client-duration-system-value-connectrpc
+    name: rpc.system connect_rpc becomes rpc.system.name connectrpc on rpc.client.duration
+    metric:
+      matches:
+        - {metric_field: name, equals: rpc.client.duration}
+        - {datapoint_attribute: [rpc.system], equals: connect_rpc}
+      transform:
+        add: [{datapoint_attribute: [rpc.system.name], value: connectrpc, upsert: true}]
+
+  - id: rpc-client-duration-method-dropped-view
+    name: Short rpc.method values are dropped from rpc.client.duration
+    description: >
+      LOSSY, same reasoning as rpc-span-method-dropped. Target-safe: matches the
+      source-only metric name. Delete this policy to keep the short names.
+    metric_view:
+      matches: [{metric_field: name, equals: rpc.client.duration}]
+      view:
+        drop_attributes: [{datapoint_attribute: [rpc.method]}]
+
+  - id: rpc-client-call-duration-response-status-code
+    name: rpc.response.status_code (v1.39-v1.44) renamed to rpc.status_code on rpc.client.call.duration
+    metric:
+      matches:
+        - {metric_field: name, equals: rpc.client.call.duration}
+        - {datapoint_attribute: [rpc.response.status_code], exists: true}
+      transform:
+        rename: [{datapoint_attribute: [rpc.response.status_code], to: rpc.status_code}]

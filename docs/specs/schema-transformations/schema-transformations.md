@@ -2,14 +2,14 @@
 
 **Status:** design draft, for discussion
 
-A **transformation file** describes how telemetry defined by one Weaver schema becomes telemetry defined by another. Weaver validates it against both schemas at check-in. It is written in OpenTelemetry Telemetry Policies ([OTEP #4738](https://github.com/open-telemetry/opentelemetry-specification/blob/main/oteps/4738-telemetry-policy.md), [opentelemetry-proto#865](https://github.com/open-telemetry/opentelemetry-proto/pull/865)) and follows whatever syntax they settle on. No new language.
+A **transformation file** describes how telemetry defined by one Weaver schema becomes telemetry defined by another. Weaver validates it against both schemas at check-in. It is written in OpenTelemetry Telemetry Policies ([OTEP #4738](https://github.com/open-telemetry/opentelemetry-specification/blob/main/oteps/4738-telemetry-policy.md), [opentelemetry-proto#865](https://github.com/open-telemetry/opentelemetry-proto/pull/865)) and follows whatever syntax they settle on. 
 
 ## Scope
 
 - **Source → target**, both Weaver schemas: the same schema at different versions (semconv 1.20.0 → 1.23.1), or different schemas (native gRPC → OTel RPC). Non-Weaver telemetry can be described as a Weaver schema first; it doesn't need to be published.
 - **One direction per file.** Old → new and new → old are written separately, never derived from each other.
-- **Lossy by design.** Only changes that can be converted correctly are covered. The rest stays in migration guides.
-- **Out of scope:** general-purpose processing, deduplicating dual emission (`…/dup`).
+- **Lossy by design.** Only changes that can be converted correctly are covered. 
+- **Out of scope:** general-purpose processing, deduplicating dual emission
 
 ---
 
@@ -17,8 +17,10 @@ A **transformation file** describes how telemetry defined by one Weaver schema b
 
 A thin wrapper around a list of [telemetry policies](https://github.com/open-telemetry/opentelemetry-specification/blob/main/oteps/4738-telemetry-policy.md). The examples use the prototype's policy notation; the syntax will follow Telemetry Policies.
 
+Policies are designed to modify telemetry in the Collector and SDKs, so export/ingestion-time transformation comes for free.
+
 > [!TIP]
-> **Worked example:** the [migration guides](https://github.com/open-telemetry/semantic-conventions/tree/main/docs/non-normative) (HTTP, DB, RPC, K8s, code), GenAI and gRPC compatibility, in both directions: [`transformations` on the prototype branch](https://github.com/lmolkova/semantic-conventions/tree/transformations/transformations).
+> **Example:** the [migration guides](https://github.com/open-telemetry/semantic-conventions/tree/main/docs/non-normative) (HTTP, DB, RPC, K8s, code), GenAI and gRPC compatibility, in both directions: [`examples`](examples/).
 
 ```yaml
 file_format: transform/2.0
@@ -56,6 +58,7 @@ policies:
       - {metric_field: name, equals: http.server.duration}
       - {datapoint_attribute: [http.method], exists: true}
     view:
+      # note: this might be invalid depending on instrument
       scale: [{metric_field: unit, from: ms, to: s}]
 ```
 
@@ -79,13 +82,13 @@ policies:
           - {datapoint_attribute: [rpc.system.name], value: grpc}
 ```
 
-## Validation at check-in
+## Validation 
 
-Weaver resolves both schemas, applies the policies to the **source definitions** (metrics, spans, events, entities) and compares the result with the **target definitions**. It also applies them to the target definitions, which must come out unchanged. Value matchers "may match" attributes whose type or enum allows the value. Spans are matched by kind, name and attributes until span identity is on the wire.
+Weaver resolves both schemas, applies the policies to the **source definitions** (metrics, spans, events, entities) and compares the result with the **target definitions**. It also applies them to the target definitions, which must come out unchanged. Value matchers "may match" attributes whose type or enum allows the value. Spans are matched by kind, name and attributes until span type is on the wire.
 
 Examples of checks:
 
-- Signal ids and attribute keys exist in the source (read) and target (written) schemas.
+- Signal ids and attribute keys exist in the source and target schemas.
 - Signal properties match when a signal is renamed: span kind, metric instrument, unit after `scale`.
 - Attributes after transformation have a compatible type and are referenced by the target signal.
 - Added values are allowed by the target attribute (enum members).
@@ -93,22 +96,17 @@ Examples of checks:
 - Optional: all required and recommended target attributes can be populated.
 - Target-shaped definitions come out unchanged.
 - Policies that can match the same record don't write the same field differently.
-- `scale` units have the same dimension.
 
-Validation doesn't check coverage (not a goal) or real data.
-
-## Why Telemetry Policies
-
-They're designed to modify telemetry in the Collector and SDKs, so ingestion-time transformation comes for free: the file Weaver validates runs there as-is. One way to describe telemetry changes in OpenTelemetry, not a Weaver-only language.
+File validation doesn't check real data (see Future).
 
 ---
 
-## Future
+## Usages
 
+0. Telemetry transformation at ingestion time.
 1. **Dashboard and alert migration:** rewrite queries to also read the other version, or normalize to one version on the backend.
 2. **Live check:** transform samples on the fly and validate them against the target schema.
 3. **Migration docs** generated from transformation files.
-4. **More operations** (value maps, copy, split/concat, prefix renames), contributed to Telemetry Policies, not Weaver.
 
 ## Alternatives considered
 

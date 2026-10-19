@@ -1,0 +1,308 @@
+# Native gRPC conventions (A66 metrics, A72 tracing) -> OpenTelemetry RPC
+# conventions (gRPC flavor).
+#
+# Guide: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/non-normative/compatibility/grpc.md
+# gRPC:  https://github.com/grpc/proposal/blob/master/A66-otel-stats.md
+#        https://github.com/grpc/proposal/blob/master/A72-open-telemetry-tracing.md
+#
+# The source schema URL is invented: gRPC doesn't publish a schema URL.
+# 42.42.0 stands for "the A66/A72 conventions". The target is the OTel RPC
+# shape on main (rpc.status_code, fully-qualified rpc.method). 1.45.0 is a
+# placeholder for the first release that contains it, as in
+# rpc/1.37.0_to_1.45.0.yaml.
+#
+# Every policy matches on a gRPC-only signal name (grpc.*) or on the
+# Sent./Recv. span-name prefix, so OTel-shaped data passes through unchanged.
+#
+# Left out (see README.md):
+#   - server.address / server.port parsed from grpc.target: needs a
+#     split/parse op. Targets like xds:///name or unix:path don't have a
+#     host:port, so part of it is impossible anyway. grpc.target is dropped.
+#   - Span name Sent.{method} / Recv.{method} -> {rpc.method}: needs a
+#     span-name rewrite.
+#   - rpc.method on spans (from the span name) and rpc.status_code on spans
+#     (from the status description): need a derive-from-span-field op.
+#   - Span status (OTel only sets ERROR for some server codes): needs a
+#     set-span-status op.
+#   - error.type on spans: needs rpc.status_code first.
+#   - grpc.client.attempt.*, grpc.server.call.started and the message-size
+#     metrics have no OTel equivalent. They're left as-is, not dropped: their
+#     names don't collide with anything in OTel.
+#   - gRPC attempt spans have no OTel equivalent. They're left as-is: dropping
+#     them would orphan their children.
+#   - error.type for failures without a status code (exceptions) can't be
+#     derived. Instrumentations may also configure other error-code sets.
+file_format: transform/2.0
+source:
+  schema_url: https://grpc.io/schemas/42.42.0
+target:
+  schema_url: https://opentelemetry.io/schemas/1.45.0
+
+policies:
+  # --- grpc.client.call.duration ---------------------------------------------
+  - id: grpc-client-call-duration
+    name: grpc.client.call.duration becomes rpc.client.call.duration
+    description: >
+      Same instrument (histogram) and unit (s). grpc.method and grpc.status
+      map to rpc.method and rpc.status_code; the values use the same format
+      (full method name, status code name). rpc.system.name is always grpc. grpc.target is dropped (grpc-client-call-duration-view): parsing server.address/port out of it needs a new op.
+    metric:
+      matches: [{metric_field: name, equals: grpc.client.call.duration}]
+      transform:
+        rename:
+          - {datapoint_attribute: [grpc.method], to: rpc.method}
+          - {datapoint_attribute: [grpc.status], to: rpc.status_code}
+        add:
+          - {metric_field: name, value: rpc.client.call.duration, upsert: true}
+          - {datapoint_attribute: [rpc.system.name], value: grpc}
+
+  - id: grpc-client-call-duration-view
+    name: grpc.target dropped from grpc.client.call.duration (view for grpc-client-call-duration)
+    metric_view:
+      matches: [{metric_field: name, equals: grpc.client.call.duration}]
+      view:
+        drop_attributes: [{datapoint_attribute: [grpc.target]}]
+
+  - id: grpc-client-call-duration-method-other
+    name: grpc.method "other" becomes rpc.method "_OTHER" on grpc.client.call.duration
+    description: Single-value emulation of a value map (exact).
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.client.call.duration}
+        - {datapoint_attribute: [grpc.method], equals: other}
+      transform:
+        add: [{datapoint_attribute: [rpc.method], value: _OTHER, upsert: true}]
+
+  # error.type := grpc.status for error codes. On the client every status code except OK is an error.
+  # One policy per code: there's no copy/derive op.
+  - id: grpc-client-call-duration-error-cancelled
+    name: grpc.client.call.duration with grpc.status CANCELLED gets error.type CANCELLED
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.client.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: CANCELLED}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: CANCELLED}]
+  - id: grpc-client-call-duration-error-unknown
+    name: grpc.client.call.duration with grpc.status UNKNOWN gets error.type UNKNOWN
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.client.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: UNKNOWN}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: UNKNOWN}]
+  - id: grpc-client-call-duration-error-invalid-argument
+    name: grpc.client.call.duration with grpc.status INVALID_ARGUMENT gets error.type INVALID_ARGUMENT
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.client.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: INVALID_ARGUMENT}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: INVALID_ARGUMENT}]
+  - id: grpc-client-call-duration-error-deadline-exceeded
+    name: grpc.client.call.duration with grpc.status DEADLINE_EXCEEDED gets error.type DEADLINE_EXCEEDED
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.client.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: DEADLINE_EXCEEDED}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: DEADLINE_EXCEEDED}]
+  - id: grpc-client-call-duration-error-not-found
+    name: grpc.client.call.duration with grpc.status NOT_FOUND gets error.type NOT_FOUND
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.client.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: NOT_FOUND}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: NOT_FOUND}]
+  - id: grpc-client-call-duration-error-already-exists
+    name: grpc.client.call.duration with grpc.status ALREADY_EXISTS gets error.type ALREADY_EXISTS
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.client.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: ALREADY_EXISTS}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: ALREADY_EXISTS}]
+  - id: grpc-client-call-duration-error-permission-denied
+    name: grpc.client.call.duration with grpc.status PERMISSION_DENIED gets error.type PERMISSION_DENIED
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.client.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: PERMISSION_DENIED}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: PERMISSION_DENIED}]
+  - id: grpc-client-call-duration-error-resource-exhausted
+    name: grpc.client.call.duration with grpc.status RESOURCE_EXHAUSTED gets error.type RESOURCE_EXHAUSTED
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.client.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: RESOURCE_EXHAUSTED}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: RESOURCE_EXHAUSTED}]
+  - id: grpc-client-call-duration-error-failed-precondition
+    name: grpc.client.call.duration with grpc.status FAILED_PRECONDITION gets error.type FAILED_PRECONDITION
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.client.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: FAILED_PRECONDITION}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: FAILED_PRECONDITION}]
+  - id: grpc-client-call-duration-error-aborted
+    name: grpc.client.call.duration with grpc.status ABORTED gets error.type ABORTED
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.client.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: ABORTED}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: ABORTED}]
+  - id: grpc-client-call-duration-error-out-of-range
+    name: grpc.client.call.duration with grpc.status OUT_OF_RANGE gets error.type OUT_OF_RANGE
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.client.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: OUT_OF_RANGE}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: OUT_OF_RANGE}]
+  - id: grpc-client-call-duration-error-unimplemented
+    name: grpc.client.call.duration with grpc.status UNIMPLEMENTED gets error.type UNIMPLEMENTED
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.client.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: UNIMPLEMENTED}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: UNIMPLEMENTED}]
+  - id: grpc-client-call-duration-error-internal
+    name: grpc.client.call.duration with grpc.status INTERNAL gets error.type INTERNAL
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.client.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: INTERNAL}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: INTERNAL}]
+  - id: grpc-client-call-duration-error-unavailable
+    name: grpc.client.call.duration with grpc.status UNAVAILABLE gets error.type UNAVAILABLE
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.client.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: UNAVAILABLE}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: UNAVAILABLE}]
+  - id: grpc-client-call-duration-error-data-loss
+    name: grpc.client.call.duration with grpc.status DATA_LOSS gets error.type DATA_LOSS
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.client.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: DATA_LOSS}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: DATA_LOSS}]
+  - id: grpc-client-call-duration-error-unauthenticated
+    name: grpc.client.call.duration with grpc.status UNAUTHENTICATED gets error.type UNAUTHENTICATED
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.client.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: UNAUTHENTICATED}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: UNAUTHENTICATED}]
+
+  # --- grpc.server.call.duration ---------------------------------------------
+  - id: grpc-server-call-duration
+    name: grpc.server.call.duration becomes rpc.server.call.duration
+    description: >
+      Same instrument (histogram) and unit (s). grpc.method and grpc.status
+      map to rpc.method and rpc.status_code; the values use the same format
+      (full method name, status code name). rpc.system.name is always grpc.
+    metric:
+      matches: [{metric_field: name, equals: grpc.server.call.duration}]
+      transform:
+        rename:
+          - {datapoint_attribute: [grpc.method], to: rpc.method}
+          - {datapoint_attribute: [grpc.status], to: rpc.status_code}
+        add:
+          - {metric_field: name, value: rpc.server.call.duration, upsert: true}
+          - {datapoint_attribute: [rpc.system.name], value: grpc}
+
+  - id: grpc-server-call-duration-method-other
+    name: grpc.method "other" becomes rpc.method "_OTHER" on grpc.server.call.duration
+    description: Single-value emulation of a value map (exact).
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.server.call.duration}
+        - {datapoint_attribute: [grpc.method], equals: other}
+      transform:
+        add: [{datapoint_attribute: [rpc.method], value: _OTHER, upsert: true}]
+
+  # error.type := grpc.status for error codes. On the server only UNKNOWN, DEADLINE_EXCEEDED, UNIMPLEMENTED, INTERNAL, UNAVAILABLE and DATA_LOSS are errors.
+  # One policy per code: there's no copy/derive op.
+  - id: grpc-server-call-duration-error-unknown
+    name: grpc.server.call.duration with grpc.status UNKNOWN gets error.type UNKNOWN
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.server.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: UNKNOWN}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: UNKNOWN}]
+  - id: grpc-server-call-duration-error-deadline-exceeded
+    name: grpc.server.call.duration with grpc.status DEADLINE_EXCEEDED gets error.type DEADLINE_EXCEEDED
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.server.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: DEADLINE_EXCEEDED}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: DEADLINE_EXCEEDED}]
+  - id: grpc-server-call-duration-error-unimplemented
+    name: grpc.server.call.duration with grpc.status UNIMPLEMENTED gets error.type UNIMPLEMENTED
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.server.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: UNIMPLEMENTED}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: UNIMPLEMENTED}]
+  - id: grpc-server-call-duration-error-internal
+    name: grpc.server.call.duration with grpc.status INTERNAL gets error.type INTERNAL
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.server.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: INTERNAL}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: INTERNAL}]
+  - id: grpc-server-call-duration-error-unavailable
+    name: grpc.server.call.duration with grpc.status UNAVAILABLE gets error.type UNAVAILABLE
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.server.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: UNAVAILABLE}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: UNAVAILABLE}]
+  - id: grpc-server-call-duration-error-data-loss
+    name: grpc.server.call.duration with grpc.status DATA_LOSS gets error.type DATA_LOSS
+    metric:
+      matches:
+        - {metric_field: name, equals: grpc.server.call.duration}
+        - {datapoint_attribute: [grpc.status], equals: DATA_LOSS}
+      transform:
+        add: [{datapoint_attribute: [error.type], value: DATA_LOSS}]
+
+  # --- Spans ---------------------------------------------------------------
+  - id: grpc-span-client-system
+    name: gRPC client call spans (Sent.*) get rpc.system.name grpc
+    description: >
+      The span name keeps its Sent. prefix, and rpc.method / rpc.status_code
+      stay unset: each needs a new op (span-name rewrite, derive from a span
+      field). Target-safe: OTel span names are {rpc.method}, which never start
+      with "Sent.", and add without upsert keeps an existing value.
+    trace:
+      matches:
+        - {span_kind: client}
+        - {trace_field: name, glob: "Sent.*"}
+      transform:
+        add: [{span_attribute: [rpc.system.name], value: grpc}]
+
+  - id: grpc-span-server-system
+    name: gRPC server spans (Recv.*) get rpc.system.name grpc
+    description: Same as the client policy, for the Recv. prefix.
+    trace:
+      matches:
+        - {span_kind: server}
+        - {trace_field: name, glob: "Recv.*"}
+      transform:
+        add: [{span_attribute: [rpc.system.name], value: grpc}]

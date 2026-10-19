@@ -1,0 +1,125 @@
+# OpenTelemetry RPC conventions (gRPC flavor) -> native gRPC conventions
+# (A66 metrics, A72 tracing).
+#
+# Guide: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/non-normative/compatibility/grpc.md
+# gRPC:  https://github.com/grpc/proposal/blob/master/A66-otel-stats.md
+#        https://github.com/grpc/proposal/blob/master/A72-open-telemetry-tracing.md
+#
+# The target schema URL is invented: gRPC doesn't publish a schema URL.
+# Written on its own, not inverted from grpc-42.42.0_to_1.45.0.yaml.
+#
+# Every policy matches on rpc.system.name=grpc, an attribute gRPC-native
+# telemetry never carries, so gRPC-shaped data passes through unchanged.
+#
+# Left out (see README.md):
+#   - grpc.target = {server.address}[:{server.port}]: needs a concatenate op.
+#     server.address and server.port are still removed, as the guide says.
+#   - Span name {rpc.method} -> Sent.{rpc.method} / Recv.{rpc.method}: needs
+#     a span-name rewrite.
+#   - Span status ERROR for every non-OK rpc.status_code, and the
+#     "CODE, description" status description: need span-field ops.
+#   - grpc.client.attempt.*, grpc.server.call.started and the message-size
+#     metrics: OTel has no source data.
+file_format: transform/2.0
+source:
+  schema_url: https://opentelemetry.io/schemas/1.45.0
+target:
+  schema_url: https://grpc.io/schemas/42.42.0
+
+policies:
+  - id: otel-client-call-duration
+    name: rpc.client.call.duration (grpc) becomes grpc.client.call.duration
+    description: >
+      Same instrument (histogram) and unit (s). rpc.system.name and error.type
+      are dropped; server.address and server.port are dropped too, because grpc.target can't be built without a concatenate op.
+      The drops are in otel-client-call-duration-view: dropping labels merges
+      series, which is exact for histograms under rate/increase.
+    metric:
+      matches:
+        - {metric_field: name, equals: rpc.client.call.duration}
+        - {datapoint_attribute: [rpc.system.name], equals: grpc}
+      transform:
+        rename:
+          - {datapoint_attribute: [rpc.method], to: grpc.method}
+          - {datapoint_attribute: [rpc.status_code], to: grpc.status}
+        add:
+          - {metric_field: name, value: grpc.client.call.duration, upsert: true}
+
+  - id: otel-client-call-duration-view
+    name: rpc.system.name, error.type, server.address, server.port dropped from rpc.client.call.duration (view for otel-client-call-duration)
+    metric_view:
+      matches:
+        - {metric_field: name, equals: rpc.client.call.duration}
+        - {datapoint_attribute: [rpc.system.name], equals: grpc}
+      view:
+        drop_attributes:
+          - {datapoint_attribute: [rpc.system.name]}
+          - {datapoint_attribute: [error.type]}
+          - {datapoint_attribute: [server.address]}
+          - {datapoint_attribute: [server.port]}
+
+  - id: otel-client-call-duration-method-other
+    name: rpc.method "_OTHER" becomes grpc.method "other"
+    description: Single-value emulation of a value map (exact).
+    metric:
+      matches:
+        - {metric_field: name, equals: rpc.client.call.duration}
+        - {datapoint_attribute: [rpc.system.name], equals: grpc}
+        - {datapoint_attribute: [rpc.method], equals: _OTHER}
+      transform:
+        add: [{datapoint_attribute: [grpc.method], value: other, upsert: true}]
+
+  - id: otel-server-call-duration
+    name: rpc.server.call.duration (grpc) becomes grpc.server.call.duration
+    description: >
+      Same instrument (histogram) and unit (s). rpc.system.name and error.type
+      are dropped by otel-server-call-duration-view: dropping labels merges
+      series, which is exact for histograms under rate/increase.
+    metric:
+      matches:
+        - {metric_field: name, equals: rpc.server.call.duration}
+        - {datapoint_attribute: [rpc.system.name], equals: grpc}
+      transform:
+        rename:
+          - {datapoint_attribute: [rpc.method], to: grpc.method}
+          - {datapoint_attribute: [rpc.status_code], to: grpc.status}
+        add:
+          - {metric_field: name, value: grpc.server.call.duration, upsert: true}
+
+  - id: otel-server-call-duration-view
+    name: rpc.system.name, error.type dropped from rpc.server.call.duration (view for otel-server-call-duration)
+    metric_view:
+      matches:
+        - {metric_field: name, equals: rpc.server.call.duration}
+        - {datapoint_attribute: [rpc.system.name], equals: grpc}
+      view:
+        drop_attributes:
+          - {datapoint_attribute: [rpc.system.name]}
+          - {datapoint_attribute: [error.type]}
+
+  - id: otel-server-call-duration-method-other
+    name: rpc.method "_OTHER" becomes grpc.method "other"
+    description: Single-value emulation of a value map (exact).
+    metric:
+      matches:
+        - {metric_field: name, equals: rpc.server.call.duration}
+        - {datapoint_attribute: [rpc.system.name], equals: grpc}
+        - {datapoint_attribute: [rpc.method], equals: _OTHER}
+      transform:
+        add: [{datapoint_attribute: [grpc.method], value: other, upsert: true}]
+
+  - id: otel-span-grpc-attributes
+    name: rpc.system.name, rpc.method and rpc.status_code dropped from gRPC spans
+    description: >
+      A72 spans carry the method in the span name and the status in the span
+      status. Those two can't be written without new ops, so after this policy
+      the span name stays {rpc.method}. network.peer.*, server.*,
+      rpc.request.header.*, rpc.response.header.*, rpc.response.trailer.* and
+      rpc.method_original are kept, as the guide says.
+    trace:
+      matches: [{span_attribute: [rpc.system.name], equals: grpc}]
+      transform:
+        remove:
+          - {span_attribute: [rpc.system.name]}
+          - {span_attribute: [rpc.method]}
+          - {span_attribute: [rpc.status_code]}

@@ -1,0 +1,86 @@
+# Code attributes: stable (v1.33.0) -> pre-stability (v1.29.0), spans and logs.
+#
+# Lets queries written against the old code.* names also see data from
+# producers that emit the stable names. Written on its own, not inverted.
+#
+# Left out (see README.md):
+#   - code.function.name -> code.function: the stable value is the
+#     fully-qualified name; the old code.function is the short name. A
+#     rename would put a different meaning under the old key, and splitting
+#     the name into code.namespace + code.function is language-specific
+#     (needs `derive`). Not bridgeable / not expressible.
+#   - code.namespace: only exists in the target (old) version; stable data
+#     has no value for it (no source data).
+#   - code.function.name itself: extra in source, ignored; old queries don't
+#     reference it.
+file_format: transform/2.0
+source:
+  schema_url: https://opentelemetry.io/schemas/1.33.0
+target:
+  schema_url: https://opentelemetry.io/schemas/1.29.0
+
+policies:
+  # --- Spans ----------------------------------------------------------------
+  - id: code-span-line-number-back
+    name: code.line.number becomes code.lineno on spans
+    description: >
+      Same type (int) and meaning. Old-shaped data has no code.line.number,
+      so the rule doesn't touch it. With code/dup emission the existing
+      code.lineno wins (upsert false).
+    trace:
+      matches:
+        - {span_attribute: [code.line.number], exists: true}
+      transform:
+        rename:
+          - {span_attribute: [code.line.number], to: code.lineno}
+
+  - id: code-span-column-number-back
+    name: code.column.number becomes code.column on spans
+    description: Same type (int) and meaning.
+    trace:
+      matches:
+        - {span_attribute: [code.column.number], exists: true}
+      transform:
+        rename:
+          - {span_attribute: [code.column.number], to: code.column}
+
+  - id: code-span-file-path-back
+    name: code.file.path becomes code.filepath on spans
+    description: Same type (string) and meaning.
+    trace:
+      matches:
+        - {span_attribute: [code.file.path], exists: true}
+      transform:
+        rename:
+          - {span_attribute: [code.file.path], to: code.filepath}
+
+  # --- Logs -----------------------------------------------------------------
+  - id: code-log-line-number-back
+    name: code.line.number becomes code.lineno on log records
+    description: Same type (int) and meaning.
+    log:
+      matches:
+        - {log_attribute: [code.line.number], exists: true}
+      transform:
+        rename:
+          - {log_attribute: [code.line.number], to: code.lineno}
+
+  - id: code-log-column-number-back
+    name: code.column.number becomes code.column on log records
+    description: Same type (int) and meaning.
+    log:
+      matches:
+        - {log_attribute: [code.column.number], exists: true}
+      transform:
+        rename:
+          - {log_attribute: [code.column.number], to: code.column}
+
+  - id: code-log-file-path-back
+    name: code.file.path becomes code.filepath on log records
+    description: Same type (string) and meaning.
+    log:
+      matches:
+        - {log_attribute: [code.file.path], exists: true}
+      transform:
+        rename:
+          - {log_attribute: [code.file.path], to: code.filepath}
