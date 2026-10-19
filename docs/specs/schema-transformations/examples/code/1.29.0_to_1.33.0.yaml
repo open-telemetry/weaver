@@ -7,18 +7,11 @@
 # on the renamed key (self-guarded, so it doesn't split partitions).
 #
 # Left out (see README.md):
-#   - code.function + code.namespace -> code.function.name: the stable value
-#     is the fully-qualified name, built from both keys with a
-#     language-specific separator (needs `derive`). A plain rename of
-#     code.function would put the short name under the fully-qualified key,
-#     a changed meaning, so it's NOT written even though the official 1.30.0
-#     schema file lists it as a rename.
-#   - code.namespace: removed; its content belongs inside code.function.name
-#     (same `derive`). Not removed here: target queries can't reference it,
-#     and removing it would only discard information.
-#   - v1.30.0 producers emit code.function.name with the short-name meaning;
-#     that data is target-shaped by name and can't be told apart without the
-#     schema URL (not bridgeable).
+#   - code.namespace is not folded into code.function.name (needs concat).
+#     code.function is renamed to code.function.name as is: approximate, the
+#     value is the short name without the namespace.
+#   - v1.30.0 producers already emit code.function.name (short name); it
+#     passes through unchanged.
 file_format: transform/2.0
 source:
   schema_url: https://opentelemetry.io/schemas/1.29.0
@@ -90,3 +83,27 @@ policies:
       transform:
         rename:
           - {log_attribute: [code.filepath], to: code.file.path}
+
+  - id: code-span-function
+    name: code.function becomes code.function.name on spans (approximate)
+    description: >
+      Approximate: the target value is the fully-qualified name, this keeps the
+      short name and doesn't add code.namespace.
+    trace:
+      matches:
+        - {span_attribute: [code.function], exists: true}
+      transform:
+        rename:
+          - {span_attribute: [code.function], to: code.function.name}
+
+  - id: code-log-function
+    name: code.function becomes code.function.name on log records (approximate)
+    description: >
+      Approximate: the target value is the fully-qualified name, this keeps the
+      short name and doesn't add code.namespace.
+    log:
+      matches:
+        - {log_attribute: [code.function], exists: true}
+      transform:
+        rename:
+          - {log_attribute: [code.function], to: code.function.name}

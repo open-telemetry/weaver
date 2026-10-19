@@ -15,9 +15,8 @@
 #   - http.request.header.<key> / http.response.header.<key> dash/underscore
 #     normalization (templated keys)
 #   - span names ({method} -> HTTP for _OTHER)
-# Not bridgeable: new defaults / derivations in stable (server.port captured
-# even when it's the default port, network.peer.port captured even when it
-# equals server.port, url.scheme / server.address now from forwarding headers).
+# Approximate: stable derives some values differently (default ports,
+# forwarding headers); old values are carried over as is.
 #
 # Operation order (remove, redact, rename, add) is relied on: a `remove` in
 # one span policy runs before a `rename` of the same key in another, and a

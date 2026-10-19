@@ -12,7 +12,7 @@
 #
 # Left out:
 #   - rpc.method short -> fully-qualified (rpc.service + "/" + rpc.method): needs
-#     `derive`; the short value is dropped instead (policies *-method-dropped).
+#     concat; the short value is kept (approximate).
 #   - server.address / server.port meaning change: not bridgeable.
 #   - rpc.{grpc,connect_rpc}.{request,response}.metadata.<key>: templated keys;
 #     response metadata split into header/trailer can't be derived.
@@ -82,26 +82,6 @@ policies:
           - {span_attribute: [client.address]}
           - {span_attribute: [client.port]}
 
-  - id: rpc-span-method-dropped
-    name: Short rpc.method values are dropped from pre-stability spans
-    description: >
-      LOSSY. In the target rpc.method is the fully-qualified method
-      (service/method); in the source it is the short method name. The same key
-      changed meaning and the target value can't be derived, so source values
-      are removed rather than mixed with target values. Dual-emitting spans
-      (rpc.system.name present) are excluded since their rpc.method may already
-      be fully qualified. Delete this policy to keep the short names instead.
-    trace:
-      matches:
-        - {span_attribute: [rpc.system], exists: true}
-        - {span_attribute: [rpc.system.name], exists: false}
-      transform:
-        remove: [{span_attribute: [rpc.method]}]
-
-  # --- Spans: status codes ---------------------------------------------------
-  # rpc.grpc.status_code (int) -> rpc.status_code (string name): no `map` op,
-  # so one policy per value. Codes outside 0..16 stay as rpc.grpc.status_code.
-  # equals is typed: the matchers compare against int values.
   - id: rpc-span-grpc-status-ok
     name: rpc.grpc.status_code 0 becomes rpc.status_code OK
     trace:
@@ -321,16 +301,6 @@ policies:
       transform:
         add: [{datapoint_attribute: [rpc.system.name], value: connectrpc, upsert: true}]
 
-  - id: rpc-server-duration-method-dropped-view
-    name: Short rpc.method values are dropped from rpc.server.duration
-    description: >
-      LOSSY, same reasoning as rpc-span-method-dropped. Target-safe: matches the
-      source-only metric name. Delete this policy to keep the short names.
-    metric_view:
-      matches: [{metric_field: name, equals: rpc.server.duration}]
-      view:
-        drop_attributes: [{datapoint_attribute: [rpc.method]}]
-
   - id: rpc-server-call-duration-response-status-code
     name: rpc.response.status_code (v1.39-v1.44) renamed to rpc.status_code on rpc.server.call.duration
     metric:
@@ -382,16 +352,6 @@ policies:
         - {datapoint_attribute: [rpc.system], equals: connect_rpc}
       transform:
         add: [{datapoint_attribute: [rpc.system.name], value: connectrpc, upsert: true}]
-
-  - id: rpc-client-duration-method-dropped-view
-    name: Short rpc.method values are dropped from rpc.client.duration
-    description: >
-      LOSSY, same reasoning as rpc-span-method-dropped. Target-safe: matches the
-      source-only metric name. Delete this policy to keep the short names.
-    metric_view:
-      matches: [{metric_field: name, equals: rpc.client.duration}]
-      view:
-        drop_attributes: [{datapoint_attribute: [rpc.method]}]
 
   - id: rpc-client-call-duration-response-status-code
     name: rpc.response.status_code (v1.39-v1.44) renamed to rpc.status_code on rpc.client.call.duration

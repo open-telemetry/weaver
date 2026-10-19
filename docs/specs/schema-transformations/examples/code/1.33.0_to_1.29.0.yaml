@@ -4,15 +4,8 @@
 # producers that emit the stable names. Written on its own, not inverted.
 #
 # Left out (see README.md):
-#   - code.function.name -> code.function: the stable value is the
-#     fully-qualified name; the old code.function is the short name. A
-#     rename would put a different meaning under the old key, and splitting
-#     the name into code.namespace + code.function is language-specific
-#     (needs `derive`). Not bridgeable / not expressible.
-#   - code.namespace: only exists in the target (old) version; stable data
-#     has no value for it (no source data).
-#   - code.function.name itself: extra in source, ignored; old queries don't
-#     reference it.
+#   - code.namespace: not split out of code.function.name. code.function.name
+#     is renamed to code.function as is (approximate: fully-qualified value).
 file_format: transform/2.0
 source:
   schema_url: https://opentelemetry.io/schemas/1.33.0
@@ -84,3 +77,27 @@ policies:
       transform:
         rename:
           - {log_attribute: [code.file.path], to: code.filepath}
+
+  - id: code-span-function-name-back
+    name: code.function.name becomes code.function on spans (approximate)
+    description: >
+      Approximate: keeps the fully-qualified name in code.function and leaves
+      code.namespace unset.
+    trace:
+      matches:
+        - {span_attribute: [code.function.name], exists: true}
+      transform:
+        rename:
+          - {span_attribute: [code.function.name], to: code.function}
+
+  - id: code-log-function-name-back
+    name: code.function.name becomes code.function on log records (approximate)
+    description: >
+      Approximate: keeps the fully-qualified name in code.function and leaves
+      code.namespace unset.
+    log:
+      matches:
+        - {log_attribute: [code.function.name], exists: true}
+      transform:
+        rename:
+          - {log_attribute: [code.function.name], to: code.function}

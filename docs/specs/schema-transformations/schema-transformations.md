@@ -8,7 +8,7 @@ A **transformation file** describes how telemetry defined by one Weaver schema b
 
 - **Source → target**, both Weaver schemas: the same schema at different versions (semconv 1.20.0 → 1.23.1), or different schemas (native gRPC → OTel RPC). Non-Weaver telemetry can be described as a Weaver schema first; it doesn't need to be published.
 - **One direction per file.** Old → new and new → old are written separately, never derived from each other.
-- **Lossy by design.** Only changes that can be converted correctly are covered. 
+- **Lossy by design.** Transformations don't have to cover everything or be exact; approximate conversions are fine if they produce valid target telemetry. The rest stays in migration guides.
 - **Out of scope:** general-purpose processing, deduplicating dual emission
 
 ---

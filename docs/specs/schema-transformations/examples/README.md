@@ -403,25 +403,30 @@ Span name rewrites and span status changes aren't covered by either list yet.
 
 ## What isn't covered
 
-**Impossible** means no rule could ever be correct (the data was never captured,
-the mapping is ambiguous, or the meaning changed under the same name).
-**New op** means the source has the information but today's operations can't express it.
-**High** marks items that block a golden signal: duration, error rate or throughput.
+Transformations don't have to cover everything or be exact. An approximate
+conversion is fine as long as it produces valid target telemetry and leaves
+target-shaped data alone. For example, `code.function.name` → `code.function`
+keeps the fully-qualified name and leaves `code.namespace` unset.
+
+**No source data** means the source never captured the information, so nothing
+can produce it. **New op** means the source has the information but today's
+operations can't express it. **High** marks items that block a golden signal:
+duration, error rate or throughput.
 
 | Area | Direction | Not covered |
 |---|---|---|
-| Code | both | Impossible: `code.function.name` from 1.30 producers (short name under the same key); splitting `code.function.name` back. New op: concatenating `code.namespace` + `code.function`. |
-| DB | 1.24 → 1.33 | Impossible: **`db.client.operation.duration` (High, new metric)**; PostgreSQL schema / Oracle service parts of `db.namespace`; new attributes. New op: **`error.type` (High)**, `db.namespace` for SQL Server instances, span names, `db.query.summary`, Elasticsearch path parts. |
-| DB | 1.33 → 1.24 | Impossible: removed attributes (no source data). New op: splitting qualified `db.namespace` values, span names. |
-| HTTP | 1.20 → 1.23.1 | Impossible: header keys with `_`; values derived from `X-Forwarded-*`; defaulted ports. New op: **`error.type` (High)**, `http.target` split, `_OTHER` span names, `client.address` fallback, default `server.port`. |
-| HTTP | 1.23.1 → 1.20 | Impossible: original method on metrics (`_OTHER`); `net.host.name` on the server metric (opt-in in stable); `net.sock.*` on the client metric. New op: `http.target` concat, header keys, span names, default ports. |
-| K8s | both | Impossible: `.current` limits and requests; pod CPU utilization (denominator changed); rounded `cpu` quota; namespace phase "unknown". New op: phase and condition value ↔ attribute, labels and annotations, quota CPU millicores, hugepage and storage-class keys, minor page faults, volume attributes, gauge → up-down counter. |
-| RPC | 1.37 → 1.45 | Impossible: `server.address` / `server.port` (new meaning); response header vs trailer. New op: **`rpc.service` + `rpc.method` (High)**, **`error.type` (High)**, metadata keys, exception events, JSON-RPC error message. |
-| RPC | 1.45 → 1.37 | Impossible: `server.address` meaning; header/trailer key collisions; removed attributes. New op: **splitting `rpc.method` (High)**, metadata keys, integer gRPC status, exception events. |
-| gRPC | gRPC → OTel | New op: `server.address`/`server.port` from `grpc.target` (part is impossible: `xds:`, `unix:` targets); span name without `Sent.`/`Recv.`; `rpc.method` and `rpc.status_code` on spans; span status. Impossible: `error.type` for failures without a status code. Attempt metrics and spans have no equivalent and are left as-is. |
-| gRPC | OTel → gRPC | New op: `grpc.target` from `server.address`/`server.port`; `Sent.`/`Recv.` span names; span status and status description. Impossible: attempt metrics and spans (no source data). |
-| GenAI | 1.41 → dev | Impossible: **`gen_ai.invoke_agent.duration`, `gen_ai.execute_tool.duration`, `gen_ai.invoke_workflow.duration` (High, new metrics)**; cache, reasoning and per-invocation call metrics; billed vs consumed tokens; new attributes. New op: **token usage counters from the `gen_ai.client.token.usage` histogram (High)**, text-only `gen_ai.system_instructions`, MCP span status, event severity. |
-| GenAI | dev → 1.41 | Impossible: `gen_ai.provider.name`, `gen_ai.agent.id`, `gen_ai.agent.version` on internal agent spans; `finish_reasons` `error` padding. New op: `finish_reason` back-fill, cache tokens on internal agent spans, skill span names, MCP span status. |
+| Code | both | New op: concatenating `code.namespace` + `code.function` (forward), splitting it back (reverse). Both directions rename the function attribute as is. |
+| DB | 1.24 → 1.33 | No source data: **`db.client.operation.duration` (High, new metric)**; PostgreSQL schema / Oracle service parts of `db.namespace`; new attributes. New op: **`error.type` (High)**, `db.namespace` for SQL Server instances, span names, `db.query.summary`, Elasticsearch path parts. |
+| DB | 1.33 → 1.24 | No source data: removed attributes. New op: splitting qualified `db.namespace` values (moved to `db.name` as is), span names. |
+| HTTP | 1.20 → 1.23.1 | New op: **`error.type` (High)**, `http.target` split, header keys, `_OTHER` span names, `client.address` fallback, default `server.port`. |
+| HTTP | 1.23.1 → 1.20 | No source data: `net.host.name` on the server metric (opt-in in stable); `net.sock.*` on the client metric. New op: `http.target` concat, header keys, span names. |
+| K8s | both | No source data: `.current` limits and requests; pod CPU utilization targets (not in 1.44.0). New op: phase and condition value ↔ attribute, labels and annotations, quota CPU millicores, hugepage and storage-class keys, minor page faults, volume attributes, gauge → up-down counter. |
+| RPC | 1.37 → 1.45 | New op: **`rpc.service` + `rpc.method` (High; short `rpc.method` is kept)**, **`error.type` (High)**, metadata keys, exception events, JSON-RPC error message. |
+| RPC | 1.45 → 1.37 | No source data: removed attributes. New op: **splitting `rpc.method` (High; fully-qualified value is kept)**, metadata keys, integer gRPC status, exception events. |
+| gRPC | gRPC → OTel | New op: `server.address`/`server.port` from `grpc.target`; span name without `Sent.`/`Recv.`; `rpc.method` and `rpc.status_code` on spans; span status. No source data: `error.type` for failures without a status code. Attempt metrics and spans have no equivalent and are left as-is. |
+| gRPC | OTel → gRPC | New op: `grpc.target` from `server.address`/`server.port`; `Sent.`/`Recv.` span names; span status. No source data: attempt metrics and spans. |
+| GenAI | 1.41 → dev | No source data: **`gen_ai.invoke_agent.duration`, `gen_ai.execute_tool.duration`, `gen_ai.invoke_workflow.duration` (High, new metrics)**; cache, reasoning and per-invocation call metrics; new attributes. New op: **token usage counters from the `gen_ai.client.token.usage` histogram (High)**, text-only `gen_ai.system_instructions`, MCP span status, event severity. |
+| GenAI | dev → 1.41 | No source data: `gen_ai.provider.name`, `gen_ai.agent.id`, `gen_ai.agent.version` on internal agent spans. New op: `finish_reason` back-fill, cache tokens on internal agent spans, skill span names, MCP span status. |
 
 **GenAI #521.** The GenAI migration guide describes #521: inference metrics move to
 `gen_ai.client.inference.*`, and the span type becomes `gen_ai.client.inference`.

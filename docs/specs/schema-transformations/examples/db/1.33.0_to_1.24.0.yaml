@@ -6,12 +6,12 @@
 # v1.24 spans); every metric policy matches on a metric name that v1.24
 # doesn't use.
 #
-# Left out (not bridgeable / not expressible):
+# Left out:
 #   - span name change (no span-name op)
 #   - attributes v1.33 removed (db.connection_string, db.user, db.instance.id,
 #     db.mssql.instance_name, network.transport, network.type): no source data
-#   - qualified db.namespace values ("a|b") can't be split into db.name /
-#     db.mssql.instance_name (needs `derive`)
+#   - qualified db.namespace values ("a|b") aren't split into db.name /
+#     db.mssql.instance_name (needs split); they move to db.name as is
 #   - db.collection.name for systems with no v1.24 equivalent key
 #   - stable-only attributes and db.client.operation.duration: extra in
 #     source, ignored
@@ -83,16 +83,15 @@ policies:
 
   # --- db.namespace -> db.name / db.redis.database_index / cluster name -----
   - id: db-span-namespace-rev
-    name: db.namespace becomes db.name when it has a single component
+    name: db.namespace becomes db.name
     description: >
-      Values containing "|" ({instance}|{database} on SQL Server,
+      Approximate for qualified values ({instance}|{database} on SQL Server,
       {database}|{schema} on PostgreSQL, {instance}|{database}|{service} on
-      Oracle) are left as db.namespace: splitting them needs `derive`.
+      Oracle): they're moved as is.
     trace:
       matches:
         - {span_attribute: [db.system.name], exists: true}
         - {span_attribute: [db.system.name], in: [redis, elasticsearch], negate: true}
-        - {span_attribute: [db.namespace], contains: "|", negate: true}
       transform:
         rename:
           - {span_attribute: [db.namespace], to: db.name}
