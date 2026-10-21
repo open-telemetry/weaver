@@ -44,7 +44,7 @@ pub(crate) struct GroupSummary {
     /// The brief description of the semantic convention.
     pub brief: String,
     /// The note of the semantic convention.
-    pub note: String,
+    pub note: Option<String>,
     /// Specifies the stability of the semantic convention.
     pub stability: Option<Stability>,
     /// Specifies if the semantic convention is deprecated.
@@ -372,7 +372,7 @@ fn attr_spec(
             tag: None,
             requirement_level,
             sampling_relevant,
-            note: a.common.note.clone(),
+            note: a.common.note.clone().unwrap_or_default(),
             stability: Some(a.common.stability.clone().into()),
             deprecated: a.common.deprecated.clone(),
             annotations: Some(a.common.annotations.clone()),

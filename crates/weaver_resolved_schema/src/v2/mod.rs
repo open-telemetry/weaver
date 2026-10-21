@@ -206,7 +206,7 @@ mod tests {
             examples: None,
             common: CommonFields {
                 brief: "test brief".to_owned(),
-                note: "test note".to_owned(),
+                note: Some("test note".to_owned()),
                 stability: Stability::Stable,
                 deprecated: None,
                 annotations: Default::default(),
@@ -229,7 +229,7 @@ mod tests {
             examples: None,
             common: CommonFields {
                 brief: "test brief".to_owned(),
-                note: "test note".to_owned(),
+                note: Some("test note".to_owned()),
                 stability: Stability::Stable,
                 deprecated: None,
                 annotations: Default::default(),
@@ -246,7 +246,7 @@ mod tests {
             examples: None,
             common: CommonFields {
                 brief: "test brief".to_owned(),
-                note: "test note".to_owned(),
+                note: Some("test note".to_owned()),
                 stability: Stability::Stable,
                 deprecated: Some(Deprecated::Renamed {
                     renamed_to: "test.key.new".to_owned(),
@@ -264,7 +264,7 @@ mod tests {
             examples: None,
             common: CommonFields {
                 brief: "test brief".to_owned(),
-                note: "test note".to_owned(),
+                note: Some("test note".to_owned()),
                 stability: Stability::Stable,
                 deprecated: None,
                 annotations: Default::default(),
@@ -535,7 +535,7 @@ mod tests {
                 examples: None,
                 common: CommonFields {
                     brief: "HTTP response status code".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     stability: Stability::Stable,
                     deprecated: None,
                     annotations: BTreeMap::new(),
@@ -578,7 +578,7 @@ mod tests {
                 examples: None,
                 common: CommonFields {
                     brief: "HTTP method".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     stability: Stability::Stable,
                     deprecated: None,
                     annotations: BTreeMap::new(),
@@ -591,7 +591,7 @@ mod tests {
                 examples: None,
                 common: CommonFields {
                     brief: "Peer address".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     stability: Stability::Alpha,
                     deprecated: None,
                     annotations: BTreeMap::new(),
@@ -604,7 +604,7 @@ mod tests {
                 examples: None,
                 common: CommonFields {
                     brief: "Pod name".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     stability: Stability::Beta,
                     deprecated: None,
                     annotations: BTreeMap::new(),
@@ -617,7 +617,7 @@ mod tests {
                 examples: None,
                 common: CommonFields {
                     brief: "Old tag".to_owned(),
-                    note: "Use new tag".to_owned(),
+                    note: Some("Use new tag".to_owned()),
                     stability: Stability::Development,
                     deprecated: Some(Deprecated::Obsoleted {
                         note: "Replaced".to_owned(),
@@ -661,7 +661,7 @@ mod tests {
                         requirement_level: None,
                         common: CommonFields {
                             brief: "Server request span".to_owned(),
-                            note: "".to_owned(),
+                            note: None,
                             stability: Stability::Stable,
                             deprecated: None,
                             annotations: BTreeMap::new(),
@@ -680,7 +680,7 @@ mod tests {
                         requirement_level: None,
                         common: CommonFields {
                             brief: "Internal background compute".to_owned(),
-                            note: "Worker processing".to_owned(),
+                            note: Some("Worker processing".to_owned()),
                             stability: Stability::Development,
                             deprecated: Some(Deprecated::Obsoleted {
                                 note: "Deprecated worker".to_owned(),
@@ -700,7 +700,7 @@ mod tests {
                         requirement_level: None,
                         common: CommonFields {
                             brief: "Server request duration".to_owned(),
-                            note: "".to_owned(),
+                            note: None,
                             stability: Stability::Stable,
                             deprecated: None,
                             annotations: BTreeMap::new(),
@@ -716,7 +716,7 @@ mod tests {
                         requirement_level: None,
                         common: CommonFields {
                             brief: "Memory usage".to_owned(),
-                            note: "RAM usage in bytes".to_owned(),
+                            note: Some("RAM usage in bytes".to_owned()),
                             stability: Stability::Beta,
                             deprecated: None,
                             annotations: BTreeMap::new(),
@@ -732,7 +732,7 @@ mod tests {
                         requirement_level: None,
                         common: CommonFields {
                             brief: "RPC requests".to_owned(),
-                            note: "".to_owned(),
+                            note: None,
                             stability: Stability::Development,
                             deprecated: Some(Deprecated::Obsoleted {
                                 note: "Use v2".to_owned(),
@@ -750,7 +750,7 @@ mod tests {
                         requirement_level: None,
                         common: CommonFields {
                             brief: "Process crashed".to_owned(),
-                            note: "Crash stacktrace included".to_owned(),
+                            note: Some("Crash stacktrace included".to_owned()),
                             stability: Stability::Stable,
                             deprecated: None,
                             annotations: BTreeMap::new(),
@@ -764,7 +764,7 @@ mod tests {
                         requirement_level: None,
                         common: CommonFields {
                             brief: "User auth failed".to_owned(),
-                            note: "".to_owned(),
+                            note: None,
                             stability: Stability::Beta,
                             deprecated: Some(Deprecated::Obsoleted {
                                 note: "Replaced with security event".to_owned(),
@@ -782,7 +782,7 @@ mod tests {
                         requirement_level: None,
                         common: CommonFields {
                             brief: "Kubernetes pod".to_owned(),
-                            note: "".to_owned(),
+                            note: None,
                             stability: Stability::Stable,
                             deprecated: None,
                             annotations: BTreeMap::new(),
@@ -796,7 +796,7 @@ mod tests {
                         requirement_level: None,
                         common: CommonFields {
                             brief: "Host machine".to_owned(),
-                            note: "Physical or VM host".to_owned(),
+                            note: Some("Physical or VM host".to_owned()),
                             stability: Stability::Alpha,
                             deprecated: None,
                             annotations: BTreeMap::new(),
