@@ -7,6 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
+use weaver_semconv::annotations::merge_annotations;
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::v1::attribute::{AttributeRole, AttributeSpec, Examples, RequirementLevel};
@@ -420,24 +421,21 @@ impl AttributeLineage {
         }
     }
 
-    /// Determines the value of the annotations field by evaluating the presence of
-    /// a local value. If a local value is provided, it is used, and the annotations
-    /// field's lineage is marked as local. Otherwise, the specified parent
-    /// value is used, and the tag field's lineage is marked as inherited
-    /// from the parent.
-    /// This method updates the lineage information for the annotations field to
-    /// reflect the source of its value.
+    /// Recursively merges annotations, with local values winning conflicts.
     pub fn annotations(
         &mut self,
         local_value: &Option<BTreeMap<String, YamlValue>>,
         parent_value: &Option<BTreeMap<String, YamlValue>>,
     ) -> Option<BTreeMap<String, YamlValue>> {
-        if local_value.is_some() {
+        if let Some(local_value) = local_value {
             _ = self
                 .locally_overridden_fields
                 .insert("annotations".to_owned());
             _ = self.inherited_fields.remove("annotations");
-            local_value.clone()
+            Some(merge_annotations(
+                parent_value.clone().unwrap_or_default(),
+                local_value,
+            ))
         } else {
             if parent_value.is_some() {
                 _ = self.inherited_fields.insert("annotations".to_owned());
@@ -532,5 +530,43 @@ impl GroupLineage {
     #[must_use]
     pub fn provenance(&self) -> &Provenance {
         &self.provenance
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn annotations_merge_and_preserve_lineage() {
+        for (parent, local, expected) in [
+            (json!(null), json!(null), json!(null)),
+            (json!({"parent": 1}), json!(null), json!({"parent": 1})),
+            (json!(null), json!({"local": 2}), json!({"local": 2})),
+            (json!({"parent": 1}), json!({}), json!({"parent": 1})),
+            (
+                json!({"parent": 1, "shared": {"old": 1}}),
+                json!({"local": 2, "shared": {"new": 2}}),
+                json!({"parent": 1, "local": 2, "shared": {"old": 1, "new": 2}}),
+            ),
+        ] {
+            let parent = serde_json::from_value(parent).unwrap();
+            let local = serde_json::from_value(local).unwrap();
+            let expected: Option<BTreeMap<String, YamlValue>> =
+                serde_json::from_value(expected).unwrap();
+            let mut lineage = AttributeLineage::new("parent");
+            _ = lineage.annotations(&None, &parent);
+
+            assert_eq!(lineage.annotations(&local, &parent), expected);
+            assert_eq!(
+                lineage.locally_overridden_fields.contains("annotations"),
+                local.is_some()
+            );
+            assert_eq!(
+                lineage.inherited_fields.contains("annotations"),
+                local.is_none() && parent.is_some()
+            );
+        }
     }
 }

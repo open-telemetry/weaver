@@ -63,7 +63,7 @@
         "extends_group": "entity.base.entity",
         "attributes": {
           "test.attr": {
-            "source_group": "registry.data.registry-test-v2-4-refinements.registry.v2-refinements",
+            "source_group": "entity.base.entity",
             "inherited_fields": [
               "note",
               "stability"
@@ -75,7 +75,7 @@
             ]
           },
           "test.attr2": {
-            "source_group": "registry.data.registry-test-v2-4-refinements.registry.v2-refinements",
+            "source_group": "entity.base.entity",
             "inherited_fields": [
               "note",
               "requirement_level",
@@ -192,15 +192,15 @@
         "extends_group": "metric.base.metric",
         "attributes": {
           "test.attr": {
-            "source_group": "registry.data.registry-test-v2-4-refinements.registry.v2-refinements",
+            "source_group": "metric.base.metric",
             "inherited_fields": [
               "brief",
               "note",
+              "requirement_level",
               "stability"
             ],
             "locally_overridden_fields": [
-              "examples",
-              "requirement_level"
+              "examples"
             ]
           },
           "test.attr3": {
