@@ -36,7 +36,6 @@ toml.workspace = true
 weaver_test_support = { path = "../weaver_test_support" }
 assert_cmd.workspace = true
 tempfile.workspace = true
-serde_yaml.workspace = true
 serial_test = "3.4.0"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 ureq.workspace = true

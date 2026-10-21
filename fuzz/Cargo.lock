@@ -67,6 +67,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "annotate-snippets"
+version = "0.12.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f211a51805bc641f3ad5b7664c77d2547af685cc33b4cd8d31964027a46f13f1"
+dependencies = [
+ "anstyle",
+ "memchr",
+ "unicode-width 0.2.2",
+]
+
+[[package]]
+name = "anstyle"
+version = "1.0.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "940b3a0ca603d1eade50a4846a2afffd5ef57a9feac2c0e2ec2e14f9ead76000"
+
+[[package]]
 name = "antlr4rust"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -632,6 +649,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75030f3c4f45dafd7586dd6780965a8c7e8e285a5ecb86713e63a79c5b2766f3"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "encoding_rs_io"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fba3fe847045ecff794b9c138293a80db914678c453ad63fbf0c6a9eb6e00b22"
+dependencies = [
+ "encoding_rs",
 ]
 
 [[package]]
@@ -1692,6 +1718,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "granit-parser"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da55feca5d1625466bae068f9fd4b87892caeae70c3fe671ddb0f50d41aebf37"
+dependencies = [
+ "arraydeque",
+ "smallvec",
+]
+
+[[package]]
 name = "h2"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2673,6 +2709,12 @@ checksum = "a198f9589efc03f544388dfc4a19fe8af4323662b62f598b8dcfdac62c14771c"
 dependencies = [
  "byteorder",
 ]
+
+[[package]]
+name = "nohash-hasher"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
 
 [[package]]
 name = "nom"
@@ -3678,6 +3720,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-saphyr"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a253edfdea34032da21af84e16fcc94f4c7a6ba237f9f3bc2dbf43cea8535c44"
+dependencies = [
+ "annotate-snippets",
+ "base64",
+ "encoding_rs_io",
+ "granit-parser",
+ "nohash-hasher",
+ "num-traits",
+ "serde_core",
+ "smallvec",
+ "zmij",
+]
+
+[[package]]
 name = "serde_core"
 version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4665,7 +4724,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_checker"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "globset",
  "log",
@@ -4673,8 +4732,8 @@ dependencies = [
  "regorus",
  "schemars",
  "serde",
+ "serde-saphyr",
  "serde_json",
- "serde_yaml",
  "thiserror 2.0.21",
  "walkdir",
  "weaver_common",
@@ -4682,7 +4741,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_common"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "dirs",
  "flate2",
@@ -4706,7 +4765,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_config"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "log",
  "schemars",
@@ -4722,7 +4781,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_diff"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "serde_json",
  "similar",
@@ -4731,7 +4790,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_forge"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "convert_case",
  "dirs",
@@ -4751,8 +4810,8 @@ dependencies = [
  "regex",
  "schemars",
  "serde",
+ "serde-saphyr",
  "serde_json",
- "serde_yaml",
  "textwrap",
  "thiserror 2.0.21",
  "walkdir",
@@ -4765,7 +4824,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_live_check"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "cel",
  "globset",
@@ -4791,7 +4850,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_macros"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4800,7 +4859,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolved_schema"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "log",
  "schemars",
@@ -4813,7 +4872,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolver"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "globset",
  "itertools 0.15.0",
@@ -4824,8 +4883,8 @@ dependencies = [
  "rayon",
  "semver",
  "serde",
+ "serde-saphyr",
  "serde_json",
- "serde_yaml",
  "thiserror 2.0.21",
  "walkdir",
  "weaver_common",
@@ -4836,7 +4895,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "glob",
  "globset",
@@ -4849,8 +4908,8 @@ dependencies = [
  "schemars",
  "semver",
  "serde",
+ "serde-saphyr",
  "serde_json",
- "serde_yaml",
  "thiserror 2.0.21",
  "ureq",
  "url",
@@ -4859,12 +4918,12 @@ dependencies = [
 
 [[package]]
 name = "weaver_version"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "schemars",
  "semver",
  "serde",
- "serde_yaml",
+ "serde-saphyr",
  "thiserror 2.0.21",
  "weaver_semconv",
 ]

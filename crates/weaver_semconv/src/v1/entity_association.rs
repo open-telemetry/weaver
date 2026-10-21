@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// In YAML this is either a bare string (an entity reference), a `{ one_of: [...] }` map or a
 /// `{ all_of: [...] }` map, where each list element is itself an [`EntityAssociation`].
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, JsonSchema)]
+#[derive(Serialize, Debug, Clone, PartialEq, Eq, Hash, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(untagged)]
 pub enum EntityAssociation {
@@ -36,6 +36,77 @@ pub enum EntityAssociation {
         #[cfg_attr(feature = "openapi", schema(no_recursion))]
         all_of: Vec<EntityAssociation>,
     },
+}
+
+// Custom `Deserialize` implementation using `deserialize_enum` rather than `#[derive(Deserialize)]`
+// with `#[serde(untagged)]`.
+//
+// `#[serde(untagged)]` drives the deserializer via `deserialize_any()`, which causes YAML
+// deserializers with YAML 1.1 boolean compatibility enabled by default (such as `serde_saphyr`)
+// to coerce unquoted scalars like `y`, `n`, `yes`, `no`, `on`, and `off` into `bool` before trying
+// the `Ref(String)` variant. Driving deserialization via `deserialize_enum` informs the
+// deserializer that a string or single-key variant map (`one_of` / `all_of`) is expected,
+// preserving unquoted entity names like `y` as `EntityAssociation::Ref("y")` while also avoiding
+// intermediate `Content` buffering.
+impl<'de> Deserialize<'de> for EntityAssociation {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct EntityAssociationVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for EntityAssociationVisitor {
+            type Value = EntityAssociation;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str(
+                    "an entity name string or a `{ one_of: [...] }` / `{ all_of: [...] }` map",
+                )
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(EntityAssociation::Ref(v.to_owned()))
+            }
+
+            fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(EntityAssociation::Ref(v))
+            }
+
+            fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::EnumAccess<'de>,
+            {
+                use serde::de::VariantAccess;
+                let (key, variant) = data.variant::<String>()?;
+                match key.as_str() {
+                    "one_of" => {
+                        let one_of = variant.newtype_variant::<Vec<EntityAssociation>>()?;
+                        Ok(EntityAssociation::OneOf { one_of })
+                    }
+                    "all_of" => {
+                        let all_of = variant.newtype_variant::<Vec<EntityAssociation>>()?;
+                        Ok(EntityAssociation::AllOf { all_of })
+                    }
+                    _ => {
+                        variant.unit_variant()?;
+                        Ok(EntityAssociation::Ref(key))
+                    }
+                }
+            }
+        }
+
+        deserializer.deserialize_enum(
+            "EntityAssociation",
+            &["one_of", "all_of"],
+            EntityAssociationVisitor,
+        )
+    }
 }
 
 impl EntityAssociation {
@@ -62,7 +133,7 @@ mod tests {
 
     #[test]
     fn test_bare_string_parses_as_ref() {
-        let assoc: EntityAssociation = serde_yaml::from_str("service").expect("parse");
+        let assoc: EntityAssociation = serde_saphyr::from_str("service").expect("parse");
         assert_eq!(assoc, EntityAssociation::Ref("service".to_owned()));
     }
 
@@ -78,7 +149,7 @@ all_of:
       - all_of: [x, y]
       - z
 "#;
-        let assoc: EntityAssociation = serde_yaml::from_str(yaml).expect("parse");
+        let assoc: EntityAssociation = serde_saphyr::from_str(yaml).expect("parse");
         let EntityAssociation::AllOf { all_of } = &assoc else {
             panic!("expected all_of, got {assoc:?}");
         };
@@ -95,7 +166,7 @@ all_of:
         );
         // Round-trips.
         let reparsed: EntityAssociation =
-            serde_yaml::from_str(&serde_yaml::to_string(&assoc).expect("serialize"))
+            serde_saphyr::from_str(&serde_saphyr::to_string(&assoc).expect("serialize"))
                 .expect("parse");
         assert_eq!(reparsed, assoc);
     }
@@ -109,7 +180,7 @@ all_of:
       - all_of: [x, y]
       - z
 "#;
-        let assoc: EntityAssociation = serde_yaml::from_str(yaml).expect("parse");
+        let assoc: EntityAssociation = serde_saphyr::from_str(yaml).expect("parse");
         let mut names: Vec<_> = assoc.referenced_entities().collect();
         names.sort_unstable();
         assert_eq!(names, vec!["deployment", "x", "y", "z"]);

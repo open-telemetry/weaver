@@ -136,7 +136,7 @@ instrument: histogram
 unit: s
 requirement_level: opt_in
 "#;
-        let metric = serde_yaml::from_str::<Metric>(yaml).expect("Failed to parse YAML string");
+        let metric = serde_saphyr::from_str::<Metric>(yaml).expect("Failed to parse YAML string");
         assert_eq!(metric.instrument, InstrumentSpec::Histogram);
         assert_eq!(metric.unit, "s");
     }

@@ -254,12 +254,13 @@ pub(crate) fn command(
         })?;
 
         // Generate YAML
-        let yaml =
-            serde_yaml::to_string(&Versioned::V2(accumulator.to_semconv_spec())).map_err(|e| {
+        let yaml = serde_saphyr::to_string(&Versioned::V2(accumulator.to_semconv_spec())).map_err(
+            |e| {
                 DiagnosticMessages::from(super::otlp::Error::OtlpError {
                     error: format!("Failed to serialize YAML: {}", e),
                 })
-            })?;
+            },
+        )?;
 
         // Write to file
         let output_path = output.join("registry.yaml");
