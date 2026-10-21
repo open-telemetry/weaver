@@ -9,7 +9,7 @@ install:
     cargo install git-cliff@2.14.2 --locked
     cargo install cargo-tarpaulin@0.37.5 --locked
     cargo install cargo-nextest@0.9.149 --locked
-    cargo install typos-cli@1.50.3 --locked
+    cargo install typos-cli@1.51.1 --locked
 
 pre-push-check:
     cargo clean
