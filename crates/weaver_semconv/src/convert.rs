@@ -16,7 +16,8 @@ use crate::v1::{
     group::{
         AttributeGroupVisibilitySpec as V1VisibilitySpec, GroupSpec as V1GroupSpec,
         GroupType as V1GroupType, GroupWildcard as V1GroupWildcard,
-        InstrumentSpec as V1InstrumentSpec, SpanKindSpec as V1SpanKindSpec, SpanName as V1SpanName,
+        InstrumentSpec as V1InstrumentSpec, LinkAttributeRef as V1LinkAttributeRef,
+        SpanKindSpec as V1SpanKindSpec, SpanLink as V1SpanLink, SpanName as V1SpanName,
         SpanNameTemplate as V1SpanNameTemplate, TemplatePart as V1TemplatePart,
     },
     manifest::{
@@ -47,9 +48,10 @@ use crate::v2::{
     metric::{InstrumentSpec as V2InstrumentSpec, Metric, MetricRefinement},
     signal_requirement_level::SignalRequirementLevel as V2SignalRequirementLevel,
     span::{
-        Span, SpanAttributeOrGroupRef, SpanAttributeRef, SpanKindSpec as V2SpanKindSpec,
-        SpanName as V2SpanName, SpanNameTemplate as V2SpanNameTemplate, SpanRefinement,
-        SpanRefinementAttributeOrGroupRef, TemplatePart as V2TemplatePart,
+        LinkAttributeRef as V2LinkAttributeRef, Span, SpanAttributeOrGroupRef, SpanAttributeRef,
+        SpanKindSpec as V2SpanKindSpec, SpanLink as V2SpanLink, SpanName as V2SpanName,
+        SpanNameTemplate as V2SpanNameTemplate, SpanRefinement, SpanRefinementAttributeOrGroupRef,
+        TemplatePart as V2TemplatePart,
     },
     stability::Stability as V2Stability,
     Imports as V2Imports, SemConvSpecV2,
@@ -441,6 +443,34 @@ pub fn v2_span_name_to_v1(s: V2SpanName) -> V1SpanName {
     }
 }
 
+/// Converts a V2 span link into its V1 carrier form.
+#[must_use]
+pub fn v2_span_link_to_v1(link: V2SpanLink) -> V1SpanLink {
+    V1SpanLink {
+        r#ref: link.r#ref.to_string(),
+        brief: link.brief,
+        note: link.note,
+        attributes: link
+            .attributes
+            .into_iter()
+            .map(v2_link_attribute_to_v1)
+            .collect(),
+    }
+}
+
+/// Converts a V2 span link attribute reference into its V1 carrier form.
+#[must_use]
+pub fn v2_link_attribute_to_v1(a: V2LinkAttributeRef) -> V1LinkAttributeRef {
+    V1LinkAttributeRef {
+        r#ref: a.base.r#ref,
+        brief: a.base.brief,
+        examples: a.base.examples.map(v2_examples_to_v1),
+        requirement_level: a.base.requirement_level.map(v2_requirement_level_to_v1),
+        note: a.base.note,
+        annotations: a.base.annotations,
+    }
+}
+
 /// Converts a V2 stability level to V1.
 #[must_use]
 pub fn v2_stability_to_v1(s: V2Stability) -> V1Stability {
@@ -605,6 +635,7 @@ pub(crate) fn v2_metric_to_v1(metric: Metric) -> V1GroupSpec {
         visibility: None,
         is_v2: true,
         span_name: None,
+        span_links: Vec::new(),
         requirement_level: metric
             .requirement_level
             .map(v2_signal_requirement_level_to_v1),
@@ -649,6 +680,7 @@ pub(crate) fn v2_metric_refinement_to_v1(r: MetricRefinement) -> V1GroupSpec {
         visibility: None,
         is_v2: true,
         span_name: None,
+        span_links: Vec::new(),
         requirement_level: None,
     }
 }
@@ -690,6 +722,7 @@ pub(crate) fn v2_span_to_v1(span: Span) -> V1GroupSpec {
         visibility: None,
         is_v2: true,
         span_name: Some(v2_span_name_to_v1(span.name)),
+        span_links: span.links.into_iter().map(v2_span_link_to_v1).collect(),
         requirement_level: span
             .requirement_level
             .map(v2_signal_requirement_level_to_v1),
@@ -734,6 +767,7 @@ pub(crate) fn v2_span_refinement_to_v1(r: SpanRefinement) -> V1GroupSpec {
         visibility: None,
         is_v2: true,
         span_name: r.name.map(v2_span_name_to_v1),
+        span_links: Vec::new(),
         requirement_level: None,
     }
 }
@@ -775,6 +809,7 @@ pub(crate) fn v2_event_to_v1(event: Event) -> V1GroupSpec {
         visibility: None,
         is_v2: true,
         span_name: None,
+        span_links: Vec::new(),
         requirement_level: event
             .requirement_level
             .map(v2_signal_requirement_level_to_v1),
@@ -819,6 +854,7 @@ pub(crate) fn v2_event_refinement_to_v1(r: EventRefinement) -> V1GroupSpec {
         visibility: None,
         is_v2: true,
         span_name: None,
+        span_links: Vec::new(),
         requirement_level: None,
     }
 }
@@ -867,6 +903,7 @@ pub(crate) fn v2_entity_to_v1(entity: Entity) -> V1GroupSpec {
         visibility: None,
         is_v2: true,
         span_name: None,
+        span_links: Vec::new(),
         requirement_level: entity
             .requirement_level
             .map(v2_signal_requirement_level_to_v1),
@@ -920,6 +957,7 @@ pub(crate) fn v2_entity_refinement_to_v1(r: EntityRefinement) -> V1GroupSpec {
         visibility: None,
         is_v2: true,
         span_name: None,
+        span_links: Vec::new(),
         requirement_level: None,
     }
 }
@@ -958,6 +996,7 @@ pub(crate) fn v2_attribute_group_to_v1(ag: AttributeGroup) -> V1GroupSpec {
                 visibility: Some(V1VisibilitySpec::Internal),
                 is_v2: true,
                 span_name: None,
+                span_links: Vec::new(),
             }
         }
         AttributeGroup::Public(public) => {
@@ -993,6 +1032,7 @@ pub(crate) fn v2_attribute_group_to_v1(ag: AttributeGroup) -> V1GroupSpec {
                 visibility: Some(V1VisibilitySpec::Public),
                 is_v2: true,
                 span_name: None,
+                span_links: Vec::new(),
             }
         }
     }
@@ -1039,6 +1079,7 @@ pub fn v2_to_v1_spec(spec: SemConvSpecV2, file_name: &str) -> SemConvSpecV1 {
             brief: "<synthetic v2>".to_owned(),
             is_v2: true,
             span_name: None,
+            span_links: Vec::new(),
             ..Default::default()
         });
     }
@@ -1989,6 +2030,7 @@ attributes:
                 sampling_relevant: Some(true),
             })],
             entity_associations: vec![],
+            links: vec![],
             requirement_level: None,
         };
 

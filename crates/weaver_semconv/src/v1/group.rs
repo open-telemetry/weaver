@@ -13,7 +13,9 @@ use std::fmt::{Display, Formatter};
 use crate::deprecated::Deprecated;
 use crate::provenance::Provenance;
 use crate::v1::any_value::AnyValueSpec;
-use crate::v1::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
+use crate::v1::attribute::{
+    AttributeSpec, AttributeType, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel,
+};
 use crate::v1::entity_association::EntityAssociation;
 use crate::v1::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::v1::semconv::Imports;
@@ -293,6 +295,54 @@ pub struct SpanName {
     pub note: Option<String>,
 }
 
+/// A span link carried through the v1 intermediate representation.
+///
+/// This mirrors the v2 span link definition, so the links survive
+/// resolution without a shared type between v1 and v2.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub struct SpanLink {
+    /// The type of the span this link points at (the link's target).
+    pub r#ref: String,
+    /// The brief description of the link.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brief: Option<String>,
+    /// The more elaborate description of the link.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    /// List of attributes expected on the link itself.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub attributes: Vec<LinkAttributeRef>,
+}
+
+/// A reference to an attribute expected on a span link, carried through
+/// the v1 intermediate representation.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub struct LinkAttributeRef {
+    /// Reference an existing attribute by key.
+    pub r#ref: String,
+    /// Refines the brief description of the attribute.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brief: Option<String>,
+    /// Refined example values for the attribute.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub examples: Option<Examples>,
+    /// Refines the attribute requirement level.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requirement_level: Option<RequirementLevel>,
+    /// Refines the more elaborate description of the attribute.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    /// Additional annotations for the attribute.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub annotations: BTreeMap<String, YamlValue>,
+}
+
 /// A group defines an attribute group, an entity, or a signal.
 /// Supported group types are: `attribute_group`, `span`, `event`, `metric`, `entity`, `scope`.
 /// Mandatory fields are: `id` and `brief`.
@@ -429,6 +479,15 @@ pub struct GroupSpec {
     #[serde(skip_serializing)]
     #[schemars(skip)]
     pub span_name: Option<SpanName>,
+
+    /// The v2 span links, carried through the v1 intermediate
+    /// representation so they survive resolution.
+    /// This parameter must not be provided in yaml, it's only used to
+    /// convert v2 schema into v1 and back.
+    #[serde(default)]
+    #[serde(skip_serializing)]
+    #[schemars(skip)]
+    pub span_links: Vec<SpanLink>,
 
     /// Requirement level of the signal (metric, span, event, entity).
     /// This is a v2-only concept carried through the v1 intermediate
@@ -1082,6 +1141,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -1253,6 +1313,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -1556,6 +1617,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -1777,6 +1839,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -1927,6 +1990,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -2103,6 +2167,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
 
         // Attribute Group must have extends or attributes.
@@ -2261,6 +2326,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
 
         // Check group with duplicate attributes.
@@ -2327,6 +2393,7 @@ mod tests {
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
         };
         assert!(group
             .validate("<test>")
