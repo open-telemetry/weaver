@@ -1148,6 +1148,8 @@ pub(crate) mod tests {
             refined_entity.entity.description[0].base.key,
             "test.desc.attr"
         );
+
+        assert_conforms_to_json_schema(&forge_registry);
     }
 
     fn forge_refinements_len(forge: &ForgeResolvedRegistry) -> (usize, usize, usize, usize) {
@@ -1157,6 +1159,23 @@ pub(crate) mod tests {
             forge.refinements.events.len(),
             forge.refinements.entities.len(),
         )
+    }
+
+    /// Asserts that the serialized registry conforms to the published JSON Schema of
+    /// `ForgeResolvedRegistry` (`weaver registry json-schema -j materialized-registry-v2`).
+    fn assert_conforms_to_json_schema(forge: &ForgeResolvedRegistry) {
+        let schema = serde_json::to_value(schema_for!(ForgeResolvedRegistry)).unwrap();
+        let validator = jsonschema::validator_for(&schema).expect("JSON Schema should compile");
+        let value = serde_json::to_value(forge).expect("serialization should succeed");
+        let errors: Vec<String> = validator
+            .iter_errors(&value)
+            .map(|e| format!("{}: {e}", e.instance_path()))
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "serialized registry does not match its JSON Schema:\n{}",
+            errors.join("\n")
+        );
     }
 
     #[test]
@@ -2294,6 +2313,7 @@ pub(crate) mod tests {
         let json_val = serde_json::to_value(&empty_forge).expect("serialization should succeed");
         assert!(json_val.get("dependencies").is_none());
         assert!(json_val.get("dependency_graph").is_none());
+        assert_conforms_to_json_schema(&empty_forge);
 
         let round_trip: ForgeResolvedRegistry =
             serde_json::from_value(json_val).expect("deserialization should succeed");

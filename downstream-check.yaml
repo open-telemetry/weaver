@@ -125,7 +125,7 @@ repos:
         dir: custom_advisor
         run: make test
 
-  - url: https://github.com/open-telemetry/opentelemetry-rust.git@opentelemetry-semantic-conventions-0.32.1
+  - url: https://github.com/open-telemetry/opentelemetry-rust.git@opentelemetry-semantic-conventions-0.33.1
     # Regenerates the semconv crate and compiles it, which is the only downstream
     # check that catches weaver emitting code that does not build.
     #
