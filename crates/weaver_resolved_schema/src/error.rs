@@ -5,14 +5,21 @@
 use serde::{Deserialize, Serialize};
 
 use crate::error::Error::{
-    AttributeNotFound, CompoundError, EntityAssociationNotFound, EventNameNotFound,
-    InvalidSchemaUrl, MissingMetricField, RefinementBaseNotFound,
+    AttributeNotFound, CompoundError, EntityAssociationNotFound, EntityMissingIdentity,
+    EventNameNotFound, InvalidSchemaUrl, MissingMetricField, RefinementBaseNotFound,
 };
 use crate::v1::attribute::AttributeRef;
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug, Clone, Deserialize, Serialize)]
 pub enum Error {
+    /// An entity has no identifying attributes in V2 schema.
+    #[error("Entity {group_id} has no identity attributes. Add at least one identifying attribute before converting to V2 schema.")]
+    EntityMissingIdentity {
+        /// Group id.
+        group_id: String,
+    },
+
     /// Attribute reference not found in the catalog.
     #[error("Attribute reference {attr_ref} (group: {group_id}) not found in the catalog")]
     AttributeNotFound {
@@ -93,6 +100,7 @@ impl Error {
                     e @ EventNameNotFound { .. } => vec![e],
                     e @ RefinementBaseNotFound { .. } => vec![e],
                     e @ EntityAssociationNotFound { .. } => vec![e],
+                    e @ EntityMissingIdentity { .. } => vec![e],
                     e @ InvalidSchemaUrl { .. } => vec![e],
                     e @ MissingMetricField { .. } => vec![e],
                 })

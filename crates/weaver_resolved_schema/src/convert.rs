@@ -403,6 +403,11 @@ pub fn convert_v1_to_v2(
         } else {
             entity_type_of(g)
         };
+        if id_attrs.is_empty() {
+            return Err(crate::error::Error::EntityMissingIdentity {
+                group_id: g.id.clone(),
+            });
+        }
         let entity = V2Entity {
             r#type: entity_type,
             identity: id_attrs,
@@ -1125,7 +1130,7 @@ mod tests {
                     name: None,
                     lineage: Some(entity_lineage),
                     display_name: None,
-                    attributes: vec![],
+                    attributes: vec![id_ref],
                     span_kind: None,
                     events: vec![],
                     metric_name: None,
@@ -1533,6 +1538,18 @@ mod tests {
     #[test]
     fn test_convert_entity_associations_complex_and_provenance() {
         use weaver_semconv::v1::entity_association::EntityAssociation as SpecAssociation;
+        let mut builder = crate::v1::catalog::test_utils::CatalogBuilder::default();
+        let identity = builder.add(
+            serde_json::from_value(serde_json::json!({
+                "name": "server.id",
+                "type": "string",
+                "brief": "Server identifier",
+                "requirement_level": "required",
+                "role": "identifying"
+            }))
+            .unwrap(),
+            None,
+        );
         let dep_url: SchemaUrl = "http://external.dep/1.0.0".try_into().unwrap();
         let mut deps = BTreeSet::new();
         let _ = deps.insert(dep_url.clone());
@@ -1554,7 +1571,7 @@ mod tests {
             name: Some("local_server".to_owned()),
             lineage: None,
             display_name: None,
-            attributes: vec![],
+            attributes: vec![identity],
             span_kind: None,
             events: vec![],
             metric_name: None,
@@ -1612,7 +1629,7 @@ mod tests {
             groups: vec![entity_group, span_group],
         };
 
-        let (_, reg, _, _) = convert_v1_to_v2(V1Catalog::default(), registry, deps).unwrap();
+        let (_, reg, _, _) = convert_v1_to_v2(builder.build(), registry, deps).unwrap();
         assert_eq!(reg.spans.len(), 1);
         let span = &reg.spans[0];
         assert_eq!(span.entity_associations.len(), 2);
@@ -1799,6 +1816,16 @@ mod tests {
             entity_association_origins: Default::default(),
             groups: vec![entity_group],
         };
+
+        for attributes in [vec![], vec![ref_desc]] {
+            let mut invalid_registry = registry.clone();
+            invalid_registry.groups[0].attributes = attributes;
+            assert!(matches!(
+                convert_v1_to_v2(catalog.clone(), invalid_registry, BTreeSet::new()),
+                Err(crate::error::Error::EntityMissingIdentity { group_id })
+                    if group_id == "entity.k8s.pod"
+            ));
+        }
 
         let (catalog_v2, reg, _, _) = convert_v1_to_v2(catalog, registry, BTreeSet::new()).unwrap();
         assert_eq!(catalog_v2.len(), 2);
