@@ -21,7 +21,7 @@ A **transformation file** describes how telemetry defined by one Weaver schema b
 - **One direction per file.** Old → new and new → old are written separately, never derived from each other.
 - **No chaining.** One file covers the whole migration, including names from intermediate releases.
 - **Lossy by design.** Transformations don't have to cover everything or be exact; approximate conversions are fine if they produce valid target telemetry. The rest stays in migration guides.
-- **Out of scope:** general-purpose processing, deduplicating dual emission
+- **Out of scope:** general-purpose processing, dual emission (records that carry both source and target attributes)
 
 ---
 

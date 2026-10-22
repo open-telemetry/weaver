@@ -173,6 +173,9 @@ policies:
           predicate: {equals: CLIENT}
         - target: {span_attribute: [http.request.method]}
           predicate: {exists: {}}
+        - target: {span_attribute: [http.method]}
+          predicate: {exists: {}}
+          negate: true
       remove:
         - target: {span_attribute: [server.socket.domain]}
       rename:
@@ -188,6 +191,9 @@ policies:
           predicate: {equals: SERVER}
         - target: {span_attribute: [http.request.method]}
           predicate: {exists: {}}
+        - target: {span_attribute: [http.method]}
+          predicate: {exists: {}}
+          negate: true
       rename:
         - {from: {span_attribute: [client.socket.address]}, to: network.peer.address}
         - {from: {span_attribute: [client.socket.port]}, to: network.peer.port}
@@ -324,6 +330,9 @@ policies:
           predicate: {equals: http.server.duration}
         - target: {datapoint_attribute: [http.request.method]}
           predicate: {exists: {}}
+        - target: {datapoint_attribute: [http.method]}
+          predicate: {exists: {}}
+          negate: true
       add:
         - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: http.server.request.duration, upsert: true}
 
@@ -338,5 +347,8 @@ policies:
           predicate: {equals: http.client.duration}
         - target: {datapoint_attribute: [http.request.method]}
           predicate: {exists: {}}
+        - target: {datapoint_attribute: [http.method]}
+          predicate: {exists: {}}
+          negate: true
       add:
         - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: http.client.request.duration, upsert: true}
