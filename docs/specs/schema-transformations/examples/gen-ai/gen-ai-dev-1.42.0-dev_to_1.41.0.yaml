@@ -78,6 +78,20 @@ policies:
       convert:
         - {target: {span_attribute: [gen_ai.request.top_k]}, type: double}
 
+  - id: genai-217-request-top-k-double-event
+    name: gen_ai.request.top_k is a double on the gen_ai.client.inference.operation.details event in v1.41
+    description: >
+      The event carries the inference span's attributes, like
+      genai-440-cache-creation-event. Inference only, so there's no retrieval case.
+    log_transform:
+      matches:
+        - target: {record_field: LOG_RECORD_FIELD_EVENT_NAME}
+          predicate: {equals: gen_ai.client.inference.operation.details}
+        - target: {log_attribute: [gen_ai.request.top_k]}
+          predicate: {exists: {}}
+      convert:
+        - {target: {log_attribute: [gen_ai.request.top_k]}, type: double}
+
   # --- #374: per-direction histograms -> gen_ai.client.token.usage ------------
   - id: genai-374-input-tokens-back
     name: gen_ai.client.inference.operation.input_tokens becomes gen_ai.client.token.usage with token.type=input

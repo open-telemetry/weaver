@@ -96,6 +96,20 @@ policies:
       convert:
         - {target: {span_attribute: [gen_ai.retrieval.top_k]}, type: int}
 
+  - id: genai-217-request-top-k-int-event
+    name: gen_ai.request.top_k is an int on the gen_ai.client.inference.operation.details event
+    description: >
+      The event carries the inference span's attributes, like
+      genai-440-cache-write-event. Inference only, so there's no retrieval case.
+    log_transform:
+      matches:
+        - target: {record_field: LOG_RECORD_FIELD_EVENT_NAME}
+          predicate: {equals: gen_ai.client.inference.operation.details}
+        - target: {log_attribute: [gen_ai.request.top_k]}
+          predicate: {exists: {}}
+      convert:
+        - {target: {log_attribute: [gen_ai.request.top_k]}, type: int}
+
   # --- #242, #322, #289, #469: removed from internal invoke_agent spans -------
   - id: genai-internal-agent-removed
     name: agent.id, agent.version, provider.name and cache token counts removed from internal invoke_agent spans
