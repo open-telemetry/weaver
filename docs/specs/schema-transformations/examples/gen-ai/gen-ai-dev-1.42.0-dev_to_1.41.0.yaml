@@ -6,7 +6,8 @@
 #
 # Written on its own, not by inverting 1.41.0_to_gen-ai-dev-1.42.0-dev.yaml. The
 # target side follows the v1.41.0 model. The source side follows the model at
-# the pinned commit (#521 isn't there; see the pre->stable file header).
+# the pinned commit, except for #521 (inference metric renames), which follows
+# the guide: the pinned model doesn't have #521 yet.
 #
 # Left out:
 #   - Keys removed from internal invoke_agent spans (agent.id, agent.version,
@@ -18,8 +19,6 @@
 #   - gen_ai.client.inference.usage.* counters, invoke_agent / execute_tool /
 #     invoke_workflow metrics, new attributes and operations: extra in source,
 #     ignored.
-#   - MCP server span status for client-side JSON-RPC errors (#389): needs a
-#     span-status op. Only error.type is restored here.
 file_format: transform/2.0
 source:
   schema_url: https://opentelemetry.io/schemas/gen-ai-dev/1.42.0-dev
@@ -31,33 +30,37 @@ policies:
   - id: genai-440-cache-creation-span
     name: gen_ai.usage.cache_write.input_tokens renamed back to gen_ai.usage.cache_creation.input_tokens on spans
     description: Target-safe because the v1.41 registry has no cache_write key.
-    trace:
-      matches: [{span_attribute: [gen_ai.usage.cache_write.input_tokens], exists: true}]
-      transform:
-        rename: [{span_attribute: [gen_ai.usage.cache_write.input_tokens], to: gen_ai.usage.cache_creation.input_tokens}]
+    trace_transform:
+      matches:
+        - target: {span_attribute: [gen_ai.usage.cache_write.input_tokens]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {span_attribute: [gen_ai.usage.cache_write.input_tokens]}, to: gen_ai.usage.cache_creation.input_tokens}
 
   - id: genai-440-cache-creation-event
     name: gen_ai.usage.cache_write.input_tokens renamed back on the gen_ai.client.inference.operation.details event
-    log:
+    log_transform:
       matches:
-        - {log_field: event_name, equals: gen_ai.client.inference.operation.details}
-        - {log_attribute: [gen_ai.usage.cache_write.input_tokens], exists: true}
-      transform:
-        rename: [{log_attribute: [gen_ai.usage.cache_write.input_tokens], to: gen_ai.usage.cache_creation.input_tokens}]
+        - target: {record_field: LOG_RECORD_FIELD_EVENT_NAME}
+          predicate: {equals: gen_ai.client.inference.operation.details}
+        - target: {log_attribute: [gen_ai.usage.cache_write.input_tokens]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {log_attribute: [gen_ai.usage.cache_write.input_tokens]}, to: gen_ai.usage.cache_creation.input_tokens}
 
   # --- #217: int -> double; retrieval.top_k -> request.top_k ------------------
   - id: genai-217-request-top-k-double
     name: gen_ai.request.top_k is a double in v1.41
     description: >
-      An in-place type change (rename to the same key with convert double).
       Target-safe: v1.41 values are already double. int -> double is exact.
       The source registry only defines gen_ai.request.top_k on inference
       spans, so no operation matcher is needed.
-    trace:
-      matches: [{span_attribute: [gen_ai.request.top_k], exists: true}]
-      transform:
-        rename:
-          - {span_attribute: [gen_ai.request.top_k], to: gen_ai.request.top_k, convert: double}
+    trace_transform:
+      matches:
+        - target: {span_attribute: [gen_ai.request.top_k]}
+          predicate: {exists: {}}
+      convert:
+        - {target: {span_attribute: [gen_ai.request.top_k]}, type: double}
 
   - id: genai-217-retrieval-top-k
     name: gen_ai.retrieval.top_k becomes gen_ai.request.top_k (double)
@@ -66,10 +69,14 @@ policies:
       carries both keys: request.top_k is decoding-only and retrieval.top_k is
       retrieval-only. Because rename defaults to upsert false, a hypothetical
       span with both keeps its request.top_k.
-    trace:
-      matches: [{span_attribute: [gen_ai.retrieval.top_k], exists: true}]
-      transform:
-        rename: [{span_attribute: [gen_ai.retrieval.top_k], to: gen_ai.request.top_k, convert: double}]
+    trace_transform:
+      matches:
+        - target: {span_attribute: [gen_ai.retrieval.top_k]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {span_attribute: [gen_ai.retrieval.top_k]}, to: gen_ai.request.top_k}
+      convert:
+        - {target: {span_attribute: [gen_ai.request.top_k]}, type: double}
 
   # --- #374: per-direction histograms -> gen_ai.client.token.usage ------------
   - id: genai-374-input-tokens-back
@@ -80,110 +87,80 @@ policies:
       new gen_ai.client.inference.usage.* counters are extra in the source and
       ignored: renaming them too would double count the token.usage _sum.
       upsert true: the metric name alone decides the token type.
-    metric:
-      matches: [{metric_field: name, equals: gen_ai.client.inference.operation.input_tokens}]
-      transform:
-        add:
-          - {metric_field: name, value: gen_ai.client.token.usage, upsert: true}
-          - {datapoint_attribute: [gen_ai.token.type], value: input, upsert: true}
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: gen_ai.client.inference.operation.input_tokens}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: gen_ai.client.token.usage, upsert: true}
+        - {target: {datapoint_attribute: [gen_ai.token.type]}, value: input, upsert: true}
 
   - id: genai-374-output-tokens-back
     name: gen_ai.client.inference.operation.output_tokens becomes gen_ai.client.token.usage with token.type=output
-    metric:
-      matches: [{metric_field: name, equals: gen_ai.client.inference.operation.output_tokens}]
-      transform:
-        add:
-          - {metric_field: name, value: gen_ai.client.token.usage, upsert: true}
-          - {datapoint_attribute: [gen_ai.token.type], value: output, upsert: true}
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: gen_ai.client.inference.operation.output_tokens}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: gen_ai.client.token.usage, upsert: true}
+        - {target: {datapoint_attribute: [gen_ai.token.type]}, value: output, upsert: true}
+
+  # --- #521 (guide only, not in the pinned model): inference metrics back -----
+  - id: genai-521-inference-duration-back
+    name: gen_ai.client.inference.duration renamed back to gen_ai.client.operation.duration
+    description: >
+      Target-safe: v1.41 has no gen_ai.client.inference.* metrics. Inference
+      data keeps its gen_ai.operation.name, so v1.41 queries that filter on it
+      still work.
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: gen_ai.client.inference.duration}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: gen_ai.client.operation.duration, upsert: true}
+
+  - id: genai-521-ttfc-back
+    name: gen_ai.client.inference.time_to_first_chunk renamed back to gen_ai.client.operation.time_to_first_chunk
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: gen_ai.client.inference.time_to_first_chunk}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: gen_ai.client.operation.time_to_first_chunk, upsert: true}
+
+  - id: genai-521-tpoc-back
+    name: gen_ai.client.inference.time_per_output_chunk renamed back to gen_ai.client.operation.time_per_output_chunk
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: gen_ai.client.inference.time_per_output_chunk}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: gen_ai.client.operation.time_per_output_chunk, upsert: true}
 
   # --- #389 (not in the guide): restore error.type for client-side codes ------
-  # Single-value emulation of "error.type := rpc.response.status_code": one
-  # policy per code and signal. Target-safe: a v1.41 server record with one of
-  # these codes already has error.type set to that code, and add keeps it
-  # (upsert false). Span status stays unset; no op can set it.
-  - id: mcp-389-server-32700-span
-    name: MCP server spans with JSON-RPC -32700 get error.type
-    trace:
+  # Target-safe: a v1.41 server record with one of these codes already has
+  # error.type set to that code, and add keeps it (upsert false).
+  - id: mcp-389-server-client-errors-span
+    name: MCP server spans with client-side JSON-RPC error codes get error.type and ERROR status
+    trace_transform:
       matches:
-        - {span_kind: server}
-        - {span_attribute: [mcp.method.name], exists: true}
-        - {span_attribute: [rpc.response.status_code], equals: "-32700"}
-      transform:
-        add: [{span_attribute: [error.type], value: "-32700"}]
-  - id: mcp-389-server-32600-span
-    name: MCP server spans with JSON-RPC -32600 get error.type
-    trace:
-      matches:
-        - {span_kind: server}
-        - {span_attribute: [mcp.method.name], exists: true}
-        - {span_attribute: [rpc.response.status_code], equals: "-32600"}
-      transform:
-        add: [{span_attribute: [error.type], value: "-32600"}]
-  - id: mcp-389-server-32601-span
-    name: MCP server spans with JSON-RPC -32601 get error.type
-    trace:
-      matches:
-        - {span_kind: server}
-        - {span_attribute: [mcp.method.name], exists: true}
-        - {span_attribute: [rpc.response.status_code], equals: "-32601"}
-      transform:
-        add: [{span_attribute: [error.type], value: "-32601"}]
-  - id: mcp-389-server-32602-span
-    name: MCP server spans with JSON-RPC -32602 get error.type
-    trace:
-      matches:
-        - {span_kind: server}
-        - {span_attribute: [mcp.method.name], exists: true}
-        - {span_attribute: [rpc.response.status_code], equals: "-32602"}
-      transform:
-        add: [{span_attribute: [error.type], value: "-32602"}]
-  - id: mcp-389-server-32002-span
-    name: MCP server spans with JSON-RPC -32002 get error.type
-    trace:
-      matches:
-        - {span_kind: server}
-        - {span_attribute: [mcp.method.name], exists: true}
-        - {span_attribute: [rpc.response.status_code], equals: "-32002"}
-      transform:
-        add: [{span_attribute: [error.type], value: "-32002"}]
+        - target: {record_field: SPAN_RECORD_FIELD_KIND}
+          predicate: {equals: SERVER}
+        - target: {span_attribute: [mcp.method.name]}
+          predicate: {exists: {}}
+        - target: {span_attribute: [rpc.response.status_code]}
+          predicate: {regex: "^(-32700|-32600|-32601|-32602|-32002)$"}
+      add:
+        - {target: {span_attribute: [error.type]}, from: {span_attribute: [rpc.response.status_code]}}
+        - {target: {record_field: SPAN_RECORD_FIELD_STATUS_CODE}, value: ERROR, upsert: true}
 
-  - id: mcp-389-server-32700-metric
-    name: mcp.server.operation.duration with JSON-RPC -32700 gets error.type
-    metric:
+  - id: mcp-389-server-client-errors-metric
+    name: mcp.server.operation.duration with client-side JSON-RPC error codes gets error.type
+    metric_transform:
       matches:
-        - {metric_field: name, equals: mcp.server.operation.duration}
-        - {datapoint_attribute: [rpc.response.status_code], equals: "-32700"}
-      transform:
-        add: [{datapoint_attribute: [error.type], value: "-32700"}]
-  - id: mcp-389-server-32600-metric
-    name: mcp.server.operation.duration with JSON-RPC -32600 gets error.type
-    metric:
-      matches:
-        - {metric_field: name, equals: mcp.server.operation.duration}
-        - {datapoint_attribute: [rpc.response.status_code], equals: "-32600"}
-      transform:
-        add: [{datapoint_attribute: [error.type], value: "-32600"}]
-  - id: mcp-389-server-32601-metric
-    name: mcp.server.operation.duration with JSON-RPC -32601 gets error.type
-    metric:
-      matches:
-        - {metric_field: name, equals: mcp.server.operation.duration}
-        - {datapoint_attribute: [rpc.response.status_code], equals: "-32601"}
-      transform:
-        add: [{datapoint_attribute: [error.type], value: "-32601"}]
-  - id: mcp-389-server-32602-metric
-    name: mcp.server.operation.duration with JSON-RPC -32602 gets error.type
-    metric:
-      matches:
-        - {metric_field: name, equals: mcp.server.operation.duration}
-        - {datapoint_attribute: [rpc.response.status_code], equals: "-32602"}
-      transform:
-        add: [{datapoint_attribute: [error.type], value: "-32602"}]
-  - id: mcp-389-server-32002-metric
-    name: mcp.server.operation.duration with JSON-RPC -32002 gets error.type
-    metric:
-      matches:
-        - {metric_field: name, equals: mcp.server.operation.duration}
-        - {datapoint_attribute: [rpc.response.status_code], equals: "-32002"}
-      transform:
-        add: [{datapoint_attribute: [error.type], value: "-32002"}]
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: mcp.server.operation.duration}
+        - target: {datapoint_attribute: [rpc.response.status_code]}
+          predicate: {regex: "^(-32700|-32600|-32601|-32602|-32002)$"}
+      add:
+        - {target: {datapoint_attribute: [error.type]}, from: {datapoint_attribute: [rpc.response.status_code]}}

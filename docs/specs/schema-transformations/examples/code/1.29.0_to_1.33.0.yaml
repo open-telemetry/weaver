@@ -6,10 +6,7 @@
 # record can carry any subset of the keys, and the only matcher is `exists`
 # on the renamed key (self-guarded, so it doesn't split partitions).
 #
-# Left out (see README.md):
-#   - code.namespace is not folded into code.function.name (needs concat).
-#     code.function is renamed to code.function.name as is: approximate, the
-#     value is the short name without the namespace.
+# Left out:
 #   - v1.30.0 producers already emit code.function.name (short name); it
 #     passes through unchanged.
 file_format: transform/2.0
@@ -26,84 +23,104 @@ policies:
       Renamed in 1.30.0, same type (int) and meaning. Target data has no
       code.lineno, so the rule doesn't touch it. With code/dup emission the
       existing code.line.number wins (upsert false) and code.lineno is dropped.
-    trace:
+    trace_transform:
       matches:
-        - {span_attribute: [code.lineno], exists: true}
-      transform:
-        rename:
-          - {span_attribute: [code.lineno], to: code.line.number}
+        - target: {span_attribute: [code.lineno]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {span_attribute: [code.lineno]}, to: code.line.number}
 
   - id: code-span-column
     name: code.column becomes code.column.number on spans
     description: Renamed in 1.30.0, same type (int) and meaning.
-    trace:
+    trace_transform:
       matches:
-        - {span_attribute: [code.column], exists: true}
-      transform:
-        rename:
-          - {span_attribute: [code.column], to: code.column.number}
+        - target: {span_attribute: [code.column]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {span_attribute: [code.column]}, to: code.column.number}
 
   - id: code-span-filepath
     name: code.filepath becomes code.file.path on spans
     description: Renamed in 1.30.0, same type (string) and meaning.
-    trace:
+    trace_transform:
       matches:
-        - {span_attribute: [code.filepath], exists: true}
-      transform:
-        rename:
-          - {span_attribute: [code.filepath], to: code.file.path}
+        - target: {span_attribute: [code.filepath]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {span_attribute: [code.filepath]}, to: code.file.path}
 
   # --- Logs -----------------------------------------------------------------
   - id: code-log-lineno
     name: code.lineno becomes code.line.number on log records
     description: Renamed in 1.30.0, same type (int) and meaning.
-    log:
+    log_transform:
       matches:
-        - {log_attribute: [code.lineno], exists: true}
-      transform:
-        rename:
-          - {log_attribute: [code.lineno], to: code.line.number}
+        - target: {log_attribute: [code.lineno]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {log_attribute: [code.lineno]}, to: code.line.number}
 
   - id: code-log-column
     name: code.column becomes code.column.number on log records
     description: Renamed in 1.30.0, same type (int) and meaning.
-    log:
+    log_transform:
       matches:
-        - {log_attribute: [code.column], exists: true}
-      transform:
-        rename:
-          - {log_attribute: [code.column], to: code.column.number}
+        - target: {log_attribute: [code.column]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {log_attribute: [code.column]}, to: code.column.number}
 
   - id: code-log-filepath
     name: code.filepath becomes code.file.path on log records
     description: Renamed in 1.30.0, same type (string) and meaning.
-    log:
+    log_transform:
       matches:
-        - {log_attribute: [code.filepath], exists: true}
-      transform:
-        rename:
-          - {log_attribute: [code.filepath], to: code.file.path}
+        - target: {log_attribute: [code.filepath]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {log_attribute: [code.filepath]}, to: code.file.path}
 
   - id: code-span-function
-    name: code.function becomes code.function.name on spans (approximate)
+    name: code.namespace and code.function joined into code.function.name on spans (approximate)
     description: >
-      Approximate: the target value is the fully-qualified name, this keeps the
-      short name and doesn't add code.namespace.
-    trace:
+      Approximate: joins with "." while some languages use another separator
+      (e.g. "::"). A missing code.namespace leaves the short name.
+      `discard` drops code.namespace after `add` reads it. Records that
+      already carry code.function.name are left alone.
+    trace_transform:
       matches:
-        - {span_attribute: [code.function], exists: true}
-      transform:
-        rename:
-          - {span_attribute: [code.function], to: code.function.name}
+        - target: {span_attribute: [code.function]}
+          predicate: {exists: {}}
+        - target: {span_attribute: [code.function.name]}
+          predicate: {exists: {}}
+          negate: true
+      rename: [{from: {span_attribute: [code.function]}, to: code.function.name}]
+      add:
+        - target: {span_attribute: [code.function.name]}
+          from: [{span_attribute: [code.namespace]}, {span_attribute: [code.function.name]}]
+          separator: "."
+          upsert: true
+      discard: [{target: {span_attribute: [code.namespace]}}]
 
   - id: code-log-function
-    name: code.function becomes code.function.name on log records (approximate)
+    name: code.namespace and code.function joined into code.function.name on log records (approximate)
     description: >
-      Approximate: the target value is the fully-qualified name, this keeps the
-      short name and doesn't add code.namespace.
-    log:
+      Approximate: joins with "." while some languages use another separator
+      (e.g. "::"). A missing code.namespace leaves the short name.
+      `discard` drops code.namespace after `add` reads it. Records that
+      already carry code.function.name are left alone.
+    log_transform:
       matches:
-        - {log_attribute: [code.function], exists: true}
-      transform:
-        rename:
-          - {log_attribute: [code.function], to: code.function.name}
+        - target: {log_attribute: [code.function]}
+          predicate: {exists: {}}
+        - target: {log_attribute: [code.function.name]}
+          predicate: {exists: {}}
+          negate: true
+      rename: [{from: {log_attribute: [code.function]}, to: code.function.name}]
+      add:
+        - target: {log_attribute: [code.function.name]}
+          from: [{log_attribute: [code.namespace]}, {log_attribute: [code.function.name]}]
+          separator: "."
+          upsert: true
+      discard: [{target: {log_attribute: [code.namespace]}}]

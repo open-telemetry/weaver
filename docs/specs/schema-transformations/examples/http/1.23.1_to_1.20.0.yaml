@@ -7,9 +7,11 @@
 # Written on its own, not inverted from 1.20.0_to_1.23.1.yaml.
 #
 # Not expressible here:
-#   - url.path + url.query -> http.target (concatenation)
-#   - http.request.header.<key> / http.response.header.<key> key normalization
 #   - span names (HTTP -> {method} for _OTHER)
+# Approximate:
+#   - duration unit s -> ms: no policy can rescale stored data. Query
+#     rewriters multiply results; data in flight needs an SDK View or a
+#     Collector processor.
 # Not bridgeable (data the stable side doesn't carry):
 #   - the original method on metrics when http.request.method is _OTHER
 #   - net.sock.family, net.sock.peer.name, net.sock.peer.addr on
@@ -17,7 +19,7 @@
 #     in stable)
 # Extra in source, ignored (old queries don't reference them):
 #   error.type, client.port, network.transport, url.scheme on client
-#   spans/metrics.
+#   spans/metrics, url.path and url.query on server spans.
 file_format: transform/2.0
 source:
   schema_url: https://opentelemetry.io/schemas/1.23.1
@@ -33,58 +35,40 @@ policies:
     description: >-
       http.request.method=_OTHER with http.request.method_original is handled
       by http-span-method-other-rev (its remove runs before this rename).
-      network.protocol.version "2"/"3" are fixed by
-      http-span-protocol-version-*-rev.
-    trace:
+      The protocol version map assumes 1.20 producers reported HTTP/2 as
+      "2.0" (the 1.20 examples). 1.20 header keys use "_" in
+      place of "-".
+    trace_transform:
       matches:
-        - {span_attribute: [http.request.method], exists: true}
-      transform:
-        rename:
-          - {span_attribute: [http.request.method], to: http.method}
-          - {span_attribute: [http.response.status_code], to: http.status_code}
-          - {span_attribute: [http.request.body.size], to: http.request_content_length}
-          - {span_attribute: [http.response.body.size], to: http.response_content_length}
-          - {span_attribute: [network.protocol.name], to: net.protocol.name}
-          - {span_attribute: [network.protocol.version], to: net.protocol.version}
-          - {span_attribute: [network.peer.address], to: net.sock.peer.addr}
-          - {span_attribute: [network.peer.port], to: net.sock.peer.port}
+        - target: {span_attribute: [http.request.method]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {span_attribute: [http.request.method]}, to: http.method}
+        - {from: {span_attribute: [http.response.status_code]}, to: http.status_code}
+        - {from: {span_attribute: [http.request.body.size]}, to: http.request_content_length}
+        - {from: {span_attribute: [http.response.body.size]}, to: http.response_content_length}
+        - {from: {span_attribute: [network.protocol.name]}, to: net.protocol.name}
+        - {from: {span_attribute: [network.protocol.version]}, to: net.protocol.version}
+        - {from: {span_attribute: [network.peer.address]}, to: net.sock.peer.addr}
+        - {from: {span_attribute: [network.peer.port]}, to: net.sock.peer.port}
+      rename_prefix:
+        - {from: {span_attribute: [http.request.header.]}, to: http.request.header., replace: {"-": "_"}}
+        - {from: {span_attribute: [http.response.header.]}, to: http.response.header., replace: {"-": "_"}}
+      map:
+        - {target: {span_attribute: [net.protocol.version]}, values: {"2": "2.0", "3": "3.0"}, unmapped: keep}
 
   - id: http-span-method-other-rev
     name: http.request.method=_OTHER takes http.method from http.request.method_original
-    trace:
+    trace_transform:
       matches:
-        - {span_attribute: [http.request.method], equals: _OTHER}
-        - {span_attribute: [http.request.method_original], exists: true}
-      transform:
-        remove:
-          - {span_attribute: [http.request.method]}
-        rename:
-          - {span_attribute: [http.request.method_original], to: http.method}
-
-  - id: http-span-protocol-version-2-rev
-    name: network.protocol.version "2" becomes net.protocol.version "2.0"
-    description: Assumes 1.20 producers reported HTTP/2 as "2.0" (the 1.20 examples); see README.md.
-    trace:
-      matches:
-        - {span_attribute: [http.request.method], exists: true}
-        - {span_attribute: [network.protocol.version], equals: "2"}
-      transform:
-        remove:
-          - {span_attribute: [network.protocol.version]}
-        add:
-          - {span_attribute: [net.protocol.version], value: "2.0"}
-
-  - id: http-span-protocol-version-3-rev
-    name: network.protocol.version "3" becomes net.protocol.version "3.0"
-    trace:
-      matches:
-        - {span_attribute: [http.request.method], exists: true}
-        - {span_attribute: [network.protocol.version], equals: "3"}
-      transform:
-        remove:
-          - {span_attribute: [network.protocol.version]}
-        add:
-          - {span_attribute: [net.protocol.version], value: "3.0"}
+        - target: {span_attribute: [http.request.method]}
+          predicate: {equals: _OTHER}
+        - target: {span_attribute: [http.request.method_original]}
+          predicate: {exists: {}}
+      remove:
+        - target: {span_attribute: [http.request.method]}
+      rename:
+        - {from: {span_attribute: [http.request.method_original]}, to: http.method}
 
   - id: http-span-protocol-name-rev
     name: Absent network.protocol.name with a version set means http
@@ -92,46 +76,54 @@ policies:
       Stable requires network.protocol.name only when it isn't http and a
       version is set, so absence + version means http. 1.20 recommended
       net.protocol.name always.
-    trace:
+    trace_transform:
       matches:
-        - {span_attribute: [http.request.method], exists: true}
-        - {span_attribute: [network.protocol.name], exists: false}
-        - {span_attribute: [network.protocol.version], exists: true}
-      transform:
-        add:
-          - {span_attribute: [net.protocol.name], value: http}
+        - target: {span_attribute: [http.request.method]}
+          predicate: {exists: {}}
+        - target: {span_attribute: [network.protocol.name]}
+          predicate: {exists: {}}
+          negate: true
+        - target: {span_attribute: [network.protocol.version]}
+          predicate: {exists: {}}
+      add:
+        - {target: {span_attribute: [net.protocol.name]}, value: http}
 
   - id: http-span-client-rev
     name: Stable HTTP client span attributes renamed back
-    trace:
+    trace_transform:
       matches:
-        - {span_kind: client}
-        - {span_attribute: [http.request.method], exists: true}
-      transform:
-        rename:
-          - {span_attribute: [url.full], to: http.url}
-          - {span_attribute: [http.request.resend_count], to: http.resend_count}
-          - {span_attribute: [server.address], to: net.peer.name}
-          - {span_attribute: [server.port], to: net.peer.port}
+        - target: {record_field: SPAN_RECORD_FIELD_KIND}
+          predicate: {equals: CLIENT}
+        - target: {span_attribute: [http.request.method]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {span_attribute: [url.full]}, to: http.url}
+        - {from: {span_attribute: [http.request.resend_count]}, to: http.resend_count}
+        - {from: {span_attribute: [server.address]}, to: net.peer.name}
+        - {from: {span_attribute: [server.port]}, to: net.peer.port}
 
   - id: http-span-server-rev
     name: Stable HTTP server span attributes renamed back
     description: >-
       client.address falls back to the peer address in stable, so
       http.client_ip is also set when there was no forwarding header (1.20
-      left it unset). url.path/url.query can't be joined into http.target.
-    trace:
+      left it unset). http.target joins url.path and url.query with "?"; a
+      missing url.query drops the "?".
+    trace_transform:
       matches:
-        - {span_kind: server}
-        - {span_attribute: [http.request.method], exists: true}
-      transform:
-        rename:
-          - {span_attribute: [url.scheme], to: http.scheme}
-          - {span_attribute: [client.address], to: http.client_ip}
-          - {span_attribute: [server.address], to: net.host.name}
-          - {span_attribute: [server.port], to: net.host.port}
-          - {span_attribute: [network.local.address], to: net.sock.host.addr}
-          - {span_attribute: [network.local.port], to: net.sock.host.port}
+        - target: {record_field: SPAN_RECORD_FIELD_KIND}
+          predicate: {equals: SERVER}
+        - target: {span_attribute: [http.request.method]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {span_attribute: [url.scheme]}, to: http.scheme}
+        - {from: {span_attribute: [client.address]}, to: http.client_ip}
+        - {from: {span_attribute: [server.address]}, to: net.host.name}
+        - {from: {span_attribute: [server.port]}, to: net.host.port}
+        - {from: {span_attribute: [network.local.address]}, to: net.sock.host.addr}
+        - {from: {span_attribute: [network.local.port]}, to: net.sock.host.port}
+      add:
+        - {target: {span_attribute: [http.target]}, from: [{span_attribute: [url.path]}, {span_attribute: [url.query]}], separator: "?"}
 
   # ===================================================================
   # Metrics
@@ -141,112 +133,71 @@ policies:
     description: >-
       _OTHER is kept as http.method="_OTHER"; the original method isn't on
       metrics. Only 1.20 data is target-shaped: 1.21 producers also emit
-      http.server.duration, but in s.
-    metric:
+      http.server.duration, but in s. Unit change s -> ms is not expressible;
+      query rewriters multiply results by 1000; data in flight needs an SDK
+      View or a Collector processor.
+    metric_transform:
       matches:
-        - {metric_field: name, equals: http.server.request.duration}
-      transform:
-        rename:
-          - {datapoint_attribute: [http.request.method], to: http.method}
-          - {datapoint_attribute: [http.response.status_code], to: http.status_code}
-          - {datapoint_attribute: [url.scheme], to: http.scheme}
-          - {datapoint_attribute: [network.protocol.name], to: net.protocol.name}
-          - {datapoint_attribute: [network.protocol.version], to: net.protocol.version}
-          - {datapoint_attribute: [server.address], to: net.host.name}
-          - {datapoint_attribute: [server.port], to: net.host.port}
-        add:
-          - {metric_field: name, value: http.server.duration, upsert: true}
-
-  - id: http-server-request-duration-rev-view
-    name: http.server.request.duration unit s -> ms (view for http-server-request-duration-rev)
-    metric_view:
-      matches:
-        - {metric_field: name, equals: http.server.request.duration}
-      view:
-        scale: [{metric_field: unit, from: s, to: ms}]
-
-  - id: http-server-request-duration-protocol-version-2-rev
-    name: network.protocol.version "2" on http.server.request.duration becomes "2.0"
-    metric:
-      matches:
-        - {metric_field: name, equals: http.server.request.duration}
-        - {datapoint_attribute: [network.protocol.version], equals: "2"}
-      transform:
-        add:
-          - {datapoint_attribute: [net.protocol.version], value: "2.0", upsert: true}
-
-  - id: http-server-request-duration-protocol-version-3-rev
-    name: network.protocol.version "3" on http.server.request.duration becomes "3.0"
-    metric:
-      matches:
-        - {metric_field: name, equals: http.server.request.duration}
-        - {datapoint_attribute: [network.protocol.version], equals: "3"}
-      transform:
-        add:
-          - {datapoint_attribute: [net.protocol.version], value: "3.0", upsert: true}
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: http.server.request.duration}
+      rename:
+        - {from: {datapoint_attribute: [http.request.method]}, to: http.method}
+        - {from: {datapoint_attribute: [http.response.status_code]}, to: http.status_code}
+        - {from: {datapoint_attribute: [url.scheme]}, to: http.scheme}
+        - {from: {datapoint_attribute: [network.protocol.name]}, to: net.protocol.name}
+        - {from: {datapoint_attribute: [network.protocol.version]}, to: net.protocol.version}
+        - {from: {datapoint_attribute: [server.address]}, to: net.host.name}
+        - {from: {datapoint_attribute: [server.port]}, to: net.host.port}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: http.server.duration, upsert: true}
+      map:
+        - {target: {datapoint_attribute: [net.protocol.version]}, values: {"2": "2.0", "3": "3.0"}, unmapped: keep}
 
   - id: http-server-request-duration-protocol-name-rev
     name: Absent network.protocol.name with a version on http.server.request.duration means http
-    metric:
+    metric_transform:
       matches:
-        - {metric_field: name, equals: http.server.request.duration}
-        - {datapoint_attribute: [network.protocol.name], exists: false}
-        - {datapoint_attribute: [network.protocol.version], exists: true}
-      transform:
-        add:
-          - {datapoint_attribute: [net.protocol.name], value: http}
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: http.server.request.duration}
+        - target: {datapoint_attribute: [network.protocol.name]}
+          predicate: {exists: {}}
+          negate: true
+        - target: {datapoint_attribute: [network.protocol.version]}
+          predicate: {exists: {}}
+      add:
+        - {target: {datapoint_attribute: [net.protocol.name]}, value: http}
 
   - id: http-client-request-duration-rev
     name: http.client.request.duration (s) becomes http.client.duration (ms)
-    metric:
+    description: >-
+      Unit change s -> ms is not expressible; query rewriters multiply results
+      by 1000; data in flight needs an SDK View or a Collector processor.
+    metric_transform:
       matches:
-        - {metric_field: name, equals: http.client.request.duration}
-      transform:
-        rename:
-          - {datapoint_attribute: [http.request.method], to: http.method}
-          - {datapoint_attribute: [http.response.status_code], to: http.status_code}
-          - {datapoint_attribute: [server.address], to: net.peer.name}
-          - {datapoint_attribute: [server.port], to: net.peer.port}
-          - {datapoint_attribute: [network.protocol.name], to: net.protocol.name}
-          - {datapoint_attribute: [network.protocol.version], to: net.protocol.version}
-        add:
-          - {metric_field: name, value: http.client.duration, upsert: true}
-
-  - id: http-client-request-duration-rev-view
-    name: http.client.request.duration unit s -> ms (view for http-client-request-duration-rev)
-    metric_view:
-      matches:
-        - {metric_field: name, equals: http.client.request.duration}
-      view:
-        scale: [{metric_field: unit, from: s, to: ms}]
-
-  - id: http-client-request-duration-protocol-version-2-rev
-    name: network.protocol.version "2" on http.client.request.duration becomes "2.0"
-    metric:
-      matches:
-        - {metric_field: name, equals: http.client.request.duration}
-        - {datapoint_attribute: [network.protocol.version], equals: "2"}
-      transform:
-        add:
-          - {datapoint_attribute: [net.protocol.version], value: "2.0", upsert: true}
-
-  - id: http-client-request-duration-protocol-version-3-rev
-    name: network.protocol.version "3" on http.client.request.duration becomes "3.0"
-    metric:
-      matches:
-        - {metric_field: name, equals: http.client.request.duration}
-        - {datapoint_attribute: [network.protocol.version], equals: "3"}
-      transform:
-        add:
-          - {datapoint_attribute: [net.protocol.version], value: "3.0", upsert: true}
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: http.client.request.duration}
+      rename:
+        - {from: {datapoint_attribute: [http.request.method]}, to: http.method}
+        - {from: {datapoint_attribute: [http.response.status_code]}, to: http.status_code}
+        - {from: {datapoint_attribute: [server.address]}, to: net.peer.name}
+        - {from: {datapoint_attribute: [server.port]}, to: net.peer.port}
+        - {from: {datapoint_attribute: [network.protocol.name]}, to: net.protocol.name}
+        - {from: {datapoint_attribute: [network.protocol.version]}, to: net.protocol.version}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: http.client.duration, upsert: true}
+      map:
+        - {target: {datapoint_attribute: [net.protocol.version]}, values: {"2": "2.0", "3": "3.0"}, unmapped: keep}
 
   - id: http-client-request-duration-protocol-name-rev
     name: Absent network.protocol.name with a version on http.client.request.duration means http
-    metric:
+    metric_transform:
       matches:
-        - {metric_field: name, equals: http.client.request.duration}
-        - {datapoint_attribute: [network.protocol.name], exists: false}
-        - {datapoint_attribute: [network.protocol.version], exists: true}
-      transform:
-        add:
-          - {datapoint_attribute: [net.protocol.name], value: http}
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: http.client.request.duration}
+        - target: {datapoint_attribute: [network.protocol.name]}
+          predicate: {exists: {}}
+          negate: true
+        - target: {datapoint_attribute: [network.protocol.version]}
+          predicate: {exists: {}}
+      add:
+        - {target: {datapoint_attribute: [net.protocol.name]}, value: http}
