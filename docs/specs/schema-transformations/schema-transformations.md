@@ -46,10 +46,12 @@ source:
 target:
   schema_url: https://opentelemetry.io/schemas/1.23.1
 policies:
-  - id: http-span-common
-    name: HTTP span attributes renamed
+  - id: http-span-client
+    name: HTTP client span attributes renamed
     trace_transform:
       matches:
+        - target: {record_field: SPAN_RECORD_FIELD_KIND}
+          predicate: {equals: CLIENT}
         - target: {span_attribute: [http.method]}
           predicate: {exists: {}}
       rename:
