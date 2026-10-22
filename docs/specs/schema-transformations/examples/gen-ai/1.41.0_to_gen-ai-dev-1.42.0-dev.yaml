@@ -27,7 +27,60 @@ source:
   schema_url: https://opentelemetry.io/schemas/1.41.0
 target:
   schema_url: https://opentelemetry.io/schemas/gen-ai-dev/1.42.0-dev
-
+gaps:
+  events:
+    gen_ai.client.inference.operation.details:
+      missing_attributes: [gen_ai.conversation.compacted, gen_ai.prompt.name, gen_ai.prompt.version, gen_ai.request.previous_response.id, gen_ai.request.reasoning.level, gen_ai.request.top_k, gen_ai.usage.audio.cache_read.input_tokens, gen_ai.usage.audio.input_tokens, gen_ai.usage.audio.output_tokens, gen_ai.usage.image.cache_read.input_tokens, gen_ai.usage.image.input_tokens, gen_ai.usage.image.output_tokens, gen_ai.usage.text.cache_read.input_tokens, gen_ai.usage.text.input_tokens, gen_ai.usage.text.output_tokens]
+  metrics:
+    gen_ai.client.inference.duration:
+      missing_attributes: [openai.response.service_tier, openai.response.system_fingerprint]
+    gen_ai.client.inference.operation.input_tokens:
+      missing_attributes: [error.type, openai.response.service_tier, openai.response.system_fingerprint]
+    gen_ai.client.inference.operation.output_tokens:
+      missing_attributes: [error.type, openai.response.service_tier, openai.response.system_fingerprint]
+    gen_ai.client.inference.usage.cache_read.input_tokens:
+      missing: true
+    gen_ai.client.inference.usage.cache_write.input_tokens:
+      missing: true
+    gen_ai.client.inference.usage.input_tokens:
+      missing: true
+    gen_ai.client.inference.usage.output_tokens:
+      missing: true
+    gen_ai.client.inference.usage.reasoning.output_tokens:
+      missing: true
+    gen_ai.client.operation.duration:
+      missing_attributes: [openai.response.service_tier, openai.response.system_fingerprint]
+    gen_ai.execute_tool.duration:
+      missing: true
+    gen_ai.invoke_agent.duration:
+      missing: true
+    gen_ai.invoke_agent.inference_calls:
+      missing: true
+    gen_ai.invoke_agent.tool_calls:
+      missing: true
+    gen_ai.invoke_workflow.duration:
+      missing: true
+  spans:
+    gen_ai.execute_tool.command.internal:
+      missing: true
+    gen_ai.execute_tool.load_skill.internal:
+      missing: true
+    gen_ai.execute_tool.read_skill_resource.internal:
+      missing: true
+    span.gen_ai.client.inference:
+      missing_attributes: [gen_ai.conversation.compacted, gen_ai.prompt.name, gen_ai.prompt.version, gen_ai.request.previous_response.id, gen_ai.request.reasoning.level, gen_ai.usage.audio.cache_read.input_tokens, gen_ai.usage.audio.input_tokens, gen_ai.usage.audio.output_tokens, gen_ai.usage.image.cache_read.input_tokens, gen_ai.usage.image.input_tokens, gen_ai.usage.image.output_tokens, gen_ai.usage.text.cache_read.input_tokens, gen_ai.usage.text.input_tokens, gen_ai.usage.text.output_tokens]
+    span.gen_ai.execute_tool.internal:
+      missing_attributes: [gen_ai.agent.name, gen_ai.conversation.id]
+    span.gen_ai.fetch_response.client:
+      missing: true
+    span.gen_ai.invoke_agent.client:
+      missing_attributes: [gen_ai.request.previous_response.id, gen_ai.usage.audio.cache_read.input_tokens, gen_ai.usage.audio.input_tokens, gen_ai.usage.audio.output_tokens, gen_ai.usage.image.cache_read.input_tokens, gen_ai.usage.image.input_tokens, gen_ai.usage.image.output_tokens, gen_ai.usage.text.cache_read.input_tokens, gen_ai.usage.text.input_tokens, gen_ai.usage.text.output_tokens]
+    span.gen_ai.invoke_workflow.internal:
+      missing_attributes: [gen_ai.conversation.id]
+    span.gen_ai.memory.client:
+      missing: true
+    span.gen_ai.plan.internal:
+      missing: true
 policies:
   # --- #440: cache_creation -> cache_write (spans and the details event) ------
   - id: genai-440-cache-write-span
@@ -96,19 +149,18 @@ policies:
       convert:
         - {target: {span_attribute: [gen_ai.retrieval.top_k]}, type: int}
 
-  - id: genai-217-request-top-k-int-event
-    name: gen_ai.request.top_k is an int on the gen_ai.client.inference.operation.details event
+  # --- gen_ai.provider.name is required on the details event in the target ----
+  - id: genai-details-event-provider-name
+    name: gen_ai.provider.name set to _OTHER on the gen_ai.client.inference.operation.details event
     description: >
-      The event carries the inference span's attributes, like
-      genai-440-cache-write-event. Inference only, so there's no retrieval case.
+      The v1.41 event doesn't define the provider, but the target requires it.
+      Existing values are kept (upsert false).
     log_transform:
       matches:
         - target: {record_field: LOG_RECORD_FIELD_EVENT_NAME}
           predicate: {equals: gen_ai.client.inference.operation.details}
-        - target: {log_attribute: [gen_ai.request.top_k]}
-          predicate: {exists: {}}
-      convert:
-        - {target: {log_attribute: [gen_ai.request.top_k]}, type: int}
+      add:
+        - {target: {log_attribute: [gen_ai.provider.name]}, value: _OTHER}
 
   # --- #242, #322, #289, #469: removed from internal invoke_agent spans -------
   - id: genai-internal-agent-removed

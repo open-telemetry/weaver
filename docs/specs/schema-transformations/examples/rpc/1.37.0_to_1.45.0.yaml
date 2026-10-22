@@ -27,18 +27,47 @@ source:
   schema_url: https://opentelemetry.io/schemas/1.37.0
 target:
   schema_url: https://opentelemetry.io/schemas/1.45.0
-
+gaps:
+  events:
+    rpc.client.call.exception:
+      missing: true
+    rpc.server.call.exception:
+      missing: true
+  spans:
+    span.rpc.call.client:
+      missing_attributes: [error.type, rpc.method_original]
+    span.rpc.call.server:
+      missing_attributes: [error.type, rpc.method_original]
+    span.rpc.connect_rpc.call.client:
+      missing_attributes: [rpc.method_original]
+    span.rpc.connect_rpc.call.server:
+      missing_attributes: [rpc.method_original]
+    span.rpc.dubbo.call.client:
+      missing_attributes: [error.type, rpc.method_original]
+    span.rpc.dubbo.call.server:
+      missing_attributes: [error.type, rpc.method_original]
+    span.rpc.grpc.call.client:
+      missing_attributes: [rpc.method_original]
+    span.rpc.grpc.call.server:
+      missing_attributes: [rpc.method_original]
+    span.rpc.jsonrpc.call.client:
+      missing_attributes: [rpc.method_original]
+    span.rpc.jsonrpc.call.server:
+      missing_attributes: [rpc.method_original]
 policies:
   # --- Spans: rpc.system -> rpc.system.name ----------------------------------
   - id: rpc-span-system-rename
     name: rpc.system renamed to rpc.system.name on spans, apache_dubbo and connect_rpc values changed
     description: >
-      Target-safe: stable spans never carry rpc.system. Dual-emitting (rpc/dup)
-      spans keep their rpc.system.name (upsert false) and lose rpc.system.
+      Target-safe: stable spans carry rpc.system only for AWS SDK calls
+      (aws-api), which every rpc.system policy excludes.
     trace_transform:
       matches:
         - target: {span_attribute: [rpc.system]}
           predicate: {exists: {}}
+        - target: {span_attribute: [rpc.system]}
+          predicate: {equals: aws-api}
+          negate: true
       rename: [{from: {span_attribute: [rpc.system]}, to: rpc.system.name}]
       map:
         - target: {span_attribute: [rpc.system.name]}
@@ -53,6 +82,9 @@ policies:
       matches:
         - target: {span_attribute: [rpc.system]}
           predicate: {exists: {}}
+        - target: {span_attribute: [rpc.system]}
+          predicate: {equals: aws-api}
+          negate: true
         - target: {span_attribute: [rpc.service]}
           predicate: {exists: {}}
       add:
@@ -72,6 +104,9 @@ policies:
       matches:
         - target: {span_attribute: [rpc.system]}
           predicate: {exists: {}}
+        - target: {span_attribute: [rpc.system]}
+          predicate: {equals: aws-api}
+          negate: true
       remove:
         - {target: {span_attribute: [network.transport]}}
         - {target: {span_attribute: [network.type]}}
@@ -84,6 +119,9 @@ policies:
           predicate: {equals: SERVER}
         - target: {span_attribute: [rpc.system]}
           predicate: {exists: {}}
+        - target: {span_attribute: [rpc.system]}
+          predicate: {equals: aws-api}
+          negate: true
       remove:
         - {target: {span_attribute: [client.address]}}
         - {target: {span_attribute: [client.port]}}
@@ -241,11 +279,27 @@ policies:
       matches:
         - target: {span_attribute: [rpc.system]}
           predicate: {exists: {}}
+        - target: {span_attribute: [rpc.system]}
+          predicate: {equals: aws-api}
+          negate: true
       rename_prefix:
         - {from: {span_attribute: [rpc.grpc.request.metadata.]}, to: rpc.request.header.}
         - {from: {span_attribute: [rpc.grpc.response.metadata.]}, to: rpc.response.header.}
         - {from: {span_attribute: [rpc.connect_rpc.request.metadata.]}, to: rpc.request.header.}
         - {from: {span_attribute: [rpc.connect_rpc.response.metadata.]}, to: rpc.response.header.}
+
+  # --- Spans: Dubbo status code ---------------------------------------------
+  - id: rpc-span-dubbo-status-code
+    name: rpc.status_code set to _OTHER on Dubbo spans
+    description: >
+      v1.37 has no Dubbo status attribute, but the target requires
+      rpc.status_code on Dubbo spans. Existing values are kept (upsert false).
+    trace_transform:
+      matches:
+        - target: {span_attribute: [rpc.system]}
+          predicate: {equals: apache_dubbo}
+      add:
+        - {target: {span_attribute: [rpc.status_code]}, value: _OTHER}
 
   # --- Metrics: rpc.server.duration (ms) -> rpc.server.call.duration (s) -----
   # network.transport and network.type aren't removed: that would merge series.

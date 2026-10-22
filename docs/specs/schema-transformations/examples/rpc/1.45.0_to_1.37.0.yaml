@@ -30,7 +30,12 @@ source:
   schema_url: https://opentelemetry.io/schemas/1.45.0
 target:
   schema_url: https://opentelemetry.io/schemas/1.37.0
-
+gaps:
+  spans:
+    span.rpc.client:
+      missing_attributes: [network.transport, network.type]
+    span.rpc.server:
+      missing_attributes: [client.address, client.port, network.transport, network.type]
 policies:
   # --- Spans: rpc.system.name -> rpc.system ----------------------------------
   - id: rpc-span-system-name-rename

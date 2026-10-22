@@ -25,7 +25,23 @@ source:
   schema_url: https://opentelemetry.io/schemas/1.45.0
 target:
   schema_url: https://grpc.io/schemas/42.42.0
-
+  registry_path: ./grpc-native-model   # local Weaver schema for A66/A72
+gaps:
+  metrics:
+    grpc.client.attempt.duration:
+      missing: true
+    grpc.client.attempt.rcvd_total_compressed_message_size:
+      missing: true
+    grpc.client.attempt.sent_total_compressed_message_size:
+      missing: true
+    grpc.client.attempt.started:
+      missing: true
+    grpc.server.call.rcvd_total_compressed_message_size:
+      missing: true
+    grpc.server.call.sent_total_compressed_message_size:
+      missing: true
+    grpc.server.call.started:
+      missing: true
 policies:
   - id: otel-client-call-duration
     name: rpc.client.call.duration (grpc) becomes grpc.client.call.duration

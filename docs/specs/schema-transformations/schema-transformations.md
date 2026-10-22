@@ -20,8 +20,12 @@ A **transformation file** describes how telemetry defined by one Weaver schema b
 - **Source → target**, both Weaver schemas: the same schema at different versions (semconv 1.20.0 → 1.23.1), or different schemas (native gRPC → OTel RPC). Non-Weaver telemetry can be described as a Weaver schema first; it doesn't need to be published.
 - **One direction per file.** Old → new and new → old are written separately, never derived from each other.
 - **No chaining.** One file covers the whole migration, including names from intermediate releases.
-- **Lossy by design.** Transformations don't have to cover everything or be exact; approximate conversions are fine if they produce valid target telemetry. The rest stays in migration guides.
+- **Lossy by design.** Transformations don't have to cover everything or be exact; approximate conversions are fine if they produce valid target telemetry.
 - **Out of scope:** general-purpose processing, dual emission (records that carry both source and target attributes)
+
+Transformations aim to:
+- help with migration. A transformation file doesn't guarantee full compatibility between the source and target schemas: transformation is best effort and should be used with caution.
+- make it explicit to end users, operators, and semantic convention authors how schema changes affect end users.
 
 ---
 
@@ -167,10 +171,50 @@ Examples of checks on schemas:
 - Signal properties match when a signal is renamed: span kind, metric instrument, unit.
 - Attributes after transformation have a compatible type and are referenced by the target signal.
 - Added values are allowed by the target attribute (enum members).
-- Required attributes are present on the target signal after transformation, unless the gap is explicitly accepted.
-- Optional: all required and recommended target attributes can be populated.
+- Required attributes are present on the target signal after transformation.
+- Strict mode: all required and recommended target attributes are populated after transformation.
 - Target-shaped definitions come out unchanged.
 - Policies that can match the same record don't write the same field differently.
+
+### Explicit gaps
+
+**Strict** validation also checks that the file is complete:
+
+- every recommended target signal can be produced from the source;
+- every produced target signal keeps its conditionally required and recommended attributes.
+
+A transformation file that doesn't pass strict validation must list its gaps explicitly:
+
+- recommended signal definitions that are missing after transformation;
+- recommended or conditionally required attributes that are never populated after transformation
+
+```yaml
+file_format: transform/2.0
+source:
+  schema_url: https://opentelemetry.io/schemas/1.37.0
+target:
+  schema_url: https://opentelemetry.io/schemas/1.45.0
+gaps:
+  events:
+    rpc.client.call.exception:
+      missing: true
+  spans:
+    span.rpc.call.client:
+      missing_attributes: [error.type, rpc.method_original, rpc.status_code]
+    span.rpc.grpc.call.client:
+      missing_attributes: [rpc.method_original]
+policies: [...]
+```
+
+> [!NOTE]
+>
+> By this definition, almost every transformation to a newer version
+> is lossy: new recommended signals and attributes have no source
+> data.
+
+Future possibilities:
+
+- A way to define a "good enough" transformation. Not all attributes or signals are equally important, whatever their requirement level. For example, `network.type` (`ipv4` or `ipv6`) is of limited use on HTTP spans: it's unlikely to appear in alerts or common HTTP dashboards. We could add a way to mark it as not important.
 
 ---
 

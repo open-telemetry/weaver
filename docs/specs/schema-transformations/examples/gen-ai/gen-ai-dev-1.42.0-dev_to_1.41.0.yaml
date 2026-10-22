@@ -24,7 +24,15 @@ source:
   schema_url: https://opentelemetry.io/schemas/gen-ai-dev/1.42.0-dev
 target:
   schema_url: https://opentelemetry.io/schemas/1.41.0
-
+gaps:
+  metrics:
+    mcp.client.session.duration:
+      missing_attributes: [network.protocol.version, network.transport]
+    mcp.server.session.duration:
+      missing_attributes: [network.protocol.version, network.transport]
+  spans:
+    span.gen_ai.invoke_agent.internal:
+      missing_attributes: [gen_ai.agent.id, gen_ai.agent.version, gen_ai.usage.cache_creation.input_tokens, gen_ai.usage.cache_read.input_tokens]
 policies:
   # --- #440: cache_write -> cache_creation (spans and the details event) ------
   - id: genai-440-cache-creation-span
@@ -91,6 +99,21 @@ policies:
           predicate: {exists: {}}
       convert:
         - {target: {log_attribute: [gen_ai.request.top_k]}, type: double}
+
+  # --- gen_ai.provider.name is required on v1.41 internal invoke_agent spans ---
+  - id: genai-internal-agent-provider-name
+    name: gen_ai.provider.name set to _OTHER on internal invoke_agent spans
+    description: >
+      The source doesn't record the provider on internal agent spans, but v1.41
+      requires it. Existing values are kept (upsert false).
+    trace_transform:
+      matches:
+        - target: {record_field: SPAN_RECORD_FIELD_KIND}
+          predicate: {equals: INTERNAL}
+        - target: {span_attribute: [gen_ai.operation.name]}
+          predicate: {equals: invoke_agent}
+      add:
+        - {target: {span_attribute: [gen_ai.provider.name]}, value: _OTHER}
 
   # --- #374: per-direction histograms -> gen_ai.client.token.usage ------------
   - id: genai-374-input-tokens-back

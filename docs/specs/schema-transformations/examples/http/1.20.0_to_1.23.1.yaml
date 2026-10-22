@@ -1,5 +1,5 @@
 # HTTP pre-stability -> stable migration (v1.20.0 -> v1.23.1), spans and
-# duration metrics.
+# metrics.
 #
 # Source: the HTTP migration guide,
 # https://github.com/open-telemetry/semantic-conventions/blob/main/docs/non-normative/http-migration.md
@@ -26,7 +26,7 @@ source:
   schema_url: https://opentelemetry.io/schemas/1.20.0
 target:
   schema_url: https://opentelemetry.io/schemas/1.23.1
-
+gaps: {}
 policies:
   # ===================================================================
   # Spans (1.20 shape: http.method is Required, so it scopes HTTP spans)
@@ -231,7 +231,7 @@ policies:
         - {target: {datapoint_attribute: [network.protocol.version]}, values: {"2.0": "2", "3.0": "3"}, unmapped: keep}
 
   - id: http-server-duration-method-other
-    name: Unknown http.method on http.server.duration becomes http.request.method=_OTHER
+    name: Unknown http.method on server metrics becomes http.request.method=_OTHER
     description: >-
       http-server-duration renames http.method to http.request.method; this
       policy overwrites the value with _OTHER (add runs after rename, upsert
@@ -239,7 +239,7 @@ policies:
     metric_transform:
       matches:
         - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
-          predicate: {equals: http.server.duration}
+          predicate: {regex: "^http\\.server\\.(duration|active_requests|request\\.size|response\\.size)$"}
         - target: {datapoint_attribute: [http.method]}
           predicate: {exists: {}}
         - target: {datapoint_attribute: [http.method]}
@@ -249,11 +249,11 @@ policies:
         - {target: {datapoint_attribute: [http.request.method]}, value: _OTHER, upsert: true}
 
   - id: http-server-duration-error-type
-    name: http.server.duration with a 5xx status code gets error.type
+    name: Server duration and size metrics with a 5xx status code get error.type
     metric_transform:
       matches:
         - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
-          predicate: {equals: http.server.duration}
+          predicate: {regex: "^http\\.server\\.(duration|request\\.size|response\\.size)$"}
         - target: {datapoint_attribute: [http.method]}
           predicate: {exists: {}}
         - target: {datapoint_attribute: [http.status_code]}
@@ -289,11 +289,11 @@ policies:
         - {target: {datapoint_attribute: [network.protocol.version]}, values: {"2.0": "2", "3.0": "3"}, unmapped: keep}
 
   - id: http-client-duration-method-other
-    name: Unknown http.method on http.client.duration becomes http.request.method=_OTHER
+    name: Unknown http.method on client metrics becomes http.request.method=_OTHER
     metric_transform:
       matches:
         - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
-          predicate: {equals: http.client.duration}
+          predicate: {regex: "^http\\.client\\.(duration|request\\.size|response\\.size)$"}
         - target: {datapoint_attribute: [http.method]}
           predicate: {exists: {}}
         - target: {datapoint_attribute: [http.method]}
@@ -303,11 +303,11 @@ policies:
         - {target: {datapoint_attribute: [http.request.method]}, value: _OTHER, upsert: true}
 
   - id: http-client-duration-error-type
-    name: http.client.duration with a 4xx or 5xx status code gets error.type
+    name: Client duration and size metrics with a 4xx or 5xx status code get error.type
     metric_transform:
       matches:
         - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
-          predicate: {equals: http.client.duration}
+          predicate: {regex: "^http\\.client\\.(duration|request\\.size|response\\.size)$"}
         - target: {datapoint_attribute: [http.method]}
           predicate: {exists: {}}
         - target: {datapoint_attribute: [http.status_code]}
@@ -316,6 +316,99 @@ policies:
         - {target: {datapoint_attribute: [error.type]}, from: {datapoint_attribute: [http.response.status_code]}}
       convert:
         - {target: {datapoint_attribute: [error.type]}, type: string}
+
+  # --- Size and active request metrics --------------------------------
+  - id: http-server-request-size
+    name: http.server.request.size becomes http.server.request.body.size
+    description: Same unit (By). Covers 1.20 and 1.21 producers; target data never uses the old name.
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: http.server.request.size}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: http.server.request.body.size, upsert: true}
+
+  - id: http-server-response-size
+    name: http.server.response.size becomes http.server.response.body.size
+    description: Same unit (By). Covers 1.20 and 1.21 producers; target data never uses the old name.
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: http.server.response.size}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: http.server.response.body.size, upsert: true}
+
+  - id: http-client-request-size
+    name: http.client.request.size becomes http.client.request.body.size
+    description: Same unit (By). Covers 1.20 and 1.21 producers; target data never uses the old name.
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: http.client.request.size}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: http.client.request.body.size, upsert: true}
+
+  - id: http-client-response-size
+    name: http.client.response.size becomes http.client.response.body.size
+    description: Same unit (By). Covers 1.20 and 1.21 producers; target data never uses the old name.
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: http.client.response.size}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: http.client.response.body.size, upsert: true}
+
+  - id: http-server-size-attributes
+    name: 1.20 attributes on http.server.{request,response}.size renamed
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {regex: "^http\\.server\\.(request|response)\\.size$"}
+        - target: {datapoint_attribute: [http.method]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {datapoint_attribute: [http.method]}, to: http.request.method}
+        - {from: {datapoint_attribute: [http.status_code]}, to: http.response.status_code}
+        - {from: {datapoint_attribute: [http.scheme]}, to: url.scheme}
+        - {from: {datapoint_attribute: [net.protocol.name]}, to: network.protocol.name}
+        - {from: {datapoint_attribute: [net.protocol.version]}, to: network.protocol.version}
+        - {from: {datapoint_attribute: [net.host.name]}, to: server.address}
+        - {from: {datapoint_attribute: [net.host.port]}, to: server.port}
+      map:
+        - {target: {datapoint_attribute: [network.protocol.version]}, values: {"2.0": "2", "3.0": "3"}, unmapped: keep}
+
+  - id: http-client-size-attributes
+    name: 1.20 attributes on http.client.{request,response}.size renamed
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {regex: "^http\\.client\\.(request|response)\\.size$"}
+        - target: {datapoint_attribute: [http.method]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {datapoint_attribute: [http.method]}, to: http.request.method}
+        - {from: {datapoint_attribute: [http.status_code]}, to: http.response.status_code}
+        - {from: {datapoint_attribute: [net.peer.name]}, to: server.address}
+        - {from: {datapoint_attribute: [net.peer.port]}, to: server.port}
+        - {from: {datapoint_attribute: [net.protocol.name]}, to: network.protocol.name}
+        - {from: {datapoint_attribute: [net.protocol.version]}, to: network.protocol.version}
+      map:
+        - {target: {datapoint_attribute: [network.protocol.version]}, values: {"2.0": "2", "3.0": "3"}, unmapped: keep}
+
+  - id: http-server-active-requests
+    name: 1.20 attributes on http.server.active_requests renamed
+    description: Same name and instrument. 1.21+ data already has the stable keys.
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: http.server.active_requests}
+        - target: {datapoint_attribute: [http.method]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {datapoint_attribute: [http.method]}, to: http.request.method}
+        - {from: {datapoint_attribute: [http.scheme]}, to: url.scheme}
+        - {from: {datapoint_attribute: [net.host.name]}, to: server.address}
+        - {from: {datapoint_attribute: [net.host.port]}, to: server.port}
 
   # --- 1.21 intermediate metric shape (not in the guide) -----------------
   - id: http-server-duration-v121

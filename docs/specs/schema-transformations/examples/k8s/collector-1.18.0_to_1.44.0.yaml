@@ -30,7 +30,7 @@ source:
   schema_url: https://opentelemetry.io/schemas/1.18.0
 target:
   schema_url: https://opentelemetry.io/schemas/1.44.0
-
+# gaps: not checked, no registry for source (1.18.0)
 policies:
   # --- Network metrics (kubeletstats): attribute renames, same metric name --
   - id: k8s-pod-network-io-attrs

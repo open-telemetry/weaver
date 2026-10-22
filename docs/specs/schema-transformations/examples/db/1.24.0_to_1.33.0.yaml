@@ -19,7 +19,39 @@ source:
   schema_url: https://opentelemetry.io/schemas/1.24.0
 target:
   schema_url: https://opentelemetry.io/schemas/1.33.0
-
+gaps:
+  metrics:
+    db.client.operation.duration:
+      missing: true
+    db.client.response.returned_rows:
+      missing: true
+  spans:
+    span.db.cassandra.client:
+      missing_attributes: [db.operation.batch.size, db.query.summary, db.response.returned_rows, db.response.status_code, error.type]
+    span.db.client:
+      missing_attributes: [db.collection.name, db.operation.batch.size, db.query.summary, db.response.status_code, db.stored_procedure.name, error.type]
+    span.db.couchdb.client:
+      missing_attributes: [db.operation.batch.size, db.response.status_code, error.type]
+    span.db.elasticsearch.client:
+      missing_attributes: [db.collection.name, db.operation.batch.size, db.response.status_code, error.type]
+    span.db.hbase.client:
+      missing_attributes: [db.collection.name, db.operation.batch.size, db.response.status_code, error.type]
+    span.db.mariadb.client:
+      missing_attributes: [db.operation.batch.size, db.query.summary, db.response.status_code, db.stored_procedure.name, error.type]
+    span.db.mongodb.client:
+      missing_attributes: [db.operation.batch.size, db.response.status_code, error.type]
+    span.db.mysql.client:
+      missing_attributes: [db.operation.batch.size, db.query.summary, db.response.status_code, db.stored_procedure.name, error.type]
+    span.db.oracledb.client:
+      missing_attributes: [db.operation.batch.size, db.query.summary, db.response.status_code, db.stored_procedure.name, error.type]
+    span.db.postgresql.client:
+      missing_attributes: [db.operation.batch.size, db.query.summary, db.response.status_code, db.stored_procedure.name, error.type]
+    span.db.redis.client:
+      missing_attributes: [db.operation.batch.size, db.response.status_code, db.stored_procedure.name, error.type]
+    span.db.sql.client:
+      missing_attributes: [db.operation.batch.size, db.query.summary, db.response.status_code, db.stored_procedure.name, error.type]
+    span.db.sql_server.client:
+      missing_attributes: [db.collection.name, db.operation.batch.size, db.query.summary, db.response.status_code, db.stored_procedure.name, error.type]
 policies:
   # =========================================================================
   # Spans
@@ -52,6 +84,13 @@ policies:
         - {from: {span_attribute: [db.cassandra.table]}, to: db.collection.name}
         - {from: {span_attribute: [db.mongodb.collection]}, to: db.collection.name}
         - {from: {span_attribute: [db.cosmosdb.container]}, to: db.collection.name}
+        - {from: {span_attribute: [db.cassandra.consistency_level]}, to: cassandra.consistency.level}
+        - {from: {span_attribute: [db.cassandra.coordinator.dc]}, to: cassandra.coordinator.dc}
+        - {from: {span_attribute: [db.cassandra.coordinator.id]}, to: cassandra.coordinator.id}
+        - {from: {span_attribute: [db.cassandra.idempotence]}, to: cassandra.query.idempotent}
+        - {from: {span_attribute: [db.cassandra.page_size]}, to: cassandra.page.size}
+        - {from: {span_attribute: [db.cassandra.speculative_execution_count]}, to: cassandra.speculative_execution.count}
+        - {from: {span_attribute: [db.elasticsearch.node.name]}, to: elasticsearch.node.name}
 
   # --- db.name / db.redis.database_index / cluster name -> db.namespace -------
   - id: db-span-namespace
@@ -86,6 +125,9 @@ policies:
       matches:
         - target: {span_attribute: [db.system]}
           predicate: {regex: "^(postgresql|oracle)$"}
+        - target: {span_attribute: [db.mssql.instance_name]}
+          predicate: {exists: {}}
+          negate: true
       rename:
         - {from: {span_attribute: [db.name]}, to: db.namespace}
 

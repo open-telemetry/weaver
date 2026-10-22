@@ -20,7 +20,30 @@ source:
   schema_url: https://opentelemetry.io/schemas/1.33.0
 target:
   schema_url: https://opentelemetry.io/schemas/1.24.0
-
+gaps:
+  spans:
+    db:
+      missing_attributes: [db.connection_string, db.instance.id, db.jdbc.driver_classname, db.user, network.transport, network.type]
+    db.cassandra:
+      missing_attributes: [db.connection_string, db.instance.id, db.jdbc.driver_classname, db.user, network.transport, network.type]
+    db.cosmosdb:
+      missing_attributes: [db.connection_string, db.cosmosdb.client_id, db.cosmosdb.connection_mode, db.cosmosdb.operation_type, db.cosmosdb.request_charge, db.cosmosdb.request_content_length, db.cosmosdb.status_code, db.cosmosdb.sub_status_code, db.instance.id, db.jdbc.driver_classname, db.user, network.transport, network.type, user_agent.original]
+    db.couchdb:
+      missing_attributes: [db.connection_string, db.instance.id, db.jdbc.driver_classname, db.statement, db.user, network.peer.address, network.peer.port, network.transport, network.type]
+    db.elasticsearch:
+      missing_attributes: [db.connection_string, db.instance.id, db.jdbc.driver_classname, db.name, db.user, network.peer.address, network.peer.port, network.transport, network.type]
+    db.hbase:
+      missing_attributes: [db.connection_string, db.instance.id, db.jdbc.driver_classname, db.statement, db.user, network.peer.address, network.peer.port, network.transport, network.type]
+    db.mongodb:
+      missing_attributes: [db.connection_string, db.instance.id, db.jdbc.driver_classname, db.statement, db.user, network.peer.address, network.peer.port, network.transport, network.type]
+    db.mssql:
+      missing_attributes: [db.connection_string, db.instance.id, db.jdbc.driver_classname, db.user, network.peer.address, network.peer.port, network.transport, network.type]
+    db.redis:
+      missing_attributes: [db.connection_string, db.instance.id, db.jdbc.driver_classname, db.name, db.user, network.transport, network.type]
+    db.sql:
+      missing_attributes: [db.connection_string, db.instance.id, db.jdbc.driver_classname, db.user, network.peer.address, network.peer.port, network.transport, network.type]
+    db.tech:
+      missing_attributes: [db.cassandra.consistency_level, db.cassandra.coordinator.dc, db.cassandra.coordinator.id, db.cassandra.idempotence, db.cassandra.page_size, db.cassandra.speculative_execution_count, db.cassandra.table, db.connection_string, db.cosmosdb.client_id, db.cosmosdb.connection_mode, db.cosmosdb.container, db.cosmosdb.operation_type, db.cosmosdb.request_charge, db.cosmosdb.request_content_length, db.cosmosdb.status_code, db.cosmosdb.sub_status_code, db.instance.id, db.jdbc.driver_classname, db.mongodb.collection, db.redis.database_index, db.user, network.transport, network.type, user_agent.original]
 policies:
   # =========================================================================
   # Spans
@@ -59,6 +82,12 @@ policies:
           predicate: {equals: cassandra}
       rename:
         - {from: {span_attribute: [db.collection.name]}, to: db.cassandra.table}
+        - {from: {span_attribute: [cassandra.consistency.level]}, to: db.cassandra.consistency_level}
+        - {from: {span_attribute: [cassandra.coordinator.dc]}, to: db.cassandra.coordinator.dc}
+        - {from: {span_attribute: [cassandra.coordinator.id]}, to: db.cassandra.coordinator.id}
+        - {from: {span_attribute: [cassandra.query.idempotent]}, to: db.cassandra.idempotence}
+        - {from: {span_attribute: [cassandra.page.size]}, to: db.cassandra.page_size}
+        - {from: {span_attribute: [cassandra.speculative_execution.count]}, to: db.cassandra.speculative_execution_count}
 
   - id: db-span-collection-mongodb-rev
     name: db.collection.name becomes db.mongodb.collection
@@ -124,6 +153,7 @@ policies:
           predicate: {equals: elasticsearch}
       rename:
         - {from: {span_attribute: [db.namespace]}, to: db.elasticsearch.cluster.name}
+        - {from: {span_attribute: [elasticsearch.node.name]}, to: db.elasticsearch.node.name}
 
   # --- db.system.name -> db.system -----------------------------------------
   - id: db-span-system-rev

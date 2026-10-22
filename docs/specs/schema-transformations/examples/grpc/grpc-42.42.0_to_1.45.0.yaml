@@ -32,9 +32,13 @@
 file_format: transform/2.0
 source:
   schema_url: https://grpc.io/schemas/42.42.0
+  registry_path: ./grpc-native-model   # local Weaver schema for A66/A72
 target:
   schema_url: https://opentelemetry.io/schemas/1.45.0
-
+gaps:
+  metrics:
+    rpc.client.call.duration:
+      missing_attributes: [server.port]
 policies:
   # --- grpc.client.call.duration ---------------------------------------------
   - id: grpc-client-call-duration
