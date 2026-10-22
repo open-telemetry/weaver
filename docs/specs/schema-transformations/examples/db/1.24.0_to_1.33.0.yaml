@@ -3,8 +3,9 @@
 # Source: docs/non-normative/db-migration.md in open-telemetry/semantic-conventions.
 # Target-safety: every trace policy matches on `db.system` (absent from v1.33
 # DB spans, which carry `db.system.name`), and every metric policy matches on
-# a metric name that v1.33 no longer uses, or on a v1.26 attribute key that
-# v1.33 no longer uses. Target-shaped records are never matched.
+# a metric name that v1.33 no longer uses. The db-conn-v126-* policies match
+# metric names v1.26 shares with v1.33, but only rename v1.26 attribute keys,
+# so v1.33 records come out unchanged.
 #
 # Left out (not bridgeable / not expressible):
 #   - span name change (needs a template over several attributes)
