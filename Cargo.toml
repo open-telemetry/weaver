@@ -194,6 +194,11 @@ panic = "abort"
 inherits = "release"
 lto = "thin"
 
+# The profile that cargo-mutants builds with (see .cargo/mutants.toml)
+[profile.mutants]
+inherits = "test"
+debug = "none"
+
 [workspace.lints.rust]
 rust_2018_idioms = { level = "warn", priority = -1 }
 unused_lifetimes = "warn"
