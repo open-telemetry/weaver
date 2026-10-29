@@ -81,9 +81,9 @@ Example Schema Diff in YAML
 
 ```yaml
 head:
-  semconv_version: v1.27.0
+  semconv_version: v1.29.0
 baseline:
-  semconv_version: v1.26.0
+  semconv_version: v1.28.0
 changes:
   registry_attributes:
     - name: http.server_name      # attribute name

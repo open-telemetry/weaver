@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- 💥 BREAKING CHANGE 💥 Migrate YAML parsing from the unmaintained `serde_yaml` crate to `serde-saphyr` (`2.0`) for strict YAML 1.2 specification compliance.
+  - **Multiline quoted scalar indentation**: Continuation lines in multiline single- or double-quoted flow scalars (`'...'` / `"..."`) inside a block mapping must be indented strictly more than the enclosing block (YAML 1.2.2 `[69] s-flow-line-prefix(n)`), rather than at the same column as the mapping key.
+  - **Block scalar trailing newlines at EOF & strict YAML 1.2 booleans**: Clipped block scalars (`>` and `|`) at the end of a file without a trailing newline now consistently preserve the trailing `\n`, and YAML 1.1 boolean literals (such as `yes`/`no`/`on`/`off`) are no longer coerced to booleans.
+  - Drop support for `open-telemetry/semantic-conventions` `v1.26.0` and `v1.27.0` (which contained non-compliant multiline quoted scalar indentation in `exception.yaml`, fixed in `v1.28.0`). The minimum supported semantic-conventions version is now `v1.28.0`.
+
 # [0.28.0] - 2026-10-14
 
 - Fix the JSON Schema of `SchemaUrl` to describe a string, matching how it is serialized. ([#1825](https://github.com/open-telemetry/weaver/pull/1825) by @lmolkova)

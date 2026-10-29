@@ -10,9 +10,9 @@ use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 
 const REPO_URL: &str = "https://github.com/open-telemetry/semantic-conventions.git";
-/// TODO - Figure out how to have hard failures for V2 here, and bump to v1.27.0 as that's the first when
-/// events had names.
-const START_TAG: &str = "v1.26.0";
+/// Minimum supported semantic-conventions tag (v1.26.0 and v1.27.0 contain
+/// non-compliant YAML 1.2 multiline quoted scalar indentation in exception.yaml).
+const START_TAG: &str = "v1.28.0";
 const TEMP_REPO_DIR: &str = "history-temp-repo";
 
 /// Get the git repository, no checkout
@@ -96,10 +96,14 @@ pub fn run(start_version: Option<String>) -> anyhow::Result<()> {
         } else {
             failed = true;
             println!("Failure for: {version}");
-            println!(
-                "{}",
-                String::from_utf8(output.stdout).context("Invalid UTF-8")?
-            );
+            let stdout = String::from_utf8(output.stdout).context("Invalid UTF-8")?;
+            if !stdout.is_empty() {
+                println!("{stdout}");
+            }
+            let stderr = String::from_utf8(output.stderr).context("Invalid UTF-8")?;
+            if !stderr.is_empty() {
+                eprintln!("{stderr}");
+            }
         }
     }
     if failed {
