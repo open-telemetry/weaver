@@ -1,0 +1,36 @@
+file_format: definition/2
+attributes:
+  - key: test.attr
+    type: int
+    brief: Test attribute
+    stability: stable
+
+attribute_groups:
+  - id: example.overrides
+    visibility: internal
+    attributes:
+      - ref: test.attr
+        examples: [42]
+
+metrics:
+  - name: base.metric
+    requirement_level: recommended
+    instrument: histogram
+    unit: s
+    brief: Base metric
+    stability: stable
+    attributes:
+      - ref: test.attr
+        requirement_level: required
+
+metric_refinements:
+  - id: inherited.level
+    ref: base.metric
+    attributes:
+      - ref_group: example.overrides
+  - id: overridden.level
+    ref: base.metric
+    attributes:
+      - ref_group: example.overrides
+      - ref: test.attr
+        requirement_level: recommended
