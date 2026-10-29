@@ -1059,6 +1059,7 @@ mod tests {
         let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
         let resolved = resolver
             .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .ignore(is_unstable_format_warning)
             .into_result_failing_non_fatal()
             .expect("A refinement must preserve identity inherited from a v1 attribute definition")
             .into_v1()
@@ -1085,6 +1086,33 @@ mod tests {
             );
             assert!(entity.description.is_empty());
         }
+        Ok(())
+    }
+
+    /// A refinement can't `unref` an identity attribute of a v1 base entity,
+    /// even when the role is set only on the attribute definition. The base
+    /// has two identity attributes, so v2 conversion alone wouldn't notice.
+    #[test]
+    fn test_v2_entity_refinement_cannot_unref_inherited_v1_identity(
+    ) -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/entity-identity-inheritance-unref".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let error = resolver
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .ignore(is_unstable_format_warning)
+            .into_result_failing_non_fatal()
+            .err()
+            .expect("Removing an inherited identity attribute must fail");
+        let message = format!("{error:?}");
+        assert!(
+            message.contains("InvalidAttributeUnref")
+                && message.contains("host.name")
+                && message.contains("refinements must preserve identity"),
+            "got: {message}"
+        );
         Ok(())
     }
 

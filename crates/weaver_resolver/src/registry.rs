@@ -23,7 +23,7 @@ use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
-use weaver_semconv::v1::attribute::AttributeSpec;
+use weaver_semconv::v1::attribute::{AttributeRole, AttributeSpec};
 use weaver_semconv::v1::group::AttributeGroupVisibilitySpec;
 use weaver_semconv::v1::group::{
     GroupSpecWithProvenance, GroupType, GroupWildcard, ImportsWithProvenance,
@@ -965,6 +965,21 @@ fn inherit_v2_refinement_fields(
 /// Returns true if all the `extends` references have been resolved.
 fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error> {
     let mut fatal_errors: Vec<Error> = vec![];
+    // Roles of locally defined attributes. Attribute references are resolved
+    // after `extends`, so until then a `ref` has no role unless it sets one.
+    let defined_roles: HashMap<String, AttributeRole> = ureg
+        .groups
+        .iter()
+        .flat_map(|g| g.attributes.iter())
+        .filter_map(|a| match &a.spec {
+            AttributeSpec::Id {
+                id,
+                role: Some(role),
+                ..
+            } => Some((id.clone(), role.clone())),
+            _ => None,
+        })
+        .collect();
     loop {
         let mut errors = vec![];
         let mut resolved_group_count = 0;
@@ -1037,6 +1052,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                                     unresolved_group,
                                     &parent_ref,
                                     &parent_attrs,
+                                    &defined_roles,
                                 ));
                             }
                         }
@@ -1054,6 +1070,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         parent_ref,
                         parent_attrs,
                         &included,
+                        &defined_roles,
                     ));
                     let unrefs: HashSet<_> = unresolved_group.attribute_unrefs.iter().collect();
                     parent_attrs.retain(|attr| !unrefs.contains(&attr.spec.id()));
@@ -1115,14 +1132,30 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
     }
 }
 
+/// The role of an attribute: the one set on the ref or definition itself, or
+/// else the one from the local attribute definition.
+fn effective_role(
+    spec: &AttributeSpec,
+    defined_roles: &HashMap<String, AttributeRole>,
+) -> Option<AttributeRole> {
+    match spec {
+        AttributeSpec::Ref { role: Some(r), .. } | AttributeSpec::Id { role: Some(r), .. } => {
+            Some(r.clone())
+        }
+        AttributeSpec::Ref {
+            r#ref, role: None, ..
+        } => defined_roles.get(r#ref).cloned(),
+        AttributeSpec::Id { role: None, .. } => None,
+    }
+}
+
 fn attribute_unref_errors(
     group: &UnresolvedGroup,
     parent_ref: &str,
     parent_attrs: &[UnresolvedAttribute],
     included: &[(String, &[UnresolvedAttribute])],
+    defined_roles: &HashMap<String, AttributeRole>,
 ) -> Vec<Error> {
-    use weaver_semconv::v1::attribute::AttributeRole;
-
     let inherited: HashMap<_, _> = parent_attrs
         .iter()
         .map(|a| (a.spec.id(), &a.spec))
@@ -1141,10 +1174,9 @@ fn attribute_unref_errors(
         } else if let Some(source) = included.get(key) {
             format!("the attribute is also included by ref_group `{source}`")
         } else if let Some(spec) = inherited.get(key) {
-            let role = match spec {
-                AttributeSpec::Ref { role, .. } | AttributeSpec::Id { role, .. } => role,
-            };
-            if group.group.r#type == GroupType::Entity && *role == Some(AttributeRole::Identifying) {
+            if group.group.r#type == GroupType::Entity
+                && effective_role(spec, defined_roles) == Some(AttributeRole::Identifying)
+            {
                 format!("the attribute identifies entity `{parent_ref}`; refinements must preserve identity")
             } else if spec.is_required() {
                 format!("the attribute is required by `{parent_ref}`")
@@ -1170,12 +1202,9 @@ fn entity_identity_refinement_errors(
     group: &UnresolvedGroup,
     extends: &str,
     parent_attrs: &[UnresolvedAttribute],
+    defined_roles: &HashMap<String, AttributeRole>,
 ) -> Vec<Error> {
-    use weaver_semconv::v1::attribute::AttributeRole;
-
-    let role_of = |spec: &AttributeSpec| match spec {
-        AttributeSpec::Ref { role, .. } | AttributeSpec::Id { role, .. } => role.clone(),
-    };
+    let role_of = |spec: &AttributeSpec| effective_role(spec, defined_roles);
 
     let has_identity = parent_attrs
         .iter()

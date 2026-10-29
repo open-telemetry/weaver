@@ -1,0 +1,7 @@
+file_format: definition_manifest/2.0
+name: live_check_v2
+description: >
+  Self-contained v2 registry for the `weaver registry live-check --v2` CLI
+  tests. It has no dependencies, so upstream semantic conventions changes
+  cannot break the matcher tests.
+schema_url: https://example.com/live-check-v2/1.0.0
