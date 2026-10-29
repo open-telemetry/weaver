@@ -1047,6 +1047,135 @@ mod tests {
         assert_resolved_v2_schema("data/registry-test-v2-dep/entity_registry")
     }
 
+    #[test]
+    fn test_v2_entity_refinement_preserves_inherited_v1_identity(
+    ) -> Result<(), weaver_semconv::Error> {
+        use weaver_resolved_schema::v2::catalog::AttributeCatalog;
+
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/entity-identity-inheritance".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let resolved = resolver
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .ignore(is_unstable_format_warning)
+            .into_result_failing_non_fatal()
+            .expect("A refinement must preserve identity inherited from a v1 attribute definition")
+            .into_v1()
+            .unwrap();
+        let schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+            resolved.try_into().expect("Failed to convert to v2 schema");
+        let base = schema
+            .registry
+            .entities
+            .iter()
+            .find(|entity| entity.r#type.to_string() == "host")
+            .expect("Missing base entity");
+        let refinement = schema
+            .refinements
+            .entities
+            .iter()
+            .find(|refinement| refinement.id.to_string() == "refined.host")
+            .expect("Missing entity refinement");
+        for entity in [base, &refinement.entity] {
+            assert_eq!(entity.identity.len(), 1);
+            assert_eq!(
+                schema.attribute_catalog.attribute_key(&entity.identity[0]),
+                Some("host.id")
+            );
+            assert!(entity.description.is_empty());
+        }
+        Ok(())
+    }
+
+    /// A v1 base entity can take its identity from a dependency attribute
+    /// whose role is set on the definition. Refining it keeps that identity.
+    #[test]
+    fn test_v2_entity_refinement_preserves_identity_from_dependency_attribute(
+    ) -> Result<(), weaver_semconv::Error> {
+        use weaver_resolved_schema::v2::catalog::AttributeCatalog;
+
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/entity-identity-dependency-role/consumer".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let resolved = resolver
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .ignore(is_unstable_format_warning)
+            .into_result_failing_non_fatal()
+            .expect("A refinement must preserve identity from a dependency attribute")
+            .into_v1()
+            .unwrap();
+        let schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+            resolved.try_into().expect("Failed to convert to v2 schema");
+        let refinement = schema
+            .refinements
+            .entities
+            .iter()
+            .find(|refinement| refinement.id.to_string() == "refined.local")
+            .expect("Missing entity refinement");
+        assert_eq!(refinement.entity.identity.len(), 1);
+        assert_eq!(
+            schema
+                .attribute_catalog
+                .attribute_key(&refinement.entity.identity[0]),
+            Some("dep.id")
+        );
+        Ok(())
+    }
+
+    /// A local definition without a role shadows a dependency's identifying
+    /// definition of the same attribute, so a refinement can't promote it.
+    #[test]
+    fn test_v2_entity_refinement_cannot_promote_local_shadowing_attribute(
+    ) -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/entity-identity-dependency-role/shadowing".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let error = resolver
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .ignore(is_unstable_format_warning)
+            .into_result_failing_non_fatal()
+            .expect_err("Promoting a descriptive attribute to identity must fail");
+        let message = format!("{error:?}");
+        assert!(
+            message.contains("EntityRefinementChangedIdentity")
+                && message.contains("attribute_id: \"dep.id\""),
+            "got: {message}"
+        );
+        Ok(())
+    }
+
+    /// A refinement can't `unref` an identity attribute of a v1 base entity,
+    /// even when the role is set only on the attribute definition. The base
+    /// has two identity attributes, so v2 conversion alone wouldn't notice.
+    #[test]
+    fn test_v2_entity_refinement_cannot_unref_inherited_v1_identity(
+    ) -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/entity-identity-inheritance-unref".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let error = resolver
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .ignore(is_unstable_format_warning)
+            .into_result_failing_non_fatal()
+            .expect_err("Removing an inherited identity attribute must fail");
+        let message = format!("{error:?}");
+        assert!(
+            message.contains("InvalidAttributeUnref")
+                && message.contains("host.name")
+                && message.contains("refinements must preserve identity"),
+            "got: {message}"
+        );
+        Ok(())
+    }
+
     /// Refinements over two dependencies, where the attributes of one of them
     /// are defined a level deeper. Provenance must name the registry that
     /// defines an attribute, not the one it was reached through.
@@ -1698,6 +1827,86 @@ attributes:
             resolve_at("data/registry-test-dep-exclusion/within_registry_v2_leak_ref"),
             &[("metric.parent.base", "child.refined")],
         );
+    }
+
+    #[test]
+    fn test_v2_refinement_note_inheritance() {
+        for (signal, definition) in [
+            (
+                "span",
+                "type: example.client\n    kind: client\n    name:\n      note: Use the operation name.",
+            ),
+            (
+                "metric",
+                "name: example.client\n    instrument: counter\n    unit: '1'",
+            ),
+            ("event", "name: example.client"),
+            (
+                "entity",
+                "type: example.client\n    identity:\n      - ref: example.id",
+            ),
+        ] {
+            let collection = if signal == "entity" {
+                "entities".to_owned()
+            } else {
+                format!("{signal}s")
+            };
+            for (parent_note, note, expected) in [
+                ("    note: Parent note.", "", Some("Parent note.")),
+                ("    note: Parent note.", "    note: \"\"", Some("")),
+                (
+                    "    note: Parent note.",
+                    "    note: Child note.",
+                    Some("Child note."),
+                ),
+                ("", "", None),
+                ("", "    note: \"\"", Some("")),
+                ("    note: \"\"", "", Some("")),
+            ] {
+                let yaml = format!(
+                    r#"
+file_format: definition/2
+{collection}:
+  - {definition}
+    requirement_level: recommended
+    stability: development
+    brief: Example signal.
+{parent_note}
+attributes:
+  - key: example.id
+    type: int
+    stability: development
+    brief: Entity identifier.
+{signal}_refinements:
+  - id: example.special.client
+    ref: example.client
+{note}
+"#
+                );
+                let loaded = LoadedSemconvRegistry::create_from_string(&yaml).unwrap();
+                let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+                let resolved = resolver
+                    .resolve_loaded(loaded)
+                    .into_result_failing_non_fatal()
+                    .expect("Failed to resolve refinement");
+                let v2: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+                    Arc::unwrap_or_clone(resolved).into_v1().unwrap().try_into().unwrap();
+                let json = serde_json::to_value(v2).unwrap();
+                let refinement = json["refinements"][&collection]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|group| group["id"] == "example.special.client")
+                    .expect("Refinement not found");
+                let expected = expected.filter(|note| !note.is_empty());
+                assert_eq!(
+                    refinement.get("note").and_then(|value| value.as_str()),
+                    expected,
+                    "{signal} with parent {parent_note:?} and refinement {note:?}"
+                );
+                assert_eq!(refinement.get("note").is_some(), expected.is_some());
+            }
+        }
     }
 
     #[test]

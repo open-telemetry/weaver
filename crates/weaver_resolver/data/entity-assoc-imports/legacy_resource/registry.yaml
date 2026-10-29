@@ -6,6 +6,12 @@ groups:
     stability: stable
     brief: The web browser in which the application is running.
     attributes:
+      - id: browser.id
+        type: string
+        role: identifying
+        stability: stable
+        brief: A unique identifier for the browser instance.
+        examples: ["browser-1"]
       - id: browser.brands
         type: string[]
         stability: stable
@@ -32,6 +38,7 @@ groups:
     attributes:
       - id: device.id
         type: string
+        role: identifying
         stability: stable
         brief: A unique identifier for the device.
         examples: ["2ab2916d-a51f-4ac8-80ee-45ac31a28092"]

@@ -71,7 +71,7 @@ mod tests {
             attributes: vec![],
             common: CommonFields {
                 brief: "HTTP client group".to_owned(),
-                note: "".to_owned(),
+                note: None,
                 stability: Default::default(),
                 deprecated: None,
                 annotations: Default::default(),

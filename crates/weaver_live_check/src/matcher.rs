@@ -830,7 +830,7 @@ mod tests {
             examples: None,
             common: CommonFields {
                 brief: String::new(),
-                note: String::new(),
+                note: None,
                 stability,
                 deprecated: None,
                 annotations: BTreeMap::new(),

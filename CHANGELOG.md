@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
   - **Multiline quoted scalar indentation**: Continuation lines in multiline single- or double-quoted flow scalars (`'...'` / `"..."`) inside a block mapping must be indented strictly more than the enclosing block (YAML 1.2.2 `[69] s-flow-line-prefix(n)`), rather than at the same column as the mapping key.
   - **Block scalar trailing newlines at EOF & strict YAML 1.2 booleans**: Clipped block scalars (`>` and `|`) at the end of a file without a trailing newline now consistently preserve the trailing `\n`, and YAML 1.1 boolean literals (such as `yes`/`no`/`on`/`off`) are no longer coerced to booleans.
   - Drop support for `open-telemetry/semantic-conventions` `v1.26.0` and `v1.27.0` (which contained non-compliant multiline quoted scalar indentation in `exception.yaml`, fixed in `v1.28.0`). The minimum supported semantic-conventions version is now `v1.28.0`.
+- Fix explicitly empty notes on V2 signal refinements inheriting the parent note. Omitted notes still inherit. Fixes [#1840](https://github.com/open-telemetry/weaver/issues/1840).
+- 💥 BREAKING CHANGE 💥 v2: entities and entity refinements must have at least one identity attribute. Converting a v1 registry to v2 now fails for entities without identifying attributes, and reports all of them at once. Refinements can no longer promote descriptive attributes to identity. Fixes [#1752](https://github.com/open-telemetry/weaver/issues/1752) - ([#1759](https://github.com/open-telemetry/weaver/pull/1759) by @lmolkova)
 
 # [0.28.0] - 2026-10-14
 

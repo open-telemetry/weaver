@@ -1036,7 +1036,7 @@ mod tests {
                             ])),
                             common: CommonFields {
                                 brief: "".to_owned(),
-                                note: "".to_owned(),
+                                note: None,
                                 stability: Stability::Stable,
                                 deprecated: None,
                                 annotations: BTreeMap::new(),
@@ -1070,7 +1070,7 @@ mod tests {
                             examples: None,
                             common: CommonFields {
                                 brief: "".to_owned(),
-                                note: "".to_owned(),
+                                note: None,
                                 stability: Stability::Stable,
                                 deprecated: None,
                                 annotations: BTreeMap::new(),
@@ -1088,7 +1088,7 @@ mod tests {
                             ])),
                             common: CommonFields {
                                 brief: "".to_owned(),
-                                note: "".to_owned(),
+                                note: None,
                                 stability: Stability::Development,
                                 deprecated: Some(
                                     weaver_semconv::deprecated::Deprecated::Uncategorized {
@@ -1108,7 +1108,7 @@ mod tests {
                             ])),
                             common: CommonFields {
                                 brief: "".to_owned(),
-                                note: "".to_owned(),
+                                note: None,
                                 stability: Stability::Stable,
                                 deprecated: None,
                                 annotations: BTreeMap::new(),
@@ -1308,7 +1308,7 @@ mod tests {
                 ])),
                 common: CommonFields {
                     brief: "The memory state".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     stability: Stability::Development,
                     deprecated: None,
                     annotations: BTreeMap::new(),
@@ -1333,7 +1333,7 @@ mod tests {
                             entity_associations: vec![],
                             common: CommonFields {
                                 brief: "The time the system has been running".to_owned(),
-                                note: "".to_owned(),
+                                note: None,
                                 stability: Stability::Development,
                                 deprecated: None,
                                 annotations: BTreeMap::new(),
@@ -1354,7 +1354,7 @@ mod tests {
                             entity_associations: vec![],
                             common: CommonFields {
                                 brief: "Reports memory in use by state.".to_owned(),
-                                note: "".to_owned(),
+                                note: None,
                                 stability: Stability::Development,
                                 deprecated: None,
                                 annotations: BTreeMap::new(),
@@ -1529,7 +1529,7 @@ mod tests {
                 ])),
                 common: CommonFields {
                     brief: "".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     stability: Stability::Stable,
                     deprecated: None,
                     annotations: BTreeMap::new(),
@@ -1563,7 +1563,7 @@ mod tests {
                         entity_associations: vec![],
                         common: CommonFields {
                             brief: "".to_owned(),
-                            note: "".to_owned(),
+                            note: None,
                             stability: Stability::Stable,
                             deprecated: None,
                             annotations: BTreeMap::new(),
@@ -2072,7 +2072,7 @@ mod tests {
                 ])),
                 common: CommonFields {
                     brief: "A unique session identifier".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     stability: Stability::Development,
                     deprecated: None,
                     annotations: BTreeMap::new(),
@@ -2088,7 +2088,7 @@ mod tests {
                 ])),
                 common: CommonFields {
                     brief: "The previous session identifier".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     stability: Stability::Development,
                     deprecated: None,
                     annotations: BTreeMap::new(),
@@ -2126,7 +2126,7 @@ mod tests {
                             entity_associations: vec![],
                             common: CommonFields {
                                 brief: "This event represents a session start".to_owned(),
-                                note: "".to_owned(),
+                                note: None,
                                 stability: Stability::Development,
                                 deprecated: Some(
                                     weaver_semconv::deprecated::Deprecated::Uncategorized {
@@ -2153,7 +2153,7 @@ mod tests {
                             entity_associations: vec![],
                             common: CommonFields {
                                 brief: "An example event".to_owned(),
-                                note: "".to_owned(),
+                                note: None,
                                 stability: Stability::Stable,
                                 deprecated: None,
                                 annotations: {
@@ -2686,7 +2686,7 @@ mod tests {
                 examples: None,
                 common: CommonFields {
                     brief: "The deployment name".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     stability: Stability::Stable,
                     deprecated: None,
                     annotations: BTreeMap::new(),
@@ -2699,7 +2699,7 @@ mod tests {
                 examples: None,
                 common: CommonFields {
                     brief: "The deployment environment".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     stability: Stability::Stable,
                     deprecated: None,
                     annotations: BTreeMap::new(),
@@ -2712,7 +2712,7 @@ mod tests {
                 examples: None,
                 common: CommonFields {
                     brief: "The deployment tier".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     stability: Stability::Stable,
                     deprecated: None,
                     annotations: BTreeMap::new(),
@@ -2725,7 +2725,7 @@ mod tests {
                 examples: None,
                 common: CommonFields {
                     brief: "The deployment region".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     stability: Stability::Stable,
                     deprecated: None,
                     annotations: BTreeMap::new(),
@@ -2756,7 +2756,7 @@ mod tests {
                         ))],
                         common: CommonFields {
                             brief: "A deployment has started".to_owned(),
-                            note: "".to_owned(),
+                            note: None,
                             stability: Stability::Stable,
                             deprecated: None,
                             annotations: BTreeMap::new(),
@@ -2789,7 +2789,7 @@ mod tests {
                         ],
                         common: CommonFields {
                             brief: "A deployment entity".to_owned(),
-                            note: "".to_owned(),
+                            note: None,
                             stability: Stability::Stable,
                             deprecated: None,
                             annotations: BTreeMap::new(),
@@ -3652,7 +3652,7 @@ mod tests {
     fn v2_common() -> CommonFields {
         CommonFields {
             brief: String::new(),
-            note: String::new(),
+            note: None,
             stability: Stability::Stable,
             deprecated: None,
             annotations: BTreeMap::new(),
@@ -4318,7 +4318,7 @@ mod tests {
                 examples: None,
                 common: CommonFields {
                     brief: "The host name".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     stability: Stability::Stable,
                     deprecated: None,
                     annotations: BTreeMap::new(),
@@ -4344,7 +4344,7 @@ mod tests {
                         ))],
                         common: CommonFields {
                             brief: "System uptime".to_owned(),
-                            note: "".to_owned(),
+                            note: None,
                             stability: Stability::Stable,
                             deprecated: None,
                             annotations: BTreeMap::new(),
@@ -4360,7 +4360,7 @@ mod tests {
                         description: vec![],
                         common: CommonFields {
                             brief: "A host entity".to_owned(),
-                            note: "".to_owned(),
+                            note: None,
                             stability: Stability::Stable,
                             deprecated: None,
                             annotations: BTreeMap::new(),

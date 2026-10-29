@@ -705,7 +705,7 @@ impl AttributeLookup for V2Schema {
                         // to each reference. A `ref` that sets none takes the default.
                         requirement_level: RequirementLevel::default(),
                         sampling_relevant: None,
-                        note: attr.common.note.clone(),
+                        note: attr.common.note.clone().unwrap_or_default(),
                         stability: Some(attr.common.stability.clone().into()),
                         deprecated: attr.common.deprecated.clone(),
                         prefix: false,

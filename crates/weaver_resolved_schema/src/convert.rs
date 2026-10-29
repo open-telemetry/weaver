@@ -68,7 +68,7 @@ impl V2CatalogBuilder {
                         && a.r#type == v2_type
                         && a.examples == v2_examples
                         && a.common.brief == attribute.brief
-                        && a.common.note == attribute.note
+                        && a.common.note.as_deref().unwrap_or_default() == attribute.note
                         && a.common.stability == expected_v2_stability
                         && a.common.deprecated == expected_v2_deprecated
                         && attribute
@@ -348,7 +348,7 @@ pub fn convert_v1_to_v2(
                 examples,
                 common: CommonFields {
                     brief: a.brief,
-                    note: a.note,
+                    note: (!a.note.is_empty()).then_some(a.note),
                     stability,
                     deprecated,
                     annotations: a.annotations.unwrap_or_default(),
@@ -369,6 +369,8 @@ pub fn convert_v1_to_v2(
     let mut entities = Vec::new();
     let mut entity_refinements = Vec::new();
     let mut attribute_groups = Vec::new();
+    // Every entity without identity, so they are all reported at once.
+    let mut missing_identity = Vec::new();
 
     for g in r.groups.iter().filter(|g| g.r#type == GroupType::Entity) {
         let is_refinement = is_refinement_of(g);
@@ -403,6 +405,13 @@ pub fn convert_v1_to_v2(
         } else {
             entity_type_of(g)
         };
+        if id_attrs.is_empty() {
+            missing_identity.push(crate::error::Error::EntityMissingIdentity {
+                group_id: g.id.clone(),
+                provenance: g.provenance(),
+            });
+            continue;
+        }
         let entity = V2Entity {
             r#type: entity_type,
             identity: id_attrs,
@@ -423,6 +432,9 @@ pub fn convert_v1_to_v2(
                 entity,
             });
         }
+    }
+    if !missing_identity.is_empty() {
+        return Err(crate::error::Error::compound_error(missing_identity));
     }
 
     let local_entities: HashMap<SignalId, Option<provenance::DependencyRef>> = entity_refinements
@@ -760,7 +772,7 @@ mod tests {
                 id: "span.test".to_owned(),
                 r#type: GroupType::Span,
                 brief: "brief".to_owned(),
-                note: "note".to_owned(),
+                note: Some("note".to_owned()),
                 prefix: "".to_owned(),
                 extends: None,
                 stability: Some(Stability::Stable),
@@ -886,7 +898,7 @@ mod tests {
                     id: "metric.http.server.duration".to_owned(),
                     r#type: GroupType::Metric,
                     brief: "Duration".to_owned(),
-                    note: "Note".to_owned(),
+                    note: Some("Note".to_owned()),
                     prefix: "".to_owned(),
                     extends: None,
                     stability: Some(Stability::Stable),
@@ -912,7 +924,7 @@ mod tests {
                     id: "metric.http.server.duration.refined".to_owned(),
                     r#type: GroupType::Metric,
                     brief: "Refined duration".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     prefix: "".to_owned(),
                     extends: Some("metric.http.server.duration".to_owned()),
                     stability: Some(Stability::Stable),
@@ -967,7 +979,7 @@ mod tests {
                     id: "event.exception".to_owned(),
                     r#type: GroupType::Event,
                     brief: "An exception occurred".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     prefix: "".to_owned(),
                     extends: None,
                     stability: Some(Stability::Stable),
@@ -993,7 +1005,7 @@ mod tests {
                     id: "event.exception.refined".to_owned(),
                     r#type: GroupType::Event,
                     brief: "Refined exception".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     prefix: "".to_owned(),
                     extends: Some("event.exception".to_owned()),
                     stability: Some(Stability::Stable),
@@ -1091,7 +1103,7 @@ mod tests {
                     id: "entity.k8s.pod".to_owned(),
                     r#type: GroupType::Entity,
                     brief: "Kubernetes pod".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     prefix: "".to_owned(),
                     extends: None,
                     stability: Some(Stability::Stable),
@@ -1117,7 +1129,7 @@ mod tests {
                     id: "entity.k8s.pod.refined".to_owned(),
                     r#type: GroupType::Entity,
                     brief: "Refined pod".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     prefix: "".to_owned(),
                     extends: Some("entity.k8s.pod".to_owned()),
                     stability: Some(Stability::Stable),
@@ -1125,7 +1137,7 @@ mod tests {
                     name: None,
                     lineage: Some(entity_lineage),
                     display_name: None,
-                    attributes: vec![],
+                    attributes: vec![id_ref],
                     span_kind: None,
                     events: vec![],
                     metric_name: None,
@@ -1187,7 +1199,7 @@ mod tests {
                     id: "attribute_group.public_grp".to_owned(),
                     r#type: GroupType::AttributeGroup,
                     brief: "Public group".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     prefix: "".to_owned(),
                     extends: None,
                     stability: Some(Stability::Stable),
@@ -1215,7 +1227,7 @@ mod tests {
                     id: "attribute_group.internal_grp".to_owned(),
                     r#type: GroupType::AttributeGroup,
                     brief: "Internal group".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     prefix: "".to_owned(),
                     extends: None,
                     stability: Some(Stability::Stable),
@@ -1265,7 +1277,7 @@ mod tests {
                 id: id.to_owned(),
                 r#type: r#type.clone(),
                 brief: "".to_owned(),
-                note: "".to_owned(),
+                note: None,
                 prefix: "".to_owned(),
                 extends: None,
                 stability: Some(Stability::Stable),
@@ -1390,7 +1402,7 @@ mod tests {
                 id: "event.unnamed".to_owned(),
                 r#type: GroupType::Event,
                 brief: "".to_owned(),
-                note: "".to_owned(),
+                note: None,
                 prefix: "".to_owned(),
                 extends: None,
                 stability: Some(Stability::Stable),
@@ -1434,7 +1446,7 @@ mod tests {
                 id: "span.refined".to_owned(),
                 r#type: GroupType::Span,
                 brief: "".to_owned(),
-                note: "".to_owned(),
+                note: None,
                 prefix: "".to_owned(),
                 extends: Some("span.base".to_owned()),
                 stability: Some(Stability::Stable),
@@ -1472,7 +1484,7 @@ mod tests {
                 id: "span.db".to_owned(),
                 r#type: GroupType::Span,
                 brief: "".to_owned(),
-                note: "".to_owned(),
+                note: None,
                 prefix: "".to_owned(),
                 extends: None,
                 stability: Some(Stability::Stable),
@@ -1533,6 +1545,18 @@ mod tests {
     #[test]
     fn test_convert_entity_associations_complex_and_provenance() {
         use weaver_semconv::v1::entity_association::EntityAssociation as SpecAssociation;
+        let mut builder = crate::v1::catalog::test_utils::CatalogBuilder::default();
+        let identity = builder.add(
+            serde_json::from_value(serde_json::json!({
+                "name": "server.id",
+                "type": "string",
+                "brief": "Server identifier",
+                "requirement_level": "required",
+                "role": "identifying"
+            }))
+            .unwrap(),
+            None,
+        );
         let dep_url: SchemaUrl = "http://external.dep/1.0.0".try_into().unwrap();
         let mut deps = BTreeSet::new();
         let _ = deps.insert(dep_url.clone());
@@ -1546,7 +1570,7 @@ mod tests {
             id: "entity.local_server".to_owned(),
             r#type: GroupType::Entity,
             brief: "".to_owned(),
-            note: "".to_owned(),
+            note: None,
             prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Stable),
@@ -1554,7 +1578,7 @@ mod tests {
             name: Some("local_server".to_owned()),
             lineage: None,
             display_name: None,
-            attributes: vec![],
+            attributes: vec![identity],
             span_kind: None,
             events: vec![],
             metric_name: None,
@@ -1573,7 +1597,7 @@ mod tests {
             id: "span.db_query".to_owned(),
             r#type: GroupType::Span,
             brief: "".to_owned(),
-            note: "".to_owned(),
+            note: None,
             prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Stable),
@@ -1612,7 +1636,7 @@ mod tests {
             groups: vec![entity_group, span_group],
         };
 
-        let (_, reg, _, _) = convert_v1_to_v2(V1Catalog::default(), registry, deps).unwrap();
+        let (_, reg, _, _) = convert_v1_to_v2(builder.build(), registry, deps).unwrap();
         assert_eq!(reg.spans.len(), 1);
         let span = &reg.spans[0];
         assert_eq!(span.entity_associations.len(), 2);
@@ -1676,7 +1700,7 @@ mod tests {
             id: "span.test_span".to_owned(),
             r#type: GroupType::Span,
             brief: "span brief".to_owned(),
-            note: "".to_owned(),
+            note: None,
             prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Stable),
@@ -1771,7 +1795,7 @@ mod tests {
             id: "entity.k8s.pod".to_owned(),
             r#type: GroupType::Entity,
             brief: "Kubernetes pod".to_owned(),
-            note: "".to_owned(),
+            note: None,
             prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Stable),
@@ -1800,6 +1824,64 @@ mod tests {
             groups: vec![entity_group],
         };
 
+        let missing_identity_ids = |result: Result<_, crate::error::Error>| match result {
+            Err(crate::error::Error::CompoundError(errors)) => errors
+                .into_iter()
+                .map(|e| match e {
+                    crate::error::Error::EntityMissingIdentity { group_id, .. } => group_id,
+                    other => panic!("Expected EntityMissingIdentity, got {other:?}"),
+                })
+                .collect::<Vec<_>>(),
+            other => panic!("Expected CompoundError, got {other:?}"),
+        };
+
+        for attributes in [vec![], vec![ref_desc]] {
+            let mut invalid_registry = registry.clone();
+            invalid_registry.groups[0].attributes = attributes;
+            assert_eq!(
+                missing_identity_ids(convert_v1_to_v2(
+                    catalog.clone(),
+                    invalid_registry,
+                    BTreeSet::new()
+                )),
+                vec!["entity.k8s.pod".to_owned()]
+            );
+        }
+
+        // Every entity without identity is reported, not just the first. An
+        // entity from a dependency names the registry and file to fix.
+        let mut invalid_registry = registry.clone();
+        invalid_registry.groups[0].attributes = vec![];
+        let mut second = invalid_registry.groups[0].clone();
+        second.id = "entity.k8s.node".to_owned();
+        second.attributes = vec![ref_desc];
+        second.lineage = Some(crate::v1::lineage::GroupLineage::new(Provenance::new(
+            SchemaUrl::try_from("https://dep.example.com/schemas/1.0.0").unwrap(),
+            "dep/entities.yaml",
+        )));
+        invalid_registry.groups.push(second);
+        let result = convert_v1_to_v2(catalog.clone(), invalid_registry, BTreeSet::new());
+        let rendered = result.as_ref().err().map(ToString::to_string);
+        let messages: Vec<String> = match &result {
+            Err(crate::error::Error::CompoundError(errors)) => {
+                errors.iter().map(ToString::to_string).collect()
+            }
+            other => panic!("Expected CompoundError, got {other:?}"),
+        };
+        assert_eq!(
+            missing_identity_ids(result),
+            vec!["entity.k8s.pod".to_owned(), "entity.k8s.node".to_owned()]
+        );
+        assert_eq!(
+            messages,
+            vec![
+                "Entity entity.k8s.pod has no identity attributes. Add at least one identifying attribute before converting to V2 schema.".to_owned(),
+                "Entity entity.k8s.node (defined in https://dep.example.com/schemas/1.0.0:dep/entities.yaml) has no identity attributes. Add at least one identifying attribute before converting to V2 schema.".to_owned(),
+            ]
+        );
+        // The CLI shows the compound error itself: one message per line.
+        assert_eq!(rendered, Some(messages.join("\n")));
+
         let (catalog_v2, reg, _, _) = convert_v1_to_v2(catalog, registry, BTreeSet::new()).unwrap();
         assert_eq!(catalog_v2.len(), 2);
         assert_eq!(reg.entities.len(), 1);
@@ -1817,7 +1899,7 @@ mod tests {
             id: "span.http.client.refinement".to_owned(),
             r#type: GroupType::Span,
             brief: "HTTP client span refinement".to_owned(),
-            note: "".to_owned(),
+            note: None,
             prefix: "".to_owned(),
             extends: Some("http.client".to_owned()),
             stability: Some(Stability::Stable),
@@ -1899,7 +1981,7 @@ mod tests {
             id: "attribute_group.test.group".to_owned(),
             r#type: GroupType::AttributeGroup,
             brief: "a public group".to_owned(),
-            note: "".to_owned(),
+            note: None,
             prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Stable),
@@ -1957,7 +2039,7 @@ mod tests {
             id: "entity.missing_base".to_owned(),
             r#type: GroupType::Entity,
             brief: "entity refinement without base".to_owned(),
-            note: "".to_owned(),
+            note: None,
             prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Stable),
@@ -2000,7 +2082,7 @@ mod tests {
             id: "entity.dangling_attr".to_owned(),
             r#type: GroupType::Entity,
             brief: "entity referencing missing attr".to_owned(),
-            note: "".to_owned(),
+            note: None,
             prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Stable),
@@ -2045,7 +2127,7 @@ mod tests {
                 id: "metric_group.test".to_owned(),
                 r#type: GroupType::MetricGroup,
                 brief: "metric group".to_owned(),
-                note: "".to_owned(),
+                note: None,
                 prefix: "".to_owned(),
                 extends: None,
                 stability: Some(Stability::Stable),
@@ -2071,7 +2153,7 @@ mod tests {
                 id: "scope.test".to_owned(),
                 r#type: GroupType::Scope,
                 brief: "scope group".to_owned(),
-                note: "".to_owned(),
+                note: None,
                 prefix: "".to_owned(),
                 extends: None,
                 stability: Some(Stability::Stable),
@@ -2149,7 +2231,7 @@ mod tests {
             id: "span.my_group".to_owned(),
             r#type: GroupType::Span,
             brief: "span with source attribute".to_owned(),
-            note: "".to_owned(),
+            note: None,
             prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Stable),
@@ -2220,7 +2302,7 @@ mod tests {
             id: "metric.http.server.duration".to_owned(),
             r#type: GroupType::Metric,
             brief: "Duration".to_owned(),
-            note: "".to_owned(),
+            note: None,
             prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Stable),
@@ -2326,7 +2408,7 @@ mod tests {
             id: "metric.test".to_owned(),
             r#type: GroupType::Metric,
             brief: "Test metric".to_owned(),
-            note: String::new(),
+            note: None,
             prefix: String::new(),
             extends: None,
             stability: None,
@@ -2387,7 +2469,7 @@ mod tests {
             examples: None,
             common: CommonFields {
                 brief: "Server port".to_owned(),
-                note: String::new(),
+                note: None,
                 stability: Stability::Stable,
                 deprecated: None,
                 annotations: Default::default(),
@@ -2401,7 +2483,7 @@ mod tests {
             examples: None,
             common: CommonFields {
                 brief: "Server address".to_owned(),
-                note: String::new(),
+                note: None,
                 stability: Stability::Stable,
                 deprecated: None,
                 annotations: Default::default(),
@@ -2434,7 +2516,7 @@ mod tests {
             examples: None,
             common: CommonFields {
                 brief: "brief".to_owned(),
-                note: "note".to_owned(),
+                note: Some("note".to_owned()),
                 // What `convert_v1_to_v2` stores for an attribute with no stability.
                 stability: Stability::default(),
                 deprecated: None,
@@ -2483,7 +2565,7 @@ mod tests {
             examples: None,
             common: CommonFields {
                 brief: brief.clone(),
-                note: note.clone(),
+                note: Some(note.clone()),
                 stability: stability.clone(),
                 deprecated: None,
                 annotations: annotations.clone(),
@@ -2573,7 +2655,7 @@ mod tests {
                 id: "span.legacy.test".to_owned(),
                 r#type: GroupType::Span,
                 brief: "Legacy span".to_owned(),
-                note: String::new(),
+                note: None,
                 prefix: String::new(),
                 extends: None,
                 stability: Some(deprecated_v1),
