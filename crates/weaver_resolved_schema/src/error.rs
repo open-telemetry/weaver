@@ -75,8 +75,8 @@ pub enum Error {
         field: &'static str,
     },
 
-    /// A generic container for multiple errors.
-    #[error("Errors:\n{0:#?}")]
+    /// A generic container for multiple errors, rendered one per line.
+    #[error("{}", .0.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n"))]
     CompoundError(Vec<Error>),
 }
 

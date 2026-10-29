@@ -1861,6 +1861,7 @@ mod tests {
         )));
         invalid_registry.groups.push(second);
         let result = convert_v1_to_v2(catalog.clone(), invalid_registry, BTreeSet::new());
+        let rendered = result.as_ref().err().map(ToString::to_string);
         let messages: Vec<String> = match &result {
             Err(crate::error::Error::CompoundError(errors)) => {
                 errors.iter().map(ToString::to_string).collect()
@@ -1878,6 +1879,8 @@ mod tests {
                 "Entity entity.k8s.node (defined in https://dep.example.com/schemas/1.0.0:dep/entities.yaml) has no identity attributes. Add at least one identifying attribute before converting to V2 schema.".to_owned(),
             ]
         );
+        // The CLI shows the compound error itself: one message per line.
+        assert_eq!(rendered, Some(messages.join("\n")));
 
         let (catalog_v2, reg, _, _) = convert_v1_to_v2(catalog, registry, BTreeSet::new()).unwrap();
         assert_eq!(catalog_v2.len(), 2);
