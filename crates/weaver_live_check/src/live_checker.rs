@@ -608,7 +608,6 @@ mod tests {
     use super::*;
     use crate::sample_log::SampleLog;
     use serde_json::json;
-    use serde_yaml;
     use std::collections::BTreeMap;
     use weaver_checker::{FindingLevel, PolicyFinding};
     use weaver_forge::v1::registry::{ResolvedGroup, ResolvedRegistry};
@@ -2138,7 +2137,7 @@ mod tests {
                                     let mut annotations = BTreeMap::new();
                                     let _ = annotations.insert(
                                         "required_phrase".to_owned(),
-                                        YamlValue(serde_yaml::Value::String(
+                                        YamlValue(serde_json::Value::String(
                                             "hello world".to_owned(),
                                         )),
                                     );
@@ -2161,7 +2160,7 @@ mod tests {
                                     let mut annotations = BTreeMap::new();
                                     let _ = annotations.insert(
                                         "required_phrase".to_owned(),
-                                        YamlValue(serde_yaml::Value::String(
+                                        YamlValue(serde_json::Value::String(
                                             "hello world".to_owned(),
                                         )),
                                     );
@@ -2260,7 +2259,7 @@ mod tests {
                             let mut annotations = BTreeMap::new();
                             let _ = annotations.insert(
                                 "required_phrase".to_owned(),
-                                YamlValue(serde_yaml::Value::String("hello world".to_owned())),
+                                YamlValue(serde_json::Value::String("hello world".to_owned())),
                             );
                             annotations
                         }),
@@ -2290,7 +2289,7 @@ mod tests {
                             let mut annotations = BTreeMap::new();
                             let _ = annotations.insert(
                                 "required_phrase".to_owned(),
-                                YamlValue(serde_yaml::Value::String("hello world".to_owned())),
+                                YamlValue(serde_json::Value::String("hello world".to_owned())),
                             );
                             annotations
                         }),
@@ -3682,7 +3681,7 @@ mod tests {
     fn annotated(mut entity: V2Entity, key: &str, value: &str) -> V2Entity {
         let _ = entity.common.annotations.insert(
             key.to_owned(),
-            YamlValue(serde_yaml::Value::String(value.to_owned())),
+            YamlValue(serde_json::Value::String(value.to_owned())),
         );
         entity
     }

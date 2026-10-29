@@ -1519,7 +1519,7 @@ mod tests {
         let mut annotations = BTreeMap::new();
         let _ = annotations.insert(
             "custom_key".to_owned(),
-            YamlValue(serde_yaml::Value::String("custom_val".to_owned())),
+            YamlValue(serde_json::Value::String("custom_val".to_owned())),
         );
 
         let v2_enum_entry = V2EnumEntriesSpec {
@@ -1754,7 +1754,7 @@ mod tests {
         let mut annotations = BTreeMap::new();
         let _ = annotations.insert(
             "tier".to_owned(),
-            YamlValue(serde_yaml::Value::String("core".to_owned())),
+            YamlValue(serde_json::Value::String("core".to_owned())),
         );
 
         let attr_def = AttributeDef {
@@ -1917,7 +1917,7 @@ attributes:
   - ref: some_attr
   - ref_group: some_group
 "#;
-        let metric = serde_yaml::from_str::<Metric>(yaml).expect("Failed to parse YAML string");
+        let metric = serde_saphyr::from_str::<Metric>(yaml).expect("Failed to parse YAML string");
         let v1_group = v2_metric_to_v1(metric);
         assert_eq!(v1_group.id, "metric.my_metric");
         assert_eq!(v1_group.r#type, V1GroupType::Metric);
@@ -2127,7 +2127,7 @@ description:
 brief: Test entity
 stability: stable
 "#;
-        let entity = serde_yaml::from_str::<Entity>(yaml).expect("Failed to parse YAML string");
+        let entity = serde_saphyr::from_str::<Entity>(yaml).expect("Failed to parse YAML string");
         let v1_group = v2_entity_to_v1(entity);
         assert_eq!(v1_group.id, "entity.my_entity");
         assert_eq!(v1_group.r#type, V1GroupType::Entity);

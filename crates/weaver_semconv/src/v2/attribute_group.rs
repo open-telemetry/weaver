@@ -81,7 +81,7 @@ stability: development
 visibility: public
 "#;
         let attr_group =
-            serde_yaml::from_str::<AttributeGroup>(yaml).expect("Failed to parse YAML string");
+            serde_saphyr::from_str::<AttributeGroup>(yaml).expect("Failed to parse YAML string");
         match attr_group {
             AttributeGroup::Public(p) => {
                 assert_eq!(p.id.to_string(), "my_attr_group");
@@ -99,7 +99,7 @@ attributes:
   - ref: my.attr
 "#;
         let attr_group =
-            serde_yaml::from_str::<AttributeGroup>(yaml).expect("Failed to parse YAML string");
+            serde_saphyr::from_str::<AttributeGroup>(yaml).expect("Failed to parse YAML string");
         match attr_group {
             AttributeGroup::Internal(i) => {
                 assert_eq!(i.id.to_string(), "my_internal_group");

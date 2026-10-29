@@ -450,7 +450,7 @@ fn from_vdir<T: serde::de::DeserializeOwned>(
         path: path.path().to_path_buf(),
     })?;
     let reader = std::io::BufReader::new(file);
-    serde_yaml::from_reader(reader).map_err(|e| Error::ConversionError {
+    serde_saphyr::from_reader(reader).map_err(|e| Error::ConversionError {
         message: format!("Unable to read resolved schema: {e}"),
     })
 }

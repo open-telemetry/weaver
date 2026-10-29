@@ -423,7 +423,7 @@ mod tests {
             ("note: Details.", Some("Details.")),
         ] {
             let yaml = format!("brief: Example.\nstability: development\n{note}\n");
-            let common: CommonFields = serde_yaml::from_str(&yaml).unwrap();
+            let common: CommonFields = serde_saphyr::from_str(&yaml).unwrap();
             assert_eq!(common.note.as_deref(), expected);
             let json = serde_json::to_value(&common).unwrap();
             let serialized_note = expected.filter(|note| !note.is_empty());

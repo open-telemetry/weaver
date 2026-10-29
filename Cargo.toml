@@ -33,11 +33,11 @@ edition = "2021"
 repository = "https://github.com/open-telemetry/weaver"
 license = "Apache-2.0"
 publish = false
-rust-version = "1.88.0"
+rust-version = "1.89.0"
 
 [workspace.dependencies]
 serde = { version = "1.0.228", features = ["derive", "rc"] }
-serde_yaml = "0.9.34"
+serde-saphyr = "2.0.0"
 serde_json = { version = "1.0.145" }
 thiserror = "2.0.17"
 url = "2.5.4"
@@ -153,7 +153,7 @@ utoipa = { workspace = true, features = ["axum_extras"] }
 
 # workspace dependencies
 serde.workspace = true
-serde_yaml.workspace = true
+serde-saphyr.workspace = true
 serde_json.workspace = true
 convert_case.workspace = true
 walkdir.workspace = true

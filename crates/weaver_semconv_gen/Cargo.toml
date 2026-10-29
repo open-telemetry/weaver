@@ -20,7 +20,9 @@ nom = "8.0.0"
 thiserror.workspace = true
 serde.workspace = true
 miette.workspace = true
-serde_yaml.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
 
 [lints]
 workspace = true

@@ -118,14 +118,12 @@ impl Versions {
             path_or_url: path_buf.as_path().display().to_string(),
             error: e.to_string(),
         })?;
-        let top_level: TopLevel =
-            serde_yaml::from_reader(BufReader::new(versions_file)).map_err(|e| {
-                Error::InvalidVersions {
-                    path_or_url: path_buf.as_path().display().to_string(),
-                    line: e.location().map(|loc| loc.line()),
-                    column: e.location().map(|loc| loc.column()),
-                    error: e.to_string(),
-                }
+        let top_level: TopLevel = serde_saphyr::from_reader(BufReader::new(versions_file))
+            .map_err(|e| Error::InvalidVersions {
+                path_or_url: path_buf.as_path().display().to_string(),
+                line: e.location().map(|loc| loc.line() as usize),
+                column: e.location().map(|loc| loc.column() as usize),
+                error: e.to_string(),
             })?;
         Ok(top_level.versions)
     }
