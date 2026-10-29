@@ -583,7 +583,7 @@ mod tests {
                     examples: None,
                     common: CommonFields {
                         brief: "HTTP request method".to_owned(),
-                        note: "".to_owned(),
+                        note: None,
                         stability: Stability::Stable,
                         deprecated: None,
                         annotations: BTreeMap::new(),
@@ -600,7 +600,7 @@ mod tests {
                     entity_associations: vec![],
                     common: CommonFields {
                         brief: "Duration of HTTP server requests".to_owned(),
-                        note: "".to_owned(),
+                        note: None,
                         stability: Stability::Stable,
                         deprecated: None,
                         annotations: BTreeMap::new(),
@@ -619,7 +619,7 @@ mod tests {
                     entity_associations: vec![],
                     common: CommonFields {
                         brief: "HTTP client span".to_owned(),
-                        note: "".to_owned(),
+                        note: None,
                         stability: Stability::Stable,
                         deprecated: None,
                         annotations: BTreeMap::new(),
@@ -633,7 +633,7 @@ mod tests {
                     entity_associations: vec![],
                     common: CommonFields {
                         brief: "An exception event".to_owned(),
-                        note: "".to_owned(),
+                        note: None,
                         stability: Stability::Stable,
                         deprecated: None,
                         annotations: BTreeMap::new(),
@@ -647,7 +647,7 @@ mod tests {
                     description: vec![],
                     common: CommonFields {
                         brief: "A service entity".to_owned(),
-                        note: "".to_owned(),
+                        note: None,
                         stability: Stability::Stable,
                         deprecated: None,
                         annotations: BTreeMap::new(),

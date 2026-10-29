@@ -143,7 +143,7 @@ impl ResolvedGroup {
         let id = group.id.clone();
         let group_type = group.r#type.clone();
         let brief = group.brief.clone();
-        let note = group.note.clone();
+        let note = group.note.clone().unwrap_or_default();
         let prefix = group.prefix.clone();
         let extends = group.extends.clone();
         let stability = group.stability.clone();
@@ -219,7 +219,7 @@ impl ResolvedRegistry {
                 let id = group.id.clone();
                 let group_type = group.r#type.clone();
                 let brief = group.brief.clone();
-                let note = group.note.clone();
+                let note = group.note.clone().unwrap_or_default();
                 let prefix = group.prefix.clone();
                 let extends = group.extends.clone();
                 let stability = group.stability.clone();
@@ -310,7 +310,7 @@ mod tests {
                     id: "zebra.group".to_owned(),
                     r#type: GroupType::AttributeGroup,
                     brief: "Zebra group".to_owned(),
-                    note: String::new(),
+                    note: None,
                     prefix: String::new(),
                     extends: None,
                     stability: None,
@@ -336,7 +336,7 @@ mod tests {
                     id: "apple.group".to_owned(),
                     r#type: GroupType::AttributeGroup,
                     brief: "Apple group".to_owned(),
-                    note: String::new(),
+                    note: None,
                     prefix: String::new(),
                     extends: None,
                     stability: None,
@@ -362,7 +362,7 @@ mod tests {
                     id: "middle.group".to_owned(),
                     r#type: GroupType::AttributeGroup,
                     brief: "Middle group".to_owned(),
-                    note: String::new(),
+                    note: None,
                     prefix: String::new(),
                     extends: None,
                     stability: None,
@@ -416,7 +416,7 @@ mod tests {
                 id: id.to_owned(),
                 r#type: GroupType::Metric,
                 brief: String::new(),
-                note: String::new(),
+                note: None,
                 prefix: String::new(),
                 extends: extends.map(str::to_owned),
                 stability: None,
@@ -475,7 +475,7 @@ mod tests {
             id: "group.missing_attr".to_owned(),
             r#type: GroupType::AttributeGroup,
             brief: "test".to_owned(),
-            note: "".to_owned(),
+            note: None,
             prefix: "".to_owned(),
             extends: None,
             stability: None,

@@ -481,11 +481,11 @@ impl SearchableItem {
     /// Get the note for scoring.
     fn note(&self) -> &str {
         match self {
-            SearchableItem::Attribute(attr) => &attr.common.note,
-            SearchableItem::Metric(metric) => &metric.common.note,
-            SearchableItem::Span(span) => &span.common.note,
-            SearchableItem::Event(event) => &event.common.note,
-            SearchableItem::Entity(entity) => &entity.common.note,
+            SearchableItem::Attribute(attr) => attr.common.note.as_deref().unwrap_or_default(),
+            SearchableItem::Metric(metric) => metric.common.note.as_deref().unwrap_or_default(),
+            SearchableItem::Span(span) => span.common.note.as_deref().unwrap_or_default(),
+            SearchableItem::Event(event) => event.common.note.as_deref().unwrap_or_default(),
+            SearchableItem::Entity(entity) => entity.common.note.as_deref().unwrap_or_default(),
         }
     }
 
@@ -655,7 +655,7 @@ mod tests {
             examples: None,
             common: CommonFields {
                 brief: brief.to_owned(),
-                note: note.to_owned(),
+                note: Some(note.to_owned()),
                 stability: Stability::Stable,
                 deprecated: if deprecated {
                     Some(Deprecated::Obsoleted {
@@ -677,7 +677,7 @@ mod tests {
             examples: None,
             common: CommonFields {
                 brief: brief.to_owned(),
-                note: "".to_owned(),
+                note: None,
                 stability: Stability::Stable,
                 deprecated: None,
                 annotations: BTreeMap::new(),
@@ -693,7 +693,7 @@ mod tests {
             examples: None,
             common: CommonFields {
                 brief: brief.to_owned(),
-                note: "".to_owned(),
+                note: None,
                 stability: Stability::Development,
                 deprecated: None,
                 annotations: BTreeMap::new(),
@@ -735,7 +735,7 @@ mod tests {
                     entity_associations: vec![],
                     common: CommonFields {
                         brief: "Duration of HTTP server requests".to_owned(),
-                        note: "".to_owned(),
+                        note: None,
                         stability: Stability::Stable,
                         deprecated: None,
                         annotations: BTreeMap::new(),
@@ -754,7 +754,7 @@ mod tests {
                     entity_associations: vec![],
                     common: CommonFields {
                         brief: "HTTP client span".to_owned(),
-                        note: "".to_owned(),
+                        note: None,
                         stability: Stability::Stable,
                         deprecated: None,
                         annotations: BTreeMap::new(),
@@ -768,7 +768,7 @@ mod tests {
                     entity_associations: vec![],
                     common: CommonFields {
                         brief: "An exception event".to_owned(),
-                        note: "".to_owned(),
+                        note: None,
                         stability: Stability::Stable,
                         deprecated: None,
                         annotations: BTreeMap::new(),
@@ -782,7 +782,7 @@ mod tests {
                     description: vec![],
                     common: CommonFields {
                         brief: "A service entity".to_owned(),
-                        note: "".to_owned(),
+                        note: None,
                         stability: Stability::Stable,
                         deprecated: None,
                         annotations: BTreeMap::new(),

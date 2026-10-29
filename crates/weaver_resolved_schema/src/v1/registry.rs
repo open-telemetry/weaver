@@ -86,10 +86,10 @@ pub struct Group {
     /// A brief description of the semantic convention.
     pub brief: String,
     /// A more elaborate description of the semantic convention.
-    /// It defaults to an empty string.
     #[serde(default)]
-    #[serde(skip_serializing_if = "String::is_empty")]
-    pub note: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "String")]
+    pub note: Option<String>,
     /// Prefix for the attributes for this semantic convention.
     /// It defaults to an empty string.
     #[serde(default)]
@@ -318,7 +318,7 @@ impl CommonGroupStats {
         self.count += 1;
         self.total_attribute_count += group.attributes.len();
         self.total_with_prefix += !group.prefix.is_empty() as usize;
-        self.total_with_note += !group.note.is_empty() as usize;
+        self.total_with_note += group.note.as_ref().is_some_and(|note| !note.is_empty()) as usize;
         if let Some(stability) = group.stability.as_ref() {
             *self
                 .stability_breakdown

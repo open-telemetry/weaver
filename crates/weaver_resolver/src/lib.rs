@@ -1830,6 +1830,86 @@ attributes:
     }
 
     #[test]
+    fn test_v2_refinement_note_inheritance() {
+        for (signal, definition) in [
+            (
+                "span",
+                "type: example.client\n    kind: client\n    name:\n      note: Use the operation name.",
+            ),
+            (
+                "metric",
+                "name: example.client\n    instrument: counter\n    unit: '1'",
+            ),
+            ("event", "name: example.client"),
+            (
+                "entity",
+                "type: example.client\n    identity:\n      - ref: example.id",
+            ),
+        ] {
+            let collection = if signal == "entity" {
+                "entities".to_owned()
+            } else {
+                format!("{signal}s")
+            };
+            for (parent_note, note, expected) in [
+                ("    note: Parent note.", "", Some("Parent note.")),
+                ("    note: Parent note.", "    note: \"\"", Some("")),
+                (
+                    "    note: Parent note.",
+                    "    note: Child note.",
+                    Some("Child note."),
+                ),
+                ("", "", None),
+                ("", "    note: \"\"", Some("")),
+                ("    note: \"\"", "", Some("")),
+            ] {
+                let yaml = format!(
+                    r#"
+file_format: definition/2
+{collection}:
+  - {definition}
+    requirement_level: recommended
+    stability: development
+    brief: Example signal.
+{parent_note}
+attributes:
+  - key: example.id
+    type: int
+    stability: development
+    brief: Entity identifier.
+{signal}_refinements:
+  - id: example.special.client
+    ref: example.client
+{note}
+"#
+                );
+                let loaded = LoadedSemconvRegistry::create_from_string(&yaml).unwrap();
+                let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+                let resolved = resolver
+                    .resolve_loaded(loaded)
+                    .into_result_failing_non_fatal()
+                    .expect("Failed to resolve refinement");
+                let v2: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+                    Arc::unwrap_or_clone(resolved).into_v1().unwrap().try_into().unwrap();
+                let json = serde_json::to_value(v2).unwrap();
+                let refinement = json["refinements"][&collection]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|group| group["id"] == "example.special.client")
+                    .expect("Refinement not found");
+                let expected = expected.filter(|note| !note.is_empty());
+                assert_eq!(
+                    refinement.get("note").and_then(|value| value.as_str()),
+                    expected,
+                    "{signal} with parent {parent_note:?} and refinement {note:?}"
+                );
+                assert_eq!(refinement.get("note").is_some(), expected.is_some());
+            }
+        }
+    }
+
+    #[test]
     fn test_v2_refinement_attribute_precedence() {
         // Precedence for an attribute a refinement inherits from its parent,
         // re-declares via `ref_group`, and overrides inline must be:

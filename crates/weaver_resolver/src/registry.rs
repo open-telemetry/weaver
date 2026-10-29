@@ -944,7 +944,7 @@ fn inherit_v2_refinement_fields(
     if refinement.group.brief.is_empty() {
         refinement.group.brief = parent.brief.clone();
     }
-    if refinement.group.note.is_empty() {
+    if refinement.group.note.is_none() {
         refinement.group.note = parent.note.clone();
     }
     if refinement.group.span_name.is_none() {
@@ -2489,7 +2489,7 @@ groups:
             id: "span.http.client".to_owned(),
             r#type: GroupType::Span,
             brief: "".to_owned(),
-            note: "".to_owned(),
+            note: None,
             prefix: "".to_owned(),
             extends: None,
             stability: None,
