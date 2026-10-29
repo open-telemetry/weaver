@@ -14,10 +14,14 @@ use crate::v1::attribute::AttributeRef;
 #[derive(thiserror::Error, Debug, Clone, Deserialize, Serialize)]
 pub enum Error {
     /// An entity has no identifying attributes in V2 schema.
-    #[error("Entity {group_id} has no identity attributes. Add at least one identifying attribute before converting to V2 schema.")]
+    #[error("Entity {group_id}{} has no identity attributes. Add at least one identifying attribute before converting to V2 schema.",
+        .provenance.as_ref().map(|p| format!(" (defined in {p})")).unwrap_or_default())]
     EntityMissingIdentity {
         /// Group id.
         group_id: String,
+        /// Where the entity is defined, which names the registry to fix when
+        /// it comes from a dependency.
+        provenance: Option<weaver_semconv::provenance::Provenance>,
     },
 
     /// Attribute reference not found in the catalog.

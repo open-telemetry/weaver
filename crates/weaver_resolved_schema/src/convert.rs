@@ -408,6 +408,7 @@ pub fn convert_v1_to_v2(
         if id_attrs.is_empty() {
             missing_identity.push(crate::error::Error::EntityMissingIdentity {
                 group_id: g.id.clone(),
+                provenance: g.provenance(),
             });
             continue;
         }
@@ -1827,7 +1828,7 @@ mod tests {
             Err(crate::error::Error::CompoundError(errors)) => errors
                 .into_iter()
                 .map(|e| match e {
-                    crate::error::Error::EntityMissingIdentity { group_id } => group_id,
+                    crate::error::Error::EntityMissingIdentity { group_id, .. } => group_id,
                     other => panic!("Expected EntityMissingIdentity, got {other:?}"),
                 })
                 .collect::<Vec<_>>(),
@@ -1847,20 +1848,35 @@ mod tests {
             );
         }
 
-        // Every entity without identity is reported, not just the first.
+        // Every entity without identity is reported, not just the first. An
+        // entity from a dependency names the registry and file to fix.
         let mut invalid_registry = registry.clone();
         invalid_registry.groups[0].attributes = vec![];
         let mut second = invalid_registry.groups[0].clone();
         second.id = "entity.k8s.node".to_owned();
         second.attributes = vec![ref_desc];
+        second.lineage = Some(crate::v1::lineage::GroupLineage::new(Provenance::new(
+            SchemaUrl::try_from("https://dep.example.com/schemas/1.0.0").unwrap(),
+            "dep/entities.yaml",
+        )));
         invalid_registry.groups.push(second);
+        let result = convert_v1_to_v2(catalog.clone(), invalid_registry, BTreeSet::new());
+        let messages: Vec<String> = match &result {
+            Err(crate::error::Error::CompoundError(errors)) => {
+                errors.iter().map(ToString::to_string).collect()
+            }
+            other => panic!("Expected CompoundError, got {other:?}"),
+        };
         assert_eq!(
-            missing_identity_ids(convert_v1_to_v2(
-                catalog.clone(),
-                invalid_registry,
-                BTreeSet::new()
-            )),
+            missing_identity_ids(result),
             vec!["entity.k8s.pod".to_owned(), "entity.k8s.node".to_owned()]
+        );
+        assert_eq!(
+            messages,
+            vec![
+                "Entity entity.k8s.pod has no identity attributes. Add at least one identifying attribute before converting to V2 schema.".to_owned(),
+                "Entity entity.k8s.node (defined in https://dep.example.com/schemas/1.0.0:dep/entities.yaml) has no identity attributes. Add at least one identifying attribute before converting to V2 schema.".to_owned(),
+            ]
         );
 
         let (catalog_v2, reg, _, _) = convert_v1_to_v2(catalog, registry, BTreeSet::new()).unwrap();
