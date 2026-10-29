@@ -939,6 +939,7 @@ impl VirtualDirectory {
             })?;
 
         for i in 0..archive.len() {
+            // Header checks are opt-in; reject ZIP cloaking (CVE-2026-115905) before writing.
             let mut entry = archive
                 .by_index_with_options(
                     i,
@@ -954,6 +955,7 @@ impl VirtualDirectory {
             }
 
             if entry.enclosed_name().is_some() {
+                // Preserve the unnormalized path so path_to_unpack can reject `..` components.
                 let entry_name = entry.name().map_err(|e| InvalidRegistryArchive {
                     archive: archive_filename.to_owned(),
                     error: e.to_string(),
@@ -1542,7 +1544,7 @@ mod tests {
         writer.write_all(b"untrusted content").unwrap();
         let mut archive_bytes = writer.finish().unwrap().into_inner();
 
-        // Change only the central directory filename, leaving the local header intact.
+        // Reproduce ZIP cloaking by changing only the central directory filename.
         let central_header = archive_bytes
             .windows(4)
             .position(|bytes| bytes == b"PK\x01\x02")
