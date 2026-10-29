@@ -1126,6 +1126,30 @@ mod tests {
         Ok(())
     }
 
+    /// A local definition without a role shadows a dependency's identifying
+    /// definition of the same attribute, so a refinement can't promote it.
+    #[test]
+    fn test_v2_entity_refinement_cannot_promote_local_shadowing_attribute(
+    ) -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/entity-identity-dependency-role/shadowing".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let error = resolver
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .ignore(is_unstable_format_warning)
+            .into_result_failing_non_fatal()
+            .expect_err("Promoting a descriptive attribute to identity must fail");
+        let message = format!("{error:?}");
+        assert!(
+            message.contains("EntityRefinementChangedIdentity")
+                && message.contains("attribute_id: \"dep.id\""),
+            "got: {message}"
+        );
+        Ok(())
+    }
+
     /// A refinement can't `unref` an identity attribute of a v1 base entity,
     /// even when the role is set only on the attribute definition. The base
     /// has two identity attributes, so v2 conversion alone wouldn't notice.

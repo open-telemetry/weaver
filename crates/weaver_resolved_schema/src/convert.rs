@@ -433,7 +433,7 @@ pub fn convert_v1_to_v2(
         }
     }
     if !missing_identity.is_empty() {
-        return Err(crate::error::Error::CompoundError(missing_identity));
+        return Err(crate::error::Error::compound_error(missing_identity));
     }
 
     let local_entities: HashMap<SignalId, Option<provenance::DependencyRef>> = entity_refinements

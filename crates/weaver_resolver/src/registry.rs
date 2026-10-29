@@ -1122,8 +1122,9 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
 /// resolved. Attribute references are resolved after `extends`, so until then
 /// a `ref` has no role unless it sets one.
 struct AttributeRoles<'a> {
-    /// Roles of attributes defined in this registry.
-    local: HashMap<String, AttributeRole>,
+    /// Roles of attributes defined in this registry. A definition without a
+    /// role is kept, since it shadows any dependency definition.
+    local: HashMap<String, Option<AttributeRole>>,
     /// Dependencies, for attributes this registry doesn't define.
     dependencies: &'a Vec<ResolvedDependency>,
 }
@@ -1134,12 +1135,8 @@ impl<'a> AttributeRoles<'a> {
             .iter()
             .flat_map(|g| g.attributes.iter())
             .filter_map(|a| match &a.spec {
-                AttributeSpec::Id {
-                    id,
-                    role: Some(role),
-                    ..
-                } => Some((id.clone(), role.clone())),
-                _ => None,
+                AttributeSpec::Id { id, role, .. } => Some((id.clone(), role.clone())),
+                AttributeSpec::Ref { .. } => None,
             })
             .collect();
         Self {
@@ -1159,13 +1156,15 @@ impl<'a> AttributeRoles<'a> {
             }
             AttributeSpec::Ref {
                 r#ref, role: None, ..
-            } => self.local.get(r#ref).cloned().or_else(|| {
-                self.dependencies
+            } => match self.local.get(r#ref) {
+                Some(role) => role.clone(),
+                None => self
+                    .dependencies
                     .lookup_attribute(r#ref)
                     .ok()
                     .flatten()
-                    .and_then(|a| a.attribute.role)
-            }),
+                    .and_then(|a| a.attribute.role),
+            },
             AttributeSpec::Id { role: None, .. } => None,
         }
     }
