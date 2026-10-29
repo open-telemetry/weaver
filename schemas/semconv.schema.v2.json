@@ -135,7 +135,7 @@
           "type": "string"
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "description": "A more elaborate description of the attribute or signal.",
           "type": "string"
         },
         "stability": {
@@ -222,7 +222,7 @@
               "$ref": "#/$defs/SignalId"
             },
             "note": {
-              "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+              "description": "A more elaborate description of the attribute or signal.",
               "type": "string"
             },
             "stability": {
@@ -502,7 +502,7 @@
           }
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "description": "A more elaborate description of the attribute or signal.",
           "type": "string"
         },
         "requirement_level": {
@@ -776,7 +776,7 @@
           "$ref": "#/$defs/SignalId"
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "description": "A more elaborate description of the attribute or signal.",
           "type": "string"
         },
         "requirement_level": {
@@ -1250,7 +1250,7 @@
           "$ref": "#/$defs/SignalId"
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "description": "A more elaborate description of the attribute or signal.",
           "type": "string"
         },
         "requirement_level": {
@@ -1545,7 +1545,7 @@
           "$ref": "#/$defs/SpanName"
         },
         "note": {
-          "description": "A more elaborate description of the attribute or signal.\nIt defaults to an empty string.",
+          "description": "A more elaborate description of the attribute or signal.",
           "type": "string"
         },
         "requirement_level": {

@@ -80,7 +80,7 @@ mod tests {
             examples: None,
             common: CommonFields {
                 brief: "Service name".to_owned(),
-                note: "".to_owned(),
+                note: None,
                 stability: Default::default(),
                 deprecated: None,
                 annotations: Default::default(),

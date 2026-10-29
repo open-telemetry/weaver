@@ -328,7 +328,7 @@ jobs:
           | sarif-fmt
         continue-on-error: true
       - name: Upload
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: clippy-results.sarif
           wait-for-processing: true
@@ -429,7 +429,7 @@ jobs:
           -u "$(id -u):$(id -g)"
           -e HOME=/tmp
           -v "${{ github.workspace }}":/home/weaver/source
-          otel/weaver:v0.24.2
+          otel/weaver:v0.28.0
           registry generate
           --registry /home/weaver/source/crates/weaver_live_check/model/
           --templates /home/weaver/source/crates/weaver_live_check/templates/
@@ -441,7 +441,7 @@ jobs:
           -u "$(id -u):$(id -g)"
           -e HOME=/tmp
           -v "${{ github.workspace }}":/home/weaver/source
-          otel/weaver:v0.24.2
+          otel/weaver:v0.28.0
           registry generate
           --registry /home/weaver/source/crates/weaver_live_check/model/
           --templates /home/weaver/source/crates/weaver_live_check/templates/

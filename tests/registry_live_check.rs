@@ -14,6 +14,9 @@ use weaver_test_support::reserve_test_port;
 const REGISTRY: &str = "crates/weaver_live_check/model";
 const INPUT: &str = "crates/weaver_live_check/data/attributes.txt";
 const V1_REGISTRY: &str = "crates/weaver_live_check/data/model/metrics";
+/// Self-contained v2 registry for the `--v2` matcher tests. It has no
+/// dependencies, so upstream semantic conventions cannot break these tests.
+const V2_REGISTRY: &str = "tests/live_check_v2";
 
 fn run_live_check(extra_args: &[&str]) -> Output {
     run_live_check_on(REGISTRY, extra_args)
@@ -218,7 +221,7 @@ fn live_check_archive_advice_policies_and_data() {
 
 /// Writes a `.weaver.toml` holding one matcher and runs live-check against it.
 fn run_with_matcher(matcher: &str) -> (Output, tempfile::TempDir) {
-    run_with_matcher_on(REGISTRY, &["--v2"], matcher)
+    run_with_matcher_on(V2_REGISTRY, &["--v2"], matcher)
 }
 
 fn run_with_matcher_on(
@@ -264,7 +267,7 @@ when = 'attributes['"#,
 fn a_matcher_that_would_fail_on_a_sample_does_not_fail_startup() {
     for when in [r#"unit == "s""#, r#"name.matches("^(?<=cart)payment$")"#] {
         let (out, _dir) = run_with_matcher_on(
-            REGISTRY,
+            V2_REGISTRY,
             &["--v2", "--fail-on", "none"],
             &format!(
                 r#"id = "myapp.checkout"
@@ -280,7 +283,7 @@ when = '{when}'"#
 #[test]
 fn a_valid_matcher_does_not_change_the_run() {
     let (out, _dir) = run_with_matcher_on(
-        REGISTRY,
+        V2_REGISTRY,
         &["--v2", "--fail-on", "none"],
         r#"id = "myapp.checkout"
 sample_type = "span"
@@ -343,7 +346,7 @@ fn run_with_matcher_on_input(matcher: &str, input: &str) -> (Output, tempfile::T
     let out = cmd
         .arg("registry")
         .arg("live-check")
-        .args(["-r", REGISTRY, "--v2"])
+        .args(["-r", V2_REGISTRY, "--v2"])
         .args(["--input-source", input])
         .args(["--input-format", "json"])
         .args(["--format", "json"])
@@ -374,7 +377,7 @@ fn no_matchers_reports_no_match_problem() {
         .expect("weaver binary not found")
         .arg("registry")
         .arg("live-check")
-        .args(["-r", REGISTRY, "--v2"])
+        .args(["-r", V2_REGISTRY, "--v2"])
         .args(["--input-source", SPAN_INPUT])
         .args(["--input-format", "json"])
         .args(["--format", "json"])

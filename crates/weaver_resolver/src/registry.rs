@@ -2,7 +2,7 @@
 
 //! Functions to resolve a semantic convention registry.
 
-use crate::attribute::AttributeCatalog;
+use crate::attribute::{AttributeCatalog, AttributeLookup};
 use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 use crate::dependency::{resolve_entity, EntityResolution, ResolvedDependency};
 use crate::dependency_resolution::{is_excluded, is_group_excluded};
@@ -23,7 +23,7 @@ use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
-use weaver_semconv::v1::attribute::AttributeSpec;
+use weaver_semconv::v1::attribute::{AttributeRole, AttributeSpec};
 use weaver_semconv::v1::group::AttributeGroupVisibilitySpec;
 use weaver_semconv::v1::group::{
     GroupSpecWithProvenance, GroupType, GroupWildcard, ImportsWithProvenance,
@@ -951,7 +951,7 @@ fn inherit_v2_refinement_fields(
     if refinement.group.brief.is_empty() {
         refinement.group.brief = parent.brief.clone();
     }
-    if refinement.group.note.is_empty() {
+    if refinement.group.note.is_none() {
         refinement.group.note = parent.note.clone();
     }
     if refinement.group.span_name.is_none() {
@@ -975,6 +975,7 @@ fn inherit_v2_refinement_fields(
 /// Returns true if all the `extends` references have been resolved.
 fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error> {
     let mut fatal_errors: Vec<Error> = vec![];
+    let defined_roles = AttributeRoles::new(&ureg.groups, &ureg.dependencies);
     loop {
         let mut errors = vec![];
         let mut resolved_group_count = 0;
@@ -1047,6 +1048,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                                     unresolved_group,
                                     &parent_ref,
                                     &parent_attrs,
+                                    &defined_roles,
                                 ));
                             }
                         }
@@ -1064,6 +1066,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                         parent_ref,
                         parent_attrs,
                         &included,
+                        &defined_roles,
                     ));
                     let unrefs: HashSet<_> = unresolved_group.attribute_unrefs.iter().collect();
                     parent_attrs.retain(|attr| !unrefs.contains(&attr.spec.id()));
@@ -1125,14 +1128,65 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
     }
 }
 
+/// Roles of attribute definitions, for use before attribute references are
+/// resolved. Attribute references are resolved after `extends`, so until then
+/// a `ref` has no role unless it sets one.
+struct AttributeRoles<'a> {
+    /// Roles of attributes defined in this registry. A definition without a
+    /// role is kept, since it shadows any dependency definition.
+    local: HashMap<String, Option<AttributeRole>>,
+    /// Dependencies, for attributes this registry doesn't define.
+    dependencies: &'a Vec<ResolvedDependency>,
+}
+
+impl<'a> AttributeRoles<'a> {
+    fn new(groups: &[UnresolvedGroup], dependencies: &'a Vec<ResolvedDependency>) -> Self {
+        let local = groups
+            .iter()
+            .flat_map(|g| g.attributes.iter())
+            .filter_map(|a| match &a.spec {
+                AttributeSpec::Id { id, role, .. } => Some((id.clone(), role.clone())),
+                AttributeSpec::Ref { .. } => None,
+            })
+            .collect();
+        Self {
+            local,
+            dependencies,
+        }
+    }
+
+    /// The role of an attribute: the one set on the ref or definition itself,
+    /// or else the one from the attribute's definition, local first, as
+    /// attribute reference resolution does. Dependency lookup errors are left
+    /// for attribute reference resolution to report.
+    fn of(&self, spec: &AttributeSpec) -> Option<AttributeRole> {
+        match spec {
+            AttributeSpec::Ref { role: Some(r), .. } | AttributeSpec::Id { role: Some(r), .. } => {
+                Some(r.clone())
+            }
+            AttributeSpec::Ref {
+                r#ref, role: None, ..
+            } => match self.local.get(r#ref) {
+                Some(role) => role.clone(),
+                None => self
+                    .dependencies
+                    .lookup_attribute(r#ref)
+                    .ok()
+                    .flatten()
+                    .and_then(|a| a.attribute.role),
+            },
+            AttributeSpec::Id { role: None, .. } => None,
+        }
+    }
+}
+
 fn attribute_unref_errors(
     group: &UnresolvedGroup,
     parent_ref: &str,
     parent_attrs: &[UnresolvedAttribute],
     included: &[(String, &[UnresolvedAttribute])],
+    defined_roles: &AttributeRoles<'_>,
 ) -> Vec<Error> {
-    use weaver_semconv::v1::attribute::AttributeRole;
-
     let inherited: HashMap<_, _> = parent_attrs
         .iter()
         .map(|a| (a.spec.id(), &a.spec))
@@ -1151,10 +1205,9 @@ fn attribute_unref_errors(
         } else if let Some(source) = included.get(key) {
             format!("the attribute is also included by ref_group `{source}`")
         } else if let Some(spec) = inherited.get(key) {
-            let role = match spec {
-                AttributeSpec::Ref { role, .. } | AttributeSpec::Id { role, .. } => role,
-            };
-            if group.group.r#type == GroupType::Entity && *role == Some(AttributeRole::Identifying) {
+            if group.group.r#type == GroupType::Entity
+                && defined_roles.of(spec) == Some(AttributeRole::Identifying)
+            {
                 format!("the attribute identifies entity `{parent_ref}`; refinements must preserve identity")
             } else if spec.is_required() {
                 format!("the attribute is required by `{parent_ref}`")
@@ -1174,17 +1227,27 @@ fn attribute_unref_errors(
 }
 
 /// Errors when an entity refinement alters the identity of the base entity
-/// (demoting, promoting, or adding an identity attribute).
+/// (demoting, promoting, or adding an identity attribute) or refines an entity
+/// that does not declare any identity attributes.
 fn entity_identity_refinement_errors(
     group: &UnresolvedGroup,
     extends: &str,
     parent_attrs: &[UnresolvedAttribute],
+    defined_roles: &AttributeRoles<'_>,
 ) -> Vec<Error> {
-    use weaver_semconv::v1::attribute::AttributeRole;
+    let role_of = |spec: &AttributeSpec| defined_roles.of(spec);
 
-    let role_of = |spec: &AttributeSpec| match spec {
-        AttributeSpec::Ref { role, .. } | AttributeSpec::Id { role, .. } => role.clone(),
-    };
+    let has_identity = parent_attrs
+        .iter()
+        .any(|p| role_of(&p.spec) == Some(AttributeRole::Identifying));
+
+    if !has_identity {
+        return vec![Error::EntityRefinementWithoutIdentity {
+            refinement_id: group.group.id.clone(),
+            r#ref: extends.to_owned(),
+            provenance: group.provenance.clone().map(Box::new),
+        }];
+    }
 
     group
         .attributes
@@ -1198,7 +1261,8 @@ fn entity_identity_refinement_errors(
                 // Attribute declared by the base entity: its identity role
                 // must not change.
                 Some(base) => {
-                    role_of(&base.spec).is_some_and(|base_role| base_role != *refined_role)
+                    let base_role = role_of(&base.spec).unwrap_or(AttributeRole::Descriptive);
+                    base_role != *refined_role
                 }
                 // Attribute introduced by the refinement: allowed only under
                 // `description`, never as a new identity attribute.
@@ -2511,7 +2575,7 @@ groups:
             id: "span.http.client".to_owned(),
             r#type: GroupType::Span,
             brief: "".to_owned(),
-            note: "".to_owned(),
+            note: None,
             prefix: "".to_owned(),
             extends: None,
             stability: None,

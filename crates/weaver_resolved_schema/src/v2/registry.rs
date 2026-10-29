@@ -97,7 +97,12 @@ impl Registry {
                 if metric.common.deprecated.is_some() {
                     deprecated_count += 1;
                 }
-                if !metric.common.note.is_empty() {
+                if metric
+                    .common
+                    .note
+                    .as_ref()
+                    .is_some_and(|note| !note.is_empty())
+                {
                     total_with_note += 1;
                 }
                 let _ = metric_names.insert(metric.name.to_string());
@@ -130,7 +135,12 @@ impl Registry {
                 if span.common.deprecated.is_some() {
                     deprecated_count += 1;
                 }
-                if !span.common.note.is_empty() {
+                if span
+                    .common
+                    .note
+                    .as_ref()
+                    .is_some_and(|note| !note.is_empty())
+                {
                     total_with_note += 1;
                 }
                 *span_kind_breakdown.entry(span.kind).or_default() += 1;
@@ -158,7 +168,12 @@ impl Registry {
                 if event.common.deprecated.is_some() {
                     deprecated_count += 1;
                 }
-                if !event.common.note.is_empty() {
+                if event
+                    .common
+                    .note
+                    .as_ref()
+                    .is_some_and(|note| !note.is_empty())
+                {
                     total_with_note += 1;
                 }
                 let _ = event_names.insert(event.name.to_string());
@@ -187,7 +202,12 @@ impl Registry {
                 if entity.common.deprecated.is_some() {
                     deprecated_count += 1;
                 }
-                if !entity.common.note.is_empty() {
+                if entity
+                    .common
+                    .note
+                    .as_ref()
+                    .is_some_and(|note| !note.is_empty())
+                {
                     total_with_note += 1;
                 }
                 *stability_breakdown
@@ -254,7 +274,7 @@ mod test {
                 examples: None,
                 common: CommonFields {
                     brief: "test".to_owned(),
-                    note: "".to_owned(),
+                    note: None,
                     stability: Stability::Stable,
                     deprecated: None,
                     annotations: BTreeMap::new(),
@@ -277,7 +297,7 @@ mod test {
                 examples: None,
                 common: CommonFields {
                     brief: "enum test".to_owned(),
-                    note: "enum note".to_owned(),
+                    note: Some("enum note".to_owned()),
                     stability: Stability::Development,
                     deprecated: Some(weaver_semconv::deprecated::Deprecated::Obsoleted {
                         note: "old".to_owned(),
@@ -307,7 +327,7 @@ mod test {
                 requirement_level: None,
                 common: CommonFields {
                     brief: "test".to_owned(),
-                    note: "span note".to_owned(),
+                    note: Some("span note".to_owned()),
                     stability: Stability::Stable,
                     deprecated: Some(weaver_semconv::deprecated::Deprecated::Obsoleted {
                         note: "old".to_owned(),
@@ -325,7 +345,7 @@ mod test {
                 requirement_level: None,
                 common: CommonFields {
                     brief: "test".to_owned(),
-                    note: "metric note".to_owned(),
+                    note: Some("metric note".to_owned()),
                     stability: Stability::Stable,
                     deprecated: Some(weaver_semconv::deprecated::Deprecated::Obsoleted {
                         note: "old".to_owned(),
@@ -341,7 +361,7 @@ mod test {
                 requirement_level: None,
                 common: CommonFields {
                     brief: "event brief".to_owned(),
-                    note: "event note".to_owned(),
+                    note: Some("event note".to_owned()),
                     stability: Stability::Stable,
                     deprecated: Some(weaver_semconv::deprecated::Deprecated::Obsoleted {
                         note: "old".to_owned(),
@@ -357,7 +377,7 @@ mod test {
                 requirement_level: None,
                 common: CommonFields {
                     brief: "test".to_owned(),
-                    note: "entity note".to_owned(),
+                    note: Some("entity note".to_owned()),
                     stability: Stability::Stable,
                     deprecated: Some(weaver_semconv::deprecated::Deprecated::Obsoleted {
                         note: "old".to_owned(),

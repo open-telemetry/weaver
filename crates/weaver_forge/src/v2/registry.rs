@@ -808,7 +808,7 @@ pub(crate) mod tests {
                     examples: Some(Examples::String("example_value".to_owned())),
                     common: CommonFields {
                         brief: "Brief description".to_owned(),
-                        note: "Note description".to_owned(),
+                        note: Some("Note description".to_owned()),
                         stability: Stability::Stable,
                         deprecated: None,
                         annotations: BTreeMap::new(),

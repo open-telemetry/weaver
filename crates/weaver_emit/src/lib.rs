@@ -664,7 +664,7 @@ mod tests {
                             ])),
                             common: CommonFields {
                                 brief: "Test attribute".to_owned(),
-                                note: String::new(),
+                                note: None,
                                 stability: Stability::Stable,
                                 deprecated: None,
                                 annotations: BTreeMap::new(),
@@ -679,7 +679,7 @@ mod tests {
                     entity_associations: vec![],
                     common: CommonFields {
                         brief: "Test span".to_owned(),
-                        note: String::new(),
+                        note: None,
                         stability: Stability::Stable,
                         deprecated: None,
                         annotations: BTreeMap::new(),
@@ -696,7 +696,7 @@ mod tests {
                         entity_associations: vec![],
                         common: CommonFields {
                             brief: "test.updowncounter".to_owned(),
-                            note: String::new(),
+                            note: None,
                             stability: Stability::Development,
                             deprecated: None,
                             annotations: BTreeMap::new(),
@@ -712,7 +712,7 @@ mod tests {
                         entity_associations: vec![],
                         common: CommonFields {
                             brief: "test.counter".to_owned(),
-                            note: String::new(),
+                            note: None,
                             stability: Stability::Development,
                             deprecated: None,
                             annotations: BTreeMap::new(),
@@ -728,7 +728,7 @@ mod tests {
                         entity_associations: vec![],
                         common: CommonFields {
                             brief: "test.gauge".to_owned(),
-                            note: String::new(),
+                            note: None,
                             stability: Stability::Development,
                             deprecated: None,
                             annotations: BTreeMap::new(),
@@ -744,7 +744,7 @@ mod tests {
                         entity_associations: vec![],
                         common: CommonFields {
                             brief: "test.histogram".to_owned(),
-                            note: String::new(),
+                            note: None,
                             stability: Stability::Development,
                             deprecated: None,
                             annotations: BTreeMap::new(),
@@ -766,7 +766,7 @@ mod tests {
                             ])),
                             common: CommonFields {
                                 brief: "A unique session identifier".to_owned(),
-                                note: String::new(),
+                                note: None,
                                 stability: Stability::Stable,
                                 deprecated: None,
                                 annotations: BTreeMap::new(),
@@ -780,7 +780,7 @@ mod tests {
                     entity_associations: vec![],
                     common: CommonFields {
                         brief: "This event represents a session start".to_owned(),
-                        note: String::new(),
+                        note: None,
                         stability: Stability::Stable,
                         deprecated: None,
                         annotations: BTreeMap::new(),

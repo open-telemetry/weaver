@@ -357,7 +357,7 @@ fn attribute_def_from_sample(sample: &SampleAttribute) -> AttributeDef {
         examples,
         common: CommonFields {
             brief: String::new(),
-            note: String::new(),
+            note: None,
             stability: Stability::Development,
             deprecated: None,
             annotations: BTreeMap::new(),
@@ -503,7 +503,7 @@ fn sanitize_id(name: &str) -> String {
 fn inferred_common_fields() -> CommonFields {
     CommonFields {
         brief: String::new(),
-        note: String::new(),
+        note: None,
         stability: Stability::Development,
         deprecated: None,
         annotations: BTreeMap::new(),
