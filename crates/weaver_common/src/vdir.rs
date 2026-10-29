@@ -939,17 +939,26 @@ impl VirtualDirectory {
             })?;
 
         for i in 0..archive.len() {
-            let mut entry = archive.by_index(i).map_err(|e| InvalidRegistryArchive {
-                archive: archive_filename.to_owned(),
-                error: e.to_string(),
-            })?;
+            let mut entry = archive
+                .by_index_with_options(
+                    i,
+                    zip::read::ZipReadOptions::new().enforce_header_consistency(true),
+                )
+                .map_err(|e| InvalidRegistryArchive {
+                    archive: archive_filename.to_owned(),
+                    error: e.to_string(),
+                })?;
 
             if entry.is_symlink() {
                 continue;
             }
 
             if entry.enclosed_name().is_some() {
-                let raw_path = PathBuf::from(entry.name());
+                let entry_name = entry.name().map_err(|e| InvalidRegistryArchive {
+                    archive: archive_filename.to_owned(),
+                    error: e.to_string(),
+                })?;
+                let raw_path = PathBuf::from(entry_name.as_ref());
                 if let Some(valid_entry_path) =
                     Self::path_to_unpack(&raw_path, sub_folder, tmp_path)
                 {
@@ -1513,6 +1522,53 @@ mod tests {
             .parse::<VirtualDirectoryPath>()
             .unwrap();
         check_archive(registry_path, Some("general.yaml"));
+    }
+
+    #[test]
+    fn test_zip_archive_rejects_inconsistent_headers_before_writing() {
+        use crate::Error::InvalidRegistryArchive;
+        use std::fs::{read, write, File};
+        use std::io::{Cursor, Write};
+        use zip::write::SimpleFileOptions;
+        use zip::{CompressionMethod, ZipWriter};
+
+        let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
+        writer
+            .start_file(
+                "registry/safe.yaml",
+                SimpleFileOptions::default().compression_method(CompressionMethod::Stored),
+            )
+            .unwrap();
+        writer.write_all(b"untrusted content").unwrap();
+        let mut archive_bytes = writer.finish().unwrap().into_inner();
+
+        // Change only the central directory filename, leaving the local header intact.
+        let central_header = archive_bytes
+            .windows(4)
+            .position(|bytes| bytes == b"PK\x01\x02")
+            .unwrap();
+        let filename_start = central_header + 46;
+        archive_bytes[filename_start..filename_start + b"registry/evil.yaml".len()]
+            .copy_from_slice(b"registry/evil.yaml");
+
+        let archive_dir = tempfile::tempdir().unwrap();
+        let archive_path = archive_dir.path().join("inconsistent.zip");
+        write(&archive_path, archive_bytes).unwrap();
+
+        let output_dir = tempfile::tempdir().unwrap();
+        let existing_file = output_dir.path().join("evil.yaml");
+        write(&existing_file, b"existing content").unwrap();
+
+        let result = VirtualDirectory::unpack_zip(
+            "inconsistent.zip",
+            File::open(archive_path).unwrap(),
+            output_dir.path(),
+            None,
+        );
+
+        assert!(matches!(result, Err(InvalidRegistryArchive { .. })));
+        assert_eq!(read(existing_file).unwrap(), b"existing content");
+        assert!(!output_dir.path().join("safe.yaml").exists());
     }
 
     #[test]
