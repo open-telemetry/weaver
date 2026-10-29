@@ -1,0 +1,7 @@
+file_format: definition_manifest/2.0
+name: consumer
+description: Refines a local entity whose identity attribute comes from a dependency.
+schema_url: https://consumer.example.com/schemas/1.0.0
+dependencies:
+  - schema_url: https://dep.example.com/schemas/1.0.0
+    registry_path: data/entity-identity-dependency-role/dep

@@ -5,14 +5,25 @@
 use serde::{Deserialize, Serialize};
 
 use crate::error::Error::{
-    AttributeNotFound, CompoundError, EntityAssociationNotFound, EventNameNotFound,
-    InvalidSchemaUrl, MissingMetricField, RefinementBaseNotFound,
+    AttributeNotFound, CompoundError, EntityAssociationNotFound, EntityMissingIdentity,
+    EventNameNotFound, InvalidSchemaUrl, MissingMetricField, RefinementBaseNotFound,
 };
 use crate::v1::attribute::AttributeRef;
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug, Clone, Deserialize, Serialize)]
 pub enum Error {
+    /// An entity has no identifying attributes in V2 schema.
+    #[error("Entity {group_id}{} has no identity attributes. Add at least one identifying attribute before converting to V2 schema.",
+        .provenance.as_ref().map(|p| format!(" (defined in {p})")).unwrap_or_default())]
+    EntityMissingIdentity {
+        /// Group id.
+        group_id: String,
+        /// Where the entity is defined, which names the registry to fix when
+        /// it comes from a dependency.
+        provenance: Option<weaver_semconv::provenance::Provenance>,
+    },
+
     /// Attribute reference not found in the catalog.
     #[error("Attribute reference {attr_ref} (group: {group_id}) not found in the catalog")]
     AttributeNotFound {
@@ -64,8 +75,8 @@ pub enum Error {
         field: &'static str,
     },
 
-    /// A generic container for multiple errors.
-    #[error("Errors:\n{0:#?}")]
+    /// A generic container for multiple errors, rendered one per line.
+    #[error("{}", .0.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n"))]
     CompoundError(Vec<Error>),
 }
 
@@ -93,6 +104,7 @@ impl Error {
                     e @ EventNameNotFound { .. } => vec![e],
                     e @ RefinementBaseNotFound { .. } => vec![e],
                     e @ EntityAssociationNotFound { .. } => vec![e],
+                    e @ EntityMissingIdentity { .. } => vec![e],
                     e @ InvalidSchemaUrl { .. } => vec![e],
                     e @ MissingMetricField { .. } => vec![e],
                 })
