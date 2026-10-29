@@ -1,5 +1,5 @@
 # The build image
-FROM docker.io/rust:1.99.0@sha256:81015672d6939b0265f09adf96d5de125482bb1330106076956b0518e74edc90 AS weaver-build
+FROM docker.io/rust:1.99.1@sha256:931c2c0531a8b143e044f0f3914dfe802f15bb3d1955f0b657e9359327ac2ffc AS weaver-build
 WORKDIR /build
 
 # Install Node.js and musl build dependencies
@@ -39,7 +39,7 @@ RUN cd /build/ui && pnpm build
 RUN ./cross-arch-build.sh
 
 # The runtime image
-FROM docker.io/alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+FROM docker.io/alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
 LABEL maintainer="The OpenTelemetry Authors"
 RUN addgroup weaver \
   && adduser \

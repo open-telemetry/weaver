@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 # Unreleased
 
 - Fix explicitly empty notes on V2 signal refinements inheriting the parent note. Omitted notes still inherit. Fixes [#1840](https://github.com/open-telemetry/weaver/issues/1840).
+- 💥 BREAKING CHANGE 💥 v2: entities and entity refinements must have at least one identity attribute. Converting a v1 registry to v2 now fails for entities without identifying attributes, and reports all of them at once. Refinements can no longer promote descriptive attributes to identity. Fixes [#1752](https://github.com/open-telemetry/weaver/issues/1752) - ([#1759](https://github.com/open-telemetry/weaver/pull/1759) by @lmolkova)
 
 # [0.28.0] - 2026-10-14
 

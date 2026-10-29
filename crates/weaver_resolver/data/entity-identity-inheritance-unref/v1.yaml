@@ -1,0 +1,26 @@
+file_format: definition/1
+groups:
+  - id: registry.host
+    type: attribute_group
+    brief: Host attributes.
+    attributes:
+      - id: host.id
+        type: string
+        role: identifying
+        stability: development
+        brief: Host identifier.
+        examples: [host-1]
+      - id: host.name
+        type: string
+        role: identifying
+        stability: development
+        brief: Host name.
+        examples: [host-a]
+  - id: entity.host
+    type: entity
+    name: host
+    stability: development
+    brief: Host.
+    attributes:
+      - ref: host.id
+      - ref: host.name
