@@ -1104,8 +1104,7 @@ mod tests {
             .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
             .ignore(is_unstable_format_warning)
             .into_result_failing_non_fatal()
-            .err()
-            .expect("Removing an inherited identity attribute must fail");
+            .expect_err("Removing an inherited identity attribute must fail");
         let message = format!("{error:?}");
         assert!(
             message.contains("InvalidAttributeUnref")
