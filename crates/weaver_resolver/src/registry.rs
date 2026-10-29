@@ -2,7 +2,7 @@
 
 //! Functions to resolve a semantic convention registry.
 
-use crate::attribute::AttributeCatalog;
+use crate::attribute::{AttributeCatalog, AttributeLookup};
 use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 use crate::dependency::{resolve_entity, EntityResolution, ResolvedDependency};
 use crate::dependency_resolution::{is_excluded, is_group_excluded};
@@ -965,21 +965,7 @@ fn inherit_v2_refinement_fields(
 /// Returns true if all the `extends` references have been resolved.
 fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error> {
     let mut fatal_errors: Vec<Error> = vec![];
-    // Roles of locally defined attributes. Attribute references are resolved
-    // after `extends`, so until then a `ref` has no role unless it sets one.
-    let defined_roles: HashMap<String, AttributeRole> = ureg
-        .groups
-        .iter()
-        .flat_map(|g| g.attributes.iter())
-        .filter_map(|a| match &a.spec {
-            AttributeSpec::Id {
-                id,
-                role: Some(role),
-                ..
-            } => Some((id.clone(), role.clone())),
-            _ => None,
-        })
-        .collect();
+    let defined_roles = AttributeRoles::new(&ureg.groups, &ureg.dependencies);
     loop {
         let mut errors = vec![];
         let mut resolved_group_count = 0;
@@ -1132,20 +1118,56 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
     }
 }
 
-/// The role of an attribute: the one set on the ref or definition itself, or
-/// else the one from the local attribute definition.
-fn effective_role(
-    spec: &AttributeSpec,
-    defined_roles: &HashMap<String, AttributeRole>,
-) -> Option<AttributeRole> {
-    match spec {
-        AttributeSpec::Ref { role: Some(r), .. } | AttributeSpec::Id { role: Some(r), .. } => {
-            Some(r.clone())
+/// Roles of attribute definitions, for use before attribute references are
+/// resolved. Attribute references are resolved after `extends`, so until then
+/// a `ref` has no role unless it sets one.
+struct AttributeRoles<'a> {
+    /// Roles of attributes defined in this registry.
+    local: HashMap<String, AttributeRole>,
+    /// Dependencies, for attributes this registry doesn't define.
+    dependencies: &'a Vec<ResolvedDependency>,
+}
+
+impl<'a> AttributeRoles<'a> {
+    fn new(groups: &[UnresolvedGroup], dependencies: &'a Vec<ResolvedDependency>) -> Self {
+        let local = groups
+            .iter()
+            .flat_map(|g| g.attributes.iter())
+            .filter_map(|a| match &a.spec {
+                AttributeSpec::Id {
+                    id,
+                    role: Some(role),
+                    ..
+                } => Some((id.clone(), role.clone())),
+                _ => None,
+            })
+            .collect();
+        Self {
+            local,
+            dependencies,
         }
-        AttributeSpec::Ref {
-            r#ref, role: None, ..
-        } => defined_roles.get(r#ref).cloned(),
-        AttributeSpec::Id { role: None, .. } => None,
+    }
+
+    /// The role of an attribute: the one set on the ref or definition itself,
+    /// or else the one from the attribute's definition, local first, as
+    /// attribute reference resolution does. Dependency lookup errors are left
+    /// for attribute reference resolution to report.
+    fn of(&self, spec: &AttributeSpec) -> Option<AttributeRole> {
+        match spec {
+            AttributeSpec::Ref { role: Some(r), .. } | AttributeSpec::Id { role: Some(r), .. } => {
+                Some(r.clone())
+            }
+            AttributeSpec::Ref {
+                r#ref, role: None, ..
+            } => self.local.get(r#ref).cloned().or_else(|| {
+                self.dependencies
+                    .lookup_attribute(r#ref)
+                    .ok()
+                    .flatten()
+                    .and_then(|a| a.attribute.role)
+            }),
+            AttributeSpec::Id { role: None, .. } => None,
+        }
     }
 }
 
@@ -1154,7 +1176,7 @@ fn attribute_unref_errors(
     parent_ref: &str,
     parent_attrs: &[UnresolvedAttribute],
     included: &[(String, &[UnresolvedAttribute])],
-    defined_roles: &HashMap<String, AttributeRole>,
+    defined_roles: &AttributeRoles<'_>,
 ) -> Vec<Error> {
     let inherited: HashMap<_, _> = parent_attrs
         .iter()
@@ -1175,7 +1197,7 @@ fn attribute_unref_errors(
             format!("the attribute is also included by ref_group `{source}`")
         } else if let Some(spec) = inherited.get(key) {
             if group.group.r#type == GroupType::Entity
-                && effective_role(spec, defined_roles) == Some(AttributeRole::Identifying)
+                && defined_roles.of(spec) == Some(AttributeRole::Identifying)
             {
                 format!("the attribute identifies entity `{parent_ref}`; refinements must preserve identity")
             } else if spec.is_required() {
@@ -1202,9 +1224,9 @@ fn entity_identity_refinement_errors(
     group: &UnresolvedGroup,
     extends: &str,
     parent_attrs: &[UnresolvedAttribute],
-    defined_roles: &HashMap<String, AttributeRole>,
+    defined_roles: &AttributeRoles<'_>,
 ) -> Vec<Error> {
-    let role_of = |spec: &AttributeSpec| effective_role(spec, defined_roles);
+    let role_of = |spec: &AttributeSpec| defined_roles.of(spec);
 
     let has_identity = parent_attrs
         .iter()

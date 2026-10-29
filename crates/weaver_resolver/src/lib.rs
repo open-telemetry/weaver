@@ -1089,6 +1089,43 @@ mod tests {
         Ok(())
     }
 
+    /// A v1 base entity can take its identity from a dependency attribute
+    /// whose role is set on the definition. Refining it keeps that identity.
+    #[test]
+    fn test_v2_entity_refinement_preserves_identity_from_dependency_attribute(
+    ) -> Result<(), weaver_semconv::Error> {
+        use weaver_resolved_schema::v2::catalog::AttributeCatalog;
+
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/entity-identity-dependency-role/consumer".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let resolved = resolver
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .ignore(is_unstable_format_warning)
+            .into_result_failing_non_fatal()
+            .expect("A refinement must preserve identity from a dependency attribute")
+            .into_v1()
+            .unwrap();
+        let schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
+            resolved.try_into().expect("Failed to convert to v2 schema");
+        let refinement = schema
+            .refinements
+            .entities
+            .iter()
+            .find(|refinement| refinement.id.to_string() == "refined.local")
+            .expect("Missing entity refinement");
+        assert_eq!(refinement.entity.identity.len(), 1);
+        assert_eq!(
+            schema
+                .attribute_catalog
+                .attribute_key(&refinement.entity.identity[0]),
+            Some("dep.id")
+        );
+        Ok(())
+    }
+
     /// A refinement can't `unref` an identity attribute of a v1 base entity,
     /// even when the role is set only on the attribute definition. The base
     /// has two identity attributes, so v2 conversion alone wouldn't notice.

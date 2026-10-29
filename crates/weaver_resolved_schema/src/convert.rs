@@ -369,6 +369,8 @@ pub fn convert_v1_to_v2(
     let mut entities = Vec::new();
     let mut entity_refinements = Vec::new();
     let mut attribute_groups = Vec::new();
+    // Every entity without identity, so they are all reported at once.
+    let mut missing_identity = Vec::new();
 
     for g in r.groups.iter().filter(|g| g.r#type == GroupType::Entity) {
         let is_refinement = is_refinement_of(g);
@@ -404,9 +406,10 @@ pub fn convert_v1_to_v2(
             entity_type_of(g)
         };
         if id_attrs.is_empty() {
-            return Err(crate::error::Error::EntityMissingIdentity {
+            missing_identity.push(crate::error::Error::EntityMissingIdentity {
                 group_id: g.id.clone(),
             });
+            continue;
         }
         let entity = V2Entity {
             r#type: entity_type,
@@ -428,6 +431,9 @@ pub fn convert_v1_to_v2(
                 entity,
             });
         }
+    }
+    if !missing_identity.is_empty() {
+        return Err(crate::error::Error::CompoundError(missing_identity));
     }
 
     let local_entities: HashMap<SignalId, Option<provenance::DependencyRef>> = entity_refinements
@@ -1817,15 +1823,45 @@ mod tests {
             groups: vec![entity_group],
         };
 
+        let missing_identity_ids = |result: Result<_, crate::error::Error>| match result {
+            Err(crate::error::Error::CompoundError(errors)) => errors
+                .into_iter()
+                .map(|e| match e {
+                    crate::error::Error::EntityMissingIdentity { group_id } => group_id,
+                    other => panic!("Expected EntityMissingIdentity, got {other:?}"),
+                })
+                .collect::<Vec<_>>(),
+            other => panic!("Expected CompoundError, got {other:?}"),
+        };
+
         for attributes in [vec![], vec![ref_desc]] {
             let mut invalid_registry = registry.clone();
             invalid_registry.groups[0].attributes = attributes;
-            assert!(matches!(
-                convert_v1_to_v2(catalog.clone(), invalid_registry, BTreeSet::new()),
-                Err(crate::error::Error::EntityMissingIdentity { group_id })
-                    if group_id == "entity.k8s.pod"
-            ));
+            assert_eq!(
+                missing_identity_ids(convert_v1_to_v2(
+                    catalog.clone(),
+                    invalid_registry,
+                    BTreeSet::new()
+                )),
+                vec!["entity.k8s.pod".to_owned()]
+            );
         }
+
+        // Every entity without identity is reported, not just the first.
+        let mut invalid_registry = registry.clone();
+        invalid_registry.groups[0].attributes = vec![];
+        let mut second = invalid_registry.groups[0].clone();
+        second.id = "entity.k8s.node".to_owned();
+        second.attributes = vec![ref_desc];
+        invalid_registry.groups.push(second);
+        assert_eq!(
+            missing_identity_ids(convert_v1_to_v2(
+                catalog.clone(),
+                invalid_registry,
+                BTreeSet::new()
+            )),
+            vec!["entity.k8s.pod".to_owned(), "entity.k8s.node".to_owned()]
+        );
 
         let (catalog_v2, reg, _, _) = convert_v1_to_v2(catalog, registry, BTreeSet::new()).unwrap();
         assert_eq!(catalog_v2.len(), 2);
