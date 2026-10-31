@@ -51,6 +51,7 @@ repos:
         run: >-
           make WEAVER={weaver} generate-registry &&
           make WEAVER={weaver} generate-docs &&
+          make update-upstream-links &&
           git add -A ./docs &&
           git diff --cached --exit-code -- ./docs
 
