@@ -337,7 +337,10 @@ mod tests {
             logs::v1::ExportLogsServiceRequest, metrics::v1::ExportMetricsServiceRequest,
             trace::v1::ExportTraceServiceRequest,
         },
-        common::v1::{any_value, AnyValue, InstrumentationScope, KeyValue},
+        common::v1::{
+            any_value, AnyValue, ArrayValue, EntityRef, InstrumentationScope, KeyValue,
+            KeyValueList,
+        },
         logs::v1::{LogRecord, ResourceLogs, ScopeLogs},
         metrics::v1::{
             metric::Data as MetricData, Gauge, Metric, NumberDataPoint, ResourceMetrics,
@@ -346,15 +349,21 @@ mod tests {
         resource::v1::Resource,
         trace::v1::{span::Event, span::Link, ResourceSpans, ScopeSpans, Span},
     };
-    use weaver_live_check::{DisabledStatistics, LiveCheckReport, LiveCheckStatistics};
+    use serde_json::{json, Value};
+    use weaver_live_check::{
+        sample_attribute::SampleAttribute, sample_metric::DataPoints, DisabledStatistics,
+        LiveCheckReport, LiveCheckStatistics,
+    };
+
+    fn kv(key: &str, value: any_value::Value) -> KeyValue {
+        KeyValue {
+            key: key.to_owned(),
+            value: Some(AnyValue { value: Some(value) }),
+        }
+    }
 
     fn string_attribute(name: &str, value: &str) -> KeyValue {
-        KeyValue {
-            key: name.to_owned(),
-            value: Some(AnyValue {
-                value: Some(any_value::Value::StringValue(value.to_owned())),
-            }),
-        }
+        kv(name, any_value::Value::StringValue(value.to_owned()))
     }
 
     fn scope(name: &str) -> InstrumentationScope {
@@ -933,12 +942,268 @@ mod tests {
                 _ => None,
             })
             .expect("metric sample");
-        let weaver_live_check::sample_metric::DataPoints::Number(points) =
-            metric.data_points.as_ref().expect("data points")
-        else {
+        let DataPoints::Number(points) = metric.data_points.as_ref().expect("data points") else {
             panic!("expected number data points");
         };
         assert_eq!(points[0].start_time, None);
         assert!(points[0].end_time.is_some());
+    }
+
+    /// `gen_ai.input.messages`-shaped value: an array of maps with a nested array of maps.
+    fn messages_attribute() -> KeyValue {
+        let message = |role: &str, content: &str| AnyValue {
+            value: Some(any_value::Value::KvlistValue(KeyValueList {
+                values: vec![
+                    kv("role", any_value::Value::StringValue(role.to_owned())),
+                    kv(
+                        "parts",
+                        any_value::Value::ArrayValue(ArrayValue {
+                            values: vec![AnyValue {
+                                value: Some(any_value::Value::KvlistValue(KeyValueList {
+                                    values: vec![
+                                        kv(
+                                            "type",
+                                            any_value::Value::StringValue("text".to_owned()),
+                                        ),
+                                        kv(
+                                            "content",
+                                            any_value::Value::StringValue(content.to_owned()),
+                                        ),
+                                    ],
+                                })),
+                            }],
+                        }),
+                    ),
+                ],
+            })),
+        };
+        kv(
+            "gen_ai.input.messages",
+            any_value::Value::ArrayValue(ArrayValue {
+                values: vec![message("system", "be brief"), message("user", "hi")],
+            }),
+        )
+    }
+
+    fn expected_messages() -> Value {
+        json!([
+            {"role": "system", "parts": [{"type": "text", "content": "be brief"}]},
+            {"role": "user", "parts": [{"type": "text", "content": "hi"}]}
+        ])
+    }
+
+    fn map_attribute(key: &str) -> KeyValue {
+        kv(
+            key,
+            any_value::Value::KvlistValue(KeyValueList {
+                values: vec![
+                    kv("zone", any_value::Value::StringValue("a".to_owned())),
+                    kv("payload", any_value::Value::BytesValue(vec![1, 2, 3])),
+                ],
+            }),
+        )
+    }
+
+    fn attribute_value<'a>(attributes: &'a [SampleAttribute], name: &str) -> Option<&'a Value> {
+        attributes
+            .iter()
+            .find(|attribute| attribute.name == name)
+            .and_then(|attribute| attribute.value.as_ref())
+    }
+
+    #[test]
+    fn complex_attributes_reach_logs() {
+        let request = OtlpRequest::Logs(ExportLogsServiceRequest {
+            resource_logs: vec![ResourceLogs {
+                scope_logs: vec![ScopeLogs {
+                    log_records: vec![LogRecord {
+                        event_name: "gen_ai.client.inference.operation.details".to_owned(),
+                        attributes: vec![messages_attribute(), map_attribute("app.details")],
+                        body: messages_attribute().value,
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }],
+        });
+
+        let samples = collect(vec![request]);
+        let log = samples
+            .iter()
+            .find_map(|sample| match sample {
+                Sample::Log(log) => Some(log),
+                _ => None,
+            })
+            .expect("log sample");
+
+        assert_eq!(
+            attribute_value(&log.attributes, "gen_ai.input.messages"),
+            Some(&expected_messages())
+        );
+        assert_eq!(
+            attribute_value(&log.attributes, "app.details"),
+            Some(&json!({"zone": "a", "payload": "AQID"}))
+        );
+        let body: Value =
+            serde_json::from_str(log.body.as_deref().expect("log body")).expect("body is JSON");
+        assert_eq!(body, expected_messages());
+    }
+
+    #[test]
+    fn complex_attributes_reach_spans_events_and_links() {
+        let span = Span {
+            name: "chat".to_owned(),
+            attributes: vec![messages_attribute()],
+            events: vec![Event {
+                name: "event".to_owned(),
+                attributes: vec![map_attribute("event.details")],
+                ..Default::default()
+            }],
+            links: vec![Link {
+                attributes: vec![map_attribute("link.details")],
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+
+        let samples = collect(vec![resource_scoped_trace_request(span)]);
+        let span = find_span(&samples);
+        let expected_map = json!({"zone": "a", "payload": "AQID"});
+
+        assert_eq!(
+            attribute_value(&span.attributes, "gen_ai.input.messages"),
+            Some(&expected_messages())
+        );
+        assert_eq!(
+            attribute_value(&span.span_events[0].attributes, "event.details"),
+            Some(&expected_map)
+        );
+        assert_eq!(
+            attribute_value(&span.span_links[0].attributes, "link.details"),
+            Some(&expected_map)
+        );
+    }
+
+    #[test]
+    fn complex_attributes_reach_metric_data_points_and_scope() {
+        let request = OtlpRequest::Metrics(ExportMetricsServiceRequest {
+            resource_metrics: vec![ResourceMetrics {
+                scope_metrics: vec![ScopeMetrics {
+                    scope: Some(InstrumentationScope {
+                        name: "metric-library".to_owned(),
+                        attributes: vec![map_attribute("scope.details")],
+                        ..Default::default()
+                    }),
+                    metrics: vec![Metric {
+                        name: "widgets.count".to_owned(),
+                        data: Some(MetricData::Gauge(Gauge {
+                            data_points: vec![NumberDataPoint {
+                                attributes: vec![map_attribute("point.details")],
+                                ..Default::default()
+                            }],
+                        })),
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }],
+        });
+
+        let samples = collect(vec![request]);
+        let metric = samples
+            .iter()
+            .find_map(|sample| match sample {
+                Sample::Metric(metric) => Some(metric),
+                _ => None,
+            })
+            .expect("metric sample");
+        let expected_map = json!({"zone": "a", "payload": "AQID"});
+
+        let scope = metric.instrumentation_scope.as_ref().expect("metric scope");
+        assert_eq!(
+            attribute_value(&scope.attributes, "scope.details"),
+            Some(&expected_map)
+        );
+        let DataPoints::Number(points) = metric.data_points.as_ref().expect("data points") else {
+            panic!("expected number data points");
+        };
+        assert_eq!(
+            attribute_value(&points[0].attributes, "point.details"),
+            Some(&expected_map)
+        );
+    }
+
+    #[test]
+    fn complex_entity_descriptive_attributes_reach_resource() {
+        let request = OtlpRequest::Traces(ExportTraceServiceRequest {
+            resource_spans: vec![ResourceSpans {
+                resource: Some(Resource {
+                    attributes: vec![
+                        string_attribute("host.id", "host-1"),
+                        map_attribute("host.labels"),
+                        kv(
+                            "host.ips",
+                            any_value::Value::ArrayValue(ArrayValue {
+                                values: vec![
+                                    AnyValue {
+                                        value: Some(any_value::Value::StringValue(
+                                            "10.0.0.1".to_owned(),
+                                        )),
+                                    },
+                                    AnyValue { value: None },
+                                ],
+                            }),
+                        ),
+                    ],
+                    entity_refs: vec![EntityRef {
+                        r#type: "host".to_owned(),
+                        id_keys: vec!["host.id".to_owned()],
+                        description_keys: vec!["host.labels".to_owned(), "host.ips".to_owned()],
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                }),
+                scope_spans: vec![ScopeSpans {
+                    spans: vec![Span {
+                        name: "operation".to_owned(),
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }],
+        });
+
+        let samples = collect(vec![request]);
+        let resource = samples
+            .iter()
+            .find_map(|sample| match sample {
+                Sample::Resource(resource) => Some(resource),
+                _ => None,
+            })
+            .expect("resource sample");
+
+        assert_eq!(
+            attribute_value(&resource.attributes, "host.id"),
+            Some(&json!("host-1"))
+        );
+        assert_eq!(
+            attribute_value(&resource.attributes, "host.labels"),
+            Some(&json!({"zone": "a", "payload": "AQID"}))
+        );
+        assert_eq!(
+            attribute_value(&resource.attributes, "host.ips"),
+            Some(&json!(["10.0.0.1", null]))
+        );
+        let span_resource = find_span(&samples)
+            .resource
+            .as_ref()
+            .expect("span resource");
+        assert_eq!(
+            attribute_value(&span_resource.attributes, "host.labels"),
+            Some(&json!({"zone": "a", "payload": "AQID"}))
+        );
     }
 }
