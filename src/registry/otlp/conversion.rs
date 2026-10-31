@@ -2,6 +2,7 @@
 
 //! Conversion routines for OTLP to Sample
 
+use base64::{prelude::BASE64_STANDARD, Engine};
 use chrono::{TimeZone, Utc};
 use serde_json::{json, Value};
 use weaver_live_check::{
@@ -19,7 +20,7 @@ use super::grpc_stubs::proto::profiles::v1development::{
 };
 use super::grpc_stubs::proto::trace::v1::status::StatusCode as OtlpStatusCode;
 use super::grpc_stubs::proto::{
-    common::v1::{AnyValue, InstrumentationScope, KeyValue},
+    common::v1::{any_value::Value as GrpcValue, AnyValue, InstrumentationScope, KeyValue},
     logs::v1::LogRecord,
     metrics::v1::{metric::Data, HistogramDataPoint, Metric, NumberDataPoint},
     trace::v1::span::SpanKind,
@@ -55,37 +56,42 @@ pub fn otlp_instrumentation_scope_to_sample(
     })
 }
 
-fn maybe_to_json(value: Option<AnyValue>) -> Option<Value> {
-    if let Some(value) = value {
-        if let Some(value) = value.value {
-            use crate::registry::otlp::grpc_stubs::proto::common::v1::any_value::Value as GrpcValue;
-            match value {
-                GrpcValue::StringValue(string) => Some(Value::String(string)),
-                GrpcValue::IntValue(int_value) => Some(Value::Number(int_value.into())),
-                GrpcValue::DoubleValue(double_value) => Some(json!(double_value)),
-                GrpcValue::BoolValue(bool_value) => Some(Value::Bool(bool_value)),
-                GrpcValue::ArrayValue(array_value) => {
-                    let mut vec = Vec::new();
-                    for value in array_value.values {
-                        if let Some(value) = maybe_to_json(Some(value)) {
-                            vec.push(value);
-                        }
-                    }
-                    Some(Value::Array(vec))
-                }
-                _ => None,
-            }
-        } else {
-            None
-        }
-    } else {
-        None
-    }
+/// Converts an OTLP value to plain JSON with bytes as base64 strings; unset values become `None`.
+fn maybe_to_json(value: Option<&AnyValue>) -> Option<Value> {
+    let value = match value?.value.as_ref()? {
+        GrpcValue::StringValue(string) => Value::String(string.clone()),
+        GrpcValue::IntValue(int_value) => Value::from(*int_value),
+        GrpcValue::DoubleValue(double_value) => json!(double_value),
+        GrpcValue::BoolValue(bool_value) => Value::Bool(*bool_value),
+        // Unset elements become `null` to preserve the array length.
+        GrpcValue::ArrayValue(array_value) => Value::Array(
+            array_value
+                .values
+                .iter()
+                .map(|value| maybe_to_json(Some(value)).unwrap_or(Value::Null))
+                .collect(),
+        ),
+        // Unset values become `null`; duplicate keys keep the last value.
+        GrpcValue::KvlistValue(kvlist_value) => Value::Object(
+            kvlist_value
+                .values
+                .iter()
+                .map(|kv| {
+                    (
+                        kv.key.clone(),
+                        maybe_to_json(kv.value.as_ref()).unwrap_or(Value::Null),
+                    )
+                })
+                .collect(),
+        ),
+        GrpcValue::BytesValue(bytes_value) => Value::String(BASE64_STANDARD.encode(bytes_value)),
+    };
+    Some(value)
 }
 
 /// Converts an OTLP KeyValue to a SampleAttribute
 pub fn sample_attribute_from_key_value(key_value: &KeyValue) -> SampleAttribute {
-    let value = maybe_to_json(key_value.value.clone());
+    let value = maybe_to_json(key_value.value.as_ref());
     let r#type = match value {
         Some(ref val) => SampleAttribute::infer_type(val),
         None => None,
@@ -417,7 +423,7 @@ pub fn sample_attribute_from_key_value_and_unit(
         .get(kvu.key_strindex as usize)
         .cloned()
         .unwrap_or_default();
-    let value = maybe_to_json(kvu.value.clone());
+    let value = maybe_to_json(kvu.value.as_ref());
     let r#type = match value {
         Some(ref val) => SampleAttribute::infer_type(val),
         None => None,
@@ -453,16 +459,22 @@ pub fn otlp_profile_to_sample(
     }
 }
 
+/// Converts an OTLP log body to a string: string bodies as-is, other values as compact JSON with sorted keys.
+fn log_body_to_string(body: Option<&AnyValue>) -> Option<String> {
+    match maybe_to_json(body)? {
+        Value::Null => None,
+        Value::String(string) => Some(string),
+        value => Some(value.to_string()),
+    }
+}
+
 /// Converts an OTLP LogRecord to a SampleLog.
 pub fn otlp_log_record_to_sample_log(log_record: &LogRecord) -> SampleLog {
     SampleLog {
         event_name: log_record.event_name.clone(),
         severity_number: Some(log_record.severity_number),
         severity_text: Some(log_record.severity_text.clone()),
-        body: log_record
-            .body
-            .as_ref()
-            .and_then(|v| v.value.as_ref().map(|val| format!("{:?}", val))),
+        body: log_body_to_string(log_record.body.as_ref()),
         attributes: log_record
             .attributes
             .iter()
@@ -495,6 +507,258 @@ pub fn otlp_log_record_to_sample_log(log_record: &LogRecord) -> SampleLog {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::registry::otlp::grpc_stubs::proto::common::v1::{ArrayValue, KeyValueList};
+    use weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec;
+
+    fn any(value: GrpcValue) -> AnyValue {
+        AnyValue { value: Some(value) }
+    }
+
+    fn kv(key: &str, value: GrpcValue) -> KeyValue {
+        KeyValue {
+            key: key.to_owned(),
+            value: Some(any(value)),
+        }
+    }
+
+    fn kvlist(values: Vec<KeyValue>) -> GrpcValue {
+        GrpcValue::KvlistValue(KeyValueList { values })
+    }
+
+    fn array(values: Vec<AnyValue>) -> GrpcValue {
+        GrpcValue::ArrayValue(ArrayValue { values })
+    }
+
+    fn string(value: &str) -> GrpcValue {
+        GrpcValue::StringValue(value.to_owned())
+    }
+
+    #[test]
+    fn primitive_values_convert_to_json() {
+        let cases = [
+            (string("text"), json!("text")),
+            (GrpcValue::IntValue(-42), json!(-42)),
+            (GrpcValue::DoubleValue(1.5), json!(1.5)),
+            (GrpcValue::BoolValue(true), json!(true)),
+        ];
+        for (value, expected) in cases {
+            assert_eq!(maybe_to_json(Some(&any(value))), Some(expected));
+        }
+    }
+
+    #[test]
+    fn unset_values_convert_to_none() {
+        assert_eq!(maybe_to_json(None), None);
+        assert_eq!(maybe_to_json(Some(&AnyValue { value: None })), None);
+
+        let attribute = sample_attribute_from_key_value(&KeyValue {
+            key: "unset".to_owned(),
+            value: None,
+        });
+        assert_eq!(attribute.value, None);
+        assert_eq!(attribute.r#type, None);
+    }
+
+    #[test]
+    fn kvlist_converts_to_nested_json_object() {
+        let value = kvlist(vec![
+            kv("role", string("user")),
+            kv("count", GrpcValue::IntValue(2)),
+            kv(
+                "nested",
+                kvlist(vec![kv(
+                    "tags",
+                    array(vec![any(string("a")), any(string("b"))]),
+                )]),
+            ),
+            KeyValue {
+                key: "unset".to_owned(),
+                value: None,
+            },
+        ]);
+
+        let attribute = sample_attribute_from_key_value(&kv("map", value));
+
+        assert_eq!(
+            attribute.value,
+            Some(json!({
+                "role": "user",
+                "count": 2,
+                "nested": {"tags": ["a", "b"]},
+                "unset": null
+            }))
+        );
+        assert_eq!(attribute.r#type, None);
+    }
+
+    #[test]
+    fn array_of_kvlists_keeps_every_element() {
+        let value = array(vec![
+            any(kvlist(vec![
+                kv("role", string("user")),
+                kv(
+                    "parts",
+                    array(vec![any(kvlist(vec![
+                        kv("type", string("text")),
+                        kv("content", string("hello")),
+                    ]))]),
+                ),
+            ])),
+            any(kvlist(vec![kv("role", string("assistant"))])),
+        ]);
+
+        let attribute = sample_attribute_from_key_value(&kv("gen_ai.input.messages", value));
+
+        assert_eq!(
+            attribute.value,
+            Some(json!([
+                {"role": "user", "parts": [{"type": "text", "content": "hello"}]},
+                {"role": "assistant"}
+            ]))
+        );
+    }
+
+    #[test]
+    fn unset_array_elements_become_null() {
+        let value = array(vec![
+            any(string("a")),
+            AnyValue { value: None },
+            any(string("c")),
+        ]);
+
+        let attribute = sample_attribute_from_key_value(&kv("list", value));
+
+        assert_eq!(attribute.value, Some(json!(["a", null, "c"])));
+        assert_eq!(attribute.r#type, Some(PrimitiveOrArrayTypeSpec::Strings));
+    }
+
+    #[test]
+    fn bytes_convert_to_base64_string() {
+        let value = GrpcValue::BytesValue(b"hello\x00\xff".to_vec());
+
+        let attribute = sample_attribute_from_key_value(&kv("payload", value));
+
+        assert_eq!(attribute.value, Some(json!("aGVsbG8A/w==")));
+        assert_eq!(attribute.r#type, Some(PrimitiveOrArrayTypeSpec::String));
+    }
+
+    #[test]
+    fn bytes_nested_in_kvlist_convert_to_base64_string() {
+        let value = kvlist(vec![kv("data", GrpcValue::BytesValue(vec![1, 2, 3]))]);
+
+        assert_eq!(
+            maybe_to_json(Some(&any(value))),
+            Some(json!({"data": "AQID"}))
+        );
+    }
+
+    #[test]
+    fn kvlist_duplicate_keys_keep_last_value() {
+        let value = kvlist(vec![kv("key", string("first")), kv("key", string("last"))]);
+
+        assert_eq!(
+            maybe_to_json(Some(&any(value))),
+            Some(json!({"key": "last"}))
+        );
+    }
+
+    #[test]
+    fn empty_kvlist_and_array_are_preserved() {
+        let map = sample_attribute_from_key_value(&kv("map", kvlist(vec![])));
+        assert_eq!(map.value, Some(json!({})));
+        assert_eq!(map.r#type, None);
+
+        let list = sample_attribute_from_key_value(&kv("list", array(vec![])));
+        assert_eq!(list.value, Some(json!([])));
+        assert_eq!(list.r#type, None);
+    }
+
+    #[test]
+    fn nan_double_converts_to_null() {
+        let value = array(vec![
+            any(GrpcValue::DoubleValue(f64::NAN)),
+            any(GrpcValue::DoubleValue(1.5)),
+        ]);
+
+        assert_eq!(maybe_to_json(Some(&any(value))), Some(json!([null, 1.5])));
+    }
+
+    fn log_with_body(body: Option<AnyValue>) -> SampleLog {
+        otlp_log_record_to_sample_log(&LogRecord {
+            body,
+            ..Default::default()
+        })
+    }
+
+    #[test]
+    fn log_string_body_is_kept_verbatim() {
+        let log = log_with_body(Some(any(string("order \"42\" created"))));
+        assert_eq!(log.body.as_deref(), Some("order \"42\" created"));
+    }
+
+    #[test]
+    fn log_primitive_and_bytes_bodies_convert_to_strings() {
+        let cases = [
+            (GrpcValue::IntValue(42), "42"),
+            (GrpcValue::DoubleValue(1.5), "1.5"),
+            (GrpcValue::BoolValue(false), "false"),
+            (GrpcValue::BytesValue(vec![1, 2, 3]), "AQID"),
+        ];
+        for (value, expected) in cases {
+            assert_eq!(
+                log_with_body(Some(any(value))).body.as_deref(),
+                Some(expected)
+            );
+        }
+    }
+
+    #[test]
+    fn log_structured_body_converts_to_json_string() {
+        let body = kvlist(vec![
+            kv("message", string("hi")),
+            kv(
+                "parts",
+                array(vec![
+                    any(kvlist(vec![kv("type", string("text"))])),
+                    AnyValue { value: None },
+                ]),
+            ),
+        ]);
+
+        let log = log_with_body(Some(any(body)));
+
+        let parsed: Value =
+            serde_json::from_str(log.body.as_deref().expect("body")).expect("body is JSON");
+        assert_eq!(
+            parsed,
+            json!({"message": "hi", "parts": [{"type": "text"}, null]})
+        );
+    }
+
+    #[test]
+    fn log_unset_body_is_none() {
+        assert_eq!(log_with_body(None).body, None);
+        assert_eq!(log_with_body(Some(AnyValue { value: None })).body, None);
+        assert_eq!(
+            log_with_body(Some(any(GrpcValue::DoubleValue(f64::NAN)))).body,
+            None
+        );
+    }
+
+    #[test]
+    fn profile_attribute_converts_kvlist() {
+        let string_table = vec![String::new(), "profile.config".to_owned()];
+        let kvu = KeyValueAndUnit {
+            key_strindex: 1,
+            value: Some(any(kvlist(vec![kv("rate", GrpcValue::IntValue(100))]))),
+            ..Default::default()
+        };
+
+        let attribute = sample_attribute_from_key_value_and_unit(&kvu, &string_table);
+
+        assert_eq!(attribute.name, "profile.config");
+        assert_eq!(attribute.value, Some(json!({"rate": 100})));
+    }
 
     #[test]
     fn test_otlp_scope_empty_strings_convert_to_none() {
