@@ -4,8 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
-- Live-check over OTLP now keeps structured attribute values: `kvlist` values become JSON objects, `bytes` values become base64 strings, and array elements are no longer dropped (unset elements become `null`). Log bodies are no longer rendered in Rust debug format: string bodies are kept as-is and other bodies become JSON strings. Fixes [#1872](https://github.com/open-telemetry/weaver/issues/1872) - ([#1873](https://github.com/open-telemetry/weaver/pull/1873) by @lmolkova)
-- Live-check `--emit-otlp-logs` now keeps map values and empty arrays in resource attributes attached to emitted findings, instead of dropping them. ([#1873](https://github.com/open-telemetry/weaver/pull/1873) by @lmolkova)
+- Live-check over OTLP keeps map and bytes attribute values, and log bodies are no longer in Rust debug format. Fixes [#1872](https://github.com/open-telemetry/weaver/issues/1872) - ([#1873](https://github.com/open-telemetry/weaver/pull/1873) by @lmolkova)
 - 💥 BREAKING CHANGE 💥 Migrate YAML parsing from the unmaintained `serde_yaml` crate to `serde-saphyr` (`2.0`) for strict YAML 1.2 specification compliance.
   - **Multiline quoted scalar indentation**: Continuation lines in multiline single- or double-quoted flow scalars (`'...'` / `"..."`) inside a block mapping must be indented strictly more than the enclosing block (YAML 1.2.2 `[69] s-flow-line-prefix(n)`), rather than at the same column as the mapping key.
   - **Block scalar trailing newlines at EOF & strict YAML 1.2 booleans**: Clipped block scalars (`>` and `|`) at the end of a file without a trailing newline now consistently preserve the trailing `\n`, and YAML 1.1 boolean literals (such as `yes`/`no`/`on`/`off`) are no longer coerced to booleans.
