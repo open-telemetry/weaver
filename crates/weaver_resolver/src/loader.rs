@@ -3,6 +3,7 @@
 use itertools::Itertools;
 use rayon::iter::ParallelIterator;
 use rayon::iter::{IntoParallelIterator, ParallelBridge};
+use std::ffi::OsStr;
 use std::fmt::Display;
 use std::path::MAIN_SEPARATOR;
 use weaver_common::http_auth::HttpAuthResolver;
@@ -455,20 +456,22 @@ fn from_vdir<T: serde::de::DeserializeOwned>(
     })
 }
 
+/// Returns true for a walked entry whose file name starts with `.`. A root without a file name,
+/// such as `.` or `..`, is not hidden.
+fn is_hidden(entry: &DirEntry) -> bool {
+    entry
+        .path()
+        .file_name()
+        .and_then(OsStr::to_str)
+        .is_some_and(|s| s.starts_with('.'))
+}
+
 /// Loads a "raw" repository (composed of the original definition).
 fn load_definition_repository(
     registry_repo: RegistryRepo,
     follow_symlinks: bool,
     dependencies: Vec<LoadedSemconvRegistry>,
 ) -> WResult<LoadedSemconvRegistry, Error> {
-    // Define helper functions for filtering files.
-    fn is_hidden(entry: &DirEntry) -> bool {
-        entry
-            .file_name()
-            .to_str()
-            .map(|s| s.starts_with('.'))
-            .unwrap_or(false)
-    }
     let local_path = registry_repo.path().to_path_buf();
     let registry_path_repr = registry_repo.registry_path_repr();
 
@@ -578,13 +581,16 @@ fn check_version_compatibility(prev: &Dependency, dep: &Dependency) -> Result<()
 #[cfg(test)]
 mod tests {
 
+    use std::path::Path;
+
+    use walkdir::WalkDir;
     use weaver_common::{
         diagnostic::DiagnosticMessages, result::WResult, vdir::VirtualDirectoryPath,
     };
     use weaver_semconv::registry_repo::RegistryRepo;
 
     use crate::{
-        loader::{load_semconv_repository, load_semconv_repository_recursive},
+        loader::{is_hidden, load_semconv_repository, load_semconv_repository_recursive},
         Error, LoadedSemconvRegistry,
     };
 
@@ -630,6 +636,18 @@ mod tests {
         } else {
             panic!("Failed to load unresolved registry")
         }
+        Ok(())
+    }
+
+    #[test]
+    fn test_is_hidden_root() -> std::io::Result<()> {
+        let root = |path: &Path| WalkDir::new(path).into_iter().next().unwrap().unwrap();
+        let hidden = tempfile::Builder::new().prefix(".hidden").tempdir()?;
+
+        assert!(!is_hidden(&root(Path::new("."))));
+        assert!(!is_hidden(&root(Path::new("./"))));
+        assert!(!is_hidden(&root(Path::new(".."))));
+        assert!(is_hidden(&root(hidden.path())));
         Ok(())
     }
 
