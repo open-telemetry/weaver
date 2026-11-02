@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Fix `--registry .` and `--registry ..` loading no definition files. Fixes [#1838](https://github.com/open-telemetry/weaver/issues/1838) - ([#1877](https://github.com/open-telemetry/weaver/pull/1877) by @konippi)
 - `live-check` and `infer` accept OTLP/HTTP (`http/protobuf`) on `--otlp-http-port`, which defaults to `4318` and is bound alongside the gRPC port. Fixes [#1563](https://github.com/open-telemetry/weaver/issues/1563) - ([#1912](https://github.com/open-telemetry/weaver/pull/1912) by @jerbly)
 - Add a `load_registry` tool to `registry mcp` that swaps the served registry without restarting the server. It takes the same values as `--registry`. A new `get_registry_info` tool describes the served registry. ([#1890](https://github.com/open-telemetry/weaver/pull/1890) by @jerbly)
 - `registry live-check --fail-on` now works with `--no-stats`: the highest finding level is still tracked, so the exit code follows the threshold and the warning is gone. Since `--fail-on` defaults to `violation`, `--no-stats` runs now exit 1 when violations are found - pass `--fail-on=none` to keep the old behavior. Fixes [#1577](https://github.com/open-telemetry/weaver/issues/1577) - ([#1907](https://github.com/open-telemetry/weaver/pull/1907) by @jerbly)
