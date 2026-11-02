@@ -68,7 +68,7 @@ opentelemetry-stdout = { version = "0.33.0", features = [
 ] }
 tokio = { version = "1.47.1", features = ["full"] }
 axum = "0.8"
-convert_case = "0.11"
+convert_case = "0.12"
 log = { version = "0.4.28", features = ["std"] }
 utoipa = "5.3"
 rand = "0.10.0"
