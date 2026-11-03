@@ -4,6 +4,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
+use weaver_common::result::WResult;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v1::group::GroupType;
 use weaver_semconv::v2::{signal_id::SignalId, span::SpanName, CommonFields};
@@ -86,26 +87,44 @@ impl V2CatalogBuilder {
 impl TryFrom<V1ResolvedSchema> for V2ResolvedSchema {
     type Error = crate::error::Error;
     fn try_from(value: V1ResolvedSchema) -> Result<Self, Self::Error> {
-        let (attribute_catalog, registry, refinements, dependencies) =
-            convert_v1_to_v2(value.catalog, value.registry, value.dependencies)?;
-        let schema_url_str = value.schema_url.clone();
-        let schema_url: SchemaUrl =
-            value
-                .schema_url
-                .try_into()
-                .map_err(|e| crate::error::Error::InvalidSchemaUrl {
-                    url: schema_url_str,
-                    error: e,
-                })?;
+        Self::from_v1(value).into_result_failing_non_fatal()
+    }
+}
 
-        Ok(V2ResolvedSchema {
-            file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
-            schema_url,
-            attribute_catalog,
-            registry,
-            refinements,
-            dependencies,
-        })
+impl V2ResolvedSchema {
+    /// Converts legacy data, preserving entities without identity as non-fatal errors.
+    pub fn from_v1(value: V1ResolvedSchema) -> WResult<Self, crate::error::Error> {
+        let mut nfes = Vec::new();
+        let (attribute_catalog, registry, refinements, dependencies) =
+            match convert_v1_to_v2_with_nfes(
+                value.catalog,
+                value.registry,
+                value.dependencies,
+                &mut nfes,
+            ) {
+                Ok(converted) => converted,
+                Err(error) => return WResult::FatalErr(error),
+            };
+        let schema_url = match value.schema_url.as_str().try_into() {
+            Ok(url) => url,
+            Err(error) => {
+                return WResult::FatalErr(crate::error::Error::InvalidSchemaUrl {
+                    url: value.schema_url,
+                    error,
+                })
+            }
+        };
+        WResult::with_non_fatal_errors(
+            Self {
+                file_format: V2_RESOLVED_FILE_FORMAT.to_owned(),
+                schema_url,
+                attribute_catalog,
+                registry,
+                refinements,
+                dependencies,
+            },
+            nfes,
+        )
     }
 }
 
@@ -269,6 +288,26 @@ pub fn convert_v1_to_v2(
     ),
     crate::error::Error,
 > {
+    let mut nfes = Vec::new();
+    let converted = convert_v1_to_v2_with_nfes(c, r, dependencies, &mut nfes)?;
+    crate::error::handle_errors(nfes)?;
+    Ok(converted)
+}
+
+fn convert_v1_to_v2_with_nfes(
+    c: V1Catalog,
+    r: V1Registry,
+    dependencies: BTreeSet<SchemaUrl>,
+    nfes: &mut Vec<crate::error::Error>,
+) -> Result<
+    (
+        Vec<V2Attribute>,
+        V2Registry,
+        V2Refinements,
+        BTreeSet<SchemaUrl>,
+    ),
+    crate::error::Error,
+> {
     let deps_list: Vec<_> = dependencies.iter().cloned().collect();
 
     let get_provenance = |g: &V1Group| -> V2Provenance {
@@ -369,8 +408,6 @@ pub fn convert_v1_to_v2(
     let mut entities = Vec::new();
     let mut entity_refinements = Vec::new();
     let mut attribute_groups = Vec::new();
-    // Every entity without identity, so they are all reported at once.
-    let mut missing_identity = Vec::new();
 
     for g in r.groups.iter().filter(|g| g.r#type == GroupType::Entity) {
         let is_refinement = is_refinement_of(g);
@@ -406,11 +443,10 @@ pub fn convert_v1_to_v2(
             entity_type_of(g)
         };
         if id_attrs.is_empty() {
-            missing_identity.push(crate::error::Error::EntityMissingIdentity {
+            nfes.push(crate::error::Error::EntityMissingIdentity {
                 group_id: g.id.clone(),
                 provenance: g.provenance(),
             });
-            continue;
         }
         let entity = V2Entity {
             r#type: entity_type,
@@ -432,9 +468,6 @@ pub fn convert_v1_to_v2(
                 entity,
             });
         }
-    }
-    if !missing_identity.is_empty() {
-        return Err(crate::error::Error::compound_error(missing_identity));
     }
 
     let local_entities: HashMap<SignalId, Option<provenance::DependencyRef>> = entity_refinements

@@ -11,11 +11,12 @@ use crate::error::Error::{
 use crate::v1::attribute::AttributeRef;
 
 /// Errors emitted by this crate.
-#[derive(thiserror::Error, Debug, Clone, Deserialize, Serialize)]
+#[derive(thiserror::Error, miette::Diagnostic, Debug, Clone, Deserialize, Serialize)]
 pub enum Error {
     /// An entity has no identifying attributes in V2 schema.
     #[error("Entity {group_id}{} has no identity attributes. Add at least one identifying attribute before converting to V2 schema.",
         .provenance.as_ref().map(|p| format!(" (defined in {p})")).unwrap_or_default())]
+    #[diagnostic(severity(warning))]
     EntityMissingIdentity {
         /// Group id.
         group_id: String,
@@ -110,6 +111,12 @@ impl Error {
                 })
                 .collect(),
         )
+    }
+}
+
+impl weaver_common::error::WeaverError<Error> for Error {
+    fn compound(errors: Vec<Self>) -> Self {
+        Self::compound_error(errors)
     }
 }
 

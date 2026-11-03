@@ -84,14 +84,15 @@ impl<'a> WeaverEngine<'a> {
             RegistryRepo::try_new_with_auth(None, registry_path, &mut nfes, self.auth)?;
         diag_msgs.extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
 
-        self.load_and_resolve_repo(main_registry_repo, diag_msgs)
+        self.load_and_resolve_repo(main_registry_repo, diag_msgs, false)
     }
 
-    /// Loads and resolves any OpenTelemetry repository (V1 or V2), evaluating all configured Rego policies.
+    /// Loads and resolves a registry, optionally tolerating conversion warnings.
     pub fn load_and_resolve_repo(
         &self,
         repo: RegistryRepo,
         diag_msgs: &mut DiagnosticMessages,
+        tolerate_warnings: bool,
     ) -> Result<Resolved, Error> {
         let registry_path_repr: String = repo.registry_path_repr().to_owned();
         let policy_engine = prepare_policy_engine(self.policy_config, &repo, self.auth)?;
@@ -154,7 +155,13 @@ impl<'a> WeaverEngine<'a> {
             WeaverResolvedSchema::V1(resolved) => {
                 if self.registry_config.v2 {
                     let v2_resolved: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
-                        resolved.try_into()?;
+                        if tolerate_warnings {
+                            weaver_resolved_schema::v2::ResolvedTelemetrySchema::from_v1(resolved)
+                                .capture_warnings(diag_msgs)
+                                .into_result_failing_non_fatal()?
+                        } else {
+                            resolved.try_into()?
+                        };
                     let template = match weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
                         v2_resolved.clone(),
                         &mut resolver,
