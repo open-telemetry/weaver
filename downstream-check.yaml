@@ -28,7 +28,10 @@ repos:
           git add -A ./docs/registry &&
           git diff --cached --exit-code -- ./docs/registry
       - name: check-policies
-        run: make WEAVER_CONTAINER={weaver} check-policies
+        # TODO: restore the released baseline after semconv 1.46.
+        run: >-
+          sed -i.bak 's|archive/refs/tags/v$(LATEST_RELEASED_SEMCONV_VERSION)|archive/refs/heads/main|g' Makefile &&
+          make WEAVER_CONTAINER={weaver} check-policies
       # NOTE: this one only runs on Linux; its find-dead-yaml.sh needs bash >= 4.
       - name: check-dead-yaml
         run: make WEAVER_CONTAINER={weaver} check-dead-yaml
@@ -45,14 +48,16 @@ repos:
     # if the local weaver is older than the pin" logic, which would otherwise
     # silently test the released weaver instead of ours.
     checks:
+      # TODO: remove the override and SEMCONV_VERSION below after semconv 1.46.
+      - name: use-semconv-main
+        run: sed -i.bak 's|semantic-conventions.git@v[0-9.]*\[model\]|semantic-conventions.git@main[model]|' model/manifest.yaml
       - name: check-policies
         run: make WEAVER={weaver} check-policies
       - name: generated-docs
         # TODO: add make check-generation in semconv-genai
+        # Preserve the committed documentation's upstream links.
         run: >-
-          make WEAVER={weaver} generate-registry &&
-          make WEAVER={weaver} generate-docs &&
-          make update-upstream-links &&
+          make WEAVER={weaver} SEMCONV_VERSION=v1.45.0 generate-registry generate-docs update-upstream-links &&
           git add -A ./docs &&
           git diff --cached --exit-code -- ./docs
 
