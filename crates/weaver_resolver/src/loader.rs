@@ -4,7 +4,6 @@ use itertools::Itertools;
 use rayon::iter::ParallelIterator;
 use rayon::iter::{IntoParallelIterator, ParallelBridge};
 use std::fmt::Display;
-use std::path::MAIN_SEPARATOR;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
 use weaver_semconv::v1::registry::SemConvRegistry;
@@ -475,7 +474,7 @@ fn load_definition_repository(
         .canonicalize()
         .unwrap_or_else(|_| registry_repo.path().to_path_buf());
     let registry_path_repr = registry_repo.registry_path_repr();
-    let separator = if registry_path_repr.ends_with(MAIN_SEPARATOR) {
+    let separator = if registry_path_repr.ends_with(['/', '\\']) {
         ""
     } else {
         "/"
