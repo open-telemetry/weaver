@@ -348,10 +348,12 @@ pub enum Error {
 
     /// Resolver error.
     #[error("Resolver error: {0}")]
+    #[diagnostic(transparent)]
     ResolverError(#[from] weaver_resolver::Error),
 
     /// Schema error.
     #[error("Schema error: {0}")]
+    #[diagnostic(transparent)]
     SchemaError(#[from] weaver_resolved_schema::error::Error),
 
     /// A generic container for multiple errors.

@@ -165,6 +165,7 @@ impl<'a> WeaverEngine<'a> {
                     let template = match weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
                         v2_resolved.clone(),
                         &mut resolver,
+                        tolerate_warnings,
                     ) {
                         WResult::Ok(t) => t,
                         WResult::OkWithNFEs(t, nfes) => {
@@ -200,6 +201,7 @@ impl<'a> WeaverEngine<'a> {
                 let template = match weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
                     resolved.clone(),
                     &mut resolver,
+                    false,
                 ) {
                     WResult::Ok(t) => t,
                     WResult::OkWithNFEs(t, nfes) => {
@@ -477,6 +479,7 @@ impl TryFrom<ResolvedV1> for ResolvedV2 {
             match weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
                 resolved_schema.clone(),
                 &mut null_resolver,
+                false,
             ) {
                 WResult::Ok(t) => t,
                 WResult::OkWithNFEs(t, _) => t,
