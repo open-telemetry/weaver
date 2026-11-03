@@ -6362,7 +6362,7 @@ version = "0.28.0"
 dependencies = [
  "assert_cmd",
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "clap",
  "clap-markdown",
