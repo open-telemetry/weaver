@@ -7,20 +7,22 @@ locally before you push, instead of waiting for the Codecov comment.
 ## What CI measures
 
 ```sh
-cargo tarpaulin --workspace --output-dir coverage --out lcov --ignore-tests \
+cargo tarpaulin --engine llvm --workspace --output-dir coverage --out lcov --ignore-tests \
   -e xtask -e weaver_macros -e weaver_test_support \
   --exclude-files 'crates/weaver_forge/codegen_examples/expected_codegen/*' 'crates/weaver_live_check/tests/*'
 ```
 
 - The root `weaver` crate is included. Its unit and integration tests contribute
   coverage for CLI code in `src/` and the library crates they exercise.
+- `--engine llvm` uses compiler instrumentation, including for spawned CLI
+  processes, instead of ptrace.
 - `--ignore-tests` leaves test code out of the totals.
 
 ## Check the crates you changed
 
 ```sh
 cargo install cargo-tarpaulin
-cargo tarpaulin -p weaver_emit -p weaver_live_check --ignore-tests \
+cargo tarpaulin --engine llvm -p weaver_emit -p weaver_live_check --ignore-tests \
   --skip-clean --target-dir target/tarpaulin --out Stdout
 ```
 
