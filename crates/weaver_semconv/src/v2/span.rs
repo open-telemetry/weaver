@@ -575,7 +575,7 @@ mod tests {
     #[test]
     fn test_span_links_deserialization() {
         // A span with two links: one minimal, one full.
-        let span: Span = serde_yaml::from_str(
+        let span: Span = serde_saphyr::from_str(
             r#"type: messaging.consumer.process
 name:
   note: "process {messaging.destination.name}"
@@ -614,7 +614,7 @@ links:
         );
 
         // A span without a `links` key parses to an empty list.
-        let without: Span = serde_yaml::from_str(
+        let without: Span = serde_saphyr::from_str(
             r#"type: my_span
 name:
   note: "{some} {name}"
@@ -646,13 +646,13 @@ links:
 "#
             )
         };
-        let err = serde_yaml::from_str::<Span>(&span_yaml("ref_group: some.group"))
+        let err = serde_saphyr::from_str::<Span>(&span_yaml("ref_group: some.group"))
             .expect_err("a bare ref_group entry must not parse");
         assert!(
             err.to_string().contains("missing field `ref`"),
             "unexpected parse error: {err}"
         );
-        let err = serde_yaml::from_str::<Span>(&span_yaml(
+        let err = serde_saphyr::from_str::<Span>(&span_yaml(
             "ref: real.attr\n        ref_group: some.group",
         ))
         .expect_err("a ref_group key next to a ref must not parse");
