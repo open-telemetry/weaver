@@ -579,15 +579,14 @@ mod tests {
             ("deprecated:\n  reason: obsoleted", "deprecated"),
         ] {
             let yaml = format!("ref: my.attribute\n{field}\n");
-            let err = serde_yaml::from_str::<AttributeRef>(&yaml)
+            let err = serde_saphyr::from_str::<AttributeRef>(&yaml)
                 .expect_err("stability/deprecated must not be allowed on attribute refs");
-            assert_eq!(
-                err.to_string(),
-                format!(
+            assert!(
+                err.to_string().contains(&format!(
                     "unknown field `{name}`, expected one of \
-                     `ref`, `brief`, `examples`, `requirement_level`, `note`, `annotations` \
-                     at line 2 column 1"
-                )
+                     ref, brief, examples, requirement_level, note, annotations"
+                )),
+                "unexpected error: {err}"
             );
         }
     }
@@ -732,7 +731,7 @@ id: error_code
 brief: An error code
 "#;
         let entry: EnumEntriesSpec =
-            serde_yaml::from_str(yaml).expect("Failed to deserialize EnumEntriesSpec");
+            serde_saphyr::from_str(yaml).expect("Failed to deserialize EnumEntriesSpec");
         assert_eq!(entry.id, "error_code");
         // When value is omitted, it defaults to String(id)
         assert_eq!(entry.value, ValueSpec::String("error_code".to_owned()));

@@ -162,7 +162,7 @@ enum SnippetType {
 mod tests {
     use crate::v1::SnippetGenerator;
     use crate::{Error, MarkdownSnippetGenerator};
-    use serde_yaml::Value;
+    use serde_json::Value;
     use weaver_common::diagnostic::DiagnosticMessages;
     use weaver_common::vdir::VirtualDirectoryPath;
     use weaver_forge::config::{Params, WeaverConfig};

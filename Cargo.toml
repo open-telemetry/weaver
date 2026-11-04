@@ -33,11 +33,11 @@ edition = "2021"
 repository = "https://github.com/open-telemetry/weaver"
 license = "Apache-2.0"
 publish = false
-rust-version = "1.88.0"
+rust-version = "1.89.0"
 
 [workspace.dependencies]
 serde = { version = "1.0.228", features = ["derive", "rc"] }
-serde_yaml = "0.9.34"
+serde-saphyr = "2.0.0"
 serde_json = { version = "1.0.145" }
 thiserror = "2.0.17"
 url = "2.5.4"
@@ -68,7 +68,7 @@ opentelemetry-stdout = { version = "0.33.0", features = [
 ] }
 tokio = { version = "1.47.1", features = ["full"] }
 axum = "0.8"
-convert_case = "0.11"
+convert_case = "0.12"
 log = { version = "0.4.28", features = ["std"] }
 utoipa = "5.3"
 rand = "0.10.0"
@@ -88,7 +88,7 @@ rustls = { version = "0.23.40", default-features = false, features = [
     "std",
     "tls12",
 ] }
-rustls-openssl = "0.3.1"
+rustls-openssl = "0.4.0"
 rustls-symcrypt = "0.2.2"
 glob = "0.3.3"
 lru = "0.16.0"
@@ -146,6 +146,7 @@ tonic = { version = "0.14.1", default-features = false, features = [
 tonic-prost = "0.14.1"
 env_logger = "0.11.8"
 chrono = "0.4.41"
+base64 = "0.23.0"
 axum.workspace = true
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 mime_guess = "2.0"
@@ -153,7 +154,7 @@ utoipa = { workspace = true, features = ["axum_extras"] }
 
 # workspace dependencies
 serde.workspace = true
-serde_yaml.workspace = true
+serde-saphyr.workspace = true
 serde_json.workspace = true
 convert_case.workspace = true
 walkdir.workspace = true

@@ -17,7 +17,7 @@ fn unref_rust_constructors_preserve_flat_yaml() {
     use entity::EntityAttributeRefinement;
     use span::{SpanAttributeRef, SpanGroupRef, SpanRefinementAttributeOrGroupRef};
 
-    let attr: AttributeRef = serde_yaml::from_str("ref: test.attr").unwrap();
+    let attr: AttributeRef = serde_saphyr::from_str("ref: test.attr").unwrap();
     let ordinary: RefinementAttributeOrGroupRef =
         RefinementAttributeOrGroupRef::reference(attr.clone());
     let group: RefinementAttributeOrGroupRef = RefinementAttributeOrGroupRef::reference(GroupRef {
@@ -111,7 +111,7 @@ fn unref_schema_reuses_reference_definitions() {
 #[test]
 fn unref_round_trips_for_all_refinement_types() {
     let yaml = fixture("refinements.yaml");
-    let spec: SemConvSpecV2 = serde_yaml::from_str(&yaml).unwrap();
+    let spec: SemConvSpecV2 = serde_saphyr::from_str(&yaml).unwrap();
     let value = serde_json::to_value(&spec).unwrap();
     for (kind, field) in [
         ("span", "attributes"),
@@ -125,8 +125,9 @@ fn unref_round_trips_for_all_refinement_types() {
         );
     }
     assert_eq!(
-        serde_yaml::from_str::<serde_yaml::Value>(&serde_yaml::to_string(&spec).unwrap()).unwrap(),
-        serde_yaml::from_str::<serde_yaml::Value>(&yaml).unwrap()
+        serde_saphyr::from_str::<serde_json::Value>(&serde_saphyr::to_string(&spec).unwrap())
+            .unwrap(),
+        serde_saphyr::from_str::<serde_json::Value>(&yaml).unwrap()
     );
     let schema = serde_json::to_value(SemConvSpecV2::output_schema()).unwrap();
     assert!(jsonschema::validator_for(&schema).unwrap().is_valid(&value));

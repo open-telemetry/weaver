@@ -30,7 +30,7 @@ use convert_case::{Boundary, Converter, Pattern};
 use dirs::home_dir;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use serde::{Deserialize, Serialize};
-use serde_yaml::Value;
+use serde_json::Value;
 
 use crate::error::Error;
 use crate::error::Error::InvalidConfigFile;
@@ -559,7 +559,7 @@ impl WeaverConfig {
         // Each configuration is loaded and merged into the current configuration.
         for conf in configs {
             let mut weaver_config: WeaverConfig =
-                serde_yaml::from_str(&conf.content).map_err(|e| InvalidConfigFile {
+                serde_saphyr::from_str(&conf.content).map_err(|e| InvalidConfigFile {
                     config_file: conf.path.clone(),
                     error: e.to_string(),
                 })?;
@@ -763,22 +763,22 @@ mod tests {
     fn test_type_mapping_override_with() {
         // If defined in both, the local configuration should override the parent configuration.
         let mut parent: WeaverConfig =
-            serde_yaml::from_str("type_mapping: {a: \"b\", c: \"d\"}").unwrap();
-        let local: WeaverConfig = serde_yaml::from_str("type_mapping: {a: \"e\"}").unwrap();
+            serde_saphyr::from_str("type_mapping: {a: \"b\", c: \"d\"}").unwrap();
+        let local: WeaverConfig = serde_saphyr::from_str("type_mapping: {a: \"e\"}").unwrap();
         parent.override_with(local);
         assert_eq!(
             parent.type_mapping,
             Some([("a".to_owned(), "e".to_owned())].iter().cloned().collect())
         );
         let mut parent: WeaverConfig = WeaverConfig::default();
-        let local: WeaverConfig = serde_yaml::from_str("type_mapping: {a: \"e\"}").unwrap();
+        let local: WeaverConfig = serde_saphyr::from_str("type_mapping: {a: \"e\"}").unwrap();
         parent.override_with(local);
         assert_eq!(
             parent.type_mapping,
             Some([("a".to_owned(), "e".to_owned())].iter().cloned().collect())
         );
         let mut parent: WeaverConfig =
-            serde_yaml::from_str("type_mapping: {a: \"b\", c: \"d\"}").unwrap();
+            serde_saphyr::from_str("type_mapping: {a: \"b\", c: \"d\"}").unwrap();
         let local = WeaverConfig::default();
         parent.override_with(local);
         assert_eq!(
@@ -799,8 +799,8 @@ mod tests {
     fn test_text_maps_override_with() {
         // If defined in both, the local configuration should override the parent configuration.
         let mut parent: WeaverConfig =
-            serde_yaml::from_str("text_maps: {a: {b: \"c\"}, d: {e: \"f\"}}").unwrap();
-        let local: WeaverConfig = serde_yaml::from_str("text_maps: {a: {b: \"g\"}}").unwrap();
+            serde_saphyr::from_str("text_maps: {a: {b: \"c\"}, d: {e: \"f\"}}").unwrap();
+        let local: WeaverConfig = serde_saphyr::from_str("text_maps: {a: {b: \"g\"}}").unwrap();
         parent.override_with(local);
         assert_eq!(
             parent.text_maps,
@@ -815,7 +815,7 @@ mod tests {
             )
         );
         let mut parent: WeaverConfig = WeaverConfig::default();
-        let local: WeaverConfig = serde_yaml::from_str("text_maps: {a: {b: \"g\"}}").unwrap();
+        let local: WeaverConfig = serde_saphyr::from_str("text_maps: {a: {b: \"g\"}}").unwrap();
         parent.override_with(local);
         assert_eq!(
             parent.text_maps,
@@ -830,7 +830,7 @@ mod tests {
             )
         );
         let mut parent: WeaverConfig =
-            serde_yaml::from_str("text_maps: {a: {b: \"c\"}, d: {e: \"f\"}}").unwrap();
+            serde_saphyr::from_str("text_maps: {a: {b: \"c\"}, d: {e: \"f\"}}").unwrap();
         let local = WeaverConfig::default();
         parent.override_with(local);
         assert_eq!(
@@ -856,12 +856,12 @@ mod tests {
     #[test]
     fn test_template_syntax_override_with() {
         // If defined in both, the local configuration should override the parent configuration.
-        let mut parent: WeaverConfig = serde_yaml::from_str(
+        let mut parent: WeaverConfig = serde_saphyr::from_str(
             "template_syntax: {block_start: \"{{\", block_end: \"}}\", variable_start: \"#\"}",
         )
         .unwrap();
         let local: WeaverConfig =
-            serde_yaml::from_str("template_syntax: {block_start: \"[[\", block_end: \"]]\"}")
+            serde_saphyr::from_str("template_syntax: {block_start: \"[[\", block_end: \"]]\"}")
                 .unwrap();
         parent.override_with(local);
         assert_eq!(parent.template_syntax.block_start, Some("[[".to_owned()));
@@ -869,7 +869,7 @@ mod tests {
         assert_eq!(parent.template_syntax.variable_start, Some("#".to_owned()));
         let mut parent: WeaverConfig = WeaverConfig::default();
         let local: WeaverConfig =
-            serde_yaml::from_str("template_syntax: {block_start: \"[[\", block_end: \"]]\"}")
+            serde_saphyr::from_str("template_syntax: {block_start: \"[[\", block_end: \"]]\"}")
                 .unwrap();
         parent.override_with(local);
         assert_eq!(parent.template_syntax.block_start, Some("[[".to_owned()));
@@ -881,22 +881,22 @@ mod tests {
     fn test_whitespace_control_override_with() {
         // If defined in both, the local configuration should override the parent configuration.
         let mut parent: WeaverConfig =
-            serde_yaml::from_str("whitespace_control: {trim_blocks: true, lstrip_blocks: true}")
+            serde_saphyr::from_str("whitespace_control: {trim_blocks: true, lstrip_blocks: true}")
                 .unwrap();
         let local: WeaverConfig =
-            serde_yaml::from_str("whitespace_control: {lstrip_blocks: false}").unwrap();
+            serde_saphyr::from_str("whitespace_control: {lstrip_blocks: false}").unwrap();
         parent.override_with(local);
         assert_eq!(parent.whitespace_control.trim_blocks, Some(true));
         assert_eq!(parent.whitespace_control.lstrip_blocks, Some(false));
         assert_eq!(parent.whitespace_control.keep_trailing_newline, None);
         let mut parent: WeaverConfig = WeaverConfig::default();
-        let local: WeaverConfig = serde_yaml::from_str("whitespace_control: {trim_blocks: true, lstrip_blocks: true, keep_trailing_newline: true}").unwrap();
+        let local: WeaverConfig = serde_saphyr::from_str("whitespace_control: {trim_blocks: true, lstrip_blocks: true, keep_trailing_newline: true}").unwrap();
         parent.override_with(local);
         assert_eq!(parent.whitespace_control.trim_blocks, Some(true));
         assert_eq!(parent.whitespace_control.lstrip_blocks, Some(true));
         assert_eq!(parent.whitespace_control.keep_trailing_newline, Some(true));
         let mut parent: WeaverConfig =
-            serde_yaml::from_str("whitespace_control: {trim_blocks: true, lstrip_blocks: true}")
+            serde_saphyr::from_str("whitespace_control: {trim_blocks: true, lstrip_blocks: true}")
                 .unwrap();
         let local = WeaverConfig::default();
         parent.override_with(local);
@@ -908,8 +908,8 @@ mod tests {
     #[test]
     fn test_params_override_with() {
         // If defined in both, the local configuration should override the parent configuration.
-        let mut parent: WeaverConfig = serde_yaml::from_str("params: {a: 1, b: 2}").unwrap();
-        let local: WeaverConfig = serde_yaml::from_str("params: {a: 3}").unwrap();
+        let mut parent: WeaverConfig = serde_saphyr::from_str("params: {a: 1, b: 2}").unwrap();
+        let local: WeaverConfig = serde_saphyr::from_str("params: {a: 3}").unwrap();
         parent.override_with(local);
         assert_eq!(
             parent.params,
@@ -921,13 +921,13 @@ mod tests {
             )
         );
         let mut parent: WeaverConfig = WeaverConfig::default();
-        let local: WeaverConfig = serde_yaml::from_str("params: {a: 3}").unwrap();
+        let local: WeaverConfig = serde_saphyr::from_str("params: {a: 3}").unwrap();
         parent.override_with(local);
         assert_eq!(
             parent.params,
             Some([("a".to_owned(), 3.into())].iter().cloned().collect())
         );
-        let mut parent: WeaverConfig = serde_yaml::from_str("params: {a: 1, b: 2}").unwrap();
+        let mut parent: WeaverConfig = serde_saphyr::from_str("params: {a: 1, b: 2}").unwrap();
         let local = WeaverConfig::default();
         parent.override_with(local);
         assert_eq!(
@@ -939,8 +939,8 @@ mod tests {
                     .collect()
             )
         );
-        let mut parent: WeaverConfig = serde_yaml::from_str("params: {a: 1, b: 2}").unwrap();
-        let local: WeaverConfig = serde_yaml::from_str("params: {}").unwrap();
+        let mut parent: WeaverConfig = serde_saphyr::from_str("params: {a: 1, b: 2}").unwrap();
+        let local: WeaverConfig = serde_saphyr::from_str("params: {}").unwrap();
         parent.override_with(local);
         assert_eq!(
             parent.params,
@@ -951,8 +951,8 @@ mod tests {
                     .collect()
             )
         );
-        let mut parent: WeaverConfig = serde_yaml::from_str("params: {a: 1, b: 2}").unwrap();
-        let local: WeaverConfig = serde_yaml::from_str(r#"params: {b: Null}"#).unwrap();
+        let mut parent: WeaverConfig = serde_saphyr::from_str("params: {a: 1, b: 2}").unwrap();
+        let local: WeaverConfig = serde_saphyr::from_str(r#"params: {b: Null}"#).unwrap();
         parent.override_with(local);
         assert_eq!(
             parent.params,
@@ -963,11 +963,11 @@ mod tests {
     #[test]
     fn test_templates_override_with() {
         // If defined in both, the local configuration should override the parent configuration.
-        let mut parent: WeaverConfig = serde_yaml::from_str(
+        let mut parent: WeaverConfig = serde_saphyr::from_str(
             "templates: [{template: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
         )
         .unwrap();
-        let local: WeaverConfig = serde_yaml::from_str(
+        let local: WeaverConfig = serde_saphyr::from_str(
             "templates: [{template: \"**/local.md\", filter: \".\", application_mode: \"each\"}]",
         )
         .unwrap();
@@ -979,7 +979,7 @@ mod tests {
         assert_eq!(templates[0].filter, ".");
         assert_eq!(templates[0].application_mode, ApplicationMode::Each);
         let mut parent: WeaverConfig = WeaverConfig::default();
-        let local: WeaverConfig = serde_yaml::from_str(
+        let local: WeaverConfig = serde_saphyr::from_str(
             "templates: [{template: \"**/local.md\", filter: \".\", application_mode: \"each\"}]",
         )
         .unwrap();
@@ -990,7 +990,7 @@ mod tests {
         assert_eq!(templates[0].template.to_string(), "**/local.md");
         assert_eq!(templates[0].filter, ".");
         assert_eq!(templates[0].application_mode, ApplicationMode::Each);
-        let mut parent: WeaverConfig = serde_yaml::from_str(
+        let mut parent: WeaverConfig = serde_saphyr::from_str(
             "templates: [{template: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
         )
         .unwrap();
@@ -1002,11 +1002,11 @@ mod tests {
         assert_eq!(templates[0].template.to_string(), "**/parent.md");
         assert_eq!(templates[0].filter, ".");
         assert_eq!(templates[0].application_mode, ApplicationMode::Single);
-        let mut parent: WeaverConfig = serde_yaml::from_str(
+        let mut parent: WeaverConfig = serde_saphyr::from_str(
             "templates: [{template: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
         )
         .unwrap();
-        let local: WeaverConfig = serde_yaml::from_str("templates: []").unwrap();
+        let local: WeaverConfig = serde_saphyr::from_str("templates: []").unwrap();
         parent.override_with(local);
         assert!(parent.templates.is_some());
         let templates = parent.templates.unwrap();
@@ -1017,19 +1017,20 @@ mod tests {
     fn test_acronyms_override_with() {
         // If defined in both, the local configuration should override the parent configuration.
         let mut parent: WeaverConfig =
-            serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
-        let local: WeaverConfig = serde_yaml::from_str("acronyms: ['iOS']").unwrap();
+            serde_saphyr::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+        let local: WeaverConfig = serde_saphyr::from_str("acronyms: ['iOS']").unwrap();
         parent.override_with(local);
         assert_eq!(parent.acronyms, Some(vec!["iOS".to_owned()]));
         let mut parent = WeaverConfig::default();
-        let local: WeaverConfig = serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+        let local: WeaverConfig =
+            serde_saphyr::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
         parent.override_with(local);
         assert_eq!(
             parent.acronyms,
             Some(vec!["iOS".to_owned(), "API".to_owned(), "URL".to_owned()])
         );
         let mut parent: WeaverConfig =
-            serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+            serde_saphyr::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
         let local = WeaverConfig::default();
         parent.override_with(local);
         assert_eq!(
@@ -1037,8 +1038,8 @@ mod tests {
             Some(vec!["iOS".to_owned(), "API".to_owned(), "URL".to_owned()])
         );
         let mut parent: WeaverConfig =
-            serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
-        let local: WeaverConfig = serde_yaml::from_str("acronyms: []").unwrap();
+            serde_saphyr::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+        let local: WeaverConfig = serde_saphyr::from_str("acronyms: []").unwrap();
         parent.override_with(local);
         assert_eq!(parent.acronyms, Some(vec![]));
     }
@@ -1046,8 +1047,8 @@ mod tests {
     #[test]
     fn test_jq_modules_override_with() {
         let mut parent: WeaverConfig =
-            serde_yaml::from_str("jq_modules: ['jq/common.jq']").unwrap();
-        let child: WeaverConfig = serde_yaml::from_str("jq_modules: ['jq/rust.jq']").unwrap();
+            serde_saphyr::from_str("jq_modules: ['jq/common.jq']").unwrap();
+        let child: WeaverConfig = serde_saphyr::from_str("jq_modules: ['jq/rust.jq']").unwrap();
         parent.override_with(child);
 
         assert_eq!(
@@ -1093,7 +1094,7 @@ mod tests {
     fn test_merge_acronyms() {
         // Project acronyms are unioned with the package's, project ones appended.
         let mut config: WeaverConfig =
-            serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+            serde_saphyr::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
         config.merge_acronyms(Some(vec!["HTTP".to_owned(), "SDK".to_owned()]));
         assert_eq!(
             config.acronyms,
@@ -1108,7 +1109,7 @@ mod tests {
 
         // No project acronyms (None) keeps the package's acronyms untouched.
         let mut config: WeaverConfig =
-            serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+            serde_saphyr::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
         config.merge_acronyms(None);
         assert_eq!(
             config.acronyms,
@@ -1117,7 +1118,7 @@ mod tests {
 
         // An empty project list adds nothing, leaving the package list intact.
         let mut config: WeaverConfig =
-            serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+            serde_saphyr::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
         config.merge_acronyms(Some(vec![]));
         assert_eq!(
             config.acronyms,
@@ -1130,7 +1131,7 @@ mod tests {
         assert_eq!(config.acronyms, Some(vec!["API".to_owned()]));
 
         // On a case-insensitive collision the project casing wins, in place.
-        let mut config: WeaverConfig = serde_yaml::from_str("acronyms: ['api', 'URL']").unwrap();
+        let mut config: WeaverConfig = serde_saphyr::from_str("acronyms: ['api', 'URL']").unwrap();
         config.merge_acronyms(Some(vec!["API".to_owned(), "SDK".to_owned()]));
         assert_eq!(
             config.acronyms,
@@ -1151,7 +1152,7 @@ mod tests {
 
         // No incoming (None) leaves the package's text_maps untouched.
         let mut config: WeaverConfig =
-            serde_yaml::from_str("text_maps: {type_mapping: {int: int64}}").unwrap();
+            serde_saphyr::from_str("text_maps: {type_mapping: {int: int64}}").unwrap();
         config.merge_text_maps(None);
         assert_eq!(
             config.text_maps,
@@ -1161,7 +1162,7 @@ mod tests {
         // A named map only the project defines is added; the package's other
         // named maps are kept.
         let mut config: WeaverConfig =
-            serde_yaml::from_str("text_maps: {type_mapping: {int: int64}}").unwrap();
+            serde_saphyr::from_str("text_maps: {type_mapping: {int: int64}}").unwrap();
         config.merge_text_maps(Some(
             [("namespace_mapping".to_owned(), map(&[("CICD", "CI/CD")]))].into(),
         ));
@@ -1179,7 +1180,7 @@ mod tests {
         // On a name conflict the project's map replaces the package's wholesale
         // (inner entries are not merged: `str` is dropped).
         let mut config: WeaverConfig =
-            serde_yaml::from_str("text_maps: {type_mapping: {int: int64, str: string}}").unwrap();
+            serde_saphyr::from_str("text_maps: {type_mapping: {int: int64, str: string}}").unwrap();
         config.merge_text_maps(Some(
             [("type_mapping".to_owned(), map(&[("int", "i64")]))].into(),
         ));

@@ -27,11 +27,11 @@ A virtual directory string follows the general pattern:
 | **Local directory** | `./model` or `/path/to/registry` |
 | **Local file** | `./manifest.yaml` or `./policies/semconv.rego` |
 | **Local archive** | `./semconv-release.tar.gz[model]` or `./archive.zip` |
-| **Remote archive** | `https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.27.0.zip[model]` |
+| **Remote archive** | `https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.28.0.zip[model]` |
 | **Remote file** | `https://example.com/schemas/my-registry/1.0.0/manifest.yaml` |
 | **GitHub release asset** | `https://github.com/my-org/my-semconv/releases/download/v1.0.0/registry.tar.gz` |
 | **Git repository (default branch)** | `https://github.com/open-telemetry/semantic-conventions.git` |
-| **Git repository (branch/tag + sub-folder)** | `https://github.com/open-telemetry/semantic-conventions.git@v1.27.0[model]` |
+| **Git repository (branch/tag + sub-folder)** | `https://github.com/open-telemetry/semantic-conventions.git@v1.28.0[model]` |
 | **Git repository (commit SHA + sub-folder)** | `https://github.com/open-telemetry/semantic-conventions@0123456789abcdef0123456789abcdef01234567[model]` |
 
 ---
@@ -54,7 +54,7 @@ then attempts to classify the `<source>` using the following **strict priority o
   *Note: Weaver MAY attempt to treat this as a directory and look for named files via URL manipulation, e.g. looking for http://example.com/myschema/resolved.yaml from references given in http://example.com/myschema/manifest.yaml.*
 
 > [!IMPORTANT]
-> Because the presence of `@<refspec>` or `[<sub_folder>]` classifies a non-archive HTTP(S) URL as a **Git repository**, you do not need a `.git` suffix when specifying a refspec or sub-folder (for example, `https://github.com/open-telemetry/semantic-conventions@v1.27.0[model]`).
+> Because the presence of `@<refspec>` or `[<sub_folder>]` classifies a non-archive HTTP(S) URL as a **Git repository**, you do not need a `.git` suffix when specifying a refspec or sub-folder (for example, `https://github.com/open-telemetry/semantic-conventions@v1.28.0[model]`).
 >
 > Conversely, a bare Git repository URL without `@<refspec>` or `[<sub_folder>]` **must** end with `.git` (for example, `https://github.com/open-telemetry/semantic-conventions.git`), otherwise Weaver will interpret it as a single **Remote File**.
 
@@ -97,7 +97,7 @@ For all remote and archive sources, Weaver creates a temporary directory under `
 - **Resolution**:
   - For **Local Archives**, Weaver opens the `.zip` or `.tar.gz` file from disk and extracts it into the temporary cache directory.
   - For **Remote Archives**, Weaver first downloads the archive over HTTP(S) into the temporary cache directory and then extracts it.
-- **Top-level directory stripping**: Archive extraction is designed for release source archives (such as GitHub release `.zip` and `.tar.gz` archives), where all files are packaged inside a single top-level directory (for example, `semantic-conventions-1.27.0/model/...`). During extraction, Weaver **automatically strips the first path component** of every archive entry.
+- **Top-level directory stripping**: Archive extraction is designed for release source archives (such as GitHub release `.zip` and `.tar.gz` archives), where all files are packaged inside a single top-level directory (for example, `semantic-conventions-1.28.0/model/...`). During extraction, Weaver **automatically strips the first path component** of every archive entry.
 - **Sub-folder extraction (`[<sub_folder>]`)**:
   - When `[<sub_folder>]` is **omitted**, all entries beneath the stripped top-level archive folder are extracted directly into the virtual directory root.
   - When `[<sub_folder>]` is **specified** (for example, `archive.tar.gz[model]`), Weaver filters for entries under `<top-level-dir>/<sub_folder>/` and strips `<sub_folder>` as well, placing the contents of `<sub_folder>` at the root of the virtual directory.
@@ -108,7 +108,7 @@ For all remote and archive sources, Weaver creates a temporary directory under `
 - **Resolution**: Clones the repository over HTTP(S) into the temporary cache directory using Weaver's built-in pure-Rust Git client (`gix`).
 - **Refspec behavior (`@<refspec>`)**:
   - **Omitted**: Performs a shallow clone (`--depth 1`) of the remote repository's default branch (`HEAD`).
-  - **Branch or tag name** (e.g., `@main`, `@v1.27.0`): Fetches the matching branch (`refs/heads/<name>`) or tag (`refs/tags/<name>`) and checks out its worktree.
+  - **Branch or tag name** (e.g., `@main`, `@v1.28.0`): Fetches the matching branch (`refs/heads/<name>`) or tag (`refs/tags/<name>`) and checks out its worktree.
   - **Commit SHA**: Must be a **full 40-character hexadecimal SHA-1** (e.g., `@0123456789abcdef0123456789abcdef01234567`). Fetches the repository and checks out the tree for that exact commit. Short commit SHAs are not treated as commit object IDs.
 - **Sub-folder selection (`[<sub_folder>]`)**:
   - If `[<sub_folder>]` is provided (for example, `[model]`), Weaver verifies that the sub-folder exists inside the checked-out worktree and sets the virtual directory root to `<worktree>/<sub_folder>`.

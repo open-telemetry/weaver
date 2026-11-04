@@ -557,7 +557,7 @@ mod tests {
 
         assert_eq!(
             expected_yaml,
-            format!("{}", serde_yaml::to_string(&body).unwrap()),
+            format!("{}", serde_saphyr::to_string(&body).unwrap()),
             "{}",
             expected_yaml
         );

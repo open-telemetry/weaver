@@ -1060,7 +1060,7 @@ mod tests {
         if excluded {
             _ = common.annotations.insert(
                 "dependency_resolution".to_owned(),
-                YamlValue(serde_yaml::from_str("exclude: true").expect("valid yaml")),
+                YamlValue(serde_saphyr::from_str("exclude: true").expect("valid yaml")),
             );
         }
         let attr = AttributeV2 {

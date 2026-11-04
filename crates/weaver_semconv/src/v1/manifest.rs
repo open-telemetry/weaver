@@ -96,7 +96,7 @@ const UNKNOWN_VERSION: &str = "unknown";
 /// Parses a dependency declaration, discriminating on which identifying field it declares.
 /// A v1 manifest may declare a dependency by `name`, which then gets a placeholder, unversioned schema URL minted
 /// from that name.
-fn parse_dependency(value: serde_yaml::Value) -> Result<Dependency, String> {
+fn parse_dependency(value: serde_json::Value) -> Result<Dependency, String> {
     #[derive(Deserialize)]
     #[serde(deny_unknown_fields)]
     struct NamedDependency {
@@ -105,14 +105,14 @@ fn parse_dependency(value: serde_yaml::Value) -> Result<Dependency, String> {
     }
 
     if value.get("schema_url").is_some() {
-        return serde_yaml::from_value(value).map_err(|e| e.to_string());
+        return serde_json::from_value(value).map_err(|e| e.to_string());
     }
     if value
         .get("name")
-        .and_then(serde_yaml::Value::as_str)
+        .and_then(serde_json::Value::as_str)
         .is_some()
     {
-        let named: NamedDependency = serde_yaml::from_value(value).map_err(|e| e.to_string())?;
+        let named: NamedDependency = serde_json::from_value(value).map_err(|e| e.to_string())?;
         Ok(Dependency {
             schema_url: SchemaUrl::try_from_name_version(&named.name, UNKNOWN_VERSION)?,
             registry_path: Some(named.registry_path),
@@ -135,7 +135,7 @@ struct RawManifestFields {
     #[allow(deprecated)]
     schema_base_url: Option<String>,
     #[serde(default)]
-    dependencies: Vec<serde_yaml::Value>,
+    dependencies: Vec<serde_json::Value>,
     #[serde(default)]
     stability: Stability,
 }
@@ -225,7 +225,7 @@ impl RegistryManifest {
         })?;
         let reader = std::io::BufReader::new(file);
         let raw: RawManifestFields =
-            serde_yaml::from_reader(reader).map_err(|e| InvalidRegistryManifest {
+            serde_saphyr::from_reader(reader).map_err(|e| InvalidRegistryManifest {
                 path: manifest_path_buf.clone(),
                 error: e.to_string(),
             })?;
@@ -340,7 +340,7 @@ mod tests {
     }
 
     fn dep_from_yaml_lenient(yaml: &str) -> Result<Dependency, String> {
-        parse_dependency(serde_yaml::from_str(yaml).expect("invalid YAML"))
+        parse_dependency(serde_saphyr::from_str(yaml).expect("invalid YAML"))
     }
 
     fn dep(schema_url: &str, registry_path: Option<&str>) -> Dependency {
@@ -438,7 +438,7 @@ name: "ignored-name"
 
     #[test]
     fn test_dependency_serialize() {
-        let yaml = serde_yaml::to_string(&dep("https://opentelemetry.io/schemas/1.0.0", None))
+        let yaml = serde_saphyr::to_string(&dep("https://opentelemetry.io/schemas/1.0.0", None))
             .expect("Failed to serialize");
         assert!(yaml.contains("schema_url"));
         assert!(yaml.contains("https://opentelemetry.io/schemas/1.0.0"));
@@ -447,7 +447,7 @@ name: "ignored-name"
 
     #[test]
     fn test_dependency_serialize_with_registry_path() {
-        let yaml = serde_yaml::to_string(&dep(
+        let yaml = serde_saphyr::to_string(&dep(
             "https://opentelemetry.io/schemas/1.0.0",
             Some("./registry"),
         ))
@@ -459,7 +459,7 @@ name: "ignored-name"
     #[test]
     fn test_dependency_roundtrip_serialization() {
         let original = dep("https://example.com/schemas/1.0.0", Some("./test/registry"));
-        let yaml = serde_yaml::to_string(&original).expect("Failed to serialize");
+        let yaml = serde_saphyr::to_string(&original).expect("Failed to serialize");
         let deserialized = dep_from_yaml_lenient(&yaml).expect("Failed to deserialize");
 
         assert_eq!(original.schema_url, deserialized.schema_url);

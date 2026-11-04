@@ -423,7 +423,7 @@ struct MarkdownSnippetContext {
 
 #[cfg(test)]
 mod tests {
-    use serde_yaml::Value;
+    use serde_json::Value;
     use weaver_forge::{
         config::{Params, WeaverConfig},
         file_loader::FileSystemFileLoader,

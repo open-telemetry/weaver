@@ -208,7 +208,7 @@ pub fn acronym(acronyms: Vec<String>) -> impl Fn(&str) -> String {
 
 // Helper filter to dump value (1st parameter) in yaml format.
 fn to_yaml(value: &Value) -> Result<Value, minijinja::Error> {
-    let yaml = serde_yaml::to_string(&value)
+    let yaml = serde_saphyr::to_string(&value)
         .map_err(|e| minijinja::Error::new(ErrorKind::BadSerialization, e.to_string()))
         .map(|s| {
             // When this filter is used the return value is safe for both HTML and JSON
@@ -239,7 +239,7 @@ mod tests {
     use crate::v2::provenance::Provenance;
     use crate::v2::registry::{ForgeDependency, ForgeResolvedRegistry, Refinements, Registry};
     use minijinja::Environment;
-    use serde_yaml::{Mapping, Number, Value};
+    use serde_json::json;
     use weaver_semconv::schema_url::SchemaUrl;
     use weaver_semconv::v2::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
     use weaver_semconv::v2::CommonFields;
@@ -511,48 +511,20 @@ mod tests {
     #[test]
     fn test_to_yaml() {
         let mut env = Environment::new();
-        let mut inner_map = Mapping::new();
-        let _ = inner_map.insert(
-            Value::String("age".to_owned()),
-            Value::Number(Number::from(30u64)),
-        );
-        let mut details_map = Mapping::new();
-        let _ = details_map.insert(
-            Value::String("city".to_owned()),
-            Value::String("Wonderland".to_owned()),
-        );
-        let _ = details_map.insert(
-            Value::String("email".to_owned()),
-            Value::String("alice@example.com".to_owned()),
-        );
-        let _ = inner_map.insert(
-            Value::String("details".to_owned()),
-            Value::Mapping(details_map),
-        );
-        let _ = inner_map.insert(Value::String("is_active".to_owned()), Value::Bool(true));
-        let _ = inner_map.insert(
-            Value::String("name".to_owned()),
-            Value::String("Alice".to_owned()),
-        );
-        let _ = inner_map.insert(
-            Value::String("about".to_owned()),
-            Value::String("<h1>Software Engineer<h1>".to_owned()),
-        );
-        let _ = inner_map.insert(
-            Value::String("profile".to_owned()),
-            Value::String("https://example.com/?page=1&section=about".to_owned()),
-        );
-        let _ = inner_map.insert(
-            Value::String("skills".to_owned()),
-            Value::Sequence(vec![
-                Value::String("Rust".to_owned()),
-                Value::String("JavaScript".to_owned()),
-            ]),
-        );
-        let mut map = Mapping::new();
-        let _ = map.insert(Value::String("user".to_owned()), Value::Mapping(inner_map));
-
-        let ctx = Value::Mapping(map);
+        let ctx = json!({
+            "user": {
+                "age": 30u64,
+                "details": {
+                    "city": "Wonderland",
+                    "email": "alice@example.com",
+                },
+                "is_active": true,
+                "name": "Alice",
+                "about": "<h1>Software Engineer<h1>",
+                "profile": "https://example.com/?page=1&section=about",
+                "skills": ["Rust", "JavaScript"],
+            }
+        });
         let config = crate::config::WeaverConfig::default();
 
         add_filters(&mut env, &config);

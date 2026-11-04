@@ -71,7 +71,7 @@ impl TelemetrySchema {
         })?;
         let reader = std::io::BufReader::new(file);
         let schema: TelemetrySchema =
-            serde_yaml::from_reader(reader).map_err(|e| InvalidTelemetrySchema {
+            serde_saphyr::from_reader(reader).map_err(|e| InvalidTelemetrySchema {
                 path_or_url: schema_path_buf.as_path().to_string_lossy().to_string(),
                 error: e.to_string(),
             })?;

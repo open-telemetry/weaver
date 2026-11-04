@@ -810,7 +810,7 @@ mod tests {
             panic!("Expected Resolved::V2 for {registry_dir}");
         };
 
-        let observed_yaml = serde_yaml::to_string(&v2.template_schema)
+        let observed_yaml = serde_saphyr::to_string(&v2.template_schema)
             .expect("Failed to serialize forge schema to YAML");
 
         let observed_dir = PathBuf::from(format!("observed_output/{registry_dir}"));
@@ -826,9 +826,9 @@ mod tests {
             panic!("Failed to read expected schema file: {expected_schema_file}")
         });
 
-        let observed_json: serde_json::Value = serde_yaml::from_str(&observed_yaml)
+        let observed_json: serde_json::Value = serde_saphyr::from_str(&observed_yaml)
             .expect("Failed to deserialize observed yaml to json");
-        let expected_json: serde_json::Value = serde_yaml::from_str(&expected_yaml)
+        let expected_json: serde_json::Value = serde_saphyr::from_str(&expected_yaml)
             .expect("Failed to deserialize expected yaml to json");
 
         assert_eq!(

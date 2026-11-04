@@ -966,14 +966,14 @@ mod tests {
 
         let observed_dir = std::path::PathBuf::from(format!("observed_output/{test_dir}"));
         std::fs::create_dir_all(&observed_dir).expect("Failed to create observed output dir");
-        let observed_yaml = serde_yaml::to_string(&observed_schema).unwrap();
+        let observed_yaml = serde_saphyr::to_string(&observed_schema).unwrap();
         std::fs::write(observed_dir.join("schema.yaml"), &observed_yaml)
             .expect("Failed to write observed schema");
 
         let expected_yaml = std::fs::read_to_string(format!("{test_dir}/expected-schema.yaml"))
             .expect("Failed to read expected schema");
         let expected_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
-            serde_yaml::from_str(&expected_yaml).expect("Failed to deserialize expected schema");
+            serde_saphyr::from_str(&expected_yaml).expect("Failed to deserialize expected schema");
 
         assert_eq!(
             serde_json::to_value(&observed_schema).unwrap(),
@@ -981,7 +981,7 @@ mod tests {
             "Observed and expected schema don't match for `{}`.\nDiff from expected:\n{}",
             test_dir,
             weaver_diff::diff_output(
-                &serde_yaml::to_string(&expected_schema).unwrap(),
+                &serde_saphyr::to_string(&expected_schema).unwrap(),
                 &observed_yaml
             )
         );

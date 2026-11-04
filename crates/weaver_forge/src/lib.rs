@@ -126,7 +126,7 @@ struct ParamsObject {
 
 impl ParamsObject {
     /// Creates a new params object.
-    pub(crate) fn new(params: BTreeMap<String, serde_yaml::Value>) -> Self {
+    pub(crate) fn new(params: BTreeMap<String, serde_json::Value>) -> Self {
         let mut new_params = BTreeMap::new();
         for (key, value) in params {
             _ = new_params.insert(key, Value::from_serialize(&value));
@@ -575,7 +575,7 @@ impl TemplateEngine {
         &self,
         ctx: &serde_json::Value,
         file_path: Option<&String>,
-        params: &BTreeMap<String, serde_yaml::Value>,
+        params: &BTreeMap<String, serde_json::Value>,
         template_file: &Path,
         output_dir: &Path,
         output_directive: &OutputDirective,
@@ -618,7 +618,7 @@ impl TemplateEngine {
         &self,
         ctx: &serde_json::Value,
         file_path: Option<&String>,
-        params: &BTreeMap<String, serde_yaml::Value>,
+        params: &BTreeMap<String, serde_json::Value>,
         template_file: &Path,
         output_dir: &Path,
         output_directive: &OutputDirective,
@@ -641,38 +641,21 @@ impl TemplateEngine {
 
     /// Build a JQ context from the Weaver parameters.
     fn prepare_jq_context(
-        params: &BTreeMap<String, serde_yaml::Value>,
+        params: &BTreeMap<String, serde_json::Value>,
     ) -> Result<BTreeMap<String, serde_json::Value>, Error> {
-        let mut errs = Vec::new();
-        let jq_ctx: BTreeMap<String, serde_json::Value> = params
-            .iter()
-            .filter_map(|(k, v)| {
-                let json_value = match serde_json::to_value(v) {
-                    Ok(json_value) => json_value,
-                    Err(e) => {
-                        errs.push(ContextSerializationFailed {
-                            error: e.to_string(),
-                        });
-                        return None;
-                    }
-                };
-                Some((k.clone(), json_value))
-            })
-            .collect();
-        handle_errors(errs)?;
-        Ok(jq_ctx)
+        Ok(params.clone())
     }
 
     /// Initialize a map of parameters from the template parameters.
     /// If there are template parameters then the map returned contains the entry `params`
-    /// initialized with an in-memory yaml representation of the template parameters.
+    /// initialized with an in-memory representation of the template parameters.
     /// Otherwise, an empty map is returned if there is no template parameter.
     fn init_params(
-        template_params: Option<BTreeMap<String, serde_yaml::Value>>,
-    ) -> Result<BTreeMap<String, serde_yaml::Value>, Error> {
+        template_params: Option<BTreeMap<String, serde_json::Value>>,
+    ) -> Result<BTreeMap<String, serde_json::Value>, Error> {
         if let Some(mut params) = template_params.clone() {
             let value =
-                serde_yaml::to_value(template_params).map_err(|e| ContextSerializationFailed {
+                serde_json::to_value(template_params).map_err(|e| ContextSerializationFailed {
                     error: e.to_string(),
                 })?;
             // The `params` parameter is a reserved entry within the `params` sections.
@@ -699,7 +682,7 @@ impl TemplateEngine {
     fn render_template(
         &self,
         ctx: serde_json::Value,
-        params: &BTreeMap<String, serde_yaml::Value>,
+        params: &BTreeMap<String, serde_json::Value>,
         template_path: &Path,
         file_path_config: Option<&String>,
         auto_escape: &AutoEscapeMode,
@@ -773,7 +756,7 @@ impl TemplateEngine {
         &self,
         ctx: serde_json::Value,
         file_path: Option<&String>,
-        params: &BTreeMap<String, serde_yaml::Value>,
+        params: &BTreeMap<String, serde_json::Value>,
         template_path: &Path,
         output_directive: &OutputDirective,
         output_dir: &Path,
@@ -1454,7 +1437,7 @@ mod tests {
         let params = TemplateEngine::prepare_jq_context(
             &TemplateEngine::init_params(Some(BTreeMap::from([(
                 "gen_readme".to_owned(),
-                serde_yaml::Value::Bool(true),
+                serde_json::Value::Bool(true),
             )])))
             .unwrap(),
         )
@@ -1766,9 +1749,9 @@ mod tests {
         let cli_params = Params::from_key_value_pairs(&[
             (
                 "param_config",
-                serde_yaml::Value::String("cli_value".to_owned()),
+                serde_json::Value::String("cli_value".to_owned()),
             ),
-            ("shared_2", serde_yaml::Value::Bool(true)),
+            ("shared_2", serde_json::Value::Bool(true)),
         ]);
         let (engine, template_registry, observed_output, expected_output) =
             prepare_test("template_params", cli_params, true);

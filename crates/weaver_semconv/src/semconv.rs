@@ -9,7 +9,6 @@ use crate::v2::SemConvSpecV2;
 use crate::Error;
 use schemars::JsonSchema;
 use serde::Serialize;
-use std::fs::File;
 use std::path::Path;
 use std::sync::OnceLock;
 use weaver_common::result::WResult;
@@ -105,15 +104,13 @@ impl FileFormat {
     /// and produces warnings for deprecated or unstable formats.
     /// Returns an error if the file format is invalid.
     fn detect(
-        yaml_value: &serde_yaml::Value,
+        yaml_value: &serde_json::Value,
         provenance: &str,
         warnings: &mut Vec<Error>,
     ) -> Result<Self, Error> {
-        use serde_yaml::Value;
-
         // Check for deprecated version field
         let version = yaml_value
-            .get(Value::String("version".to_owned()))
+            .get("version")
             .and_then(|v| v.as_str())
             .map(|s| s.to_owned());
 
@@ -124,7 +121,7 @@ impl FileFormat {
         }
 
         let file_format = yaml_value
-            .get(Value::String("file_format".to_owned()))
+            .get("file_format")
             .and_then(|v| v.as_str())
             .map(|s| s.to_owned());
 
@@ -174,13 +171,13 @@ impl FileFormat {
 
 /// Auxiliary function to clean the YAML mapping by removing version fields
 fn clean_yaml_mapping(
-    yaml_value: serde_yaml::Value,
+    yaml_value: serde_json::Value,
     provenance: &str,
-) -> Result<serde_yaml::Value, Error> {
-    use serde_yaml::Value;
+) -> Result<serde_json::Value, Error> {
+    use serde_json::Value;
 
     let mut mapping = match yaml_value {
-        Value::Mapping(m) => m,
+        Value::Object(m) => m,
         o => {
             return Err(Error::DeserializationError {
                 path_or_url: provenance.to_owned(),
@@ -189,46 +186,130 @@ fn clean_yaml_mapping(
         }
     };
 
-    _ = mapping.remove(Value::String("file_format".to_owned()));
-    _ = mapping.remove(Value::String("version".to_owned()));
-    Ok(Value::Mapping(mapping))
+    _ = mapping.remove("file_format");
+    _ = mapping.remove("version");
+    Ok(Value::Object(mapping))
 }
 
 /// Converts a serde deserialization failure into the best available error.
 fn better_error(
-    value: serde_yaml::Value,
+    value: &serde_json::Value,
     provenance: &str,
     validator: &JsonSchemaValidator,
-    e: serde_yaml::Error,
+    e: serde_saphyr::Error,
 ) -> Error {
     let fallback = Error::DeserializationError {
         path_or_url: provenance.to_owned(),
         error: e.to_string(),
     };
-    match validator.validate_yaml(value, provenance, e) {
+    match validator.validate_yaml(value, provenance) {
         Ok(()) => fallback,
         Err(better_err) => better_err,
     }
 }
 
-/// Converts a yaml value into a versioned semantic convention spec.
-fn from_yaml_value(
-    yaml_value: serde_yaml::Value,
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawSemConvSpecV1 {
+    #[serde(default)]
+    #[allow(dead_code)]
+    file_format: Option<serde::de::IgnoredAny>,
+    #[serde(default)]
+    #[allow(dead_code)]
+    version: Option<serde::de::IgnoredAny>,
+    #[serde(default)]
+    groups: Vec<crate::v1::group::GroupSpec>,
+    imports: Option<crate::v1::semconv::Imports>,
+}
+
+impl From<RawSemConvSpecV1> for SemConvSpecV1 {
+    fn from(raw: RawSemConvSpecV1) -> Self {
+        SemConvSpecV1 {
+            groups: raw.groups,
+            imports: raw.imports,
+        }
+    }
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawSemConvSpecV2 {
+    #[serde(default)]
+    #[allow(dead_code)]
+    file_format: Option<serde::de::IgnoredAny>,
+    #[serde(default)]
+    #[allow(dead_code)]
+    version: Option<serde::de::IgnoredAny>,
+    #[serde(default)]
+    attributes: Vec<crate::v2::attribute::AttributeDef>,
+    #[serde(default)]
+    entities: Vec<crate::v2::entity::Entity>,
+    #[serde(default)]
+    events: Vec<crate::v2::event::Event>,
+    #[serde(default)]
+    metrics: Vec<crate::v2::metric::Metric>,
+    #[serde(default)]
+    spans: Vec<crate::v2::span::Span>,
+    #[serde(default)]
+    attribute_groups: Vec<crate::v2::attribute_group::AttributeGroup>,
+    #[serde(default)]
+    entity_refinements: Vec<crate::v2::entity::EntityRefinement>,
+    #[serde(default)]
+    event_refinements: Vec<crate::v2::event::EventRefinement>,
+    #[serde(default)]
+    metric_refinements: Vec<crate::v2::metric::MetricRefinement>,
+    #[serde(default)]
+    span_refinements: Vec<crate::v2::span::SpanRefinement>,
+    imports: Option<crate::v2::Imports>,
+}
+
+impl From<RawSemConvSpecV2> for SemConvSpecV2 {
+    fn from(raw: RawSemConvSpecV2) -> Self {
+        SemConvSpecV2 {
+            attributes: raw.attributes,
+            entities: raw.entities,
+            events: raw.events,
+            metrics: raw.metrics,
+            spans: raw.spans,
+            attribute_groups: raw.attribute_groups,
+            entity_refinements: raw.entity_refinements,
+            event_refinements: raw.event_refinements,
+            metric_refinements: raw.metric_refinements,
+            span_refinements: raw.span_refinements,
+            imports: raw.imports,
+        }
+    }
+}
+
+/// Converts a yaml string into a versioned semantic convention spec.
+fn from_yaml_str(
+    raw_yaml: &str,
     provenance: &str,
     warnings: &mut Vec<Error>,
 ) -> Result<Versioned, Error> {
+    let yaml_value: serde_json::Value = serde_saphyr::from_str_with_options(
+        raw_yaml,
+        serde_saphyr::options! { strict_booleans: true },
+    )
+    .map_err(|e| Error::DeserializationError {
+        path_or_url: provenance.to_owned(),
+        error: e.to_string(),
+    })?;
     let format = FileFormat::detect(&yaml_value, provenance, warnings)?;
     let cleaned = clean_yaml_mapping(yaml_value, provenance)?;
     let validator = format.validator();
+    let opts = serde_saphyr::options! { strict_booleans: true };
 
     match format {
-        FileFormat::V2 => serde_yaml::from_value::<SemConvSpecV2>(cleaned.clone())
+        FileFormat::V2 => serde_saphyr::from_str_with_options::<RawSemConvSpecV2>(raw_yaml, opts)
+            .map(SemConvSpecV2::from)
             .map(Versioned::V2)
-            .map_err(|e| better_error(cleaned, provenance, validator, e)),
+            .map_err(|e| better_error(&cleaned, provenance, validator, e)),
         FileFormat::V1 | FileFormat::Unversioned => {
-            serde_yaml::from_value::<SemConvSpecV1>(cleaned.clone())
+            serde_saphyr::from_str_with_options::<RawSemConvSpecV1>(raw_yaml, opts)
+                .map(SemConvSpecV1::from)
                 .map(Versioned::V1)
-                .map_err(|e| better_error(cleaned, provenance, validator, e))
+                .map_err(|e| better_error(&cleaned, provenance, validator, e))
         }
     }
 }
@@ -267,28 +348,21 @@ impl SemConvSpecWithProvenance {
         P: AsRef<Path>,
         F: Fn(String) -> String,
     {
-        fn read_yaml_file(path: &Path, provenance: &str) -> Result<serde_yaml::Value, Error> {
-            let semconv_file = File::open(path).map_err(|e| Error::RegistryNotFound {
-                path_or_url: provenance.to_owned(),
-                error: e.to_string(),
-            })?;
-
-            serde_yaml::from_reader(semconv_file).map_err(|e| Error::DeserializationError {
-                path_or_url: provenance.to_owned(),
-                error: e.to_string(),
-            })
-        }
-
-        let path = path.as_ref().display().to_string();
-        let provenance = Provenance::new(schema_url, &path_fixer(path.clone()));
-        let yaml_value = match read_yaml_file(path.as_ref(), &path) {
-            Ok(value) => value,
-            Err(e) => return WResult::FatalErr(e),
+        let path_str = path.as_ref().display().to_string();
+        let provenance = Provenance::new(schema_url, &path_fixer(path_str.clone()));
+        let raw_yaml = match std::fs::read_to_string(path.as_ref()) {
+            Ok(content) => content,
+            Err(e) => {
+                return WResult::FatalErr(Error::RegistryNotFound {
+                    path_or_url: path_str,
+                    error: e.to_string(),
+                })
+            }
         };
         let mut warnings = Vec::new();
 
-        let raw_spec = match from_yaml_value(yaml_value, &path, &mut warnings) {
-            Ok(semconv_spec) => semconv_spec.validate(&path),
+        let raw_spec = match from_yaml_str(&raw_yaml, &path_str, &mut warnings) {
+            Ok(semconv_spec) => semconv_spec.validate(&path_str),
             Err(e) => WResult::FatalErr(e),
         };
         let result = raw_spec.map(|spec| SemConvSpecWithProvenance {

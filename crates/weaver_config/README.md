@@ -32,8 +32,8 @@ format = "ansi"   # ansi | json | gh_workflow_command
 
 # Shared resolution settings — override dependency schema URLs with local or custom locations.
 [resolve.schema_url_overrides]
-"https://opentelemetry.io/schemas/1.25.0" = "path/to/local/1.25.0"
-"https://opentelemetry.io/schemas/1.26.0" = "https://github.com/my-fork/semconv.git[model]"
+"https://opentelemetry.io/schemas/1.28.0" = "path/to/local/1.28.0"
+"https://opentelemetry.io/schemas/1.29.0" = "https://github.com/my-fork/semconv.git[model]"
 
 # Shared template settings — applied on top of every template package's `weaver.yaml`.
 [template]
@@ -110,9 +110,9 @@ The `[resolve]` section configures how dependencies and schema URLs are resolved
 ```toml
 [resolve.schema_url_overrides]
 # Map a canonical schema URL to a local directory
-"https://opentelemetry.io/schemas/1.25.0" = "path/to/local/1.25.0"
+"https://opentelemetry.io/schemas/1.28.0" = "path/to/local/1.28.0"
 # Map to a specific Git repository subfolder
-"https://opentelemetry.io/schemas/1.26.0" = "https://github.com/my-fork/semconv.git[model]"
+"https://opentelemetry.io/schemas/1.29.0" = "https://github.com/my-fork/semconv.git[model]"
 ```
 
 Aliases `[resolve.overrides]` and `[resolve.dependency_overrides]` are also supported. When Weaver loads and resolves dependencies during commands such as `check`, `generate`, `package`, or `live-check`, any dependency with a matching schema URL will be redirected to the configured [Virtual Directory (`vdir`)](/docs/vdir.md) override path.
