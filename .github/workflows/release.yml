@@ -65,7 +65,7 @@ jobs:
       - name: Install dist
         shell: bash
         run: |
-          curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.32.0/cargo-dist-installer.sh -o /tmp/cargo-dist-installer.sh
+          curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.34.0/cargo-dist-installer.sh -o /tmp/cargo-dist-installer.sh
           echo "b657cf8c04a8b7bc28f39d220f7e6dd11bbd2bdb072c552262bd9ccf597261b5  /tmp/cargo-dist-installer.sh" | sha256sum -c
           sh /tmp/cargo-dist-installer.sh
       - name: Cache dist
