@@ -1,0 +1,6 @@
+file_format: definition_manifest/2.0
+name: middle
+schema_url: https://example.com/middle/1.0.0
+dependencies:
+  - schema_url: https://example.com/leaf/1.0.0
+    registry_path: ../leaf
