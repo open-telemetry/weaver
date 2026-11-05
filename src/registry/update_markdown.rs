@@ -186,13 +186,17 @@ pub(crate) fn command(
         })
     {
         log_info(format!("{}: ${}", operation, entry.path().display()));
-        if let Err(error) = generator.update_markdown(
-            &entry.path().display().to_string(),
-            dry_run,
-            attribute_registry_base_url.as_deref(),
-        ) {
+        if let Err(error) = generator
+            .update_markdown(
+                &entry.path().display().to_string(),
+                dry_run,
+                attribute_registry_base_url.as_deref(),
+            )
+            .capture_non_fatal_errors(&mut diag_msgs)
+        {
             has_error = true;
-            log_error(error);
+            log_error(&error);
+            diag_msgs.extend(error.into());
         }
     }
     if has_error {
@@ -201,16 +205,17 @@ pub(crate) fn command(
         } else {
             UpdateMarkdownError::MarkdownUpdateFailed
         };
-        return Err(error.into());
+        diag_msgs.extend(error.into());
+        return Err(diag_msgs);
     }
 
-    if !diag_msgs.is_empty() {
+    if diag_msgs.has_error() {
         return Err(diag_msgs);
     }
 
     Ok(ExitDirectives {
         exit_code: 0,
-        warnings: None,
+        warnings: (!diag_msgs.is_empty()).then_some(diag_msgs),
     })
 }
 
@@ -319,6 +324,72 @@ mod tests {
         let exit_directive = run_command(&cli);
         // The command should succeed.
         assert_eq!(exit_directive.exit_code, 0);
+    }
+
+    #[test]
+    fn test_registry_update_markdown_marker_warnings() {
+        let markdown_dir = tempfile::TempDir::new().expect("failed to create temp dir");
+        let markdown_path = markdown_dir.path().join("markers.md");
+        let markdown = "# Markers\n<!-- semconv metric.test(bad) -->\n<!-- endweaverded -->\n<!-- other semconv stuff -->\n";
+        std::fs::write(&markdown_path, markdown).expect("failed to write markdown");
+
+        for dry_run in [false, true] {
+            let cli = Cli {
+                debug: 0,
+                quiet: false,
+                future: false,
+                allow_git_credentials: false,
+                config: None,
+                command: Some(Commands::Registry(RegistryCommand {
+                    command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
+                        markdown_dir: Some(
+                            markdown_dir
+                                .path()
+                                .to_str()
+                                .expect("valid UTF-8 path")
+                                .to_owned(),
+                        ),
+                        registry: RegistryArgs {
+                            registry: Some(VirtualDirectoryPath::LocalFolder {
+                                path: "data/update_markdown/registry".to_owned(),
+                            }),
+                            ..Default::default()
+                        },
+                        dry_run: Some(dry_run),
+                        attribute_registry_base_url: None,
+                        templates: Some("data/update_markdown/templates".to_owned()),
+                        diagnostic: Default::default(),
+                        target: Some("markdown".to_owned()),
+                        param: None,
+                        params: None,
+                    }),
+                })),
+            };
+
+            let exit_directive = run_command(&cli);
+            assert_eq!(exit_directive.exit_code, 0);
+            let warnings = exit_directive.warnings.expect("expected marker warnings");
+            assert!(!warnings.has_error());
+            let warnings = serde_json::to_value(warnings).expect("serializable warnings");
+            let marker_warnings: Vec<_> = warnings
+                .as_array()
+                .expect("warnings array")
+                .iter()
+                .filter(|warning| warning["error"].get("InvalidSnippetMarker").is_some())
+                .collect();
+            assert_eq!(marker_warnings.len(), 2);
+            for (warning, line) in marker_warnings.into_iter().zip([2, 3]) {
+                assert_eq!(warning["error"]["InvalidSnippetMarker"]["line"], line);
+                assert_eq!(
+                    warning["error"]["InvalidSnippetMarker"]["path"],
+                    markdown_path.to_str().expect("valid UTF-8 path")
+                );
+            }
+            assert_eq!(
+                std::fs::read_to_string(&markdown_path).expect("read markdown"),
+                markdown
+            );
+        }
     }
 
     #[test]

@@ -9,6 +9,7 @@ use serde::Serialize;
 use std::{fmt, fs};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
+use weaver_common::result::WResult;
 use weaver_diff::diff_output;
 
 mod parser;
@@ -66,6 +67,18 @@ pub enum Error {
         header: String,
     },
 
+    /// A comment resembles a snippet marker but cannot be parsed.
+    #[error("Invalid markdown snippet marker in {path}:{line}: {marker}")]
+    #[diagnostic(severity(Warning))]
+    InvalidSnippetMarker {
+        /// Markdown file containing the marker.
+        path: String,
+        /// One-based line number.
+        line: usize,
+        /// The malformed marker.
+        marker: String,
+    },
+
     /// Thrown when a snippet lookup id is not valid.
     #[error("Could not parse snippet id: [{id}]")]
     InvalidSnippetId {
@@ -112,44 +125,62 @@ pub trait MarkdownSnippetGenerator {
     /// file: The markdown file.
     /// dry_run: Whether to actually change the file or just report if changes would be made.
     /// attribute_registry_base_url: Legacy mechanism to pass parameters to the snippet templates.
-    /// Returns: empty, or an error if one occurred.
+    /// Returns: nonfatal marker warnings, or an error if the update failed.
     fn update_markdown(
         &self,
         file: &str,
         dry_run: bool,
         attribute_registry_base_url: Option<&str>,
-    ) -> Result<(), Error> {
-        let original_markdown = fs::read_to_string(file)
-            .map_err(|e| Error::StdIoError(e.to_string()))?
-            .replace("\r\n", "\n");
-        let updated_markdown =
-            self.update_markdown_contents(&original_markdown, attribute_registry_base_url)?;
+    ) -> WResult<(), Error> {
+        let original_markdown = match fs::read_to_string(file) {
+            Ok(contents) => contents.replace("\r\n", "\n"),
+            Err(error) => return WResult::FatalErr(Error::StdIoError(error.to_string())),
+        };
+        let (updated_markdown, mut warnings) = match self
+            .update_markdown_contents(file, &original_markdown, attribute_registry_base_url)
+            .into_result_with_non_fatal()
+        {
+            Ok(result) => result,
+            Err(error) => return WResult::FatalErr(error),
+        };
         if !dry_run {
-            fs::write(file, updated_markdown).map_err(|e| Error::StdIoError(e.to_string()))?;
-            Ok(())
+            if let Err(error) = fs::write(file, updated_markdown) {
+                warnings.push(Error::StdIoError(error.to_string()));
+                return WResult::FatalErr(Error::compound(warnings));
+            }
         } else if original_markdown != updated_markdown {
-            Err(Error::MarkdownIsNotEqual {
+            warnings.push(Error::MarkdownIsNotEqual {
                 original: original_markdown,
                 updated: updated_markdown,
-            })
-        } else {
-            Ok(())
+            });
+            return WResult::FatalErr(Error::compound(warnings));
         }
+        WResult::with_non_fatal_errors((), warnings)
     }
 
     /// Update the contents of a markdown string.
     ///
+    /// file: The file name used in diagnostics.
     /// contents: The contents of the markdown.
     /// attribute_registry_base_url: Legacy mechanism to pass parameters to the snippet templates.
-    /// Returns: the updated markdown or an error.
+    /// Returns: the updated markdown with nonfatal marker warnings, or an error.
     fn update_markdown_contents(
         &self,
+        file: &str,
         contents: &str,
         attribute_registry_base_url: Option<&str>,
-    ) -> Result<String, Error> {
+    ) -> WResult<String, Error> {
         let mut result = String::new();
+        let mut warnings = Vec::new();
         let mut snippet_context: Option<SnippetType> = None;
-        for line in contents.lines() {
+        for (index, line) in contents.lines().enumerate() {
+            if parser::looks_like_snippet_marker(line) && !parser::is_valid_snippet_marker(line) {
+                warnings.push(Error::InvalidSnippetMarker {
+                    path: file.to_owned(),
+                    line: index + 1,
+                    marker: line.to_owned(),
+                });
+            }
             match snippet_context {
                 Some(SnippetType::Semconv) => {
                     if parser::is_semconv_trailer(line) {
@@ -174,20 +205,31 @@ pub trait MarkdownSnippetGenerator {
                     // If so, generate the snippet and continue.
                     if parser::is_markdown_snippet_directive(line) {
                         snippet_context = Some(SnippetType::Semconv);
-                        let arg = parser::parse_markdown_snippet_directive(line)?;
-                        let snippet =
-                            self.generate_markdown_snippet(arg, attribute_registry_base_url)?;
-                        result.push_str(&snippet);
+                        match parser::parse_markdown_snippet_directive(line).and_then(|arg| {
+                            self.generate_markdown_snippet(arg, attribute_registry_base_url)
+                        }) {
+                            Ok(snippet) => result.push_str(&snippet),
+                            Err(error) => {
+                                warnings.push(error);
+                                return WResult::FatalErr(Error::compound(warnings));
+                            }
+                        }
                     } else if parser::is_weaver_directive(line) {
                         snippet_context = Some(SnippetType::Weaver);
-                        let arg = parser::parse_weaver_snippet_directive(line)?;
-                        let snippet = self.generate_weaver_snippet(arg)?;
-                        result.push_str(&snippet);
+                        match parser::parse_weaver_snippet_directive(line)
+                            .and_then(|arg| self.generate_weaver_snippet(arg))
+                        {
+                            Ok(snippet) => result.push_str(&snippet),
+                            Err(error) => {
+                                warnings.push(error);
+                                return WResult::FatalErr(Error::compound(warnings));
+                            }
+                        }
                     }
                 }
             }
         }
-        Ok(result)
+        WResult::with_non_fatal_errors(result, warnings)
     }
 
     /// Generates a markdown snippet for a given parsed argument.
@@ -242,5 +284,64 @@ impl From<Error> for DiagnosticMessages {
 impl From<fmt::Error> for Error {
     fn from(e: fmt::Error) -> Self {
         Error::StdIoError(e.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct TestGenerator;
+
+    impl MarkdownSnippetGenerator for TestGenerator {
+        fn generate_markdown_snippet(
+            &self,
+            _args: GenerateMarkdownArgs,
+            _attribute_registry_base_url: Option<&str>,
+        ) -> Result<String, Error> {
+            Ok("generated\n".to_owned())
+        }
+
+        fn generate_weaver_snippet(
+            &self,
+            _args: WeaverGenerateMarkdownArgs,
+        ) -> Result<String, Error> {
+            Ok("generated\n".to_owned())
+        }
+    }
+
+    #[test]
+    fn marker_warnings_inside_snippets() -> Result<(), Error> {
+        for (header, trailer, bad_trailer) in [
+            ("semconv metric.test", "endsemconv", "endsemconvded"),
+            ("weaver .registry.metrics", "endweaver", "endweaverded"),
+        ] {
+            let contents =
+                format!("<!--{header}-->\nold\n<!-- {bad_trailer} -->\n<!--{trailer}-->\n");
+            let (updated, warnings) = TestGenerator
+                .update_markdown_contents("markers.md", &contents, None)
+                .into_result_with_non_fatal()?;
+            assert_eq!(
+                updated,
+                format!("<!--{header}-->\ngenerated\n<!--{trailer}-->\n")
+            );
+            assert_eq!(warnings.len(), 1);
+            assert!(matches!(
+                &warnings[0],
+                Error::InvalidSnippetMarker { path, line: 3, .. } if path == "markers.md"
+            ));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn valid_markers_do_not_warn() -> Result<(), Error> {
+        let contents = "<!--semconv metric.k8s.hpa.min_pods-->\ngenerated\n<!--endsemconv-->\n<!--weaver .registry.metrics-->\ngenerated\n<!--endweaver-->\n<!-- other semconv stuff -->\n";
+        let (updated, warnings) = TestGenerator
+            .update_markdown_contents("markers.md", contents, None)
+            .into_result_with_non_fatal()?;
+        assert_eq!(updated, contents);
+        assert!(warnings.is_empty());
+        Ok(())
     }
 }
