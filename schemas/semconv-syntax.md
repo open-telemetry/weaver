@@ -249,6 +249,13 @@ entity_associations:
           - container
 ```
 
+Each name must resolve to exactly one entity defined by this registry or by one of its dependencies, or resolution
+fails. The name is the entity type: for a `type: resource` group, that is the group's `name` field rather than its
+group id, so a group with id `resource.host` and `name: host` is referenced as `host`. Naming an entity does not
+import it, and does not pass it on to your own consumers. The full set of rules, which applies to both registry
+versions, is in
+[the v2 syntax reference](semconv-syntax.v2.md#rules-for-an-entity-reference).
+
 #### Span semantic convention
 
 The following is only valid if `type` is `span` (the default):

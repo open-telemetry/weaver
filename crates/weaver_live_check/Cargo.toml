@@ -15,6 +15,7 @@ weaver_resolved_schema = { path = "../weaver_resolved_schema" }
 weaver_semconv = { path = "../weaver_semconv" }
 weaver_checker = { path = "../weaver_checker" }
 weaver_config = { path = "../weaver_config" }
+cel = "0.14.3"
 
 thiserror.workspace = true
 serde.workspace = true
@@ -32,18 +33,14 @@ globset.workspace = true
 
 [dev-dependencies]
 criterion = "0.8"
+toml.workspace = true
 weaver_test_support = { path = "../weaver_test_support" }
 assert_cmd.workspace = true
 tempfile.workspace = true
-serde_yaml.workspace = true
 serial_test = "3.4.0"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 ureq.workspace = true
-reqwest.workspace = true
-
-[[bench]]
-name = "rego_advisor"
-harness = false
+opentelemetry_sdk = { workspace = true, features = ["testing"] }
 
 [lints]
 workspace = true
@@ -53,3 +50,7 @@ workspace = true
 # remove this section once this crate is integrated into the rest
 # of the project
 ignored = []
+
+[[bench]]
+name = "sample_serialization"
+harness = false

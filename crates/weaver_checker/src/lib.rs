@@ -24,6 +24,8 @@ mod finding;
 // Import finding so we don't need to expose deeper into the crate.
 pub use crate::finding::FindingLevel;
 pub use crate::finding::PolicyFinding;
+mod finding_modifier;
+pub use finding_modifier::{FindingMatcher, FindingModifier, NameMatcher};
 
 /// Default semconv rules/functions for the semantic convention registry.
 pub const SEMCONV_REGO: &str = include_str!("../../../defaults/rego/semconv.rego");
@@ -191,6 +193,7 @@ pub struct Engine {
     // Policy packages loaded. This is used to check if a policy package has been imported
     // before evaluating it.
     policy_packages: HashSet<String>,
+    finding_modifier: Option<FindingModifier>,
 }
 
 impl Engine {
@@ -198,6 +201,11 @@ impl Engine {
     #[must_use]
     pub fn new() -> Self {
         Default::default()
+    }
+
+    /// Sets compiled finding filters for every policy stage.
+    pub fn set_finding_filters(&mut self, filters: Vec<FindingMatcher>) {
+        self.finding_modifier = FindingModifier::from_matchers(filters);
     }
 
     /// Enables the coverage report.
@@ -367,7 +375,7 @@ impl Engine {
             }
             "yaml" | "yml" => {
                 log::debug!("Including YAML data file {}", file_path.display());
-                serde_yaml::from_str(&content).map_err(|e| Error::InvalidData {
+                serde_saphyr::from_str(&content).map_err(|e| Error::InvalidData {
                     error: format!("Invalid YAML file {}: {}", file_path.display(), e),
                 })?
             }
@@ -592,7 +600,13 @@ impl Engine {
                 error: e.to_string(),
             })?;
 
-        Ok(violations)
+        let Some(modifier) = &self.finding_modifier else {
+            return Ok(violations);
+        };
+        Ok(violations
+            .into_iter()
+            .filter_map(|finding| modifier.apply(finding))
+            .collect())
     }
 }
 
@@ -638,12 +652,12 @@ fn is_hidden(entry: &DirEntry) -> bool {
 mod tests {
     use std::collections::HashMap;
 
-    use serde_yaml::Value;
+    use serde_json::Value;
 
     use weaver_common::error::format_errors;
 
     use crate::finding::PolicyFinding;
-    use crate::{split_glob, Engine, Error, PolicyStage};
+    use crate::{split_glob, Engine, Error, PolicyStage, SEMCONV_REGO};
 
     #[test]
     fn test_policy() -> Result<(), Box<dyn std::error::Error>> {
@@ -652,11 +666,11 @@ mod tests {
         assert_eq!(policy_package, "data.before_resolution");
 
         let old_semconv = std::fs::read_to_string("data/registries/registry.network.old.yaml")?;
-        let old_semconv: Value = serde_yaml::from_str(&old_semconv)?;
+        let old_semconv: Value = serde_saphyr::from_str(&old_semconv)?;
         engine.add_data(&old_semconv)?;
 
         let new_semconv = std::fs::read_to_string("data/registries/registry.network.new.yaml")?;
-        let new_semconv: Value = serde_yaml::from_str(&new_semconv)?;
+        let new_semconv: Value = serde_saphyr::from_str(&new_semconv)?;
         engine.set_input(&new_semconv)?;
 
         let expected_violations: HashMap<String, PolicyFinding> = vec![
@@ -716,6 +730,144 @@ mod tests {
         assert!(result.is_err());
     }
 
+    /// A materialized v2 registry, cut down to what the entity helpers read.
+    /// The main registry and its dependency both define `host`, and each brief
+    /// says where the definition came from. `core` is transitive: only `dep`
+    /// depends on it.
+    fn entity_input(associations: Value) -> Value {
+        serde_json::json!({
+            "schema_url": "https://example.com/main/1.0.0",
+            "registry": {
+                "entities": [{"type": "host", "brief": "main host"}],
+                "metrics": [{"name": "main.request.count", "entity_associations": associations}],
+            },
+            "refinements": {
+                "entities": [{"id": "host.linux", "type": "host", "brief": "main host on linux"}],
+            },
+            "dependencies": {
+                "https://example.com/dep/1.0.0": {
+                    "registry": {"entities": [{"type": "host", "brief": "dep host"}]},
+                    "refinements": {"entities": []},
+                },
+                "https://example.com/core/1.0.0": {
+                    "registry": {"entities": [{"type": "service", "brief": "core service"}]},
+                    "refinements": {"entities": []},
+                },
+            },
+            "dependency_graph": {
+                "https://example.com/main/1.0.0": ["https://example.com/dep/1.0.0"],
+                "https://example.com/dep/1.0.0": ["https://example.com/core/1.0.0"],
+            },
+        })
+    }
+
+    /// A reference into the dependency.
+    fn dep_ref(r#type: &str) -> Value {
+        serde_json::json!({
+            "type": r#type,
+            "provenance": {"source": "https://example.com/dep/1.0.0"},
+        })
+    }
+
+    /// A reference into the dependency of the dependency.
+    fn core_ref(r#type: &str) -> Value {
+        serde_json::json!({
+            "type": r#type,
+            "provenance": {"source": "https://example.com/core/1.0.0"},
+        })
+    }
+
+    /// Runs the entity policy over an input and returns the messages it reports,
+    /// sorted.
+    fn resolved_entities(input: &Value) -> Vec<String> {
+        let mut engine = Engine::new();
+        _ = engine
+            .add_policy("defaults/rego/semconv.rego", SEMCONV_REGO)
+            .expect("the semconv library");
+        _ = engine
+            .add_policy_from_file("data/policies/entity_associations.rego")
+            .expect("the test policy");
+        engine.set_input(input).expect("the input");
+        let mut messages: Vec<String> = engine
+            .check(PolicyStage::AfterResolution)
+            .expect("the policy to run")
+            .into_iter()
+            .map(|finding| finding.message)
+            .collect();
+        messages.sort();
+        messages
+    }
+
+    /// `entity_refs` reaches a leaf at any depth of the `one_of` and `all_of`
+    /// tree.
+    #[test]
+    fn test_entity_refs_walks_the_association_tree() {
+        let associations = serde_json::json!([{
+            "all_of": [
+                {"type": "host"},
+                {"one_of": [dep_ref("host"), {"type": "host.linux"}]},
+            ],
+        }]);
+        assert_eq!(
+            resolved_entities(&entity_input(associations)),
+            vec![
+                "host -> dep host",
+                "host -> main host",
+                "host.linux -> main host on linux",
+            ]
+        );
+    }
+
+    /// Two registries define `host`. Each leaf reads the definition from the
+    /// registry it names.
+    #[test]
+    fn test_lookup_entity_reads_the_registry_the_leaf_names() {
+        let associations = serde_json::json!([{"type": "host"}, dep_ref("host")]);
+        assert_eq!(
+            resolved_entities(&entity_input(associations)),
+            vec!["host -> dep host", "host -> main host"]
+        );
+    }
+
+    /// A leaf can name a registry that only a dependency depends on.
+    #[test]
+    fn test_lookup_entity_from_a_transitive_dependency() {
+        let associations = serde_json::json!([core_ref("service")]);
+        assert_eq!(
+            resolved_entities(&entity_input(associations)),
+            vec!["service -> core service"]
+        );
+    }
+
+    /// A leaf names an entity type or the id of an entity refinement.
+    #[test]
+    fn test_lookup_entity_finds_a_refinement() {
+        let associations = serde_json::json!([{"type": "host.linux"}]);
+        assert_eq!(
+            resolved_entities(&entity_input(associations)),
+            vec!["host.linux -> main host on linux"]
+        );
+    }
+
+    /// An entity type wins over a refinement of the same name, as it does in
+    /// weaver.
+    #[test]
+    fn test_lookup_entity_prefers_an_entity_to_a_refinement() {
+        let mut input = entity_input(serde_json::json!([{"type": "host"}]));
+        input["refinements"]["entities"] = serde_json::json!([
+            {"id": "host", "type": "host", "brief": "main host refinement"},
+        ]);
+        assert_eq!(resolved_entities(&input), vec!["host -> main host"]);
+    }
+
+    /// A name that no registry defines resolves to nothing, and the policy
+    /// reports nothing.
+    #[test]
+    fn test_lookup_entity_unknown_name() {
+        let associations = serde_json::json!([{"type": "nothing"}, dep_ref("nothing")]);
+        assert!(resolved_entities(&entity_input(associations)).is_empty());
+    }
+
     #[test]
     fn test_invalid_violation_object() {
         let mut engine = Engine::new();
@@ -725,7 +877,7 @@ mod tests {
 
         let new_semconv =
             std::fs::read_to_string("data/registries/registry.network.new.yaml").unwrap();
-        let new_semconv: Value = serde_yaml::from_str(&new_semconv).unwrap();
+        let new_semconv: Value = serde_saphyr::from_str(&new_semconv).unwrap();
         engine.set_input(&new_semconv).unwrap();
 
         let result = engine.check(PolicyStage::BeforeResolution);
@@ -759,11 +911,11 @@ mod tests {
         assert!(result.is_ok());
 
         let old_semconv = std::fs::read_to_string("data/registries/registry.network.old.yaml")?;
-        let old_semconv: Value = serde_yaml::from_str(&old_semconv)?;
+        let old_semconv: Value = serde_saphyr::from_str(&old_semconv)?;
         engine.add_data(&old_semconv)?;
 
         let new_semconv = std::fs::read_to_string("data/registries/registry.network.new.yaml")?;
-        let new_semconv: Value = serde_yaml::from_str(&new_semconv)?;
+        let new_semconv: Value = serde_saphyr::from_str(&new_semconv)?;
         engine.set_input(&new_semconv)?;
 
         let expected_violations: HashMap<String, PolicyFinding> = vec![

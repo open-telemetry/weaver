@@ -12,21 +12,14 @@ use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 
-pub mod any_value;
-pub mod attribute;
+pub mod convert;
 pub mod deprecated;
-pub mod entity_association;
-pub mod group;
 pub mod json_schema;
-pub mod manifest;
 pub mod provenance;
-pub mod registry;
 pub mod registry_repo;
 pub mod schema_url;
 pub mod semconv;
-pub mod signal_requirement_level;
-pub mod stability;
-pub mod stats;
+pub mod v1;
 pub mod v2;
 
 /// An error that can occur while loading a semantic convention registry.
@@ -389,6 +382,16 @@ pub enum Error {
         path: PathBuf,
     },
 
+    /// This warning is raised when a `manifest.yaml` file is missing the `file_format` field.
+    #[diagnostic(severity(Warning))]
+    #[error("The registry manifest at {path:?} is missing the 'file_format' field. It is assumed to be a V2 definition manifest ('{expected_format}'). Please add 'file_format: {expected_format}' to the manifest.")]
+    MissingManifestFileFormat {
+        /// The path to the registry manifest file.
+        path: PathBuf,
+        /// The expected file format string.
+        expected_format: String,
+    },
+
     /// This error is raised when a registry manifest includes deprecated properties.
     #[error("The syntax used in the registry manifest at {path:?} is deprecated. {error}")]
     #[diagnostic(severity(Warning))]
@@ -415,6 +418,22 @@ pub enum Error {
     UnexpectedPublicationManifest {
         /// The schema URL of the publication manifest.
         schema_url: String,
+    },
+
+    /// Failed to resolve the schema URL for a registry.
+    #[error("Schema URL is missing in the manifest and cannot be constructed from the registry name and version.")]
+    #[diagnostic(severity(Error))]
+    FailToResolveSchemaUrl {},
+
+    /// A registry whose dependencies do not pin a version cannot be packaged.
+    #[error("Dependency `{schema_url}` (registry_path: {}) does not pin a version, which a publication manifest requires. Declare it with a versioned `schema_url` before packaging.", .registry_path.as_deref().unwrap_or("not specified"))]
+    #[diagnostic(severity(Error))]
+    UnversionedDependencyInPublication {
+        /// The schema URL of the dependency, which carries no usable version.
+        /// It is a placeholder when the dependency is declared by `name`.
+        schema_url: String,
+        /// Where the dependency's files were declared to live, if anywhere.
+        registry_path: Option<String>,
     },
 
     /// A schema_url has an invalid version component.
@@ -490,11 +509,11 @@ impl From<Error> for DiagnosticMessages {
     }
 }
 
-/// Create a newtype wrapper for serde_yaml::value::Value in order to implement
+/// Create a newtype wrapper for serde_json::Value in order to implement
 /// JsonSchema for it.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(transparent)]
-pub struct YamlValue(pub serde_yaml::value::Value);
+pub struct YamlValue(pub serde_json::Value);
 
 impl PartialOrd for YamlValue {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
@@ -506,117 +525,83 @@ impl Ord for YamlValue {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         // TODO - Implement.
         match (&self.0, &other.0) {
-            (serde_yaml::Value::Null, serde_yaml::Value::Null) => std::cmp::Ordering::Equal,
-            (serde_yaml::Value::Null, serde_yaml::Value::Bool(_)) => std::cmp::Ordering::Less,
-            (serde_yaml::Value::Null, serde_yaml::Value::Number(_)) => std::cmp::Ordering::Less,
-            (serde_yaml::Value::Null, serde_yaml::Value::String(_)) => std::cmp::Ordering::Less,
-            (serde_yaml::Value::Null, serde_yaml::Value::Sequence(_)) => std::cmp::Ordering::Less,
-            (serde_yaml::Value::Null, serde_yaml::Value::Mapping(_)) => std::cmp::Ordering::Less,
-            (serde_yaml::Value::Null, serde_yaml::Value::Tagged(_)) => std::cmp::Ordering::Less,
-            (serde_yaml::Value::Bool(_), serde_yaml::Value::Null) => std::cmp::Ordering::Greater,
-            (serde_yaml::Value::Bool(l), serde_yaml::Value::Bool(r)) => l.cmp(r),
-            (serde_yaml::Value::Bool(_), serde_yaml::Value::Number(_)) => std::cmp::Ordering::Less,
-            (serde_yaml::Value::Bool(_), serde_yaml::Value::String(_)) => std::cmp::Ordering::Less,
-            (serde_yaml::Value::Bool(_), serde_yaml::Value::Sequence(_)) => {
-                std::cmp::Ordering::Less
-            }
-            (serde_yaml::Value::Bool(_), serde_yaml::Value::Mapping(_)) => std::cmp::Ordering::Less,
-            (serde_yaml::Value::Bool(_), serde_yaml::Value::Tagged(_)) => std::cmp::Ordering::Less,
-            (serde_yaml::Value::Number(_), serde_yaml::Value::Null) => std::cmp::Ordering::Greater,
-            (serde_yaml::Value::Number(_), serde_yaml::Value::Bool(_)) => {
+            (serde_json::Value::Null, serde_json::Value::Null) => std::cmp::Ordering::Equal,
+            (serde_json::Value::Null, serde_json::Value::Bool(_)) => std::cmp::Ordering::Less,
+            (serde_json::Value::Null, serde_json::Value::Number(_)) => std::cmp::Ordering::Less,
+            (serde_json::Value::Null, serde_json::Value::String(_)) => std::cmp::Ordering::Less,
+            (serde_json::Value::Null, serde_json::Value::Array(_)) => std::cmp::Ordering::Less,
+            (serde_json::Value::Null, serde_json::Value::Object(_)) => std::cmp::Ordering::Less,
+            (serde_json::Value::Bool(_), serde_json::Value::Null) => std::cmp::Ordering::Greater,
+            (serde_json::Value::Bool(l), serde_json::Value::Bool(r)) => l.cmp(r),
+            (serde_json::Value::Bool(_), serde_json::Value::Number(_)) => std::cmp::Ordering::Less,
+            (serde_json::Value::Bool(_), serde_json::Value::String(_)) => std::cmp::Ordering::Less,
+            (serde_json::Value::Bool(_), serde_json::Value::Array(_)) => std::cmp::Ordering::Less,
+            (serde_json::Value::Bool(_), serde_json::Value::Object(_)) => std::cmp::Ordering::Less,
+            (serde_json::Value::Number(_), serde_json::Value::Null) => std::cmp::Ordering::Greater,
+            (serde_json::Value::Number(_), serde_json::Value::Bool(_)) => {
                 std::cmp::Ordering::Greater
             }
-            (serde_yaml::Value::Number(l), serde_yaml::Value::Number(r)) => {
-                l.partial_cmp(r).unwrap_or(std::cmp::Ordering::Less)
+            (serde_json::Value::Number(l), serde_json::Value::Number(r)) => {
+                match (l.as_i64(), r.as_i64()) {
+                    (Some(l), Some(r)) => l.cmp(&r),
+                    _ => match (l.as_u64(), r.as_u64()) {
+                        (Some(l), Some(r)) => l.cmp(&r),
+                        _ => l
+                            .as_f64()
+                            .and_then(|lf| r.as_f64().and_then(|rf| lf.partial_cmp(&rf)))
+                            .unwrap_or(std::cmp::Ordering::Less),
+                    },
+                }
             }
-            (serde_yaml::Value::Number(_), serde_yaml::Value::String(_)) => {
+            (serde_json::Value::Number(_), serde_json::Value::String(_)) => {
                 std::cmp::Ordering::Less
             }
-            (serde_yaml::Value::Number(_), serde_yaml::Value::Sequence(_)) => {
+            (serde_json::Value::Number(_), serde_json::Value::Array(_)) => std::cmp::Ordering::Less,
+            (serde_json::Value::Number(_), serde_json::Value::Object(_)) => {
                 std::cmp::Ordering::Less
             }
-            (serde_yaml::Value::Number(_), serde_yaml::Value::Mapping(_)) => {
-                std::cmp::Ordering::Less
-            }
-            (serde_yaml::Value::Number(_), serde_yaml::Value::Tagged(_)) => {
-                std::cmp::Ordering::Less
-            }
-            (serde_yaml::Value::String(_), serde_yaml::Value::Null) => std::cmp::Ordering::Greater,
-            (serde_yaml::Value::String(_), serde_yaml::Value::Bool(_)) => {
+            (serde_json::Value::String(_), serde_json::Value::Null) => std::cmp::Ordering::Greater,
+            (serde_json::Value::String(_), serde_json::Value::Bool(_)) => {
                 std::cmp::Ordering::Greater
             }
-            (serde_yaml::Value::String(_), serde_yaml::Value::Number(_)) => {
+            (serde_json::Value::String(_), serde_json::Value::Number(_)) => {
                 std::cmp::Ordering::Greater
             }
-            (serde_yaml::Value::String(l), serde_yaml::Value::String(r)) => l.cmp(r),
-            (serde_yaml::Value::String(_), serde_yaml::Value::Sequence(_)) => {
+            (serde_json::Value::String(l), serde_json::Value::String(r)) => l.cmp(r),
+            (serde_json::Value::String(_), serde_json::Value::Array(_)) => std::cmp::Ordering::Less,
+            (serde_json::Value::String(_), serde_json::Value::Object(_)) => {
                 std::cmp::Ordering::Less
             }
-            (serde_yaml::Value::String(_), serde_yaml::Value::Mapping(_)) => {
-                std::cmp::Ordering::Less
-            }
-            (serde_yaml::Value::String(_), serde_yaml::Value::Tagged(_)) => {
-                std::cmp::Ordering::Less
-            }
-            (serde_yaml::Value::Sequence(_), serde_yaml::Value::Null) => {
+            (serde_json::Value::Array(_), serde_json::Value::Null) => std::cmp::Ordering::Greater,
+            (serde_json::Value::Array(_), serde_json::Value::Bool(_)) => {
                 std::cmp::Ordering::Greater
             }
-            (serde_yaml::Value::Sequence(_), serde_yaml::Value::Bool(_)) => {
+            (serde_json::Value::Array(_), serde_json::Value::Number(_)) => {
                 std::cmp::Ordering::Greater
             }
-            (serde_yaml::Value::Sequence(_), serde_yaml::Value::Number(_)) => {
+            (serde_json::Value::Array(_), serde_json::Value::String(_)) => {
                 std::cmp::Ordering::Greater
             }
-            (serde_yaml::Value::Sequence(_), serde_yaml::Value::String(_)) => {
-                std::cmp::Ordering::Greater
-            }
-            (serde_yaml::Value::Sequence(_l), serde_yaml::Value::Sequence(_r)) => {
+            (serde_json::Value::Array(_l), serde_json::Value::Array(_r)) => {
                 // TODO - actually implement a comparison.
                 // This is good enough for sorting attributes.
                 std::cmp::Ordering::Equal
             }
-            (serde_yaml::Value::Sequence(_), serde_yaml::Value::Mapping(_)) => {
-                std::cmp::Ordering::Less
-            }
-            (serde_yaml::Value::Sequence(_), serde_yaml::Value::Tagged(_)) => {
-                std::cmp::Ordering::Less
-            }
-            (serde_yaml::Value::Mapping(_), serde_yaml::Value::Null) => std::cmp::Ordering::Greater,
-            (serde_yaml::Value::Mapping(_), serde_yaml::Value::Bool(_)) => {
+            (serde_json::Value::Array(_), serde_json::Value::Object(_)) => std::cmp::Ordering::Less,
+            (serde_json::Value::Object(_), serde_json::Value::Null) => std::cmp::Ordering::Greater,
+            (serde_json::Value::Object(_), serde_json::Value::Bool(_)) => {
                 std::cmp::Ordering::Greater
             }
-            (serde_yaml::Value::Mapping(_), serde_yaml::Value::Number(_)) => {
+            (serde_json::Value::Object(_), serde_json::Value::Number(_)) => {
                 std::cmp::Ordering::Greater
             }
-            (serde_yaml::Value::Mapping(_), serde_yaml::Value::String(_)) => {
+            (serde_json::Value::Object(_), serde_json::Value::String(_)) => {
                 std::cmp::Ordering::Greater
             }
-            (serde_yaml::Value::Mapping(_), serde_yaml::Value::Sequence(_)) => {
+            (serde_json::Value::Object(_), serde_json::Value::Array(_)) => {
                 std::cmp::Ordering::Greater
             }
-            (serde_yaml::Value::Mapping(_l), serde_yaml::Value::Mapping(_r)) => {
-                // TODO - actually implement a comparison.
-                // This is good enough for sorting attributes.
-                std::cmp::Ordering::Equal
-            }
-            (serde_yaml::Value::Mapping(_), serde_yaml::Value::Tagged(_)) => {
-                std::cmp::Ordering::Less
-            }
-            (serde_yaml::Value::Tagged(_), serde_yaml::Value::Null) => std::cmp::Ordering::Less,
-            (serde_yaml::Value::Tagged(_), serde_yaml::Value::Bool(_)) => std::cmp::Ordering::Less,
-            (serde_yaml::Value::Tagged(_), serde_yaml::Value::Number(_)) => {
-                std::cmp::Ordering::Less
-            }
-            (serde_yaml::Value::Tagged(_), serde_yaml::Value::String(_)) => {
-                std::cmp::Ordering::Less
-            }
-            (serde_yaml::Value::Tagged(_), serde_yaml::Value::Sequence(_)) => {
-                std::cmp::Ordering::Less
-            }
-            (serde_yaml::Value::Tagged(_), serde_yaml::Value::Mapping(_)) => {
-                std::cmp::Ordering::Less
-            }
-            (serde_yaml::Value::Tagged(_l), serde_yaml::Value::Tagged(_r)) => {
+            (serde_json::Value::Object(_l), serde_json::Value::Object(_r)) => {
                 // TODO - actually implement a comparison.
                 // This is good enough for sorting attributes.
                 std::cmp::Ordering::Equal
@@ -667,99 +652,43 @@ impl std::hash::Hash for YamlValue {
         // Convert the YAML value to a string representation for hashing
         // This is a simplification that works for most cases
         match &self.0 {
-            serde_yaml::Value::Null => {
+            serde_json::Value::Null => {
                 0_u8.hash(state);
                 "null".hash(state);
             }
-            serde_yaml::Value::Bool(b) => {
+            serde_json::Value::Bool(b) => {
                 1_u8.hash(state);
                 b.hash(state);
             }
-            serde_yaml::Value::Number(n) => {
+            serde_json::Value::Number(n) => {
                 2_u8.hash(state);
                 // Convert number to string for hashing as Number itself doesn't implement Hash
                 n.to_string().hash(state);
             }
-            serde_yaml::Value::String(s) => {
+            serde_json::Value::String(s) => {
                 3_u8.hash(state);
                 s.hash(state);
             }
-            serde_yaml::Value::Sequence(seq) => {
+            serde_json::Value::Array(seq) => {
                 4_u8.hash(state);
-                // Hash each element's string representation
+                // Hash each element's representation
                 for item in seq {
                     YamlValue(item.clone()).hash(state);
                 }
             }
-            serde_yaml::Value::Mapping(map) => {
+            serde_json::Value::Object(map) => {
                 5_u8.hash(state);
                 // Sort keys for consistent hashing
-                let mut keys: Vec<_> = map.keys().cloned().collect();
-
-                // Custom sort function that doesn't rely on to_string()
-                keys.sort_by(|a, b| {
-                    // Compare keys based on their variant first
-                    let type_order = |v: &serde_yaml::Value| -> u8 {
-                        match v {
-                            serde_yaml::Value::Null => 0,
-                            serde_yaml::Value::Bool(_) => 1,
-                            serde_yaml::Value::Number(_) => 2,
-                            serde_yaml::Value::String(_) => 3,
-                            serde_yaml::Value::Sequence(_) => 4,
-                            serde_yaml::Value::Mapping(_) => 5,
-                            serde_yaml::Value::Tagged(_) => 6,
-                        }
-                    };
-
-                    let a_order = type_order(a);
-                    let b_order = type_order(b);
-
-                    if a_order != b_order {
-                        return a_order.cmp(&b_order);
-                    }
-
-                    // If same type, do a specialized comparison
-                    match (a, b) {
-                        (serde_yaml::Value::Null, serde_yaml::Value::Null) => {
-                            std::cmp::Ordering::Equal
-                        }
-                        (serde_yaml::Value::Bool(a_val), serde_yaml::Value::Bool(b_val)) => {
-                            a_val.cmp(b_val)
-                        }
-                        (serde_yaml::Value::Number(a_val), serde_yaml::Value::Number(b_val)) => {
-                            // Compare as strings since we can't directly compare numbers
-                            a_val.to_string().cmp(&b_val.to_string())
-                        }
-                        (serde_yaml::Value::String(a_val), serde_yaml::Value::String(b_val)) => {
-                            a_val.cmp(b_val)
-                        }
-                        // For complex types, we'll use a hash-based comparison
-                        // This isn't ideal for sorting but ensures consistency
-                        _ => {
-                            // Create a hasher and hash both values
-                            let mut a_hasher = std::collections::hash_map::DefaultHasher::new();
-                            let mut b_hasher = std::collections::hash_map::DefaultHasher::new();
-
-                            YamlValue(a.clone()).hash(&mut a_hasher);
-                            YamlValue(b.clone()).hash(&mut b_hasher);
-
-                            a_hasher.finish().cmp(&b_hasher.finish())
-                        }
-                    }
-                });
+                let mut keys: Vec<_> = map.keys().collect();
+                keys.sort();
 
                 // Hash each key-value pair
                 for key in keys {
-                    YamlValue(key.clone()).hash(state);
-                    if let Some(value) = map.get(&key) {
+                    key.hash(state);
+                    if let Some(value) = map.get(key) {
                         YamlValue(value.clone()).hash(state);
                     }
                 }
-            }
-            serde_yaml::Value::Tagged(tag) => {
-                6_u8.hash(state);
-                tag.tag.hash(state);
-                YamlValue(tag.value.clone()).hash(state);
             }
         }
     }
@@ -767,7 +696,7 @@ impl std::hash::Hash for YamlValue {
 
 #[cfg(test)]
 mod tests {
-    use crate::{registry::SemConvRegistry, schema_url::SchemaUrl, YamlValue};
+    use crate::{schema_url::SchemaUrl, v1::registry::SemConvRegistry, YamlValue};
     use std::{error::Error, vec};
     use weaver_common::diagnostic::DiagnosticMessages;
 
@@ -804,11 +733,11 @@ mod tests {
 
     #[test]
     fn test_yaml_comparison() -> Result<(), Box<dyn Error>> {
-        let boolean = YamlValue(serde_yaml::from_str("false")?);
-        let number = YamlValue(serde_yaml::from_str("5")?);
-        let string = YamlValue(serde_yaml::from_str("\"5\"")?);
-        let sequence = YamlValue(serde_yaml::from_str("- 1.0\n- \"hi\"")?);
-        let mapping = YamlValue(serde_yaml::from_str("x: one\ny: two")?);
+        let boolean = YamlValue(serde_saphyr::from_str("false")?);
+        let number = YamlValue(serde_saphyr::from_str("5")?);
+        let string = YamlValue(serde_saphyr::from_str("\"5\"")?);
+        let sequence = YamlValue(serde_saphyr::from_str("- 1.0\n- \"hi\"")?);
+        let mapping = YamlValue(serde_saphyr::from_str("x: one\ny: two")?);
         let mut values = vec![
             mapping.clone(),
             sequence.clone(),

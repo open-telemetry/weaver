@@ -7,7 +7,7 @@
       "brief": "Base entity",
       "stability": "stable",
       "attributes": [
-        2,
+        1,
         8
       ],
       "name": "base.entity",
@@ -22,10 +22,10 @@
             "inherited_fields": [
               "brief",
               "note",
-              "requirement_level",
               "stability"
             ],
             "locally_overridden_fields": [
+              "requirement_level",
               "role"
             ]
           },
@@ -66,11 +66,11 @@
             "source_group": "registry.data.registry-test-v2-4-refinements.registry.v2-refinements",
             "inherited_fields": [
               "note",
-              "requirement_level",
               "stability"
             ],
             "locally_overridden_fields": [
               "brief",
+              "requirement_level",
               "role"
             ]
           },
@@ -237,7 +237,7 @@
       "type": "attribute_group",
       "brief": "<synthetic v2>",
       "attributes": [
-        1,
+        2,
         7,
         10
       ],

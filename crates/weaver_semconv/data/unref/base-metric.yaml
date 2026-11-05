@@ -1,0 +1,9 @@
+file_format: definition/2
+metrics:
+  - name: base
+    instrument: counter
+    unit: '1'
+    brief: Base
+    stability: stable
+    attributes:
+      - unref: test.attr

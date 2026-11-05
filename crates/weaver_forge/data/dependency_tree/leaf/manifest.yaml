@@ -1,0 +1,4 @@
+# The bottom of the chain. Only `sub` depends on it.
+name: leaf
+description: Depended on by sub, and reachable from root only through the chain.
+schema_url: https://example.com/dependency-tree-leaf/1.0.0

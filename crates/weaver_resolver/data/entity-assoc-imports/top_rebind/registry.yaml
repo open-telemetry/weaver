@@ -1,0 +1,19 @@
+file_format: definition/2
+imports:
+  metrics:
+    - middle.request.count
+attributes:
+  - key: top.host.uid
+    type: string
+    stability: stable
+    brief: Host identifier, defined independently in top_rebind.
+    examples: ["xyz789"]
+entities:
+  # Shares a name with the `host` of base, and nothing else. The imported
+  # metric is not associated with this entity.
+  - type: host
+    requirement_level: recommended
+    stability: stable
+    brief: A host, defined independently in top_rebind.
+    identity:
+      - ref: top.host.uid

@@ -44,11 +44,16 @@ pub(crate) fn command(
     cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     let mut diag_msgs = DiagnosticMessages::empty();
     info!("Weaver Registry Check");
     info!("Checking registry `{}`", cmd_config.registry.registry);
-    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let weaver = WeaverEngine::new(
+        &cmd_config.registry,
+        &cmd_config.policy,
+        &cmd_config.resolve,
+        auth,
+    );
 
     // Initialize the main registry.
     let main_resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
@@ -94,6 +99,74 @@ mod tests {
     fn test_config_cli_consistency() {
         use crate::registry::tests::assert_config_cli_consistency;
         assert_config_cli_consistency::<RegistryCheckArgs>();
+    }
+
+    #[test]
+    fn test_policy_finding_filter_config_reaches_engine() {
+        use clap::Parser;
+        let dir = tempfile::tempdir().unwrap();
+        let policy = dir.path().join("test.rego");
+        std::fs::write(
+            &policy,
+            r#"
+            package after_resolution
+            import rego.v1
+            deny contains {"id": "test_removed", "message": "removed", "level": "violation", "signal_type": "entity", "signal_name": "device"}
+        "#,
+        )
+        .unwrap();
+        let config = dir.path().join(".weaver.toml");
+        std::fs::write(
+            &config,
+            r#"
+            [[policy.finding_filters]]
+            exclude = ["test_removed"]
+            signal_type = "entity"
+            signal_names = ["dev*"]
+        "#,
+        )
+        .unwrap();
+        let model = dir.path().join("model");
+        std::fs::create_dir_all(&model).unwrap();
+        std::fs::write(
+            model.join("registry.yaml"),
+            r#"
+            groups:
+              - id: registry.example
+                type: attribute_group
+                brief: Example attributes.
+                attributes:
+                  - id: example.name
+                    type: string
+                    brief: Example name.
+                    stability: development
+                    examples: [example]
+        "#,
+        )
+        .unwrap();
+        let cli = Cli::try_parse_from([
+            "weaver",
+            "--config",
+            config.to_str().unwrap(),
+            "registry",
+            "check",
+            "-r",
+            model.to_str().unwrap(),
+            "-p",
+            policy.to_str().unwrap(),
+        ])
+        .unwrap();
+        assert_eq!(run_command(&cli).exit_code, 0);
+        std::fs::write(
+            &config,
+            r#"
+            [[policy.finding_filters]]
+            exclude = ["test_removed"]
+            signal_names = ["host"]
+        "#,
+        )
+        .unwrap();
+        assert_eq!(run_command(&cli).exit_code, 1);
     }
 
     #[test]
@@ -227,6 +300,49 @@ mod tests {
         }
     }
 
+    /// A policy reads an entity definition through the `semconv` rego library:
+    /// `entity_refs` walks the association tree, and `lookup_entity` follows the
+    /// leaf into the dependency that defines the entity.
+    #[test]
+    fn test_v2_entity_association_policies() {
+        let registry_cmd = RegistryCommand {
+            command: RegistrySubCommand::Check(RegistryCheckArgs {
+                registry: RegistryArgs {
+                    registry: Some(VirtualDirectoryPath::LocalFolder {
+                        path: "tests/v2_check_entities/main".to_owned(),
+                    }),
+                    v2: Some(true),
+                    ..Default::default()
+                },
+                baseline_registry: None,
+                policy: PolicyArgs {
+                    ..Default::default()
+                },
+                diagnostic: Default::default(),
+            }),
+        };
+        let cmd_result = semconv_registry(&registry_cmd, None, &HttpAuthResolver::empty());
+        assert!(cmd_result.command_result.is_err());
+        if let Err(diag_msgs) = cmd_result.command_result {
+            // The metric names two entities of the dependency. Only `host` is
+            // unstable, so the stable one raises nothing.
+            let messages = format!("{diag_msgs:?}");
+            assert!(
+                messages.contains("unstable_entity_association"),
+                "expected the entity finding, got: {messages}"
+            );
+            assert!(
+                messages.contains("entity 'host', which is 'development'"),
+                "expected the finding to name the entity, got: {messages}"
+            );
+            assert_eq!(
+                diag_msgs.len(),
+                2 /* Unstable file version, one per registry */
+                + 1 /* the unstable entity association */
+            );
+        }
+    }
+
     #[test]
     fn test_v2_baseline_policies() {
         let registry_cmd = RegistryCommand {
@@ -298,6 +414,35 @@ mod tests {
                 diag_msgs.len(),
                 1 /* Unstable file version */
                 + 1 /* before_resolution warning */
+            );
+        }
+    }
+
+    #[test]
+    fn test_v2_entity_refinement_without_identity() {
+        let registry_cmd = RegistryCommand {
+            command: RegistrySubCommand::Check(RegistryCheckArgs {
+                registry: RegistryArgs {
+                    registry: Some(VirtualDirectoryPath::LocalFolder {
+                        path: "crates/weaver_resolver/data/registry-test-v2-9-identity-refinement-no-identity/registry".to_owned(),
+                    }),
+                    v2: Some(true),
+                    ..Default::default()
+                },
+                baseline_registry: None,
+                policy: PolicyArgs {
+                    ..Default::default()
+                },
+                diagnostic: Default::default(),
+            }),
+        };
+        let cmd_result = semconv_registry(&registry_cmd, None, &HttpAuthResolver::empty());
+        assert!(cmd_result.command_result.is_err());
+        if let Err(diag_msgs) = cmd_result.command_result {
+            let messages = format!("{diag_msgs:?}");
+            assert!(
+                messages.contains("Entity refinement `tiny.legacy.refined` cannot refine `entity.tiny.legacy`: `entity.tiny.legacy` does not declare any `identity` attributes and is not valid under the v2 schema"),
+                "expected refinement without identity error, got: {messages}"
             );
         }
     }

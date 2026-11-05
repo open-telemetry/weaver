@@ -1,0 +1,25 @@
+file_format: definition/2
+attributes:
+  - key: host.id
+    type: string
+    stability: stable
+    brief: Unique host ID, defined in base.
+    examples: ["abc123"]
+  - key: host.os.build
+    type: string
+    stability: stable
+    brief: Build of the host operating system.
+    examples: ["22621"]
+entities:
+  - type: host
+    requirement_level: recommended
+    stability: stable
+    brief: A host, defined in base.
+    identity:
+      - ref: host.id
+entity_refinements:
+  - id: entity.host.windows
+    ref: host
+    brief: A host running Windows.
+    description:
+      - ref: host.os.build

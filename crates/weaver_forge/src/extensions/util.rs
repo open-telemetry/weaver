@@ -3,12 +3,14 @@
 //! Set of utility filters and tests used by the Weaver project.
 
 use crate::config::WeaverConfig;
+use crate::v2::entity::EntityRef;
+use crate::v2::registry::ForgeResolvedRegistry;
 use minijinja::value::Rest;
 use minijinja::{Environment, ErrorKind, Value};
 use regex::Regex;
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 /// Add utility filters and tests to the environment.
 pub(crate) fn add_filters(env: &mut Environment<'_>, target_config: &WeaverConfig) {
@@ -24,8 +26,48 @@ pub(crate) fn add_filters(env: &mut Environment<'_>, target_config: &WeaverConfi
 }
 
 /// Add utility functions to the environment.
-pub(crate) fn add_functions(env: &mut Environment<'_>) {
+///
+/// `registry` is the v2 registry under generation, if there is one.
+/// `lookup_entity` reads entity definitions from it.
+pub(crate) fn add_functions(
+    env: &mut Environment<'_>,
+    registry: Option<Arc<ForgeResolvedRegistry>>,
+) {
     env.add_function("concat_if", concat_if);
+    env.add_function("lookup_entity", lookup_entity(registry));
+}
+
+/// Returns a function that reads the entity definition an
+/// `entity_associations` leaf names.
+///
+/// A leaf names the entity and the registry that defines it, so the lookup
+/// reads one registry. A registry does not copy the entities of its
+/// dependencies, so a leaf often names a dependency.
+fn lookup_entity(
+    registry: Option<Arc<ForgeResolvedRegistry>>,
+) -> impl Fn(Value) -> Result<Value, minijinja::Error> {
+    move |leaf: Value| {
+        let Some(registry) = registry.as_deref() else {
+            return Err(minijinja::Error::new(
+                ErrorKind::InvalidOperation,
+                "`lookup_entity` needs a v2 registry, and this target generates from another context",
+            ));
+        };
+        // The leaf is plain data in the template. Serde reads it back into the
+        // type the lookup takes, so the shape is defined in one place.
+        let entity_ref: EntityRef = serde_json::to_value(&leaf)
+            .and_then(serde_json::from_value)
+            .map_err(|e| {
+                minijinja::Error::new(
+                    ErrorKind::InvalidOperation,
+                    format!("`lookup_entity` expects an entity association reference, found `{leaf}`: {e}"),
+                )
+            })?;
+        registry
+            .lookup_entity(&entity_ref)
+            .map(Value::from_serialize)
+            .map_err(|e| minijinja::Error::new(ErrorKind::InvalidOperation, e.to_string()))
+    }
 }
 
 /// Concatenate a list of values into a single string IF all values are defined.
@@ -166,7 +208,7 @@ pub fn acronym(acronyms: Vec<String>) -> impl Fn(&str) -> String {
 
 // Helper filter to dump value (1st parameter) in yaml format.
 fn to_yaml(value: &Value) -> Result<Value, minijinja::Error> {
-    let yaml = serde_yaml::to_string(&value)
+    let yaml = serde_saphyr::to_string(&value)
         .map_err(|e| minijinja::Error::new(ErrorKind::BadSerialization, e.to_string()))
         .map(|s| {
             // When this filter is used the return value is safe for both HTML and JSON
@@ -187,11 +229,261 @@ fn to_yaml(value: &Value) -> Result<Value, minijinja::Error> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
     use std::fs;
+    use std::sync::Arc;
 
-    use crate::extensions::util::add_filters;
+    use crate::extensions::util::{add_filters, add_functions};
+    use crate::v2::attribute::Attribute;
+    use crate::v2::entity::{Entity, EntityRefinement};
+    use crate::v2::provenance::Provenance;
+    use crate::v2::registry::{ForgeDependency, ForgeResolvedRegistry, Refinements, Registry};
     use minijinja::Environment;
-    use serde_yaml::{Mapping, Number, Value};
+    use serde_json::json;
+    use weaver_semconv::schema_url::SchemaUrl;
+    use weaver_semconv::v2::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
+    use weaver_semconv::v2::CommonFields;
+
+    /// An identity attribute for a test entity.
+    fn test_attribute(key: &str) -> Attribute {
+        Attribute {
+            key: key.to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            examples: None,
+            common: CommonFields::default(),
+            provenance: Provenance::default(),
+        }
+    }
+
+    /// A test entity. Its identity attribute key names the registry that
+    /// defines it, so a test can tell two entities of one type apart.
+    fn test_entity(r#type: &str, identity_key: &str) -> Entity {
+        Entity {
+            r#type: r#type.to_owned().into(),
+            identity: vec![test_attribute(identity_key)],
+            description: vec![],
+            requirement_level: None,
+            common: CommonFields::default(),
+            provenance: Provenance::default(),
+        }
+    }
+
+    /// A dependency defining the given entities.
+    fn test_dependency(entities: Vec<Entity>) -> ForgeDependency {
+        ForgeDependency {
+            registry: Registry {
+                attributes: vec![],
+                attribute_groups: vec![],
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities,
+            },
+            refinements: Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+        }
+    }
+
+    const MAIN_URL: &str = "https://example.com/main/1.0.0";
+    const BASE_URL: &str = "https://example.com/base/1.0.0";
+    const CORE_URL: &str = "https://example.com/core/1.0.0";
+
+    fn url(s: &str) -> SchemaUrl {
+        s.try_into().expect("a valid schema url")
+    }
+
+    /// A registry that defines `host` and refines it as `host.linux`. It
+    /// depends on `base`, which defines its own `host` and a `deployment`, and
+    /// through it on `core`, which defines a `service`.
+    fn test_registry() -> ForgeResolvedRegistry {
+        ForgeResolvedRegistry {
+            schema_url: url(MAIN_URL),
+            registry: Registry {
+                attributes: vec![],
+                attribute_groups: vec![],
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities: vec![test_entity("host", "main.host.name")],
+            },
+            refinements: Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities: vec![EntityRefinement {
+                    id: "host.linux".to_owned().into(),
+                    entity: test_entity("host", "main.host.linux.name"),
+                }],
+            },
+            dependencies: BTreeMap::from([
+                (
+                    url(BASE_URL),
+                    test_dependency(vec![
+                        test_entity("host", "base.host.name"),
+                        test_entity("deployment", "base.deployment.name"),
+                    ]),
+                ),
+                (
+                    url(CORE_URL),
+                    test_dependency(vec![test_entity("service", "core.service.name")]),
+                ),
+            ]),
+            dependency_graph: BTreeMap::from([
+                (url(MAIN_URL), vec![url(BASE_URL)]),
+                (url(BASE_URL), vec![url(CORE_URL)]),
+            ]),
+        }
+    }
+
+    /// An environment where `lookup_entity` reads [`test_registry`].
+    fn env_with_registry() -> Environment<'static> {
+        let mut env = Environment::new();
+        add_functions(&mut env, Some(Arc::new(test_registry())));
+        env
+    }
+
+    /// Renders the identity attribute keys of the entity that a leaf names.
+    const IDENTITY: &str =
+        "{% for attr in lookup_entity(ctx).identity %}{{ attr.key }}{% endfor %}";
+
+    /// A leaf with no provenance names an entity of this registry.
+    #[test]
+    fn test_lookup_entity_local() {
+        let ctx = serde_json::json!({"ctx": {"type": "host"}});
+        assert_eq!(
+            env_with_registry()
+                .render_str(IDENTITY, &ctx)
+                .expect("the local entity"),
+            "main.host.name"
+        );
+    }
+
+    /// A leaf that names a dependency reads the definition from there. This
+    /// registry holds no copy of it.
+    #[test]
+    fn test_lookup_entity_from_dependency() {
+        let ctx = serde_json::json!({
+            "ctx": {
+                "type": "deployment",
+                "provenance": {"source": "https://example.com/base/1.0.0"},
+            }
+        });
+        assert_eq!(
+            env_with_registry()
+                .render_str(IDENTITY, &ctx)
+                .expect("the entity of the dependency"),
+            "base.deployment.name"
+        );
+    }
+
+    /// `core` is reached only through `base`, and resolves the same as a direct
+    /// dependency.
+    #[test]
+    fn test_lookup_entity_from_a_transitive_dependency() {
+        let ctx = serde_json::json!({
+            "ctx": {
+                "type": "service",
+                "provenance": {"source": "https://example.com/core/1.0.0"},
+            }
+        });
+        assert_eq!(
+            env_with_registry()
+                .render_str(IDENTITY, &ctx)
+                .expect("the entity of the transitive dependency"),
+            "core.service.name"
+        );
+    }
+
+    /// Two registries define `host`. Each leaf reads the definition from the
+    /// registry it names.
+    #[test]
+    fn test_lookup_entity_reads_the_registry_the_leaf_names() {
+        let ctx = serde_json::json!({
+            "ctx": {
+                "type": "host",
+                "provenance": {"source": "https://example.com/base/1.0.0"},
+            }
+        });
+        assert_eq!(
+            env_with_registry()
+                .render_str(IDENTITY, &ctx)
+                .expect("the host of the dependency"),
+            "base.host.name"
+        );
+    }
+
+    /// A leaf names an entity type or the id of an entity refinement. The
+    /// lookup finds both.
+    #[test]
+    fn test_lookup_entity_refinement() {
+        let ctx = serde_json::json!({"ctx": {"type": "host.linux"}});
+        assert_eq!(
+            env_with_registry()
+                .render_str(IDENTITY, &ctx)
+                .expect("the refinement"),
+            "main.host.linux.name"
+        );
+    }
+
+    /// The whole definition is available, not the identity alone.
+    #[test]
+    fn test_lookup_entity_returns_the_definition() {
+        let ctx = serde_json::json!({"ctx": {"type": "host"}});
+        assert_eq!(
+            env_with_registry()
+                .render_str("{{ lookup_entity(ctx).type }}", &ctx)
+                .expect("the local entity"),
+            "host"
+        );
+    }
+
+    /// A name that no registry defines is an error, and the error names it.
+    #[test]
+    fn test_lookup_entity_not_found() {
+        let ctx = serde_json::json!({"ctx": {"type": "nothing"}});
+        let error = env_with_registry()
+            .render_str(IDENTITY, &ctx)
+            .expect_err("no such entity");
+        assert!(
+            error.to_string().contains("Entity `nothing` was not found"),
+            "unexpected error: {error}"
+        );
+    }
+
+    /// A `one_of` or `all_of` node is not a leaf. The function says so instead
+    /// of rendering nothing.
+    #[test]
+    fn test_lookup_entity_rejects_an_association_tree() {
+        let ctx = serde_json::json!({"ctx": {"one_of": [{"type": "host"}]}});
+        let error = env_with_registry()
+            .render_str(IDENTITY, &ctx)
+            .expect_err("not a reference");
+        assert!(
+            error
+                .to_string()
+                .contains("expects an entity association reference"),
+            "unexpected error: {error}"
+        );
+    }
+
+    /// Without a v2 registry there are no definitions to read.
+    #[test]
+    fn test_lookup_entity_without_a_v2_registry() {
+        let mut env = Environment::new();
+        add_functions(&mut env, None);
+        let ctx = serde_json::json!({"ctx": {"type": "host"}});
+        let error = env
+            .render_str(IDENTITY, &ctx)
+            .expect_err("no registry to read");
+        assert!(
+            error.to_string().contains("needs a v2 registry"),
+            "unexpected error: {error}"
+        );
+    }
 
     #[test]
     fn test_regex_replace() {
@@ -219,48 +511,20 @@ mod tests {
     #[test]
     fn test_to_yaml() {
         let mut env = Environment::new();
-        let mut inner_map = Mapping::new();
-        let _ = inner_map.insert(
-            Value::String("age".to_owned()),
-            Value::Number(Number::from(30u64)),
-        );
-        let mut details_map = Mapping::new();
-        let _ = details_map.insert(
-            Value::String("city".to_owned()),
-            Value::String("Wonderland".to_owned()),
-        );
-        let _ = details_map.insert(
-            Value::String("email".to_owned()),
-            Value::String("alice@example.com".to_owned()),
-        );
-        let _ = inner_map.insert(
-            Value::String("details".to_owned()),
-            Value::Mapping(details_map),
-        );
-        let _ = inner_map.insert(Value::String("is_active".to_owned()), Value::Bool(true));
-        let _ = inner_map.insert(
-            Value::String("name".to_owned()),
-            Value::String("Alice".to_owned()),
-        );
-        let _ = inner_map.insert(
-            Value::String("about".to_owned()),
-            Value::String("<h1>Software Engineer<h1>".to_owned()),
-        );
-        let _ = inner_map.insert(
-            Value::String("profile".to_owned()),
-            Value::String("https://example.com/?page=1&section=about".to_owned()),
-        );
-        let _ = inner_map.insert(
-            Value::String("skills".to_owned()),
-            Value::Sequence(vec![
-                Value::String("Rust".to_owned()),
-                Value::String("JavaScript".to_owned()),
-            ]),
-        );
-        let mut map = Mapping::new();
-        let _ = map.insert(Value::String("user".to_owned()), Value::Mapping(inner_map));
-
-        let ctx = Value::Mapping(map);
+        let ctx = json!({
+            "user": {
+                "age": 30u64,
+                "details": {
+                    "city": "Wonderland",
+                    "email": "alice@example.com",
+                },
+                "is_active": true,
+                "name": "Alice",
+                "about": "<h1>Software Engineer<h1>",
+                "profile": "https://example.com/?page=1&section=about",
+                "skills": ["Rust", "JavaScript"],
+            }
+        });
         let config = crate::config::WeaverConfig::default();
 
         add_filters(&mut env, &config);

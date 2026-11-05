@@ -1,0 +1,15 @@
+[
+    {
+        "span": {
+            "name": "checkout",
+            "kind": "internal",
+            "attributes": [
+                {
+                    "name": "myapp.checkout.id",
+                    "type": "string",
+                    "value": "abc"
+                }
+            ]
+        }
+    }
+]

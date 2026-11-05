@@ -32,4 +32,21 @@ impl Provenance {
     pub fn is_empty(&self) -> bool {
         self.source.is_none() && self.path.is_none()
     }
+
+    /// Turns a resolved provenance into the materialized one.
+    ///
+    /// `deps` is the dependency list of the schema the provenance came from,
+    /// which is the table its `DependencyRef` indexes.
+    #[must_use]
+    pub fn from_resolved(
+        provenance: &weaver_resolved_schema::v2::provenance::Provenance,
+        deps: &[SchemaUrl],
+    ) -> Self {
+        Provenance {
+            source: provenance
+                .source
+                .and_then(|dep_ref| deps.get(dep_ref.0 as usize).cloned()),
+            path: (!provenance.path.is_empty()).then(|| provenance.path.clone()),
+        }
+    }
 }

@@ -1,0 +1,29 @@
+file_format: definition/2
+attributes:
+  - key: host.id
+    type: string
+    stability: stable
+    brief: Unique host ID.
+    examples: ["abc123"]
+entities:
+  - type: host
+    requirement_level: recommended
+    stability: stable
+    brief: A host, kept private to this registry.
+    annotations:
+      dependency_resolution:
+        exclude: true
+    identity:
+      - ref: host.id
+metrics:
+  - name: private.request.count
+    brief: Count of requests, kept private to this registry.
+    requirement_level: recommended
+    instrument: counter
+    unit: "{request}"
+    stability: stable
+    annotations:
+      dependency_resolution:
+        exclude: true
+    entity_associations:
+      - host

@@ -12,8 +12,10 @@ rust-version.workspace = true
 weaver_checker = { path = "../weaver_checker" }
 weaver_common = { path = "../weaver_common" }
 weaver_macros = { path = "../weaver_macros" }
+weaver_semconv = { path = "../weaver_semconv" }
 
 serde.workspace = true
+serde_json.workspace = true
 schemars.workspace = true
 thiserror.workspace = true
 toml.workspace = true

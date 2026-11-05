@@ -1,0 +1,17 @@
+file_format: definition/2
+attributes:
+  - key: request.count
+    type: int
+    brief: Unused, but a registry needs an attribute.
+    stability: stable
+metrics:
+  - name: main.request.count
+    brief: Count of requests.
+    requirement_level: recommended
+    instrument: counter
+    unit: "{request}"
+    stability: stable
+    entity_associations:
+      - all_of:
+          - service
+          - host

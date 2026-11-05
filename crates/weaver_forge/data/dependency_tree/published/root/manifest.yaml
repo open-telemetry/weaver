@@ -1,0 +1,9 @@
+# Same graph as `../../root`, but middle is consumed as an already-resolved
+# artifact rather than resolved from its definition files.
+name: root
+description: Depends on a published middle.
+schema_url: https://example.com/dependency-tree-published-root/1.0.0
+dependencies:
+  - name: middle
+    schema_url: https://example.com/dependency-tree-middle/1.0.0
+    registry_path: data/dependency_tree/published/middle

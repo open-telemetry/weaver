@@ -53,7 +53,7 @@ mod tests {
     use std::fs::File;
     use std::io::Write;
     use tempfile::tempdir;
-    use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
+    use weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec;
 
     fn get_attribute(sample: &Sample) -> Option<&SampleAttribute> {
         match sample {

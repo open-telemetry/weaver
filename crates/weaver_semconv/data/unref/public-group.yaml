@@ -1,0 +1,8 @@
+file_format: definition/2
+attribute_groups:
+  - id: base
+    visibility: public
+    brief: Base
+    stability: stable
+    attributes:
+      - unref: test.attr

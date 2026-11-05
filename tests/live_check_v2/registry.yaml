@@ -1,0 +1,18 @@
+file_format: definition/2
+attributes:
+  - key: myapp.checkout.id
+    type: string
+    brief: Identifier of the checkout.
+    stability: development
+    examples: ["abc"]
+spans:
+  - type: myapp.checkout
+    name:
+      note: The constant `checkout`.
+    kind: internal
+    brief: One checkout.
+    stability: development
+    requirement_level: recommended
+    attributes:
+      - ref: myapp.checkout.id
+        requirement_level: recommended

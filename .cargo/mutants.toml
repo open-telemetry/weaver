@@ -1,0 +1,14 @@
+# cargo-mutants configuration. Run per crate, e.g. `cargo mutants -p weaver_diff`.
+test_tool = "nextest"
+profile = "mutants"
+exclude_globs = [
+  "crates/weaver_live_check/src/generated/**",
+  "src/registry/otlp/grpc_stubs/**",
+  "crates/xtask/**",
+  "crates/weaver_codegen_test/**",
+  "crates/weaver_test_support/**",
+]
+exclude_re = [
+  # Equivalent: Context::default() also loads the CEL stdlib, only slower.
+  "stdlib_context -> Context<'static> with Default::default\\(\\)",
+]

@@ -1,0 +1,7 @@
+file_format: definition/2
+entity_refinements:
+  - id: refined
+    ref: base
+    description:
+      - unref: test.attr
+        ref: test.attr

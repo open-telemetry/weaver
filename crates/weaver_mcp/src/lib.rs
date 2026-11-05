@@ -28,7 +28,7 @@ use rmcp::ServiceExt;
 use weaver_forge::v2::registry::ForgeResolvedRegistry;
 
 /// Configuration for the MCP server.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct McpConfig {
     /// Path to custom Rego advice policies directory.
     /// If None, default built-in policies are used.
@@ -41,21 +41,6 @@ pub struct McpConfig {
     /// Path to a jq preprocessor script for Rego policies.
     /// The script transforms registry data before passing to Rego.
     pub advice_preprocessor: Option<PathBuf>,
-
-    /// Namespace separator used in attribute keys (default: ".").
-    /// Used by namespace browsing and search token splitting.
-    pub namespace_separator: String,
-}
-
-impl Default for McpConfig {
-    fn default() -> Self {
-        Self {
-            advice_policies: None,
-            advice_data: None,
-            advice_preprocessor: None,
-            namespace_separator: ".".to_owned(),
-        }
-    }
 }
 
 /// Error type for MCP operations.
@@ -158,7 +143,6 @@ mod tests {
             advice_policies: Some(PathBuf::from("/path/to/policies")),
             advice_data: Some("/path/to/data".to_owned()),
             advice_preprocessor: Some(PathBuf::from("/path/to/preprocessor.jq")),
-            namespace_separator: ".".to_owned(),
         };
         assert_eq!(
             config.advice_policies,

@@ -4,7 +4,11 @@
 
 use crate::error::Error;
 use core::fmt;
-use std::{collections::BTreeMap, fmt::Debug};
+use std::{
+    collections::BTreeMap,
+    fmt::Debug,
+    path::{Path, PathBuf},
+};
 
 /// A filter that can be applied to a JSON value.
 pub struct Filter {
@@ -25,10 +29,25 @@ impl Filter {
     /// Apply the filter to a JSON value and return the result as a JSON value.
     pub fn apply(
         &self,
-        ctx: serde_json::Value,
+        ctx: &serde_json::Value,
         values: &BTreeMap<String, serde_json::Value>,
     ) -> Result<serde_json::Value, Error> {
-        crate::jq::execute_jq(&ctx, &self.filter_expr, values)
+        crate::jq::execute_jq(ctx, &self.filter_expr, values)
+    }
+
+    /// Apply the filter with additional JQ modules resolved from `module_base`.
+    pub fn apply_with_modules(
+        &self,
+        ctx: &serde_json::Value,
+        values: &BTreeMap<String, serde_json::Value>,
+        module_base: &Path,
+        modules: &[PathBuf],
+    ) -> Result<serde_json::Value, Error> {
+        if modules.is_empty() {
+            self.apply(ctx, values)
+        } else {
+            crate::jq::execute_jq_with_modules(ctx, &self.filter_expr, values, module_base, modules)
+        }
     }
 }
 
@@ -46,20 +65,20 @@ mod tests {
     fn test_filter() {
         let filter = super::Filter::new("true");
         let result = filter
-            .apply(serde_json::json!({}), &BTreeMap::new())
+            .apply(&serde_json::json!({}), &BTreeMap::new())
             .unwrap();
         assert_eq!(result, serde_json::json!(true));
 
         let filter = super::Filter::new(".");
         let result = filter
-            .apply(serde_json::json!({}), &BTreeMap::new())
+            .apply(&serde_json::json!({}), &BTreeMap::new())
             .unwrap();
         assert_eq!(result, serde_json::Value::Object(serde_json::Map::new()));
 
         let filter = super::Filter::new(".");
         let result = filter
             .apply(
-                serde_json::json!({
+                &serde_json::json!({
                     "a": 1,
                     "b": 2,
                 }),
@@ -77,7 +96,7 @@ mod tests {
         let filter = super::Filter::new(".key1");
         let result = filter
             .apply(
-                serde_json::json!({
+                &serde_json::json!({
                     "key1": 1,
                     "key2": 2,
                 }),
@@ -89,7 +108,7 @@ mod tests {
         let filter = super::Filter::new(".[\"key1\"]");
         let result = filter
             .apply(
-                serde_json::json!({
+                &serde_json::json!({
                     "key1": 1,
                     "key2": 2,
                 }),
@@ -106,7 +125,7 @@ mod tests {
         let filter = super::Filter::new(".[$key]");
         let result = filter
             .apply(
-                serde_json::json!({
+                &serde_json::json!({
                     "key1": 1,
                     "key2": 2,
                 }),
@@ -129,13 +148,13 @@ end"#;
         let mut ctx = BTreeMap::new();
         let _ = ctx.insert("incubating".to_owned(), serde_json::Value::Bool(true));
         let filter = super::Filter::new(jq_filter);
-        let result = filter.apply(input.clone(), &ctx).unwrap();
+        let result = filter.apply(&input, &ctx).unwrap();
         assert_eq!(result, input);
 
         // When incubating = false the filter should return an empty array
         let _ = ctx.insert("incubating".to_owned(), serde_json::Value::Bool(false));
         let filter = super::Filter::new(jq_filter);
-        let result = filter.apply(input.clone(), &ctx).unwrap();
+        let result = filter.apply(&input, &ctx).unwrap();
         assert_eq!(result, serde_json::Value::Null);
     }
 }

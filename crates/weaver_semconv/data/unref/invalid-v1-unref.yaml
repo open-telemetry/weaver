@@ -1,0 +1,14 @@
+groups:
+  - id: base
+    type: attribute_group
+    brief: Base
+    attributes:
+      - id: test.attr
+        type: string
+        brief: Attribute
+  - id: child
+    type: attribute_group
+    brief: Child
+    extends: base
+    attributes:
+      - unref: test.attr

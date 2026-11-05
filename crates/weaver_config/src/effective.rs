@@ -4,11 +4,14 @@
 //!
 //! Each type is built via three-layer merge: defaults → `.weaver.toml` → CLI overrides.
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use weaver_common::vdir::VirtualDirectoryPath;
+use weaver_semconv::schema_url::SchemaUrl;
 
-use crate::registry::{DiagnosticsConfig, PolicyConfig, RegistryConfig};
+use crate::registry::{DiagnosticsConfig, PolicyConfig, PolicyFindingFilter, RegistryConfig};
+use crate::resolve::ResolveConfig;
 
 /// Default registry URL used when no registry is specified.
 pub const DEFAULT_REGISTRY: &str =
@@ -79,6 +82,8 @@ pub struct EffectivePolicyConfig {
     pub skip_policies: bool,
     /// Whether to display the policy coverage report.
     pub display_policy_coverage: bool,
+    /// Finding filters scoped by signal type, signal name, or context.
+    pub finding_filters: Vec<PolicyFindingFilter>,
 }
 
 impl EffectivePolicyConfig {
@@ -98,6 +103,9 @@ impl EffectivePolicyConfig {
         }
         if let Some(v) = cfg.skip {
             self.skip_policies = v;
+        }
+        if let Some(filters) = &cfg.finding_filters {
+            self.finding_filters = filters.clone();
         }
         if let Some(v) = cfg.display_policy_coverage {
             self.display_policy_coverage = v;
@@ -143,12 +151,82 @@ impl EffectiveDiagnosticConfig {
     }
 }
 
+/// Effective resolution settings — every field has a concrete value.
+///
+/// Built by layering: defaults → `.weaver.toml`.
+#[derive(Debug, Clone, Default)]
+pub struct EffectiveResolveConfig {
+    /// Explicit overrides mapping a requested SchemaUrl to an alternative VirtualDirectoryPath.
+    pub schema_url_overrides: BTreeMap<SchemaUrl, VirtualDirectoryPath>,
+}
+
+impl EffectiveResolveConfig {
+    /// Apply `.weaver.toml` resolve section onto this effective config (layer 2).
+    pub fn layer_config(&mut self, cfg: &ResolveConfig) {
+        for (url_str, path_str) in &cfg.schema_url_overrides {
+            let schema_url = match SchemaUrl::try_from(url_str.as_str()) {
+                Ok(url) => url,
+                Err(e) => {
+                    log::warn!(
+                        "Invalid schema URL '{url_str}' in [resolve.schema_url_overrides]: {e}"
+                    );
+                    continue;
+                }
+            };
+            let path = match path_str.parse::<VirtualDirectoryPath>() {
+                Ok(p) => p,
+                Err(e) => {
+                    log::warn!("Invalid path '{path_str}' in [resolve.schema_url_overrides] for '{url_str}': {e}");
+                    continue;
+                }
+            };
+            _ = self.schema_url_overrides.insert(schema_url, path);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
     use super::*;
     use crate::registry::{DiagnosticsConfig, PolicyConfig, RegistryConfig};
+    use crate::resolve::ResolveConfig;
+
+    // ── EffectiveResolveConfig ────────────────────────────────────────────────
+
+    #[test]
+    fn test_resolve_default_values() {
+        let cfg = EffectiveResolveConfig::default();
+        assert!(cfg.schema_url_overrides.is_empty());
+    }
+
+    #[test]
+    fn test_resolve_layer_config_applies_overrides() {
+        let mut cfg = EffectiveResolveConfig::default();
+        let mut overrides = BTreeMap::new();
+        _ = overrides.insert(
+            "https://opentelemetry.io/schemas/1.25.0".to_owned(),
+            "data/registry-test-v2-dep/app_registry".to_owned(),
+        );
+        cfg.layer_config(&ResolveConfig {
+            schema_url_overrides: overrides,
+        });
+        assert_eq!(cfg.schema_url_overrides.len(), 1);
+        let url = SchemaUrl::try_from("https://opentelemetry.io/schemas/1.25.0").unwrap();
+        assert!(cfg.schema_url_overrides.contains_key(&url));
+    }
+
+    #[test]
+    fn test_resolve_layer_config_skips_invalid() {
+        let mut cfg = EffectiveResolveConfig::default();
+        let mut overrides = BTreeMap::new();
+        _ = overrides.insert("invalid-url".to_owned(), "path/to/local".to_owned());
+        cfg.layer_config(&ResolveConfig {
+            schema_url_overrides: overrides,
+        });
+        assert!(cfg.schema_url_overrides.is_empty());
+    }
 
     // ── EffectiveRegistryConfig ───────────────────────────────────────────────
 
@@ -218,6 +296,41 @@ mod tests {
     }
 
     #[test]
+    fn test_policy_finding_filters_from_toml() {
+        let config: crate::WeaverConfig = toml::from_str(
+            r#"
+            [[policy.finding_filters]]
+            exclude = ["compatibility_entity_missing"]
+            signal_type = "entity"
+            signal_names = ["device*"]
+            context = { attribute_key = "example.old" }
+        "#,
+        )
+        .unwrap();
+        let mut effective = EffectivePolicyConfig::default();
+        effective.layer_config(&config.policy);
+        assert_eq!(effective.finding_filters.len(), 1);
+        assert_eq!(
+            effective.finding_filters[0].exclude,
+            ["compatibility_entity_missing"]
+        );
+        assert_eq!(effective.finding_filters[0].signal_names, ["device*"]);
+        effective.layer_config(&PolicyConfig::default());
+        assert_eq!(effective.finding_filters.len(), 1);
+        let empty: crate::WeaverConfig = toml::from_str("[policy]\nfinding_filters = []").unwrap();
+        effective.layer_config(&empty.policy);
+        assert!(effective.finding_filters.is_empty());
+        assert!(toml::from_str::<crate::WeaverConfig>(
+            r#"
+            [[policy.finding_filters]]
+            exclude = ["removed"]
+            unknown_field = "device"
+        "#
+        )
+        .is_err());
+    }
+
+    #[test]
     fn test_policy_skip_all() {
         let cfg = EffectivePolicyConfig::skip_all();
         assert!(cfg.skip_policies);
@@ -232,6 +345,7 @@ mod tests {
             paths: Some(vec!["./policies".to_owned()]),
             skip: Some(true),
             display_policy_coverage: Some(true),
+            ..Default::default()
         });
         assert!(cfg.skip_policies);
         assert!(cfg.display_policy_coverage);

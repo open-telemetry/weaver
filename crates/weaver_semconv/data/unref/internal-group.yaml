@@ -1,0 +1,11 @@
+file_format: definition/2
+attribute_groups:
+  - id: base
+    visibility: internal
+    attributes:
+      - ref: test.attr
+  - id: child
+    visibility: internal
+    attributes:
+      - ref_group: base
+      - unref: test.attr

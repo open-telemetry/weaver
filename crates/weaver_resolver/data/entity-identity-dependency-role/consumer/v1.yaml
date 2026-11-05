@@ -1,0 +1,8 @@
+groups:
+  - id: entity.local
+    type: entity
+    name: local
+    stability: development
+    brief: Local entity.
+    attributes:
+      - ref: dep.id

@@ -1,0 +1,23 @@
+span_refinements:
+  - id: refined
+    ref: base
+    attributes:
+      - unref: test.attr
+
+metric_refinements:
+  - id: refined
+    ref: base
+    attributes:
+      - unref: test.attr
+
+event_refinements:
+  - id: refined
+    ref: base
+    attributes:
+      - unref: test.attr
+
+entity_refinements:
+  - id: refined
+    ref: base
+    description:
+      - unref: test.attr

@@ -1,0 +1,8 @@
+file_format: definition/2
+entity_refinements:
+  - id: refined.local
+    ref: local
+    stability: development
+    brief: Refined local.
+    identity:
+      - ref: dep.id

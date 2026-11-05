@@ -1,0 +1,14 @@
+file_format: definition/2
+attributes:
+  - key: rival.host.uid
+    type: string
+    stability: stable
+    brief: Host identifier, defined independently in rival.
+    examples: ["xyz789"]
+entities:
+  - type: host
+    requirement_level: recommended
+    stability: stable
+    brief: A host, defined independently in rival.
+    identity:
+      - ref: rival.host.uid

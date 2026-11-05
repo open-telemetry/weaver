@@ -1,0 +1,9 @@
+file_format: definition/2
+spans:
+  - type: base
+    kind: client
+    name: {note: Name}
+    brief: Base
+    stability: stable
+    attributes:
+      - unref: test.attr

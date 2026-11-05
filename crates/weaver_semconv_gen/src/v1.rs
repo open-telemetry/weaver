@@ -7,8 +7,8 @@ use weaver_common::{
     diagnostic::{DiagnosticMessage, DiagnosticMessages},
     result::WResult,
 };
-use weaver_forge::{registry::ResolvedGroup, OutputProcessor};
-use weaver_resolved_schema::{catalog::Catalog, registry::Group, ResolvedTelemetrySchema};
+use weaver_forge::{v1::registry::ResolvedGroup, OutputProcessor};
+use weaver_resolved_schema::v1::{catalog::Catalog, registry::Group, ResolvedTelemetrySchema};
 use weaver_resolver::{DefaultSchemaVisitor, WeaverResolver, WeaverResolverConfig};
 use weaver_semconv::registry_repo::RegistryRepo;
 
@@ -162,7 +162,7 @@ enum SnippetType {
 mod tests {
     use crate::v1::SnippetGenerator;
     use crate::{Error, MarkdownSnippetGenerator};
-    use serde_yaml::Value;
+    use serde_json::Value;
     use weaver_common::diagnostic::DiagnosticMessages;
     use weaver_common::vdir::VirtualDirectoryPath;
     use weaver_forge::config::{Params, WeaverConfig};

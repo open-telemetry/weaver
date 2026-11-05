@@ -1,4 +1,4 @@
-name: weaver-attributes-only-fixture
+file_format: definition_manifest/2.0
 description: >
   A registry containing only attributes (no metrics, spans, events, or
   entities). Used by e2e/empty-sections.spec.ts to verify the stats dashboard

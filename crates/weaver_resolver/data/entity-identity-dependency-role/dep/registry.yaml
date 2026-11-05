@@ -1,0 +1,11 @@
+groups:
+  - id: registry.dep
+    type: attribute_group
+    brief: Dep attributes.
+    attributes:
+      - id: dep.id
+        type: string
+        role: identifying
+        stability: development
+        brief: Dep identifier.
+        examples: [x]

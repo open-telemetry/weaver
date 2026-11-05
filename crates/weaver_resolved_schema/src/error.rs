@@ -4,14 +4,26 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::attribute::AttributeRef;
 use crate::error::Error::{
-    AttributeNotFound, CompoundError, EventNameNotFound, InvalidSchemaUrl, RefinementBaseNotFound,
+    AttributeNotFound, CompoundError, EntityAssociationNotFound, EntityMissingIdentity,
+    EventNameNotFound, InvalidSchemaUrl, MissingMetricField, RefinementBaseNotFound,
 };
+use crate::v1::attribute::AttributeRef;
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug, Clone, Deserialize, Serialize)]
 pub enum Error {
+    /// An entity has no identifying attributes in V2 schema.
+    #[error("Entity {group_id}{} has no identity attributes. Add at least one identifying attribute before converting to V2 schema.",
+        .provenance.as_ref().map(|p| format!(" (defined in {p})")).unwrap_or_default())]
+    EntityMissingIdentity {
+        /// Group id.
+        group_id: String,
+        /// Where the entity is defined, which names the registry to fix when
+        /// it comes from a dependency.
+        provenance: Option<weaver_semconv::provenance::Provenance>,
+    },
+
     /// Attribute reference not found in the catalog.
     #[error("Attribute reference {attr_ref} (group: {group_id}) not found in the catalog")]
     AttributeNotFound {
@@ -35,6 +47,15 @@ pub enum Error {
         group_id: String,
     },
 
+    /// An entity association names an entity that nothing in scope defines.
+    #[error("Group {group_id} is associated with entity {entity_type}, which neither this registry nor any of its dependencies defines")]
+    EntityAssociationNotFound {
+        /// Group id.
+        group_id: String,
+        /// The entity type that nothing defines.
+        entity_type: String,
+    },
+
     /// Cannot convert from V1 to V2 schema due to invalid schema URL.
     #[error("Failed to convert from V1 to V2 schema, invalid schema URL: {url}, error: {error}")]
     InvalidSchemaUrl {
@@ -45,8 +66,17 @@ pub enum Error {
         error: String,
     },
 
-    /// A generic container for multiple errors.
-    #[error("Errors:\n{0:#?}")]
+    /// A required metric field (instrument, metric_name, or unit) is missing on a metric group in V1 schema.
+    #[error("Metric field '{field}' not found on group: {group_id}. This is not supported in V2 schema!")]
+    MissingMetricField {
+        /// Group id.
+        group_id: String,
+        /// Field name.
+        field: &'static str,
+    },
+
+    /// A generic container for multiple errors, rendered one per line.
+    #[error("{}", .0.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n"))]
     CompoundError(Vec<Error>),
 }
 
@@ -73,9 +103,76 @@ impl Error {
                     e @ AttributeNotFound { .. } => vec![e],
                     e @ EventNameNotFound { .. } => vec![e],
                     e @ RefinementBaseNotFound { .. } => vec![e],
+                    e @ EntityAssociationNotFound { .. } => vec![e],
+                    e @ EntityMissingIdentity { .. } => vec![e],
                     e @ InvalidSchemaUrl { .. } => vec![e],
+                    e @ MissingMetricField { .. } => vec![e],
                 })
                 .collect(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_handle_errors_empty() {
+        assert!(handle_errors(vec![]).is_ok());
+    }
+
+    #[test]
+    fn test_handle_errors_and_compound_error_flattening() {
+        let err1 = AttributeNotFound {
+            group_id: "http.client".to_owned(),
+            attr_ref: AttributeRef(42),
+        };
+        let err2 = EventNameNotFound {
+            group_id: "event.unnamed".to_owned(),
+        };
+        let err3 = RefinementBaseNotFound {
+            group_id: "refinement.orphan".to_owned(),
+        };
+        let err4 = EntityAssociationNotFound {
+            group_id: "span.db".to_owned(),
+            entity_type: "db.instance".to_owned(),
+        };
+        let err5 = InvalidSchemaUrl {
+            url: "invalid::url".to_owned(),
+            error: "bad scheme".to_owned(),
+        };
+
+        // Format checks
+        assert!(err1
+            .to_string()
+            .contains("Attribute reference AttributeRef(42) (group: http.client) not found"));
+        assert!(err2
+            .to_string()
+            .contains("Event name not found on group: event.unnamed"));
+        assert!(err3
+            .to_string()
+            .contains("Refinement group refinement.orphan does not reference a base group"));
+        assert!(err4
+            .to_string()
+            .contains("Group span.db is associated with entity db.instance"));
+        assert!(err5
+            .to_string()
+            .contains("invalid schema URL: invalid::url"));
+
+        // Nested compound error flattening
+        let nested = CompoundError(vec![err1, err2]);
+        let compound = Error::compound_error(vec![nested, err3, err4, err5]);
+        match compound {
+            CompoundError(flat_errors) => {
+                assert_eq!(flat_errors.len(), 5);
+            }
+            _ => panic!("Expected Error::CompoundError"),
+        }
+
+        let res = handle_errors(vec![EventNameNotFound {
+            group_id: "group1".to_owned(),
+        }]);
+        assert!(res.is_err());
     }
 }

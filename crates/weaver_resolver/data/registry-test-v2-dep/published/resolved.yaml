@@ -46,7 +46,15 @@ registry:
   - 3
   - 4
   - 5
-  attribute_groups: []
+  attribute_groups:
+  - id: server.common
+    attributes:
+    - base: 2
+      requirement_level: required
+    - base: 0
+      requirement_level: recommended
+    brief: Common server attributes.
+    stability: stable
   spans:
   - type: server.request
     kind: server
@@ -83,10 +91,8 @@ registry:
   entities:
   - type: host
     identity:
-    - base: 3
-      requirement_level: required
-    - base: 5
-      requirement_level: recommended
+    - 3
+    - 5
     description:
     - base: 4
       requirement_level: recommended
@@ -133,10 +139,8 @@ refinements:
   - id: host
     type: host
     identity:
-    - base: 3
-      requirement_level: required
-    - base: 5
-      requirement_level: recommended
+    - 3
+    - 5
     description:
     - base: 4
       requirement_level: recommended

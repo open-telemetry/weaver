@@ -657,13 +657,13 @@ mod tests {
         print_member_value,
     };
 
-    use weaver_resolved_schema::attribute::Attribute;
-    use weaver_semconv::any_value::{AnyValueCommonSpec, AnyValueSpec};
-    use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
-    use weaver_semconv::attribute::RequirementLevel;
-    use weaver_semconv::attribute::{AttributeSpec, BasicRequirementLevelSpec};
-    use weaver_semconv::attribute::{AttributeType, EnumEntriesSpec, TemplateTypeSpec, ValueSpec};
+    use weaver_resolved_schema::v1::attribute::Attribute;
     use weaver_semconv::deprecated::Deprecated;
+    use weaver_semconv::v1::any_value::{AnyValueCommonSpec, AnyValueSpec};
+    use weaver_semconv::v1::attribute::{
+        AttributeSpec, AttributeType, BasicRequirementLevelSpec, EnumEntriesSpec,
+        PrimitiveOrArrayTypeSpec, RequirementLevel, TemplateTypeSpec, ValueSpec,
+    };
 
     #[derive(Debug)]
     struct DynAttr {
@@ -1011,7 +1011,7 @@ mod tests {
             requirement_level: required
             deprecated: Replaced by new_name.
         "#;
-        let attr: AttributeSpec = serde_yaml::from_str(attr_yaml).unwrap();
+        let attr: AttributeSpec = serde_saphyr::from_str(attr_yaml).unwrap();
 
         otel::add_filters(&mut env);
         otel::add_tests(&mut env);
@@ -1036,7 +1036,7 @@ mod tests {
                 reason: renamed
                 renamed_to: new_name
         "#;
-        let attr: AttributeSpec = serde_yaml::from_str(attr_yaml).unwrap();
+        let attr: AttributeSpec = serde_saphyr::from_str(attr_yaml).unwrap();
         assert_eq!(
             env.render_str(
                 "{{ attr.deprecated.reason }}: {{ attr.deprecated.note }}",
@@ -1058,7 +1058,7 @@ mod tests {
                 renamed_to: new_name
                 note: This attribute is deprecated and replaced by `new_name`.
         "#;
-        let attr: AttributeSpec = serde_yaml::from_str(attr_yaml).unwrap();
+        let attr: AttributeSpec = serde_saphyr::from_str(attr_yaml).unwrap();
         assert_eq!(
             env.render_str(
                 "{{ attr.deprecated.reason }}: {{ attr.deprecated.note }}",
@@ -1078,7 +1078,7 @@ mod tests {
             deprecated:
                 reason: obsoleted
         "#;
-        let attr: AttributeSpec = serde_yaml::from_str(attr_yaml).unwrap();
+        let attr: AttributeSpec = serde_saphyr::from_str(attr_yaml).unwrap();
         assert_eq!(
             env.render_str(
                 "{{ attr.deprecated.reason }}: {{ attr.deprecated.note }}",
@@ -1099,7 +1099,7 @@ mod tests {
                 reason: obsoleted
                 note: This attribute is no longer used.
         "#;
-        let attr: AttributeSpec = serde_yaml::from_str(attr_yaml).unwrap();
+        let attr: AttributeSpec = serde_saphyr::from_str(attr_yaml).unwrap();
         assert_eq!(
             env.render_str(
                 "{{ attr.deprecated.reason }}: {{ attr.deprecated.note }}",
@@ -1119,7 +1119,7 @@ mod tests {
             deprecated:
                 reason: uncategorized
         "#;
-        let attr: AttributeSpec = serde_yaml::from_str(attr_yaml).unwrap();
+        let attr: AttributeSpec = serde_saphyr::from_str(attr_yaml).unwrap();
         assert_eq!(
             env.render_str(
                 "{{ attr.deprecated.reason }}: {{ attr.deprecated.note }}",
@@ -1140,7 +1140,7 @@ mod tests {
                 reason: uncategorized
                 note: This attribute is deprecated for complex reasons.
         "#;
-        let attr: AttributeSpec = serde_yaml::from_str(attr_yaml).unwrap();
+        let attr: AttributeSpec = serde_saphyr::from_str(attr_yaml).unwrap();
         assert_eq!(
             env.render_str(
                 "{{ attr.deprecated.reason }}: {{ attr.deprecated.note }}",

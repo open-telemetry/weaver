@@ -462,6 +462,23 @@ mod tests {
     }
 
     #[test]
+    fn test_compare_equal_objects() {
+        let a = json!({"a": 1, "b": [1, 2]});
+        let b = json!({"a": 1, "b": [1, 2]});
+        assert_eq!(compare_values(&a, &b), Ordering::Equal);
+    }
+
+    #[test]
+    fn test_canonicalize_json_string() {
+        let canonical = canonicalize_json_string(r#"{"b": [2, 1], "a": 1}"#).expect("valid JSON");
+        assert_eq!(
+            canonical,
+            "{\n  \"a\": 1,\n  \"b\": [\n    1,\n    2\n  ]\n}"
+        );
+        assert!(canonicalize_json_string("{").is_err());
+    }
+
+    #[test]
     fn test_handling_of_special_numbers() {
         let array = json!([0.0, -0.0, 1.0, -1.0]);
         let expected = json!([-1.0, -0.0, 0.0, 1.0]);

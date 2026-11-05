@@ -1,0 +1,8 @@
+file_format: definition/2
+entities:
+  - type: base
+    brief: Base
+    stability: stable
+    identity: []
+    description:
+      - unref: test.attr

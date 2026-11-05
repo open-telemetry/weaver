@@ -1,0 +1,8 @@
+file_format: definition/2
+entity_refinements:
+  - id: refined.host
+    ref: host
+    stability: development
+    brief: Refined host.
+    identity:
+      - ref: host.id

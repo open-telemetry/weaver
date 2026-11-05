@@ -16,7 +16,7 @@ use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_common::MemLog;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::FileSystemFileLoader;
-use weaver_forge::registry::ResolvedRegistry;
+use weaver_forge::v1::registry::ResolvedRegistry;
 use weaver_forge::{OutputProcessor, OutputTarget};
 use weaver_resolver::{DefaultSchemaVisitor, WeaverResolver, WeaverResolverConfig};
 use weaver_semconv::registry_repo::RegistryRepo;

@@ -1,0 +1,24 @@
+groups:
+  - id: registry.local
+    type: attribute_group
+    brief: Local attributes.
+    attributes:
+      - id: dep.id
+        type: string
+        stability: development
+        brief: Local definition without a role.
+        examples: [x]
+      - id: local.id
+        type: string
+        role: identifying
+        stability: development
+        brief: Local identifier.
+        examples: [y]
+  - id: entity.local
+    type: entity
+    name: local
+    stability: development
+    brief: Local entity.
+    attributes:
+      - ref: local.id
+      - ref: dep.id

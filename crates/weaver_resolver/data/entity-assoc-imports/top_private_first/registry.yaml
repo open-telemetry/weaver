@@ -1,0 +1,10 @@
+file_format: definition/2
+metrics:
+  - name: top.request.count
+    brief: Count of requests, defined in top.
+    requirement_level: recommended
+    instrument: counter
+    unit: "{request}"
+    stability: stable
+    entity_associations:
+      - host

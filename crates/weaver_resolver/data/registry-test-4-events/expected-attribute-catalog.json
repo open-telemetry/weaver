@@ -18,7 +18,7 @@
         {
           "id": "foreground",
           "value": "foreground",
-          "brief": "Any time after Activity.onResume() or, if the app has no Activity, Context.startService() has been called when the app was in either the created or background states.",
+          "brief": "Any time after Activity.onResume() or, if the app has no Activity, Context.startService() has been called when the app was in either the created or background states.\n",
           "stability": "stable"
         }
       ]

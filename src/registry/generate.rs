@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use clap::Args;
 use log::info;
-use serde_yaml::Value;
+use serde_json::Value;
 
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::log_success;
@@ -83,7 +83,7 @@ pub(crate) fn parse_key_val(s: &str) -> Result<(String, Value), Error> {
         param: s.to_owned(),
         error: "A valid parameter definition is `--param <name>=<yaml-value>`".to_owned(),
     })?;
-    let value = serde_yaml::from_str(&s[pos + 1..]).map_err(|e| Error::InvalidParam {
+    let value = serde_saphyr::from_str(&s[pos + 1..]).map_err(|e| Error::InvalidParam {
         param: s.to_owned(),
         error: format!("A valid parameter definition is `--param <name>=<yaml-value>`. Error: {e}"),
     })?;
@@ -96,14 +96,19 @@ pub(crate) fn command(
     cfg: Option<&ProjectWeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     info!(
         "Generating artifacts for the registry `{}`",
         cmd_config.registry.registry
     );
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let weaver = WeaverEngine::new(
+        &cmd_config.registry,
+        &cmd_config.policy,
+        &cmd_config.resolve,
+        auth,
+    );
     let config = cmd_config.config;
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     let params = generate_params(args)?;
@@ -138,9 +143,11 @@ pub(crate) fn command(
         OutputTarget::Directory(output_path),
     )?;
     resolved.check_after_resolution_policy(&mut diag_msgs)?;
-    match &resolved {
+    match resolved {
+        // A v2 registry goes through `generate_v2_registry`, so a template can
+        // look up the entities that `entity_associations` names.
         crate::weaver::Resolved::V2(v) => {
-            output.generate(v.template_schema())?;
+            output.generate_v2_registry(v.into_template_schema())?;
         }
         crate::weaver::Resolved::V1(v) => {
             output.generate(v.template_schema())?;
@@ -189,7 +196,7 @@ pub(crate) fn generate_params_shared(
             params_file: params_file.clone(),
             error: e.to_string(),
         })?;
-        serde_yaml::from_reader(file).map_err(|e| Error::InvalidParams {
+        serde_saphyr::from_reader(file).map_err(|e| Error::InvalidParams {
             params_file: params_file.clone(),
             error: e.to_string(),
         })?

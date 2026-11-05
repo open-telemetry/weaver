@@ -6,7 +6,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// The provenance of a semantic convention attribute or signal.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Hash, Eq, Default)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Hash, Eq, PartialOrd, Ord, Default,
+)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Provenance {
     /// The dependency that defined this attribute or signal.

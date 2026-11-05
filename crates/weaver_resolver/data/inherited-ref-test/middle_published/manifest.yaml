@@ -1,0 +1,8 @@
+file_format: manifest/2.0
+schema_url: https://middle.example.com/schemas/1.0.0
+description: Uses `base.attr` on a metric without defining it.
+dependencies:
+- schema_url: https://base.example.com/schemas/1.0.0
+  registry_path: data/inherited-ref-test/base
+stability: development
+resolved_registry_uri: resolved.yaml

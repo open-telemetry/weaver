@@ -7,22 +7,28 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Represents the schema URL of a registry, which serves as a unique identifier for the registry
 /// along with its version.
+// Serialized as a plain string (see the `Serialize` impl), so the schema is `String` too.
 #[derive(Debug, Clone, JsonSchema)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[schemars(with = "String")]
 pub struct SchemaUrl {
     /// The schema URL string.
     url: String,
     // The byte range of the name within `url`.
-    #[serde(skip)]
-    #[schemars(skip)]
-    #[cfg_attr(feature = "openapi", schema(ignore))]
     name_range: std::ops::Range<usize>,
     // The byte range of the version within `url`.
-    #[serde(skip)]
-    #[schemars(skip)]
-    #[cfg_attr(feature = "openapi", schema(ignore))]
     version_range: std::ops::Range<usize>,
 }
+
+// utoipa's derive can't override the type of a named-field struct, so delegate to `String`.
+#[cfg(feature = "openapi")]
+impl utoipa::PartialSchema for SchemaUrl {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        <String as utoipa::PartialSchema>::schema()
+    }
+}
+
+#[cfg(feature = "openapi")]
+impl utoipa::ToSchema for SchemaUrl {}
 
 impl SchemaUrl {
     /// Create a new SchemaUrl from a string, computing and caching the component offsets.
@@ -386,6 +392,30 @@ mod tests {
         let json = serde_json::to_string(&original).unwrap();
         let deserialized: SchemaUrl = serde_json::from_str(&json).unwrap();
         assert_eq!(original, deserialized);
+    }
+
+    #[test]
+    fn test_json_schema_matches_serialization() {
+        let schema = serde_json::to_value(schemars::schema_for!(SchemaUrl)).unwrap();
+        assert_eq!(schema["type"], "string");
+
+        let validator = jsonschema::validator_for(&schema).unwrap();
+        let schema_url: SchemaUrl = "https://opentelemetry.io/schemas/1.0.0".try_into().unwrap();
+        let value = serde_json::to_value(&schema_url).unwrap();
+        assert!(
+            validator.is_valid(&value),
+            "serialized {value} must match {schema}"
+        );
+        assert!(!validator.is_valid(&serde_json::json!({ "url": schema_url.as_str() })));
+    }
+
+    #[test]
+    #[cfg(feature = "openapi")]
+    fn test_openapi_schema_matches_serialization() {
+        use utoipa::PartialSchema as _;
+
+        let schema = serde_json::to_value(SchemaUrl::schema()).unwrap();
+        assert_eq!(schema["type"], "string");
     }
 
     #[test]

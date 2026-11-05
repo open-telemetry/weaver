@@ -1,0 +1,42 @@
+file_format: resolved/2.0
+schema_url: https://middle.example.com/schemas/1.0.0
+attribute_catalog:
+- key: base.attr
+  type: string
+  brief: Defined by base.
+  stability: stable
+  provenance:
+    source: 0
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics:
+  - name: middle.metric
+    instrument: counter
+    unit: '1'
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    requirement_level: recommended
+    brief: Metric defined by middle.
+    stability: stable
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics:
+  - id: middle.metric
+    name: middle.metric
+    instrument: counter
+    unit: '1'
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    requirement_level: recommended
+    brief: Metric defined by middle.
+    stability: stable
+  events: []
+  entities: []
+dependencies:
+- https://base.example.com/schemas/1.0.0

@@ -29,7 +29,7 @@ This has four key components:
 - Using your local user as the docker container user (`-u $(id -u ${USER}):$(id -g ${USER})`)
 - Binding your local codegen templates as readonly (`--mount 'type=bind,source=$(PWD)/templates,target=/home/weaver/templates,readonly'`)
 - Binding the directory where code will be generated to the `/home/weaver/target` directory in the container: (` --mount 'type=bind,source=$(PWD)/src,target=/home/weaver/target'`)
-- Granting weaver usage of your `~/.weaver` directory: (`--env HOME=/tmp/weaver --mount 'type=bind,source=$(HOME)/.weaver,target=/tmp/weaver/.weaver'`)
+- Granting weaver usage of your `~/.weaver` directory for temporary [Virtual Directory (`vdir`)](vdir.md) downloads and user-level configuration: (`--env HOME=/tmp/weaver --mount 'type=bind,source=$(HOME)/.weaver,target=/tmp/weaver/.weaver'`)
 
 ## Advanced Usage - Interactive Shell
 
@@ -76,7 +76,7 @@ Notice in both cases, the docker image is mounting local directories as readonly
 
 ## Advanced Usage - Custom/Corporate Root CA
 
-Remote registry downloads (`https://...` archive, file, and git sources) are validated against
+Remote [Virtual Directory (`vdir`)](vdir.md) downloads (`https://...` archive, file, and git sources) are validated against
 the container's own OS-native certificate store, not your host machine's. If your network sits
 behind a TLS-inspecting proxy or otherwise requires a custom root CA, that CA must be made
 available _inside_ the container — mounting it and pointing `SSL_CERT_FILE` at it works without

@@ -40,9 +40,11 @@ pub struct RegistryEmitArgs {
     #[config(default = "false")]
     stdout: Option<bool>,
 
-    /// Endpoint for the OTLP receiver. OTEL_EXPORTER_OTLP_ENDPOINT env var will override this.
+    /// Endpoint for the OTLP receiver. When not set here or in the config file,
+    /// `OTEL_EXPORTER_OTLP_<SIGNAL>_ENDPOINT`, then `OTEL_EXPORTER_OTLP_ENDPOINT`,
+    /// apply. The default is `http://localhost:4317`.
     #[arg(long)]
-    #[config(default = "http://localhost:4317")]
+    #[config]
     endpoint: Option<String>,
 }
 
@@ -52,7 +54,7 @@ pub(crate) fn command(
     cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    let cmd_config = load_config(args, cfg);
+    let cmd_config = load_config(args, cfg)?;
     info!("Weaver Registry Emit");
     info!("Resolving registry `{}`", cmd_config.registry.registry);
 
@@ -65,7 +67,12 @@ pub(crate) fn command(
     } else {
         ExporterConfig::Otlp { endpoint }
     };
-    let weaver = WeaverEngine::new(&cmd_config.registry, &cmd_config.policy, auth);
+    let weaver = WeaverEngine::new(
+        &cmd_config.registry,
+        &cmd_config.policy,
+        &cmd_config.resolve,
+        auth,
+    );
     let resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
     match resolved {
         crate::weaver::Resolved::V2(v) => {

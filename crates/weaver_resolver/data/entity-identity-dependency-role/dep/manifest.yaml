@@ -1,0 +1,4 @@
+file_format: definition_manifest/2.0
+name: dep
+description: Defines an identifying attribute.
+schema_url: https://dep.example.com/schemas/1.0.0

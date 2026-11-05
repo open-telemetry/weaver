@@ -83,7 +83,6 @@ registry:
       stability: stable
       provenance:
         path: tests/v2_forge/model/test.yaml
-      requirement_level: recommended
     description:
     - key: attr2
       type: int
@@ -157,7 +156,6 @@ refinements:
       stability: stable
       provenance:
         path: tests/v2_forge/model/test.yaml
-      requirement_level: recommended
     description:
     - key: attr2
       type: int
@@ -170,3 +168,5 @@ refinements:
     stability: stable
     provenance:
       path: tests/v2_forge/model/test.yaml
+dependency_graph:
+  https://unknown/unknown: []

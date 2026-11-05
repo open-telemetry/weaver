@@ -101,6 +101,8 @@ Custom Rego policies may emit additional finding IDs not listed here.
 | `unit_mismatch` | ![Development](https://img.shields.io/badge/-development-blue) | A metric unit does not match the unit defined in the registry |
 | `unexpected_instrument` | ![Development](https://img.shields.io/badge/-development-blue) | A metric instrument type does not match or is not supported by the registry |
 | `undefined_enum_variant` | ![Development](https://img.shields.io/badge/-development-blue) | An enum attribute value is not in the set of allowed members |
+| `unexpected_attribute` | ![Development](https://img.shields.io/badge/-development-blue) | A matched sample has an attribute that is not on its signal or attribute groups |
+| `kind_mismatch` | ![Development](https://img.shields.io/badge/-development-blue) | A span kind does not match the kind defined in the registry |
 | `required_attribute_not_present` | ![Development](https://img.shields.io/badge/-development-blue) | A required attribute is absent from the sample |
 | `recommended_attribute_not_present` | ![Development](https://img.shields.io/badge/-development-blue) | A recommended attribute is absent from the sample |
 | `opt_in_attribute_not_present` | ![Development](https://img.shields.io/badge/-development-blue) | An opt-in attribute is absent from the sample |
@@ -196,6 +198,7 @@ the telemetry pipeline generated the issue.
 | `exponential_histogram_data_point` | ![Development](https://img.shields.io/badge/-development-blue) | An exponential histogram data point within a metric |
 | `exemplar` | ![Development](https://img.shields.io/badge/-development-blue) | An exemplar (sample measurement) attached to a metric data point |
 | `log` | ![Development](https://img.shields.io/badge/-development-blue) | A log record or event |
+| `profile` | ![Development](https://img.shields.io/badge/-development-blue) | A profiling data sample |
 
 
 ---
@@ -239,6 +242,7 @@ This helps correlate findings with specific parts of an observability system
 | `resource` | ![Development](https://img.shields.io/badge/-development-blue) | Resource describing the telemetry source |
 | `metric` | ![Development](https://img.shields.io/badge/-development-blue) | Numeric measurement signal |
 | `log` | ![Development](https://img.shields.io/badge/-development-blue) | Log record or event signal |
+| `profile` | ![Development](https://img.shields.io/badge/-development-blue) | Profiling data signal |
 
 
 ---
