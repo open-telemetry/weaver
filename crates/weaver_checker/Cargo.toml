@@ -46,4 +46,9 @@ regorus = { version = "0.10.0", default-features = false, features = [
 ] }
 
 [dev-dependencies]
+criterion = "0.8"
 tempfile.workspace = true
+
+[[bench]]
+name = "rego_engine"
+harness = false

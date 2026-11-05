@@ -393,3 +393,18 @@ of the finding.
 
 ## Links
 - [Rego Language Reference](https://www.openpolicyagent.org/docs/latest/policy-language/).
+
+## Benchmark
+
+```sh
+cargo bench -p weaver_checker --bench rego_engine
+```
+
+This benchmark times `Engine::set_input`, policy evaluation with preloaded input,
+and the combined path. It uses checker-local synthetic input with no context,
+resource only, or resource and scope. Present contexts contain 0, 16, or 128
+attributes each. Each case runs at batch sizes 1, 32, and 256, with matching and
+nonmatching policy inputs checked before timing. This fixture establishes a new
+synthetic baseline for engine operations.
+
+For serialization of live-check samples, see the [live-check benchmark](../weaver_live_check/README.md#benchmark).

@@ -32,6 +32,7 @@ strum = { version = "0.27.2", features = ["derive"] }
 globset.workspace = true
 
 [dev-dependencies]
+criterion = "0.8"
 toml.workspace = true
 weaver_test_support = { path = "../weaver_test_support" }
 assert_cmd.workspace = true
@@ -49,3 +50,7 @@ workspace = true
 # remove this section once this crate is integrated into the rest
 # of the project
 ignored = []
+
+[[bench]]
+name = "sample_serialization"
+harness = false
