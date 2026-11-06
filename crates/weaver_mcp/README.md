@@ -34,18 +34,20 @@ You should see the weaver tools available. Try asking:
 
 ## Available Tools
 
-The MCP server exposes 8 tools:
+The MCP server exposes 10 tools:
 
-| Tool               | Description                                                                     |
-| ------------------ | ------------------------------------------------------------------------------- |
-| `search`           | Search across all registry items (attributes, metrics, spans, events, entities) |
-| `get_attribute`    | Get detailed information about a specific attribute by key                      |
-| `get_metric`       | Get detailed information about a specific metric by name                        |
-| `get_span`         | Get detailed information about a specific span by type                          |
-| `get_event`        | Get detailed information about a specific event by name                         |
-| `get_entity`       | Get detailed information about a specific entity by type                        |
-| `live_check`       | Validate telemetry samples against the registry                                 |
-| `browse_namespace` | Browse attribute namespace hierarchy by prefix                                  |
+| Tool                | Description                                                                     |
+| ------------------- | ------------------------------------------------------------------------------- |
+| `search`            | Search across all registry items (attributes, metrics, spans, events, entities) |
+| `get_attribute`     | Get detailed information about a specific attribute by key                      |
+| `get_metric`        | Get detailed information about a specific metric by name                        |
+| `get_span`          | Get detailed information about a specific span by type                          |
+| `get_event`         | Get detailed information about a specific event by name                         |
+| `get_entity`        | Get detailed information about a specific entity by type                        |
+| `live_check`        | Validate telemetry samples against the registry                                 |
+| `browse_namespace`  | Browse attribute namespace hierarchy by prefix                                  |
+| `load_registry`     | Replace the served registry with another one, without restarting the server     |
+| `get_registry_info` | Describe the served registry: source, schema URL, dependencies, item counts     |
 
 ### Search Tool
 
@@ -111,6 +113,18 @@ Browse the namespace hierarchy of attribute keys. Useful for understanding the r
 - Pass a prefix like `http.request` to see attributes in that namespace and sub-namespaces
 - Returns sub-namespaces, direct attributes, total count, and depth
 
+### Load Registry Tool
+
+Loads a different registry and serves it in place of the current one. All other tools then answer from the new registry.
+
+- **registry**: The same value you would pass to `--registry`/`-r`: a local folder, a Git repo URL, or a Git archive URL. For Git URLs, set a reference with `@refspec` and a sub-folder with `[sub-folder]`, e.g. `https://github.com/open-telemetry/semantic-conventions.git@v1.34.0[model]`.
+
+The new registry is resolved with the same settings the server was started with (`.weaver.toml` registry, resolution, and auth settings, `--follow-symlinks`, `--include-unreferenced`, and the advice policy options). If loading fails, the current registry stays loaded. The result describes the new and the previous registry in the same format as `get_registry_info`.
+
+### Registry Info Tool
+
+`get_registry_info` takes no parameters. It returns the source the served registry was loaded from, its schema URL (registry name and version), the schema URLs of the registries it imports, and its attribute, metric, span, event, and entity counts.
+
 ## Example Prompts
 
 Here are some example prompts:
@@ -140,6 +154,12 @@ Here are some example prompts:
 > "I'm adding tracing to a gRPC service. What semantic conventions should I follow?"
 
 > "How should I instrument a Redis client according to OpenTelemetry conventions?"
+
+### Switching Registries
+
+> "Load the registry at ../my-service/model and search it for messaging attributes"
+
+> "Switch to semantic conventions v1.34.0 and check whether db.system is deprecated there"
 
 ### Validating Telemetry
 
