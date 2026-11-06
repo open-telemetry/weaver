@@ -1,0 +1,305 @@
+# Database: stable (v1.33.0) -> pre-stability (v1.24.0), spans and metrics.
+#
+# Lets dashboards written against v1.24 DB conventions also see data from
+# v1.33 producers. Written independently of the forward set.
+# Target-safety: every trace policy matches on `db.system.name` (absent from
+# v1.24 spans); every metric policy matches on a metric name that v1.24
+# doesn't use.
+#
+# Left out:
+#   - span name change (needs a template over several attributes)
+#   - attributes v1.33 removed (db.connection_string, db.user, db.instance.id,
+#     network.transport, network.type): no source data
+#   - qualified PostgreSQL / Oracle db.namespace values move to db.name as is
+#   - db.collection.name for systems with no v1.24 equivalent key
+#   - stable-only attributes and db.client.operation.duration: extra in
+#     source, ignored
+#   - connection-time metrics unit change s -> ms (query time only)
+file_format: transform/2.0
+source:
+  schema_url: https://opentelemetry.io/schemas/1.33.0
+target:
+  schema_url: https://opentelemetry.io/schemas/1.24.0
+gaps:
+  spans:
+    db:
+      missing_attributes: [db.connection_string, db.instance.id, db.jdbc.driver_classname, db.user, network.transport, network.type]
+    db.cassandra:
+      missing_attributes: [db.connection_string, db.instance.id, db.jdbc.driver_classname, db.user, network.transport, network.type]
+    db.cosmosdb:
+      missing_attributes: [db.connection_string, db.cosmosdb.client_id, db.cosmosdb.connection_mode, db.cosmosdb.operation_type, db.cosmosdb.request_charge, db.cosmosdb.request_content_length, db.cosmosdb.status_code, db.cosmosdb.sub_status_code, db.instance.id, db.jdbc.driver_classname, db.user, network.transport, network.type, user_agent.original]
+    db.couchdb:
+      missing_attributes: [db.connection_string, db.instance.id, db.jdbc.driver_classname, db.statement, db.user, network.peer.address, network.peer.port, network.transport, network.type]
+    db.elasticsearch:
+      missing_attributes: [db.connection_string, db.instance.id, db.jdbc.driver_classname, db.name, db.user, network.peer.address, network.peer.port, network.transport, network.type]
+    db.hbase:
+      missing_attributes: [db.connection_string, db.instance.id, db.jdbc.driver_classname, db.statement, db.user, network.peer.address, network.peer.port, network.transport, network.type]
+    db.mongodb:
+      missing_attributes: [db.connection_string, db.instance.id, db.jdbc.driver_classname, db.statement, db.user, network.peer.address, network.peer.port, network.transport, network.type]
+    db.mssql:
+      missing_attributes: [db.connection_string, db.instance.id, db.jdbc.driver_classname, db.user, network.peer.address, network.peer.port, network.transport, network.type]
+    db.redis:
+      missing_attributes: [db.connection_string, db.instance.id, db.jdbc.driver_classname, db.name, db.user, network.transport, network.type]
+    db.sql:
+      missing_attributes: [db.connection_string, db.instance.id, db.jdbc.driver_classname, db.user, network.peer.address, network.peer.port, network.transport, network.type]
+    db.tech:
+      missing_attributes: [db.cassandra.consistency_level, db.cassandra.coordinator.dc, db.cassandra.coordinator.id, db.cassandra.idempotence, db.cassandra.page_size, db.cassandra.speculative_execution_count, db.cassandra.table, db.connection_string, db.cosmosdb.client_id, db.cosmosdb.connection_mode, db.cosmosdb.container, db.cosmosdb.operation_type, db.cosmosdb.request_charge, db.cosmosdb.request_content_length, db.cosmosdb.status_code, db.cosmosdb.sub_status_code, db.instance.id, db.jdbc.driver_classname, db.mongodb.collection, db.redis.database_index, db.user, network.transport, network.type, user_agent.original]
+policies:
+  # =========================================================================
+  # Spans
+  # =========================================================================
+  - id: db-span-common-rev
+    name: db.query.text and db.operation.name renamed back
+    description: >
+      v1.33 db.query.text SHOULD be sanitized by default, so exact-match
+      filters written for raw v1.24 statements may not match.
+    trace_transform:
+      matches:
+        - target: {span_attribute: [db.system.name]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {span_attribute: [db.query.text]}, to: db.statement}
+        - {from: {span_attribute: [db.operation.name]}, to: db.operation}
+
+  # --- db.collection.name -> per-system key --------------------------------
+  - id: db-span-collection-sql-rev
+    name: db.collection.name becomes db.sql.table on SQL systems
+    description: >
+      The SQL system list is a judgement call (v1.24 applied db.sql.table to
+      "SQL databases" without enumerating them). softwareag.adabas is left out.
+    trace_transform:
+      matches:
+        - target: {span_attribute: [db.system.name]}
+          predicate: {regex: "^(other_sql|mysql|mariadb|postgresql|microsoft\\.sql_server|oracle\\.db|ibm\\.db2|sqlite|h2database|hsqldb|derby|firebirdsql|sap\\.hana|sap\\.maxdb|ibm\\.informix|actian\\.ingres|ibm\\.netezza|aws\\.redshift|gcp\\.spanner|cockroachdb|clickhouse|trino|teradata|hive|instantdb|intersystems\\.cache)$"}
+      rename:
+        - {from: {span_attribute: [db.collection.name]}, to: db.sql.table}
+
+  - id: db-span-collection-cassandra-rev
+    name: db.collection.name becomes db.cassandra.table
+    trace_transform:
+      matches:
+        - target: {span_attribute: [db.system.name]}
+          predicate: {equals: cassandra}
+      rename:
+        - {from: {span_attribute: [db.collection.name]}, to: db.cassandra.table}
+        - {from: {span_attribute: [cassandra.consistency.level]}, to: db.cassandra.consistency_level}
+        - {from: {span_attribute: [cassandra.coordinator.dc]}, to: db.cassandra.coordinator.dc}
+        - {from: {span_attribute: [cassandra.coordinator.id]}, to: db.cassandra.coordinator.id}
+        - {from: {span_attribute: [cassandra.query.idempotent]}, to: db.cassandra.idempotence}
+        - {from: {span_attribute: [cassandra.page.size]}, to: db.cassandra.page_size}
+        - {from: {span_attribute: [cassandra.speculative_execution.count]}, to: db.cassandra.speculative_execution_count}
+
+  - id: db-span-collection-mongodb-rev
+    name: db.collection.name becomes db.mongodb.collection
+    trace_transform:
+      matches:
+        - target: {span_attribute: [db.system.name]}
+          predicate: {equals: mongodb}
+      rename:
+        - {from: {span_attribute: [db.collection.name]}, to: db.mongodb.collection}
+
+  - id: db-span-collection-cosmosdb-rev
+    name: db.collection.name becomes db.cosmosdb.container
+    trace_transform:
+      matches:
+        - target: {span_attribute: [db.system.name]}
+          predicate: {equals: azure.cosmosdb}
+      rename:
+        - {from: {span_attribute: [db.collection.name]}, to: db.cosmosdb.container}
+
+  # --- db.namespace -> db.name / db.redis.database_index / cluster name -----
+  - id: db-span-namespace-rev
+    name: db.namespace becomes db.name
+    description: >
+      Approximate for qualified values ({database}|{schema} on PostgreSQL,
+      {instance}|{database}|{service} on Oracle): they're moved as is. SQL
+      Server values are split by db-span-namespace-mssql-rev.
+    trace_transform:
+      matches:
+        - target: {span_attribute: [db.system.name]}
+          predicate: {exists: {}}
+        - target: {span_attribute: [db.system.name]}
+          predicate: {regex: "^(redis|elasticsearch)$"}
+          negate: true
+      rename:
+        - {from: {span_attribute: [db.namespace]}, to: db.name}
+
+  - id: db-span-namespace-mssql-rev
+    name: SQL Server db.namespace {instance}|{database} split into db.mssql.instance_name and db.name
+    description: >
+      Splits the db.name produced by db-span-namespace-rev (split runs after
+      rename). A value without "|" stays in the last key (db.name).
+    trace_transform:
+      matches:
+        - target: {span_attribute: [db.system.name]}
+          predicate: {equals: microsoft.sql_server}
+      split: [{from: {span_attribute: [db.name]}, separator: "|", to: [db.mssql.instance_name, db.name]}]
+
+  - id: db-span-namespace-redis-rev
+    name: db.namespace (string) becomes db.redis.database_index (int)
+    trace_transform:
+      matches:
+        - target: {span_attribute: [db.system.name]}
+          predicate: {equals: redis}
+      rename: [{from: {span_attribute: [db.namespace]}, to: db.redis.database_index}]
+      convert: [{target: {span_attribute: [db.redis.database_index]}, type: int}]
+
+  - id: db-span-namespace-elasticsearch-rev
+    name: db.namespace becomes db.elasticsearch.cluster.name
+    description: Not in the guide's table; schema 1.27.0 renamed it forward.
+    trace_transform:
+      matches:
+        - target: {span_attribute: [db.system.name]}
+          predicate: {equals: elasticsearch}
+      rename:
+        - {from: {span_attribute: [db.namespace]}, to: db.elasticsearch.cluster.name}
+        - {from: {span_attribute: [elasticsearch.node.name]}, to: db.elasticsearch.node.name}
+
+  # --- db.system.name -> db.system -----------------------------------------
+  - id: db-span-system-rev
+    name: db.system.name becomes db.system, renamed enum values mapped back
+    description: >
+      Dual-emitting producers keep their db.system (upsert false); the map
+      keys are v1.33 values only, so it leaves v1.24 values alone.
+      intersystems.cache maps to `cache`: v1.24 only had `cache`,
+      intersystems_cache came later.
+    trace_transform:
+      matches:
+        - target: {span_attribute: [db.system.name]}
+          predicate: {exists: {}}
+      rename: [{from: {span_attribute: [db.system.name]}, to: db.system}]
+      map:
+        - target: {span_attribute: [db.system]}
+          values:
+            softwareag.adabas: adabas
+            intersystems.cache: cache
+            azure.cosmosdb: cosmosdb
+            ibm.db2: db2
+            aws.dynamodb: dynamodb
+            firebirdsql: firebird
+            h2database: h2
+            sap.hana: hanadb
+            ibm.informix: informix
+            actian.ingres: ingres
+            sap.maxdb: maxdb
+            microsoft.sql_server: mssql
+            ibm.netezza: netezza
+            oracle.db: oracle
+            aws.redshift: redshift
+            gcp.spanner: spanner
+          unmapped: keep
+
+  # =========================================================================
+  # Metrics (experimental connection metrics)
+  # =========================================================================
+  - id: db-conn-count-rev
+    name: db.client.connection.count becomes db.client.connections.usage
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: db.client.connection.count}
+      rename:
+        - {from: {datapoint_attribute: [db.client.connection.pool.name]}, to: pool.name}
+        - {from: {datapoint_attribute: [db.client.connection.state]}, to: state}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: db.client.connections.usage, upsert: true}
+
+  - id: db-conn-idle-max-rev
+    name: db.client.connection.idle.max becomes db.client.connections.idle.max
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: db.client.connection.idle.max}
+      rename:
+        - {from: {datapoint_attribute: [db.client.connection.pool.name]}, to: pool.name}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: db.client.connections.idle.max, upsert: true}
+
+  - id: db-conn-idle-min-rev
+    name: db.client.connection.idle.min becomes db.client.connections.idle.min
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: db.client.connection.idle.min}
+      rename:
+        - {from: {datapoint_attribute: [db.client.connection.pool.name]}, to: pool.name}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: db.client.connections.idle.min, upsert: true}
+
+  - id: db-conn-max-rev
+    name: db.client.connection.max becomes db.client.connections.max
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: db.client.connection.max}
+      rename:
+        - {from: {datapoint_attribute: [db.client.connection.pool.name]}, to: pool.name}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: db.client.connections.max, upsert: true}
+
+  - id: db-conn-pending-requests-rev
+    name: db.client.connection.pending_requests becomes db.client.connections.pending_requests
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: db.client.connection.pending_requests}
+      rename:
+        - {from: {datapoint_attribute: [db.client.connection.pool.name]}, to: pool.name}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: db.client.connections.pending_requests, upsert: true}
+
+  - id: db-conn-timeouts-rev
+    name: db.client.connection.timeouts becomes db.client.connections.timeouts
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: db.client.connection.timeouts}
+      rename:
+        - {from: {datapoint_attribute: [db.client.connection.pool.name]}, to: pool.name}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: db.client.connections.timeouts, upsert: true}
+
+  - id: db-conn-create-time-rev
+    name: db.client.connection.create_time (s) becomes db.client.connections.create_time (ms)
+    description: >
+      Unit change s -> ms is not expressible; query rewriters multiply
+      results by 1000; data in flight needs an SDK View or a Collector
+      processor.
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: db.client.connection.create_time}
+      rename:
+        - {from: {datapoint_attribute: [db.client.connection.pool.name]}, to: pool.name}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: db.client.connections.create_time, upsert: true}
+
+  - id: db-conn-wait-time-rev
+    name: db.client.connection.wait_time (s) becomes db.client.connections.wait_time (ms)
+    description: >
+      Unit change s -> ms is not expressible; query rewriters multiply
+      results by 1000; data in flight needs an SDK View or a Collector
+      processor.
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: db.client.connection.wait_time}
+      rename:
+        - {from: {datapoint_attribute: [db.client.connection.pool.name]}, to: pool.name}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: db.client.connections.wait_time, upsert: true}
+
+  - id: db-conn-use-time-rev
+    name: db.client.connection.use_time (s) becomes db.client.connections.use_time (ms)
+    description: >
+      Unit change s -> ms is not expressible; query rewriters multiply
+      results by 1000; data in flight needs an SDK View or a Collector
+      processor.
+    metric_transform:
+      matches:
+        - target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}
+          predicate: {equals: db.client.connection.use_time}
+      rename:
+        - {from: {datapoint_attribute: [db.client.connection.pool.name]}, to: pool.name}
+      add:
+        - {target: {descriptor_field: METRIC_DESCRIPTOR_FIELD_NAME}, value: db.client.connections.use_time, upsert: true}
