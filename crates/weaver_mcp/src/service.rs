@@ -6,13 +6,13 @@
 //! for querying, debugging and validating against the semantic convention registry.
 
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, PoisonError, RwLock};
 
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{ServerCapabilities, ServerInfo};
 use rmcp::{tool, tool_handler, tool_router, ServerHandler};
 use schemars::JsonSchema;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use weaver_forge::v2::registry::ForgeResolvedRegistry;
 use weaver_live_check::advice::{
@@ -24,9 +24,10 @@ use weaver_live_check::{
     VersionedRegistry,
 };
 use weaver_search::{SearchContext, SearchType};
+use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v2::stability::Stability;
 
-use crate::McpConfig;
+use crate::{McpConfig, RegistryLoader};
 
 /// MCP service for the semantic convention registry.
 ///
@@ -39,11 +40,14 @@ use crate::McpConfig;
 /// - `get_entity` - Get a specific entity by type
 /// - `live_check` - Validate telemetry samples against the registry
 /// - `browse_namespace` - Browse attribute namespace hierarchy
+/// - `load_registry` - Replace the served registry with another one
+/// - `get_registry_info` - Describe the served registry
 #[derive(Clone)]
 pub struct WeaverMcpService {
-    search_context: Arc<SearchContext>,
-    /// Versioned registry for live check (LiveChecker created per call due to Rc internals)
-    versioned_registry: Arc<VersionedRegistry>,
+    /// Registry the tools answer from, swapped as a whole by `load_registry`.
+    served: Arc<RwLock<Arc<ServedRegistry>>>,
+    /// Loader for `load_registry`; `None` disables the tool.
+    registry_loader: Option<Arc<dyn RegistryLoader>>,
     /// Path to custom Rego advice policies directory.
     advice_policies: Option<PathBuf>,
     /// Path, directory, or glob pattern containing additional rego data (JSON/YAML files).
@@ -53,30 +57,43 @@ pub struct WeaverMcpService {
 }
 
 impl WeaverMcpService {
-    /// Create a new MCP service with the given registry and configuration.
+    /// Create a new MCP service serving `registry`, loaded from `source`.
     #[must_use]
-    pub fn new(registry: Arc<ForgeResolvedRegistry>, config: McpConfig) -> Self {
-        let search_context = Arc::new(SearchContext::from_registry(&registry));
-
-        // Create versioned registry wrapper once for live check
-        let versioned_registry = Arc::new(VersionedRegistry::V2(Box::new((*registry).clone())));
-
+    pub fn new(source: String, registry: ForgeResolvedRegistry, config: McpConfig) -> Self {
         Self {
-            search_context,
-            versioned_registry,
+            served: Arc::new(RwLock::new(Arc::new(ServedRegistry::new(source, registry)))),
+            registry_loader: None,
             advice_policies: config.advice_policies,
             advice_data: config.advice_data,
             advice_preprocessor: config.advice_preprocessor,
         }
     }
 
+    /// Enables the `load_registry` tool with the given loader.
+    #[must_use]
+    pub fn with_registry_loader(mut self, loader: Arc<dyn RegistryLoader>) -> Self {
+        self.registry_loader = Some(loader);
+        self
+    }
+
+    /// Returns the registry currently served.
+    fn served(&self) -> Arc<ServedRegistry> {
+        Arc::clone(&self.served.read().unwrap_or_else(PoisonError::into_inner))
+    }
+
+    /// Replaces the served registry and returns the previous one.
+    fn replace_served(&self, served: ServedRegistry) -> Arc<ServedRegistry> {
+        let mut guard = self.served.write().unwrap_or_else(PoisonError::into_inner);
+        std::mem::replace(&mut *guard, Arc::new(served))
+    }
+
     /// Create a LiveChecker for a single live_check call.
     ///
     /// LiveChecker contains Rc internally and cannot be stored in the async service.
     /// We create it fresh for each call.
-    fn create_live_checker(&self) -> Result<LiveChecker, String> {
+    fn create_live_checker(&self, served: &ServedRegistry) -> Result<LiveChecker, String> {
         let mut live_checker =
-            LiveChecker::new(Arc::clone(&self.versioned_registry), default_advisors());
+            LiveChecker::new(Arc::clone(&served.versioned_registry), default_advisors());
         // The tool checks a bare attribute name. On a v2 registry, that needs a
         // search of the whole registry.
         if live_checker.is_v2() {
@@ -97,6 +114,48 @@ impl WeaverMcpService {
 
         Ok(live_checker)
     }
+}
+
+/// A loaded registry with its search index.
+struct ServedRegistry {
+    summary: RegistrySummary,
+    search_context: SearchContext,
+    /// Versioned registry for live check (LiveChecker created per call due to Rc internals)
+    versioned_registry: Arc<VersionedRegistry>,
+}
+
+impl ServedRegistry {
+    fn new(source: String, registry: ForgeResolvedRegistry) -> Self {
+        let summary = RegistrySummary {
+            registry: source,
+            schema_url: registry.schema_url.clone(),
+            dependencies: registry.dependencies.keys().cloned().collect(),
+            attributes: registry.registry.attributes.len(),
+            metrics: registry.registry.metrics.len(),
+            spans: registry.registry.spans.len(),
+            events: registry.registry.events.len(),
+            entities: registry.registry.entities.len(),
+        };
+        Self {
+            summary,
+            search_context: SearchContext::from_registry(&registry),
+            versioned_registry: Arc::new(VersionedRegistry::V2(Box::new(registry))),
+        }
+    }
+}
+
+/// Source, schema URL, dependencies and item counts of a served registry.
+#[derive(Debug, Clone, Serialize)]
+struct RegistrySummary {
+    registry: String,
+    schema_url: SchemaUrl,
+    /// Schema URLs of all imported registries.
+    dependencies: Vec<SchemaUrl>,
+    attributes: usize,
+    metrics: usize,
+    spans: usize,
+    events: usize,
+    entities: usize,
 }
 
 /// Create the default advisors for live check.
@@ -228,11 +287,12 @@ fn collect_compact_findings(samples: &[Sample]) -> Vec<serde_json::Value> {
 impl ServerHandler for WeaverMcpService {
     fn get_info(&self) -> ServerInfo {
         let mut server_info = ServerInfo::default();
-        server_info.instructions = Some(
+        let registry = &self.served().summary.registry;
+        server_info.instructions = Some(format!(
             "MCP server for OpenTelemetry semantic conventions. Use 'search' to find \
-             conventions, 'get_*' tools to get details, and 'live_check' to validate samples."
-                .into(),
-        );
+             conventions, 'get_*' tools to get details, and 'live_check' to validate samples. \
+             Serving registry: {registry}. Use 'load_registry' to switch to another registry."
+        ));
         server_info.capabilities = ServerCapabilities::builder().enable_tools().build();
         server_info
     }
@@ -379,6 +439,15 @@ pub struct BrowseNamespaceParams {
     prefix: Option<String>,
 }
 
+/// Parameters for the load_registry tool.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct LoadRegistryParams {
+    /// Local folder, Git repo URL, or Git archive URL of the registry. For Git URLs, a
+    /// reference can be set with `@refspec` and a sub-folder with `[sub-folder]` after the URL,
+    /// e.g. 'https://github.com/open-telemetry/semantic-conventions.git@v1.34.0[model]'.
+    registry: String,
+}
+
 // =============================================================================
 // Tool Implementations
 // =============================================================================
@@ -398,7 +467,7 @@ impl WeaverMcpService {
         let stability = params.stability.map(Stability::from);
         let limit = params.limit.min(100);
 
-        let (results, total) = self.search_context.search(
+        let (results, total) = self.served().search_context.search(
             params.query.as_deref(),
             search_type,
             stability,
@@ -424,7 +493,7 @@ impl WeaverMcpService {
                        full documentation."
     )]
     fn get_attribute(&self, Parameters(params): Parameters<GetAttributeParams>) -> String {
-        match self.search_context.get_attribute(&params.key) {
+        match self.served().search_context.get_attribute(&params.key) {
             Some(attr) => serde_json::to_string_pretty(attr.as_ref())
                 .unwrap_or_else(|e| format!("Error: {e}")),
             None => format!("Attribute '{}' not found in registry", params.key),
@@ -439,7 +508,7 @@ impl WeaverMcpService {
                        and full documentation."
     )]
     fn get_metric(&self, Parameters(params): Parameters<GetMetricParams>) -> String {
-        match self.search_context.get_metric(&params.name) {
+        match self.served().search_context.get_metric(&params.name) {
             Some(m) => {
                 serde_json::to_string_pretty(m.as_ref()).unwrap_or_else(|e| format!("Error: {e}"))
             }
@@ -455,7 +524,7 @@ impl WeaverMcpService {
                        and full documentation."
     )]
     fn get_span(&self, Parameters(params): Parameters<GetSpanParams>) -> String {
-        match self.search_context.get_span(&params.span_type) {
+        match self.served().search_context.get_span(&params.span_type) {
             Some(s) => {
                 serde_json::to_string_pretty(s.as_ref()).unwrap_or_else(|e| format!("Error: {e}"))
             }
@@ -470,7 +539,7 @@ impl WeaverMcpService {
                        by its name. Returns attributes, stability, and full documentation."
     )]
     fn get_event(&self, Parameters(params): Parameters<GetEventParams>) -> String {
-        match self.search_context.get_event(&params.name) {
+        match self.served().search_context.get_event(&params.name) {
             Some(e) => {
                 serde_json::to_string_pretty(e.as_ref()).unwrap_or_else(|e| format!("Error: {e}"))
             }
@@ -485,7 +554,7 @@ impl WeaverMcpService {
                        by its type. Returns attributes, stability, and full documentation."
     )]
     fn get_entity(&self, Parameters(params): Parameters<GetEntityParams>) -> String {
-        match self.search_context.get_entity(&params.entity_type) {
+        match self.served().search_context.get_entity(&params.entity_type) {
             Some(e) => {
                 serde_json::to_string_pretty(e.as_ref()).unwrap_or_else(|e| format!("Error: {e}"))
             }
@@ -507,7 +576,7 @@ impl WeaverMcpService {
         let mut stats = LiveCheckStatistics::Disabled(DisabledStatistics);
 
         // Create a fresh LiveChecker for this call (contains Rc, not Send)
-        let mut live_checker = match self.create_live_checker() {
+        let mut live_checker = match self.create_live_checker(&self.served()) {
             Ok(lc) => lc,
             Err(e) => return format!("Failed to create live checker: {e}"),
         };
@@ -549,9 +618,61 @@ impl WeaverMcpService {
     )]
     fn browse_namespace(&self, Parameters(params): Parameters<BrowseNamespaceParams>) -> String {
         let info = self
+            .served()
             .search_context
             .browse_namespace(params.prefix.as_deref());
         serde_json::to_string_pretty(&info).unwrap_or_else(|e| format!("Error: {e}"))
+    }
+
+    /// Describe the served registry.
+    #[tool(
+        name = "get_registry_info",
+        description = "Get information about the semantic convention registry currently served: \
+                       the source it was loaded from, its schema URL (registry name and version), \
+                       the schema URLs of the registries it imports, and its item counts."
+    )]
+    fn get_registry_info(&self) -> String {
+        serde_json::to_string_pretty(&self.served().summary)
+            .unwrap_or_else(|e| format!("Error: {e}"))
+    }
+
+    /// Replace the served registry with another one.
+    #[tool(
+        name = "load_registry",
+        description = "Load a different semantic convention registry and serve it in place of \
+                       the current one. All other tools then answer from the new registry. \
+                       Accepts the same values as the weaver '--registry' CLI flag: a local \
+                       folder, a Git repo URL, or a Git archive URL. On failure the current \
+                       registry stays loaded. Returns the new and previous registry sources \
+                       and item counts."
+    )]
+    async fn load_registry(&self, Parameters(params): Parameters<LoadRegistryParams>) -> String {
+        let Some(loader) = self.registry_loader.clone() else {
+            return "Loading another registry is not supported by this server".to_owned();
+        };
+        let source = params.registry;
+        let task_source = source.clone();
+        // Registry loading does blocking IO (file reads, Git clones).
+        let loaded = tokio::task::spawn_blocking(move || {
+            loader
+                .load(&task_source)
+                .map(|registry| ServedRegistry::new(task_source, registry))
+        })
+        .await;
+
+        match loaded {
+            Ok(Ok(served)) => {
+                let current = served.summary.clone();
+                let previous = self.replace_served(served);
+                let result_json = json!({
+                    "loaded": current,
+                    "previous": previous.summary,
+                });
+                serde_json::to_string_pretty(&result_json).unwrap_or_else(|e| format!("Error: {e}"))
+            }
+            Ok(Err(e)) => format!("Failed to load registry '{source}': {e}"),
+            Err(e) => format!("Failed to load registry '{source}': {e}"),
+        }
     }
 }
 
@@ -563,7 +684,9 @@ mod tests {
     use weaver_forge::v2::entity::Entity;
     use weaver_forge::v2::event::Event;
     use weaver_forge::v2::metric::Metric;
-    use weaver_forge::v2::registry::{ForgeResolvedRegistry, Refinements, Registry};
+    use weaver_forge::v2::registry::{
+        ForgeDependency, ForgeResolvedRegistry, Refinements, Registry,
+    };
     use weaver_forge::v2::span::Span;
     use weaver_search::SearchType;
     use weaver_semconv::v2::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
@@ -667,8 +790,11 @@ mod tests {
     }
 
     fn create_test_service() -> WeaverMcpService {
-        let registry = Arc::new(make_test_registry());
-        WeaverMcpService::new(registry, McpConfig::default())
+        create_test_service_with_config(McpConfig::default())
+    }
+
+    fn create_test_service_with_config(config: McpConfig) -> WeaverMcpService {
+        WeaverMcpService::new("test-registry".to_owned(), make_test_registry(), config)
     }
 
     // =========================================================================
@@ -1426,12 +1552,11 @@ mod tests {
     fn test_live_check_reports_live_checker_init_failure() {
         // A missing preprocessor makes RegoAdvisor::new fail; live_check should
         // surface that instead of panicking.
-        let registry = Arc::new(make_test_registry());
         let config = McpConfig {
             advice_preprocessor: Some(PathBuf::from("/nonexistent/does-not-exist.jq")),
             ..McpConfig::default()
         };
-        let service = WeaverMcpService::new(registry, config);
+        let service = create_test_service_with_config(config);
 
         let sample: Sample = serde_json::from_value(serde_json::json!({
             "attribute": { "name": "http.request.method", "value": "GET" }
@@ -1493,12 +1618,11 @@ mod tests {
     #[test]
     fn test_live_check_custom_advice_policies() {
         // No advice_data: only the hardcoded rule can fire.
-        let registry = Arc::new(make_test_registry());
         let config = McpConfig {
             advice_policies: Some(fixture_path("policies")),
             ..McpConfig::default()
         };
-        let service = WeaverMcpService::new(registry, config);
+        let service = create_test_service_with_config(config);
 
         let parsed = run_findings_only(&service, "custom.sentinel");
         let ids = finding_ids_for(&parsed, "custom.sentinel");
@@ -1511,7 +1635,6 @@ mod tests {
     #[test]
     fn test_live_check_custom_advice_data() {
         // With the denylist loaded, the data-driven rule fires.
-        let registry = Arc::new(make_test_registry());
         let config = McpConfig {
             advice_policies: Some(fixture_path("policies")),
             advice_data: Some(
@@ -1521,13 +1644,145 @@ mod tests {
             ),
             ..McpConfig::default()
         };
-        let service = WeaverMcpService::new(registry, config);
+        let service = create_test_service_with_config(config);
 
         let parsed = run_findings_only(&service, "custom.blocked");
         let ids = finding_ids_for(&parsed, "custom.blocked");
         assert!(
             ids.contains(&"custom_denylisted"),
             "denylist data should drive a finding, got ids: {ids:?}"
+        );
+    }
+
+    /// Returns the test registry with its attribute renamed to `db.system.name`, or fails for `missing`.
+    struct TestRegistryLoader;
+
+    impl RegistryLoader for TestRegistryLoader {
+        fn load(&self, source: &str) -> Result<ForgeResolvedRegistry, crate::McpError> {
+            if source == "missing" {
+                return Err(crate::McpError::new("registry not found"));
+            }
+            let mut registry = make_test_registry();
+            registry.registry.attributes[0].key = "db.system.name".to_owned();
+            let dependency = ForgeDependency {
+                registry: make_test_registry().registry,
+                refinements: make_test_registry().refinements,
+            };
+            let _ = registry.dependencies.insert(
+                "https://opentelemetry.io/schemas/1.37.0"
+                    .try_into()
+                    .expect("valid schema url"),
+                dependency,
+            );
+            Ok(registry)
+        }
+    }
+
+    fn create_reloadable_test_service() -> WeaverMcpService {
+        create_test_service().with_registry_loader(Arc::new(TestRegistryLoader))
+    }
+
+    fn load_params(registry: &str) -> Parameters<LoadRegistryParams> {
+        Parameters(LoadRegistryParams {
+            registry: registry.to_owned(),
+        })
+    }
+
+    #[test]
+    fn test_get_registry_info_describes_served_registry() {
+        let service = create_test_service();
+
+        let parsed: serde_json::Value = serde_json::from_str(&service.get_registry_info())
+            .expect("get_registry_info returns JSON");
+
+        assert_eq!(parsed["registry"], "test-registry");
+        assert_eq!(parsed["schema_url"], "https://todo/1.0.0");
+        assert_eq!(parsed["dependencies"], json!([]));
+        assert_eq!(parsed["attributes"], 1);
+        assert_eq!(parsed["metrics"], 1);
+        assert_eq!(parsed["spans"], 1);
+        assert_eq!(parsed["events"], 1);
+        assert_eq!(parsed["entities"], 1);
+    }
+
+    #[tokio::test]
+    async fn test_get_registry_info_follows_loaded_registry() {
+        let service = create_reloadable_test_service();
+        let _ = service.load_registry(load_params("other")).await;
+
+        let parsed: serde_json::Value = serde_json::from_str(&service.get_registry_info())
+            .expect("get_registry_info returns JSON");
+
+        assert_eq!(parsed["registry"], "other");
+        assert_eq!(
+            parsed["dependencies"],
+            json!(["https://opentelemetry.io/schemas/1.37.0"])
+        );
+    }
+
+    #[tokio::test]
+    async fn test_load_registry_without_loader_is_unsupported() {
+        let service = create_test_service();
+
+        let result = service.load_registry(load_params("other")).await;
+
+        assert!(result.contains("not supported"), "got: {result}");
+    }
+
+    #[tokio::test]
+    async fn test_load_registry_replaces_served_registry() {
+        let service = create_reloadable_test_service();
+
+        let result = service.load_registry(load_params("other")).await;
+        let parsed: serde_json::Value =
+            serde_json::from_str(&result).expect("load_registry returns JSON");
+        assert_eq!(parsed["loaded"]["registry"], "other");
+        assert_eq!(parsed["loaded"]["attributes"], 1);
+        assert_eq!(parsed["previous"]["registry"], "test-registry");
+
+        let found = service.get_attribute(Parameters(GetAttributeParams {
+            key: "db.system.name".to_owned(),
+        }));
+        assert!(found.contains("db.system.name"), "got: {found}");
+        let gone = service.get_attribute(Parameters(GetAttributeParams {
+            key: "http.request.method".to_owned(),
+        }));
+        assert!(gone.contains("not found"), "got: {gone}");
+
+        let info = service.get_info();
+        assert!(info
+            .instructions
+            .expect("instructions")
+            .contains("Serving registry: other"));
+    }
+
+    #[tokio::test]
+    async fn test_load_registry_failure_keeps_current_registry() {
+        let service = create_reloadable_test_service();
+
+        let result = service.load_registry(load_params("missing")).await;
+        assert!(
+            result.contains("Failed to load registry 'missing'")
+                && result.contains("registry not found"),
+            "got: {result}"
+        );
+
+        let found = service.get_attribute(Parameters(GetAttributeParams {
+            key: "http.request.method".to_owned(),
+        }));
+        assert!(found.contains("http.request.method"), "got: {found}");
+    }
+
+    #[tokio::test]
+    async fn test_live_check_uses_loaded_registry() {
+        let service = create_reloadable_test_service();
+        let _ = service.load_registry(load_params("other")).await;
+
+        let parsed = run_findings_only(&service, "db.system.name");
+
+        assert!(
+            finding_ids_for(&parsed, "db.system.name").is_empty(),
+            "attribute in the loaded registry should have no findings, got: {parsed}"
         );
     }
 
@@ -1542,7 +1797,10 @@ mod tests {
     /// Connect a client to the service over an in-memory transport. The server
     /// task lives until the client is cancelled or dropped.
     async fn connect_test_client() -> RunningService<RoleClient, ()> {
-        let service = create_test_service();
+        connect_test_client_to(create_test_service()).await
+    }
+
+    async fn connect_test_client_to(service: WeaverMcpService) -> RunningService<RoleClient, ()> {
         let (server_transport, client_transport) = tokio::io::duplex(4096);
         let _server_task = tokio::spawn(async move {
             if let Ok(server) = service.serve(server_transport).await {
@@ -1572,7 +1830,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_protocol_list_tools_exposes_all_eight() {
+    async fn test_protocol_list_tools_exposes_all_ten() {
         let client = connect_test_client().await;
         let tools = client.list_all_tools().await.expect("list_tools");
 
@@ -1587,10 +1845,12 @@ mod tests {
             "get_entity",
             "live_check",
             "browse_namespace",
+            "load_registry",
+            "get_registry_info",
         ] {
             assert!(names.contains(expected), "missing tool: {expected}");
         }
-        assert_eq!(tools.len(), 8, "expected exactly 8 tools");
+        assert_eq!(tools.len(), 10, "expected exactly 10 tools");
 
         let _ = client.cancel().await.expect("cancel");
     }
@@ -1678,6 +1938,32 @@ mod tests {
             serde_json::from_str(&tool_text(&result)).expect("live_check returns JSON");
         assert_eq!(parsed["total_samples_checked"], 1);
         assert_eq!(parsed["samples_with_findings"], 1);
+
+        let _ = client.cancel().await.expect("cancel");
+    }
+
+    #[tokio::test]
+    async fn test_protocol_load_registry_switches_served_registry() {
+        let client = connect_test_client_to(create_reloadable_test_service()).await;
+
+        let _ = client
+            .call_tool(
+                CallToolRequestParams::new("load_registry")
+                    .with_arguments(args(json!({ "registry": "other" }))),
+            )
+            .await
+            .expect("call_tool load_registry");
+        let result = client
+            .call_tool(
+                CallToolRequestParams::new("get_attribute")
+                    .with_arguments(args(json!({ "key": "db.system.name" }))),
+            )
+            .await
+            .expect("call_tool get_attribute");
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&tool_text(&result)).expect("get_attribute returns JSON");
+        assert_eq!(parsed["key"], "db.system.name");
 
         let _ = client.cancel().await.expect("cancel");
     }
