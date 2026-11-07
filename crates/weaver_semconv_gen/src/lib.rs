@@ -125,7 +125,7 @@ pub trait MarkdownSnippetGenerator {
     /// file: The markdown file.
     /// dry_run: Whether to actually change the file or just report if changes would be made.
     /// attribute_registry_base_url: Legacy mechanism to pass parameters to the snippet templates.
-    /// Returns: nonfatal marker warnings, or an error if the update failed.
+    /// Returns: marker warnings (fatal in dry-run), or an error if the update failed.
     fn update_markdown(
         &self,
         file: &str,
@@ -153,6 +153,9 @@ pub trait MarkdownSnippetGenerator {
                 original: original_markdown,
                 updated: updated_markdown,
             });
+            return WResult::FatalErr(Error::compound(warnings));
+        }
+        if dry_run && !warnings.is_empty() {
             return WResult::FatalErr(Error::compound(warnings));
         }
         WResult::with_non_fatal_errors((), warnings)

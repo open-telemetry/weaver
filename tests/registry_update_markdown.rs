@@ -6,7 +6,7 @@ use assert_cmd::Command;
 use serde_json::Value;
 use std::path::Path;
 
-fn update_markdown(markdown_dir: &Path, dry_run: bool) -> Vec<Value> {
+fn update_markdown(markdown_dir: &Path, dry_run: bool, exit_code: i32) -> Vec<Value> {
     let output = Command::cargo_bin("weaver")
         .expect("weaver binary")
         .args([
@@ -31,7 +31,7 @@ fn update_markdown(markdown_dir: &Path, dry_run: bool) -> Vec<Value> {
 
     assert_eq!(
         output.status.code(),
-        Some(1),
+        Some(exit_code),
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
@@ -58,6 +58,36 @@ fn assert_marker_warning(diagnostics: &[Value], path: &Path) {
 }
 
 #[test]
+fn marker_only_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("markers.md");
+    let markdown = "<!-- endweaverded -->\n";
+    std::fs::write(&path, markdown).unwrap();
+
+    for dry_run in [true, false] {
+        let diagnostics = update_markdown(dir.path(), dry_run, i32::from(dry_run));
+        assert_marker_warning(&diagnostics, &path);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), markdown);
+    }
+}
+
+#[test]
+fn valid_markers() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("valid.md");
+    let markdown = std::fs::read_to_string("data/update_markdown/markdown/templates.md").unwrap();
+    std::fs::write(&path, &markdown).unwrap();
+
+    for dry_run in [true, false] {
+        let diagnostics = update_markdown(dir.path(), dry_run, 0);
+        assert!(diagnostics
+            .iter()
+            .all(|message| message["error"].get("InvalidSnippetMarker").is_none()));
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), markdown);
+    }
+}
+
+#[test]
 fn marker_warning_with_stale_snippet() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("markers.md");
@@ -65,7 +95,7 @@ fn marker_warning_with_stale_snippet() {
         "<!-- endweaverded -->\n<!-- semconv registry.user_agent -->\nstale\n<!-- endsemconv -->\n";
     std::fs::write(&path, markdown).unwrap();
 
-    let diagnostics = update_markdown(dir.path(), true);
+    let diagnostics = update_markdown(dir.path(), true, 1);
     assert_marker_warning(&diagnostics, &path);
     assert!(diagnostics
         .iter()
@@ -89,12 +119,14 @@ fn marker_warning_before_snippet_failure() {
             format!("<!-- endweaverded -->\n<!-- {header} -->\nstale\n<!-- {trailer} -->\n");
         std::fs::write(&path, &markdown).unwrap();
 
-        let diagnostics = update_markdown(dir.path(), false);
-        assert_marker_warning(&diagnostics, &path);
-        assert!(diagnostics
-            .iter()
-            .any(|message| message["error"].get(error).is_some() || message["error"] == error));
-        assert_eq!(std::fs::read_to_string(path).unwrap(), markdown);
+        for dry_run in [false, true] {
+            let diagnostics = update_markdown(dir.path(), dry_run, 1);
+            assert_marker_warning(&diagnostics, &path);
+            assert!(diagnostics
+                .iter()
+                .any(|message| message["error"].get(error).is_some() || message["error"] == error));
+            assert_eq!(std::fs::read_to_string(&path).unwrap(), markdown);
+        }
     }
 }
 
@@ -110,7 +142,7 @@ fn marker_warning_with_failure_in_another_file() {
     .unwrap();
 
     for dry_run in [false, true] {
-        let diagnostics = update_markdown(dir.path(), dry_run);
+        let diagnostics = update_markdown(dir.path(), dry_run, 1);
         assert_marker_warning(&diagnostics, &path);
         assert!(diagnostics
             .iter()
@@ -128,7 +160,7 @@ fn marker_warning_with_write_failure() {
     read_only.set_readonly(true);
     std::fs::set_permissions(&path, read_only).unwrap();
 
-    let diagnostics = update_markdown(dir.path(), false);
+    let diagnostics = update_markdown(dir.path(), false, 1);
     std::fs::set_permissions(&path, permissions).unwrap();
     assert_marker_warning(&diagnostics, &path);
     assert!(diagnostics
