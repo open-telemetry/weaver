@@ -75,7 +75,10 @@ fn marker_only_file() {
 fn valid_markers() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("valid.md");
-    let markdown = std::fs::read_to_string("data/update_markdown/markdown/templates.md").unwrap();
+    // Git may check this file out with CRLF on Windows, and the update writes LF.
+    let markdown = std::fs::read_to_string("data/update_markdown/markdown/templates.md")
+        .unwrap()
+        .replace("\r\n", "\n");
     std::fs::write(&path, &markdown).unwrap();
 
     for dry_run in [true, false] {
