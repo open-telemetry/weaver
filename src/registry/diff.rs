@@ -105,7 +105,14 @@ pub(crate) fn command(
 
     match diff {
         crate::weaver::DiffResult::V1(d) => output.generate(d.as_template_context()),
-        crate::weaver::DiffResult::V2(d) => output.generate(&d.as_template_context()),
+        crate::weaver::DiffResult::V2(d) => match output.content_type() {
+            // Use the V2 schema for builtin serializers. Templates, including overrides
+            // named "json" or "yaml", retain their existing presentation context.
+            "application/json" | "application/yaml" | "application/jsonl" => {
+                output.generate(d.as_schema_changes())
+            }
+            _ => output.generate(&d.as_template_context()),
+        },
     }
     .map_err(DiagnosticMessages::from)?;
 

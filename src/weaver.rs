@@ -516,6 +516,11 @@ pub struct DiffV2 {
 }
 
 impl DiffV2 {
+    /// Returns the schema changes for machine-readable output.
+    pub fn as_schema_changes(&self) -> &weaver_version::v2::SchemaChanges {
+        &self.changes
+    }
+
     /// Returns the context we'll use to render diffs.
     pub fn as_template_context(&self) -> DiffV2Context<'_> {
         let mut changes_map = std::collections::HashMap::new();
