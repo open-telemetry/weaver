@@ -6,7 +6,7 @@ use assert_cmd::Command;
 use weaver_version::schema_changes::SchemaChanges;
 
 fn v2_diff(head: &std::path::Path, format: &str) -> Command {
-    let mut cmd = Command::cargo_bin("weaver").unwrap();
+    let mut cmd = Command::cargo_bin("weaver").expect("weaver binary");
     let _ = cmd
         .args(["registry", "diff", "--v2", "--baseline-registry"])
         .arg("tests/published_v2_registry")
@@ -23,7 +23,10 @@ fn assert_v2_contract(value: &serde_json::Value, head_url: &str) {
     // Round-tripping catches omitted fields and legacy template-only fields.
     let changes: weaver_version::v2::SchemaChanges =
         serde_json::from_value(value.clone()).expect("valid V2 diff");
-    assert_eq!(serde_json::to_value(changes).unwrap(), *value);
+    assert_eq!(
+        serde_json::to_value(changes).expect("serialize V2 diff"),
+        *value
+    );
 }
 
 #[test]
@@ -54,14 +57,14 @@ fn test_v2_diff_machine_formats() {
 }
 
 fn changed_v2_registry() -> tempfile::TempDir {
-    let head = tempfile::tempdir().unwrap();
+    let head = tempfile::tempdir().expect("head registry directory");
     for file in ["manifest.yaml", "resolved.yaml"] {
         let source = std::fs::read_to_string(format!("tests/published_v2_registry/{file}"))
-            .unwrap()
+            .expect("published V2 fixture")
             .replace("https://test/schemas/1.0.0", "https://test/schemas/1.1.0")
             .replace("test.attr", "test.new_attr")
             .replace("entities: []", "entities:\n  - type: test.entity\n    identity: [0]\n    brief: A test entity.\n    stability: stable");
-        std::fs::write(head.path().join(file), source).unwrap();
+        std::fs::write(head.path().join(file), source).expect("write head registry fixture");
     }
     head
 }
@@ -119,7 +122,7 @@ fn test_v2_diff_template_context() {
     // A template named after a builtin format must still receive the template context.
     let templates = tempfile::tempdir().unwrap();
     let json = templates.path().join("json");
-    std::fs::create_dir(&json).unwrap();
+    std::fs::create_dir_all(&json).unwrap();
     std::fs::write(
         json.join("weaver.yaml"),
         "templates:\n  - template: diff.j2\n    filter: .\n    application_mode: single\n",
