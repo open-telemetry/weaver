@@ -557,7 +557,7 @@ mod tests {
 
         assert_eq!(
             expected_yaml,
-            format!("{}", serde_saphyr::to_string(&body).unwrap()),
+            serde_saphyr::to_string(&body).unwrap(),
             "{}",
             expected_yaml
         );
@@ -567,7 +567,7 @@ mod tests {
             .replace("\r\n", "\n");
         assert_eq!(
             expected_json,
-            format!("{}", serde_json::to_string(&body).unwrap()),
+            serde_json::to_string(&body).unwrap(),
             "{}",
             expected_json
         );

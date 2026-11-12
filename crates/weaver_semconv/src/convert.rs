@@ -573,7 +573,7 @@ impl From<V2RegistryManifest> for V1RegistryManifest {
 pub(crate) fn v2_metric_to_v1(metric: Metric) -> V1GroupSpec {
     let (attribute_refs, include_groups) = split_attributes_and_groups_to_v1(metric.attributes);
     V1GroupSpec {
-        id: format!("metric.{}", &metric.name),
+        id: format!("metric.{}", metric.name),
         r#type: V1GroupType::Metric,
         brief: metric.common.brief,
         note: metric.common.note,
@@ -622,7 +622,7 @@ pub(crate) fn v2_metric_refinement_to_v1(r: MetricRefinement) -> V1GroupSpec {
         brief: r.brief.unwrap_or_default(),
         note: r.note,
         prefix: Default::default(),
-        extends: Some(format!("metric.{}", &r.r#ref)),
+        extends: Some(format!("metric.{}", r.r#ref)),
         include_groups,
         attribute_unrefs,
         stability: r.stability.map(v2_stability_to_v1),
@@ -658,7 +658,7 @@ pub(crate) fn v2_metric_refinement_to_v1(r: MetricRefinement) -> V1GroupSpec {
 pub(crate) fn v2_span_to_v1(span: Span) -> V1GroupSpec {
     let (attribute_refs, include_groups) = split_span_attributes_and_groups_to_v1(span.attributes);
     V1GroupSpec {
-        id: format!("span.{}", &span.r#type),
+        id: format!("span.{}", span.r#type),
         r#type: V1GroupType::Span,
         brief: span.common.brief,
         note: span.common.note,
@@ -674,7 +674,7 @@ pub(crate) fn v2_span_to_v1(span: Span) -> V1GroupSpec {
         metric_name: None,
         instrument: None,
         unit: None,
-        name: Some(format!("{}", &span.r#type)),
+        name: Some(format!("{}", span.r#type)),
         display_name: None,
         body: None,
         annotations: if span.common.annotations.is_empty() {
@@ -707,7 +707,7 @@ pub(crate) fn v2_span_refinement_to_v1(r: SpanRefinement) -> V1GroupSpec {
         brief: r.brief.unwrap_or_default(),
         note: r.note,
         prefix: Default::default(),
-        extends: Some(format!("span.{}", &r.r#ref)),
+        extends: Some(format!("span.{}", r.r#ref)),
         include_groups,
         attribute_unrefs,
         stability: r.stability.map(v2_stability_to_v1),
@@ -718,7 +718,7 @@ pub(crate) fn v2_span_refinement_to_v1(r: SpanRefinement) -> V1GroupSpec {
         metric_name: None,
         instrument: None,
         unit: None,
-        name: Some(format!("{}", &r.id)),
+        name: Some(format!("{}", r.id)),
         display_name: None,
         body: None,
         annotations: if r.annotations.is_empty() {
@@ -743,7 +743,7 @@ pub(crate) fn v2_span_refinement_to_v1(r: SpanRefinement) -> V1GroupSpec {
 pub(crate) fn v2_event_to_v1(event: Event) -> V1GroupSpec {
     let (attribute_refs, include_groups) = split_attributes_and_groups_to_v1(event.attributes);
     V1GroupSpec {
-        id: format!("event.{}", &event.name),
+        id: format!("event.{}", event.name),
         r#type: V1GroupType::Event,
         brief: event.common.brief,
         note: event.common.note,
@@ -792,7 +792,7 @@ pub(crate) fn v2_event_refinement_to_v1(r: EventRefinement) -> V1GroupSpec {
         brief: r.brief.unwrap_or_default(),
         note: r.note,
         prefix: Default::default(),
-        extends: Some(format!("event.{}", &r.r#ref)),
+        extends: Some(format!("event.{}", r.r#ref)),
         include_groups,
         attribute_unrefs,
         stability: r.stability.map(v2_stability_to_v1),
@@ -839,7 +839,7 @@ pub(crate) fn v2_entity_to_v1(entity: Entity) -> V1GroupSpec {
         .collect();
 
     V1GroupSpec {
-        id: format!("entity.{}", &entity.r#type),
+        id: format!("entity.{}", entity.r#type),
         r#type: V1GroupType::Entity,
         brief: entity.common.brief,
         note: entity.common.note,
@@ -897,7 +897,7 @@ pub(crate) fn v2_entity_refinement_to_v1(r: EntityRefinement) -> V1GroupSpec {
         brief: r.brief.unwrap_or_default(),
         note: r.note,
         prefix: Default::default(),
-        extends: Some(format!("entity.{}", &r.r#ref)),
+        extends: Some(format!("entity.{}", r.r#ref)),
         include_groups: vec![],
         attribute_unrefs,
         stability: r.stability.map(v2_stability_to_v1),
@@ -933,9 +933,9 @@ pub(crate) fn v2_attribute_group_to_v1(ag: AttributeGroup) -> V1GroupSpec {
                 split_attributes_and_groups_to_v1(internal.attributes);
 
             V1GroupSpec {
-                id: format!("{}", &internal.id),
+                id: format!("{}", internal.id),
                 r#type: V1GroupType::AttributeGroup,
-                brief: format!("{}", &internal.id),
+                brief: format!("{}", internal.id),
                 note: None,
                 prefix: Default::default(),
                 extends: None,

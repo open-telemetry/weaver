@@ -51,15 +51,10 @@ impl<R: BufRead> Iterator for TextStdinIterator<R> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            match self.lines.next() {
-                None => return None,
-                Some(line_result) => {
-                    if let Ok(line) = line_result {
-                        return SampleAttribute::try_from(line.as_str())
-                            .ok()
-                            .map(Sample::Attribute);
-                    }
-                }
+            if let Ok(line) = self.lines.next()? {
+                return SampleAttribute::try_from(line.as_str())
+                    .ok()
+                    .map(Sample::Attribute);
             }
         }
     }
