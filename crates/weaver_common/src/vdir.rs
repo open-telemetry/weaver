@@ -1100,7 +1100,7 @@ impl VirtualDirectory {
         let file_name = parsed_url
             .path_segments()
             .and_then(|mut segments| segments.next_back())
-            .and_then(|name| if name.is_empty() { None } else { Some(name) })
+            .filter(|name| !name.is_empty())
             .ok_or_else(|| err("Failed to extract file name from URL".to_owned()))?;
 
         let save_path = tmp_path.join(file_name);
@@ -1139,7 +1139,7 @@ impl VirtualDirectory {
         let file_name = parsed_url
             .path_segments()
             .and_then(|mut segments| segments.next_back())
-            .and_then(|name| if name.is_empty() { None } else { Some(name) })
+            .filter(|name| !name.is_empty())
             .unwrap_or("downloaded_file");
 
         let save_path = tmp_path.join(file_name);

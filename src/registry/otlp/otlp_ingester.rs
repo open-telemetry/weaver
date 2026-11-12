@@ -275,12 +275,8 @@ impl Iterator for OtlpIterator {
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.buffer.is_empty() {
-            match self.otlp_requests.next() {
-                Some(request) => {
-                    let _bufsize = self.fill_buffer_from_request(request)?;
-                }
-                None => return None,
-            }
+            let request = self.otlp_requests.next()?;
+            let _bufsize = self.fill_buffer_from_request(request)?;
         }
 
         Some(self.buffer.remove(0))
