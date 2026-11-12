@@ -291,7 +291,7 @@ impl Matchable for SampleSpan {
         SampleType::Span
     }
 
-    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+    fn bind(&self, context: &mut Context<'_, '_>) -> Result<(), SerializationError> {
         context.add_variable("name", &self.name)?;
         context.add_variable("kind", &self.kind)?;
         // OTLP treats a missing status as unset.
@@ -310,7 +310,7 @@ impl Matchable for SampleSpanEvent {
         SampleType::SpanEvent
     }
 
-    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+    fn bind(&self, context: &mut Context<'_, '_>) -> Result<(), SerializationError> {
         context.add_variable("name", &self.name)?;
         context.add_variable("attributes", attribute_map(self.attributes.iter()))?;
         bind_signal_context(
@@ -326,7 +326,7 @@ impl Matchable for SampleSpanLink {
         SampleType::SpanLink
     }
 
-    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+    fn bind(&self, context: &mut Context<'_, '_>) -> Result<(), SerializationError> {
         context.add_variable("attributes", attribute_map(self.attributes.iter()))?;
         bind_signal_context(
             self.resource.as_deref(),
