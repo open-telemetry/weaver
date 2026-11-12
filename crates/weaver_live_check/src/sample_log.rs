@@ -145,7 +145,7 @@ impl Matchable for SampleLog {
         SampleType::Log
     }
 
-    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+    fn bind(&self, context: &mut Context<'_, '_>) -> Result<(), SerializationError> {
         context.add_variable("event_name", &self.event_name)?;
         context.add_variable("severity_text", &self.severity_text)?;
         context.add_variable("severity_number", self.severity_number)?;
