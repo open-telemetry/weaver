@@ -48,7 +48,8 @@
   },
   "pnpm": {
     "overrides": {
-      "monaco-editor>dompurify": ">=3.4.2"
+      "monaco-editor>dompurify": ">=3.4.2",
+      "minimatch@<11.0.1": "^11.0.1"
     },
     "peerDependencyRules": {
       "allowedVersions": {
