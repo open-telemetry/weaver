@@ -310,17 +310,6 @@ pub(crate) fn command(
     let registry_args = cmd_config.registry;
     let policy_args = cmd_config.policy;
 
-    // --no-stats disables the statistics accumulator, so --fail-on cannot be
-    // evaluated. Warn the user so the silent no-op is visible.
-    if config.no_stats && config.fail_on != FailOnLevel::None {
-        log_warn(format!(
-            "--no-stats disables statistics; --fail-on={} cannot be enforced. \
-             The command will exit 0 regardless of findings. \
-             Pass --fail-on=none to suppress this warning.",
-            config.fail_on
-        ));
-    }
-
     let input_source = InputSource::from(config.input_source.clone());
     let input_format = InputFormat::from(config.input_format.clone());
 
@@ -502,7 +491,7 @@ pub(crate) fn command(
     };
 
     let mut stats = if config.no_stats {
-        LiveCheckStatistics::Disabled(DisabledStatistics)
+        LiveCheckStatistics::Disabled(DisabledStatistics::default())
     } else {
         LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry))
     };
@@ -521,7 +510,6 @@ pub(crate) fn command(
             _ => {}
         }
         sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone())?;
-        //TODO: Check for violations and set exit_code here for no-stats mode
         if report_mode {
             samples.push(sample);
         } else {
@@ -531,9 +519,7 @@ pub(crate) fn command(
     }
 
     stats.finalize(live_checker.matchers());
-    // Set exit_code based on the configured --fail-on threshold. `None`
-    // threshold means "never fail". `should_fail` returns false for disabled
-    // stats; the startup check above warns about --no-stats + non-`none` gates.
+    // A `None` threshold never fails.
     if let Some(threshold) = config.fail_on.as_finding_threshold() {
         if stats.should_fail(threshold) {
             exit_code = 1;

@@ -161,7 +161,7 @@ when = 'true'
 "#,
             ))
             .expect("the matchers compile");
-        let mut stats = LiveCheckStatistics::Disabled(DisabledStatistics);
+        let mut stats = LiveCheckStatistics::Disabled(DisabledStatistics::default());
         let parent = Sample::Profile(make_profile());
         profile
             .run_live_check(&mut live_checker, &mut stats, None, &parent)
@@ -178,7 +178,7 @@ when = 'true'
     fn test_run_live_check_no_advisors() {
         let mut profile = make_profile();
         let mut live_checker = LiveChecker::new(empty_registry(), vec![]);
-        let mut stats = LiveCheckStatistics::Disabled(DisabledStatistics);
+        let mut stats = LiveCheckStatistics::Disabled(DisabledStatistics::default());
         let parent = Sample::Profile(make_profile());
         let result = profile.run_live_check(&mut live_checker, &mut stats, None, &parent);
         assert!(result.is_ok());

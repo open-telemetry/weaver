@@ -504,7 +504,7 @@ impl WeaverMcpService {
     )]
     fn live_check(&self, Parameters(params): Parameters<LiveCheckParams>) -> String {
         let mut samples = params.samples;
-        let mut stats = LiveCheckStatistics::Disabled(DisabledStatistics);
+        let mut stats = LiveCheckStatistics::Disabled(DisabledStatistics::default());
 
         // Create a fresh LiveChecker for this call (contains Rc, not Send)
         let mut live_checker = match self.create_live_checker() {

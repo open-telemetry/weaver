@@ -711,7 +711,7 @@ mod tests {
 
         let report = LiveCheckReport {
             samples: collect(vec![request]),
-            statistics: LiveCheckStatistics::Disabled(DisabledStatistics),
+            statistics: LiveCheckStatistics::Disabled(DisabledStatistics::default()),
         };
         let json = serde_json::to_value(report).expect("report serializes");
         let samples = json["samples"].as_array().expect("samples array");

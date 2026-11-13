@@ -480,7 +480,7 @@ For long-running live-check sessions (for example, in a staging environment), th
 
 - `--inactivity-timeout=0`: If this is set to zero then weaver never times out.
 - `--output=none`: If this is set to none then no template engine is loaded and nothing is rendered out to the console or files.
-- `--no-stats`: If this is set then statistics are not accumulated over the running time of live-check which has the potential to otherwise store a lot of info in memory.
+- `--no-stats`: If this is set then statistics are not accumulated over the running time of live-check which has the potential to otherwise store a lot of info in memory. Only the highest finding level is kept, so `--fail-on` still sets the exit code.
 
 ## Usage examples
 
