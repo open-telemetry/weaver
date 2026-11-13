@@ -601,3 +601,17 @@ deny contains make_advice(advice_type, advice_level, advice_context, message) if
     message := sprintf("User ID '%s' is not in the allowed list: %v", [attr.value, data.user.allowed_ids])
 }
 ```
+
+## Benchmark
+
+```sh
+cargo bench -p weaver_live_check --bench sample_serialization
+```
+
+This benchmark times conversion of a borrowed sample input to a JSON value using
+the live-check `SampleSpan`, `SampleResource`, and `SampleInstrumentationScope`
+types. It covers no context, resource only, and resource and scope, with 0, 16,
+or 128 attributes per present context and batch sizes of 1, 32, and 256.
+These are synthetic workloads using the crate's sample types.
+
+For Rego engine timings, see the [checker benchmark](../weaver_checker/README.md#benchmark).
