@@ -12,7 +12,6 @@
 
 mod downstream;
 mod history;
-mod patch_release_workflow;
 mod schema_compat;
 mod validate;
 
@@ -27,7 +26,6 @@ fn main() -> anyhow::Result<()> {
     match task {
         None => print_help(),
         Some(task) => match task.as_str() {
-            "patch-release-workflow" => patch_release_workflow::run(),
             "validate" => validate::run(),
             "history" => history::run(std::env::args().nth(2)),
             "schema-compat" => schema_compat::run(),
@@ -49,7 +47,6 @@ pub fn print_help() -> anyhow::Result<()> {
 Usage: Execute the command using `cargo xtask <task>`, e.g., `cargo xtask validate`.
 
 Tasks:
-  - patch-release-workflow: Patch release.yml after `dist generate` (permissions, scorecard shas, smoke tests).
   - validate: Validate the entire structure of the weaver project.
   - history: Run registry check on semconv models within back compatibility range.
              Optionally provide a start semver e.g. `history 1.29.0`.
