@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Fix `--registry .` and `--registry ..` loading no definition files. Fixes [#1838](https://github.com/open-telemetry/weaver/issues/1838) - ([#1877](https://github.com/open-telemetry/weaver/pull/1877) by @konippi)
 - Live-check over OTLP keeps map and bytes attribute values, and log bodies are no longer in Rust debug format. Fixes [#1872](https://github.com/open-telemetry/weaver/issues/1872) - ([#1873](https://github.com/open-telemetry/weaver/pull/1873) by @lmolkova)
 - 💥 BREAKING CHANGE 💥 Migrate YAML parsing from the unmaintained `serde_yaml` crate to `serde-saphyr` (`2.0`) for strict YAML 1.2 specification compliance.
   - **Multiline quoted scalar indentation**: Continuation lines in multiline single- or double-quoted flow scalars (`'...'` / `"..."`) inside a block mapping must be indented strictly more than the enclosing block (YAML 1.2.2 `[69] s-flow-line-prefix(n)`), rather than at the same column as the mapping key.

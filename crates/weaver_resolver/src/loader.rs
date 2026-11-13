@@ -4,7 +4,6 @@ use itertools::Itertools;
 use rayon::iter::ParallelIterator;
 use rayon::iter::{IntoParallelIterator, ParallelBridge};
 use std::fmt::Display;
-use std::path::MAIN_SEPARATOR;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
 use weaver_semconv::v1::registry::SemConvRegistry;
@@ -469,13 +468,22 @@ fn load_definition_repository(
             .map(|s| s.starts_with('.'))
             .unwrap_or(false)
     }
-    let local_path = registry_repo.path().to_path_buf();
+    // Canonical, so `is_hidden` sees the root's real name rather than `.` or `..`.
+    let local_path = registry_repo
+        .path()
+        .canonicalize()
+        .unwrap_or_else(|_| registry_repo.path().to_path_buf());
     let registry_path_repr = registry_repo.registry_path_repr();
+    let separator = if registry_path_repr.ends_with(['/', '\\']) {
+        ""
+    } else {
+        "/"
+    };
 
     // Loads the semantic convention specifications from the git repo.
     // All yaml files are recursively loaded and parsed in parallel from
     // the given path.
-    let result = walkdir::WalkDir::new(local_path.clone())
+    let result = walkdir::WalkDir::new(&local_path)
         .follow_links(follow_symlinks)
         .into_iter()
         .filter_entry(|e| !is_hidden(e))
@@ -491,20 +499,14 @@ fn load_definition_repository(
                     vec![SemConvRegistry::semconv_spec_from_file(
                         registry_repo.schema_url().clone(),
                         entry.path(),
-                        |path| {
+                        |_| {
                             // Replace the local path with the git URL combined with the relative path
                             // of the semantic convention file.
-                            let prefix = local_path
-                                .to_str()
-                                .map(|s| s.to_owned())
-                                .unwrap_or_default();
-                            if registry_path_repr.ends_with(MAIN_SEPARATOR) {
-                                let relative_path = &path[prefix.len()..];
-                                format!("{registry_path_repr}{relative_path}")
-                            } else {
-                                let relative_path = &path[prefix.len() + 1..];
-                                format!("{registry_path_repr}/{relative_path}")
-                            }
+                            let relative_path = entry
+                                .path()
+                                .strip_prefix(&local_path)
+                                .unwrap_or(entry.path());
+                            format!("{registry_path_repr}{separator}{}", relative_path.display())
                         },
                     )]
                     .into_par_iter()
@@ -629,6 +631,40 @@ mod tests {
             }
         } else {
             panic!("Failed to load unresolved registry")
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_load_registry_from_relative_paths() -> Result<(), Error> {
+        let registry = "data/registry-test-1-single-attr-ref/registry";
+        for (path, dir) in [
+            (
+                format!("./{registry}/.."),
+                format!("./{registry}/../registry/"),
+            ),
+            (format!("{registry}/"), format!("{registry}/")),
+        ] {
+            let registry_repo = RegistryRepo::try_new(
+                None,
+                &VirtualDirectoryPath::LocalFolder { path },
+                &mut vec![],
+            )?;
+            let loaded = load_semconv_repository(
+                registry_repo,
+                false,
+                &weaver_common::http_auth::HttpAuthResolver::empty(),
+            )
+            .into_result_failing_non_fatal()?;
+            let LoadedSemconvRegistry::Unresolved { specs, .. } = loaded else {
+                panic!("Failed to load unresolved registry")
+            };
+            let mut files: Vec<_> = specs.into_iter().map(|s| s.provenance.path).collect();
+            files.sort_unstable();
+            assert_eq!(
+                files,
+                ["metrics-messaging.yaml", "registry-messaging.yaml"].map(|f| format!("{dir}{f}"))
+            );
         }
         Ok(())
     }
