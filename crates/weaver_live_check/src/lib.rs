@@ -509,11 +509,18 @@ impl Sample {
     #[must_use]
     pub fn resource(&self) -> Option<&SampleResource> {
         match self {
-            Sample::Span(s) => s.resource.as_deref(),
-            Sample::Metric(m) => m.resource.as_deref(),
-            Sample::Log(l) => l.resource.as_deref(),
-            Sample::Profile(p) => p.resource.as_deref(),
             Sample::Resource(r) => Some(r),
+            _ => self.shared_resource().map(Rc::as_ref),
+        }
+    }
+
+    /// Returns the shared parent resource of a signal sample.
+    pub(crate) fn shared_resource(&self) -> Option<&Rc<SampleResource>> {
+        match self {
+            Sample::Span(s) => s.resource.as_ref(),
+            Sample::Metric(m) => m.resource.as_ref(),
+            Sample::Log(l) => l.resource.as_ref(),
+            Sample::Profile(p) => p.resource.as_ref(),
             _ => None,
         }
     }
@@ -521,11 +528,16 @@ impl Sample {
     /// Returns the instrumentation scope that produced the signal, if available.
     #[must_use]
     pub fn instrumentation_scope(&self) -> Option<&SampleInstrumentationScope> {
+        self.shared_instrumentation_scope().map(Rc::as_ref)
+    }
+
+    /// Returns the shared instrumentation scope of a signal sample.
+    pub(crate) fn shared_instrumentation_scope(&self) -> Option<&Rc<SampleInstrumentationScope>> {
         match self {
-            Sample::Span(s) => s.instrumentation_scope.as_deref(),
-            Sample::Metric(m) => m.instrumentation_scope.as_deref(),
-            Sample::Log(l) => l.instrumentation_scope.as_deref(),
-            Sample::Profile(p) => p.instrumentation_scope.as_deref(),
+            Sample::Span(s) => s.instrumentation_scope.as_ref(),
+            Sample::Metric(m) => m.instrumentation_scope.as_ref(),
+            Sample::Log(l) => l.instrumentation_scope.as_ref(),
+            Sample::Profile(p) => p.instrumentation_scope.as_ref(),
             _ => None,
         }
     }

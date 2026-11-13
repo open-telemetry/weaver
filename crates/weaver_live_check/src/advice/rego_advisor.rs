@@ -5,7 +5,7 @@
 use serde::Serialize;
 use serde_json::{to_value, Map, Value};
 use std::{collections::BTreeMap, path::PathBuf, rc::Rc};
-use weaver_checker::{Engine, PolicyFinding};
+use weaver_checker::{Engine, InputValue, PolicyFinding};
 use weaver_forge::jq;
 
 use super::{emit_findings, Advisor};
@@ -20,6 +20,8 @@ use crate::{
 #[derive(Clone)]
 pub struct RegoAdvisor {
     engine: Engine,
+    resource: SharedInput<SampleResource>,
+    instrumentation_scope: SharedInput<SampleInstrumentationScope>,
 }
 
 impl RegoAdvisor {
@@ -80,29 +82,15 @@ impl RegoAdvisor {
                 error: e.to_string(),
             })?;
 
-        Ok(RegoAdvisor { engine })
+        Ok(RegoAdvisor {
+            engine,
+            resource: None,
+            instrumentation_scope: None,
+        })
     }
 
-    fn check(&mut self, input: &RegoInput<'_>) -> Result<Vec<PolicyFinding>, Error> {
-        let mut json_input = to_value(input).map_err(|e| Error::AdviceError {
-            error: e.to_string(),
-        })?;
-        // An attribute sample has no attribute lists, and its value is arbitrary data.
-        let keys: &[&str] = if matches!(input.sample, SampleRef::Attribute(_)) {
-            &["resource", "instrumentation_scope"]
-        } else {
-            &["sample", "resource", "instrumentation_scope"]
-        };
-        for key in keys {
-            if let Some(value) = json_input.get_mut(key) {
-                add_attributes_by_name(value);
-            }
-        }
-        self.engine
-            .set_input_value(json_input)
-            .map_err(|e| Error::AdviceError {
-                error: e.to_string(),
-            })?;
+    fn check(&mut self, input: InputValue) -> Result<Vec<PolicyFinding>, Error> {
+        self.engine.set_input_value(input);
         let violations = self
             .engine
             .check(weaver_checker::PolicyStage::LiveCheckAdvice)
@@ -150,14 +138,43 @@ fn add_attributes_by_name(value: &mut Value) {
     }
 }
 
-/// Input data for the check function
-#[derive(Serialize)]
-struct RegoInput<'a> {
-    sample: SampleRef<'a>,
-    resource: Option<&'a SampleResource>,
-    instrumentation_scope: Option<&'a SampleInstrumentationScope>,
-    registry_attribute: Option<Rc<VersionedAttribute>>,
-    registry_group: Option<Rc<VersionedSignal>>,
+/// Whether the by-name attribute maps are added to an input value.
+#[derive(Clone, Copy, PartialEq)]
+enum AttributeMaps {
+    Add,
+    Omit,
+}
+
+/// Converts a value for the policy input.
+fn input_value<T: Serialize>(value: &T, maps: AttributeMaps) -> Result<InputValue, Error> {
+    let mut json = to_value(value).map_err(|e| Error::AdviceError {
+        error: e.to_string(),
+    })?;
+    if maps == AttributeMaps::Add {
+        add_attributes_by_name(&mut json);
+    }
+    InputValue::from_json(json).map_err(|e| Error::AdviceError {
+        error: e.to_string(),
+    })
+}
+
+/// The converted input of the last shared value. The `Rc` keeps its allocation
+/// alive, so pointer equality identifies it.
+type SharedInput<T> = Option<(Rc<T>, InputValue)>;
+
+/// Returns the input of `shared`, converted only when it differs from the cached one.
+fn shared_input_value<T: Serialize>(
+    cache: &mut SharedInput<T>,
+    shared: &Rc<T>,
+) -> Result<InputValue, Error> {
+    if let Some((cached, input)) = cache {
+        if Rc::ptr_eq(cached, shared) {
+            return Ok(input.clone());
+        }
+    }
+    let input = input_value(shared.as_ref(), AttributeMaps::Add)?;
+    *cache = Some((Rc::clone(shared), input.clone()));
+    Ok(input)
 }
 
 impl Advisor for RegoAdvisor {
@@ -169,13 +186,34 @@ impl Advisor for RegoAdvisor {
         registry_group: Option<Rc<VersionedSignal>>,
         otlp_emitter: Option<Rc<OtlpEmitter>>,
     ) -> Result<Vec<PolicyFinding>, Error> {
-        let mut findings = self.check(&RegoInput {
-            sample: sample.clone(),
-            registry_attribute,
-            resource: signal.resource(),
-            instrumentation_scope: signal.instrumentation_scope(),
-            registry_group,
-        })?;
+        // An attribute sample has no attribute lists, and its value is arbitrary data.
+        let sample_maps = if matches!(sample, SampleRef::Attribute(_)) {
+            AttributeMaps::Omit
+        } else {
+            AttributeMaps::Add
+        };
+        let resource = match signal.shared_resource() {
+            Some(shared) => shared_input_value(&mut self.resource, shared)?,
+            None => input_value(&signal.resource(), AttributeMaps::Add)?,
+        };
+        let instrumentation_scope = match signal.shared_instrumentation_scope() {
+            Some(shared) => shared_input_value(&mut self.instrumentation_scope, shared)?,
+            None => InputValue::null(),
+        };
+        let input = InputValue::object([
+            ("sample", input_value(&sample, sample_maps)?),
+            ("resource", resource),
+            ("instrumentation_scope", instrumentation_scope),
+            (
+                "registry_attribute",
+                input_value(&registry_attribute, AttributeMaps::Omit)?,
+            ),
+            (
+                "registry_group",
+                input_value(&registry_group, AttributeMaps::Omit)?,
+            ),
+        ]);
+        let mut findings = self.check(input)?;
 
         // Populate signal_type and signal_name from the parent signal if not already set
         for finding in &mut findings {

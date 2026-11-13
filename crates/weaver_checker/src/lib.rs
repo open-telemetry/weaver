@@ -3,7 +3,7 @@
 #![allow(rustdoc::broken_intra_doc_links)]
 #![doc = include_str!("../README.md")]
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::{Display, Formatter};
 use std::fs::metadata;
 use std::path::{Path, PathBuf};
@@ -194,6 +194,37 @@ pub struct Engine {
     // before evaluating it.
     policy_packages: HashSet<String>,
     finding_modifier: Option<FindingModifier>,
+}
+
+/// A value converted to the policy engine's representation. A clone shares the converted data.
+#[derive(Debug, Clone)]
+pub struct InputValue(regorus::Value);
+
+impl InputValue {
+    /// The null value.
+    #[must_use]
+    pub fn null() -> Self {
+        Self(regorus::Value::Null)
+    }
+
+    /// Converts a JSON value.
+    pub fn from_json(json: Value) -> Result<Self, Error> {
+        serde_json::from_value(json)
+            .map(Self)
+            .map_err(|e| Error::InvalidInput {
+                error: e.to_string(),
+            })
+    }
+
+    /// Builds an object from named fields.
+    #[must_use]
+    pub fn object<'a>(fields: impl IntoIterator<Item = (&'a str, InputValue)>) -> Self {
+        let object: BTreeMap<regorus::Value, regorus::Value> = fields
+            .into_iter()
+            .map(|(name, value)| (regorus::Value::from(name), value.0))
+            .collect();
+        Self(regorus::Value::from(object))
+    }
 }
 
 impl Engine {
@@ -539,17 +570,13 @@ impl Engine {
         let json_input = to_value(input).map_err(|e| Error::InvalidInput {
             error: e.to_string(),
         })?;
-        self.set_input_value(json_input)
+        self.set_input_value(InputValue::from_json(json_input)?);
+        Ok(())
     }
 
-    /// Sets the input document from a JSON value.
-    pub fn set_input_value(&mut self, json_input: Value) -> Result<(), Error> {
-        let value: regorus::Value =
-            serde_json::from_value(json_input).map_err(|e| Error::InvalidInput {
-                error: e.to_string(),
-            })?;
-        self.engine.set_input(value);
-        Ok(())
+    /// Sets an already converted input document.
+    pub fn set_input_value(&mut self, input: InputValue) {
+        self.engine.set_input(input.0);
     }
 
     /// Returns true if there are any policy packages for a given stage.
