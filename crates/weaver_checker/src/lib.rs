@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use globset::Glob;
 use miette::Diagnostic;
 use serde::Serialize;
-use serde_json::to_value;
+use serde_json::{to_value, Value};
 use walkdir::DirEntry;
 
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
@@ -366,7 +366,7 @@ impl Engine {
 
         // OPA Rego requires data documents to be structured values. We deserialize the
         // content here to validate the structure and pass it to the engine.
-        let parsed_value: serde_json::Value = match extension {
+        let parsed_value: Value = match extension {
             "json" => {
                 log::debug!("Including JSON data file {}", file_path.display());
                 serde_json::from_str(&content).map_err(|e| Error::InvalidData {
@@ -404,7 +404,7 @@ impl Engine {
         for key in components.into_iter().rev() {
             let mut map = serde_json::Map::new();
             let _ = map.insert(key, wrapped);
-            wrapped = serde_json::Value::Object(map);
+            wrapped = Value::Object(map);
         }
 
         self.add_data(&wrapped)?;
@@ -539,7 +539,11 @@ impl Engine {
         let json_input = to_value(input).map_err(|e| Error::InvalidInput {
             error: e.to_string(),
         })?;
+        self.set_input_value(json_input)
+    }
 
+    /// Sets the input document from a JSON value.
+    pub fn set_input_value(&mut self, json_input: Value) -> Result<(), Error> {
         let value: regorus::Value =
             serde_json::from_value(json_input).map_err(|e| Error::InvalidInput {
                 error: e.to_string(),
