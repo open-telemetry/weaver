@@ -9,9 +9,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // depending on protoc in GitHub Actions.
     //
     // To regenerate the gRPC API from the proto file:
+    // - Move `tonic-prost-build` in Cargo.toml to `[build-dependencies]`.
     // - Uncomment the following lines.
     // - Run `cargo build` to regenerate the API.
-    // - Comment the following lines.
+    // - Comment the following lines and move the dependency back.
     // - Commit the changes.
 
     // tonic_prost_build::configure()
@@ -41,10 +42,7 @@ fn timestamp(dir: walkdir::DirEntry) -> Result<SystemTime, Box<dyn std::error::E
 fn is_package_lock_stale(dir: &Path) -> Result<bool, Box<dyn std::error::Error>> {
     let lock_timestamp = dir.join("pnpm-lock.yaml").metadata()?.modified()?;
     let package_timestamp = dir.join("package.json").metadata()?.modified()?;
-    if package_timestamp > lock_timestamp {
-        return Ok(true);
-    }
-    Ok(false)
+    Ok(package_timestamp > lock_timestamp)
 }
 
 /// Helper function to determine if NPM project is out of date.
