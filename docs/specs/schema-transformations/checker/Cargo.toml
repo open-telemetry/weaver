@@ -1,0 +1,17 @@
+[package]
+name = "transform-check"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+weaver_common = { path = "../../../../crates/weaver_common" }
+weaver_semconv = { path = "../../../../crates/weaver_semconv" }
+weaver_resolver = { path = "../../../../crates/weaver_resolver" }
+weaver_resolved_schema = { path = "../../../../crates/weaver_resolved_schema" }
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9.34"
+regex = "1"
+anyhow = "1"
