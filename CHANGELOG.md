@@ -4,8 +4,8 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
-- Fix live-check attaching the resource of an earlier OTLP export to spans, metrics and logs that arrive without one. ([#XXXX](https://github.com/open-telemetry/weaver/pull/XXXX) by @jerbly)
-- Live-check rego advice policies can read an attribute by name: each `attributes` list in the policy input has an `attributes_by_name` map next to it. Fixes [#1680](https://github.com/open-telemetry/weaver/issues/1680) - ([#XXXX](https://github.com/open-telemetry/weaver/pull/XXXX) by @jerbly)
+- Fix live-check attaching the resource of an earlier OTLP export to spans, metrics and logs that arrive without one. ([#1910](https://github.com/open-telemetry/weaver/pull/1910) by @jerbly)
+- Live-check rego advice policies can read an attribute by name: each `attributes` list in the policy input has an `attributes_by_name` map next to it. Fixes [#1680](https://github.com/open-telemetry/weaver/issues/1680) - ([#1910](https://github.com/open-telemetry/weaver/pull/1910) by @jerbly)
 - Live-check over OTLP keeps map and bytes attribute values, and log bodies are no longer in Rust debug format. Fixes [#1872](https://github.com/open-telemetry/weaver/issues/1872) - ([#1873](https://github.com/open-telemetry/weaver/pull/1873) by @lmolkova)
 - 💥 BREAKING CHANGE 💥 Migrate YAML parsing from the unmaintained `serde_yaml` crate to `serde-saphyr` (`2.0`) for strict YAML 1.2 specification compliance.
   - **Multiline quoted scalar indentation**: Continuation lines in multiline single- or double-quoted flow scalars (`'...'` / `"..."`) inside a block mapping must be indented strictly more than the enclosing block (YAML 1.2.2 `[69] s-flow-line-prefix(n)`), rather than at the same column as the mapping key.
