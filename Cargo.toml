@@ -78,7 +78,6 @@ assert_cmd = "2.2.1"
 semver = { version = "1.0.27", features = ["serde"] }
 # HTTP/2-only, no TLS backend: used solely to reproduce/regress a
 # `/stop` shutdown race specific to HTTP/2 flow control.
-reqwest = { version = "0.12", default-features = false, features = ["http2"] }
 # gix uses reqwest 0.13 internally. This direct dependency selects its
 # provider-free Rustls transport without making gix choose a crypto provider.
 gix-reqwest = { package = "reqwest", version = "0.13.4", default-features = false, features = [
@@ -182,8 +181,11 @@ assert_cmd.workspace = true
 zip.workspace = true
 
 [build-dependencies]
-tonic-prost-build = "0.14.1"
 walkdir.workspace = true
+
+# Only used when regenerating the gRPC stubs (see build.rs).
+[target."cfg(false)".build-dependencies]
+tonic-prost-build = "0.14.1"
 
 [profile.release]
 lto = true

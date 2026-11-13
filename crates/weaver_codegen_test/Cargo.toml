@@ -25,5 +25,5 @@ miette.workspace = true
 log.workspace = true
 
 
-[dependencies]
+[dev-dependencies]
 opentelemetry.workspace = true
