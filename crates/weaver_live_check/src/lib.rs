@@ -904,7 +904,7 @@ mod tests {
             samples: vec![Sample::Log(sample_log_with_timestamp(Some(
                 "timestamp".to_owned(),
             )))],
-            statistics: LiveCheckStatistics::Disabled(DisabledStatistics),
+            statistics: LiveCheckStatistics::Disabled(DisabledStatistics::default()),
         };
 
         let json = serde_json::to_value(report).expect("serialize report");
@@ -915,7 +915,7 @@ mod tests {
     fn report_without_captured_timestamp_omits_it_from_samples() {
         let report = LiveCheckReport {
             samples: vec![Sample::Log(sample_log_with_timestamp(None))],
-            statistics: LiveCheckStatistics::Disabled(DisabledStatistics),
+            statistics: LiveCheckStatistics::Disabled(DisabledStatistics::default()),
         };
 
         let json = serde_json::to_value(report).expect("serialize report");

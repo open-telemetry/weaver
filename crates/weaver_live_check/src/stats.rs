@@ -6,7 +6,7 @@
 //! - `Cumulative`: Full statistics accumulation for reporting
 //! - `Disabled`: No-op mode for long-running sessions to prevent memory growth
 
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 use std::collections::HashMap;
 
 use crate::{matcher::Matchers, FindingLevel, LiveCheckResult, PolicyFinding, VersionedRegistry};
@@ -288,9 +288,18 @@ impl CumulativeStatistics {
     }
 }
 
-/// Disabled statistics that perform no accumulation (for long-running sessions)
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct DisabledStatistics;
+/// Disabled statistics (for long-running sessions). Tracks only the highest finding level.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DisabledStatistics {
+    max_level: Option<FindingLevel>,
+}
+
+impl Serialize for DisabledStatistics {
+    /// Serializes as a unit struct (`null` in JSON).
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_unit_struct("DisabledStatistics")
+    }
+}
 
 /// The statistics for a live check report
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -299,31 +308,37 @@ pub struct DisabledStatistics;
 pub enum LiveCheckStatistics {
     /// Cumulative statistics mode - tracks all telemetry data
     Cumulative(CumulativeStatistics),
-    /// Disabled statistics mode - no accumulation (for long-running sessions)
+    /// Disabled statistics mode - only the highest finding level is tracked (for long-running sessions)
     Disabled(DisabledStatistics),
 }
 
 impl LiveCheckStatistics {
     /// Add a live check result to the stats
     pub fn maybe_add_live_check_result(&mut self, live_check_result: Option<&LiveCheckResult>) {
-        if let Self::Cumulative(stats) = self {
-            if let Some(result) = live_check_result {
-                for advice in &result.all_advice {
-                    // Count of total advisories
-                    stats.add_advice(advice);
-                }
-                // Count of samples with the highest advice level
-                if let Some(highest_advice_level) = &result.highest_advice_level {
-                    stats.add_highest_advice_level(highest_advice_level);
-                }
+        match self {
+            Self::Cumulative(stats) => {
+                if let Some(result) = live_check_result {
+                    for advice in &result.all_advice {
+                        // Count of total advisories
+                        stats.add_advice(advice);
+                    }
+                    // Count of samples with the highest advice level
+                    if let Some(highest_advice_level) = &result.highest_advice_level {
+                        stats.add_highest_advice_level(highest_advice_level);
+                    }
 
-                // Count of samples with no advice
-                if result.all_advice.is_empty() {
+                    // Count of samples with no advice
+                    if result.all_advice.is_empty() {
+                        stats.inc_no_advice_count();
+                    }
+                } else {
+                    // Count of samples with no advice
                     stats.inc_no_advice_count();
                 }
-            } else {
-                // Count of samples with no advice
-                stats.inc_no_advice_count();
+            }
+            Self::Disabled(stats) => {
+                let level = live_check_result.and_then(|result| result.highest_advice_level);
+                stats.max_level = stats.max_level.max(level);
             }
         }
     }
@@ -357,14 +372,11 @@ impl LiveCheckStatistics {
     }
 
     /// Returns true if any recorded finding is at or above `threshold`.
-    /// Always returns `false` for [`LiveCheckStatistics::Disabled`]; the
-    /// caller is responsible for warning about `--no-stats` + a
-    /// stats-dependent gate at startup.
     #[must_use]
     pub fn should_fail(&self, threshold: FindingLevel) -> bool {
         match self {
             Self::Cumulative(stats) => stats.should_fail(threshold),
-            Self::Disabled(_) => false,
+            Self::Disabled(stats) => stats.max_level.is_some_and(|level| level >= threshold),
         }
     }
 
@@ -389,7 +401,7 @@ mod tests {
         };
         let versioned_registry = VersionedRegistry::V1(Box::new(registry));
 
-        let mut disabled_stats = LiveCheckStatistics::Disabled(DisabledStatistics);
+        let mut disabled_stats = LiveCheckStatistics::Disabled(DisabledStatistics::default());
         let mut normal_stats =
             LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&versioned_registry));
 
@@ -405,8 +417,6 @@ mod tests {
         normal_stats.add_event_name_to_coverage("test.event".to_owned());
 
         // Verify disabled stats don't accumulate (all operations are no-ops)
-        // Note: In practice, disabled stats are never serialized due to the
-        // `!args.no_stats && !no_output` guard in live_check.rs:332
         assert!(matches!(disabled_stats, LiveCheckStatistics::Disabled(_)));
         assert!(matches!(normal_stats, LiveCheckStatistics::Cumulative(_)));
 
@@ -483,11 +493,42 @@ mod tests {
         assert!(stats.should_fail(FindingLevel::Information));
     }
 
+    fn result_with_level(level: FindingLevel) -> LiveCheckResult {
+        LiveCheckResult {
+            highest_advice_level: Some(level),
+            ..LiveCheckResult::new()
+        }
+    }
+
     #[test]
-    fn test_disabled_should_fail_always_false() {
-        let disabled = LiveCheckStatistics::Disabled(DisabledStatistics);
+    fn test_disabled_should_fail_without_findings() {
+        let mut disabled = LiveCheckStatistics::Disabled(DisabledStatistics::default());
+        disabled.maybe_add_live_check_result(None);
+        disabled.maybe_add_live_check_result(Some(&LiveCheckResult::new()));
         assert!(!disabled.should_fail(FindingLevel::Information));
         assert!(!disabled.should_fail(FindingLevel::Improvement));
         assert!(!disabled.should_fail(FindingLevel::Violation));
+    }
+
+    #[test]
+    fn test_disabled_should_fail_tracks_highest_level() {
+        let mut disabled = LiveCheckStatistics::Disabled(DisabledStatistics::default());
+        disabled.maybe_add_live_check_result(Some(&result_with_level(FindingLevel::Improvement)));
+        disabled.maybe_add_live_check_result(Some(&result_with_level(FindingLevel::Information)));
+        disabled.maybe_add_live_check_result(None);
+        assert!(disabled.should_fail(FindingLevel::Information));
+        assert!(disabled.should_fail(FindingLevel::Improvement));
+        assert!(!disabled.should_fail(FindingLevel::Violation));
+
+        disabled.maybe_add_live_check_result(Some(&result_with_level(FindingLevel::Violation)));
+        assert!(disabled.should_fail(FindingLevel::Violation));
+    }
+
+    #[test]
+    fn test_disabled_serializes_as_null() {
+        let mut disabled = LiveCheckStatistics::Disabled(DisabledStatistics::default());
+        disabled.maybe_add_live_check_result(Some(&result_with_level(FindingLevel::Violation)));
+        let json = serde_json::to_string(&disabled).expect("failed to serialize");
+        assert_eq!(json, "null");
     }
 }
