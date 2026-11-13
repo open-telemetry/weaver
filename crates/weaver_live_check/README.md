@@ -185,6 +185,14 @@ make_finding(id, level, context, message) := {
 
 `input.instrumentation_scope` contains the instrumentation scope associated with the signal being assessed, or `null` when no scope is available. When present, it includes `name`, `version`, `schema_url`, `attributes`, and `dropped_attributes_count`.
 
+Every `attributes` list in `input.sample`, `input.resource` and `input.instrumentation_scope` has an `attributes_by_name` map next to it, from attribute name to value. This includes the lists on span events, span links and data points. An exemplar has `filtered_attributes_by_name`. Use the map to read one attribute without a search of the list:
+
+```rego
+input.sample.span.attributes_by_name["error.type"] == "timeout"
+```
+
+The maps exist only in the policy input. They are not in the report.
+
 `input.registry_attribute`, when present, contains the matching attribute definition from the supplied registry. For a v2 registry it is the definition from the matched signal or attribute groups, which can come from a dependency.
 
 `input.registry_group`, when present, contains the matching group definition from the supplied registry.

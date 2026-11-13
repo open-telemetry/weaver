@@ -376,6 +376,37 @@ mod tests {
     }
 
     #[test]
+    fn spans_without_a_resource_do_not_take_an_earlier_one() {
+        let spans = |resource: Option<Resource>| ResourceSpans {
+            resource,
+            scope_spans: vec![ScopeSpans {
+                spans: vec![Span::default()],
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let request = OtlpRequest::Traces(ExportTraceServiceRequest {
+            resource_spans: vec![
+                spans(Some(Resource {
+                    attributes: vec![string_attribute("service.name", "cart")],
+                    ..Default::default()
+                })),
+                spans(None),
+            ],
+        });
+
+        let has_resource: Vec<_> = collect(vec![request])
+            .into_iter()
+            .filter_map(|sample| match sample {
+                Sample::Span(span) => Some(span.resource.is_some()),
+                _ => None,
+            })
+            .collect();
+
+        assert_eq!(has_resource, [true, false]);
+    }
+
+    #[test]
     fn same_named_spans_keep_distinct_instrumentation_scopes() {
         let request = OtlpRequest::Traces(ExportTraceServiceRequest {
             resource_spans: vec![ResourceSpans {
