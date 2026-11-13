@@ -25,7 +25,7 @@ pub trait Matchable {
     fn sample_type(&self) -> SampleType;
 
     /// Adds the variables of the sample to a CEL context.
-    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError>;
+    fn bind(&self, context: &mut Context<'_, '_>) -> Result<(), SerializationError>;
 }
 
 /// The CEL standard library, built once. `Context::default` builds it again
@@ -33,7 +33,7 @@ pub trait Matchable {
 static STDLIB: OnceLock<Arc<Env>> = OnceLock::new();
 
 /// A context with the standard library and no variables.
-pub(crate) fn stdlib_context() -> Context<'static> {
+pub(crate) fn stdlib_context() -> Context<'static, 'static> {
     Context::with_env(Arc::clone(STDLIB.get_or_init(|| Arc::new(Env::stdlib()))))
 }
 
@@ -43,7 +43,10 @@ pub(crate) fn stdlib_context() -> Context<'static> {
 ///
 /// Returns the error from the interpreter, or `UnexpectedType` when the
 /// result is not a bool.
-pub(crate) fn execute(program: &Program, context: &Context<'_>) -> Result<bool, ExecutionError> {
+pub(crate) fn execute(
+    program: &Program,
+    context: &Context<'_, '_>,
+) -> Result<bool, ExecutionError> {
     match program.execute(context)? {
         Value::Bool(result) => Ok(result),
         other => Err(ExecutionError::UnexpectedType {
@@ -84,7 +87,7 @@ struct ScopeVariable<'a> {
 pub(crate) fn bind_signal_context(
     resource: Option<&SampleResource>,
     scope: Option<&SampleInstrumentationScope>,
-    context: &mut Context<'_>,
+    context: &mut Context<'_, '_>,
 ) -> Result<(), SerializationError> {
     context.add_variable(
         "resource",

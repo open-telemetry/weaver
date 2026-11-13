@@ -99,7 +99,7 @@ pub fn print_dedup_errors(error: crate::error::Error) {
                 err.occurrences - 1
             ),
         };
-        error!("{}", &output);
+        error!("{output}");
     });
 }
 

@@ -176,7 +176,7 @@ fn diff_signals_by_hash<T: Signal>(
             });
         }
     }
-    for (signal_name, _) in baseline.iter() {
+    for signal_name in baseline.keys() {
         if !latest.contains_key(signal_name) {
             changes.push(SchemaItemChange::Removed {
                 name: (*signal_name).to_owned(),
