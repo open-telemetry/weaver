@@ -4,9 +4,11 @@ use itertools::Itertools;
 use rayon::iter::ParallelIterator;
 use rayon::iter::{IntoParallelIterator, ParallelBridge};
 use std::fmt::Display;
-use std::path::MAIN_SEPARATOR;
+use std::fs::metadata;
+use std::io::ErrorKind;
+use std::path::{Path, MAIN_SEPARATOR};
 use weaver_common::http_auth::HttpAuthResolver;
-use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
+use weaver_common::vdir::{explain_missing_path, VirtualDirectory, VirtualDirectoryPath};
 use weaver_semconv::v1::registry::SemConvRegistry;
 
 use walkdir::DirEntry;
@@ -455,6 +457,14 @@ fn from_vdir<T: serde::de::DeserializeOwned>(
     })
 }
 
+/// Names the absolute path a missing relative registry path resolved to.
+fn registry_not_found(path: &Path, cause: &std::io::Error) -> Error {
+    Error::FailToResolveDefinition(weaver_semconv::Error::RegistryNotFound {
+        path_or_url: path.display().to_string(),
+        error: explain_missing_path(path, cause),
+    })
+}
+
 /// Loads a "raw" repository (composed of the original definition).
 fn load_definition_repository(
     registry_repo: RegistryRepo,
@@ -471,6 +481,14 @@ fn load_definition_repository(
     }
     let local_path = registry_repo.path().to_path_buf();
     let registry_path_repr = registry_repo.registry_path_repr();
+
+    // Checked before the walk, whose error for a missing path gives only the path as written.
+    // Any other error, such as a denied permission, is left for the walk to report.
+    if let Err(e) = metadata(&local_path) {
+        if e.kind() == ErrorKind::NotFound {
+            return WResult::FatalErr(registry_not_found(&local_path, &e));
+        }
+    }
 
     // Loads the semantic convention specifications from the git repo.
     // All yaml files are recursively loaded and parsed in parallel from
@@ -577,6 +595,8 @@ fn check_version_compatibility(prev: &Dependency, dep: &Dependency) -> Result<()
 
 #[cfg(test)]
 mod tests {
+
+    use std::env::current_dir;
 
     use weaver_common::{
         diagnostic::DiagnosticMessages, result::WResult, vdir::VirtualDirectoryPath,
@@ -809,5 +829,91 @@ mod tests {
         assert_eq!(attr2.brief, "Attribute 2 from C v1.2 (new)");
 
         Ok(())
+    }
+
+    /// Returns the error reported when loading the unreadable registry at `path`.
+    fn load_error(path: &str) -> Error {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: path.to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("a registry repo does not need its local path to exist");
+        let result = load_semconv_repository(
+            registry_repo,
+            false,
+            &weaver_common::http_auth::HttpAuthResolver::empty(),
+        );
+        let WResult::FatalErr(error) = result else {
+            panic!("an unreadable local registry must fail to load");
+        };
+        error
+    }
+
+    /// Returns the `path_or_url` and `error` reported when loading the registry at `path`.
+    fn not_found_error(path: &str) -> (String, String) {
+        let Error::FailToResolveDefinition(weaver_semconv::Error::RegistryNotFound {
+            path_or_url,
+            error,
+        }) = load_error(path)
+        else {
+            panic!("a missing local registry must be reported as not found");
+        };
+        (path_or_url, error)
+    }
+
+    /// Joins `relative`, written with `/`, to the working directory one segment at a time,
+    /// so the separators match the platform's.
+    fn in_working_dir(relative: &str) -> String {
+        relative
+            .split('/')
+            .fold(current_dir().unwrap(), |dir, segment| dir.join(segment))
+            .display()
+            .to_string()
+    }
+
+    #[test]
+    fn test_missing_relative_path_names_resolved_path() {
+        let resolved = in_working_dir("does/not/exist");
+        for path in ["./does/not/exist", "does/not/exist"] {
+            let (path_or_url, error) = not_found_error(path);
+            assert_eq!(path_or_url, path);
+            assert!(error.contains(&resolved), "{error}");
+        }
+    }
+
+    #[test]
+    fn test_missing_dependency_path_names_resolved_path() {
+        // `main` exists; the `registry_path` of its dependency does not.
+        let (path_or_url, error) = not_found_error("data/dependency-not-found/main");
+        assert_eq!(path_or_url, "data/dependency-not-found/non-existent");
+        let resolved = in_working_dir(&path_or_url);
+        assert!(error.contains(&resolved), "{error}");
+    }
+
+    #[test]
+    fn test_missing_absolute_path_names_no_working_directory() {
+        // Absolute and missing on every platform.
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().join("missing").display().to_string();
+        let (path_or_url, error) = not_found_error(&missing);
+        assert_eq!(path_or_url, missing);
+        assert!(!error.contains("current working directory"), "{error}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_path_through_a_file_is_not_reported_as_not_found() {
+        // A path that runs through a regular file fails with ENOTDIR, not ENOENT.
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("file");
+        std::fs::write(&file, "").unwrap();
+        let error = load_error(&file.join("registry").display().to_string());
+        assert!(
+            matches!(
+                error,
+                Error::FailToResolveDefinition(weaver_semconv::Error::SemConvSpecError { .. })
+            ),
+            "{error}"
+        );
     }
 }
