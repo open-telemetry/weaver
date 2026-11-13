@@ -18,4 +18,5 @@ Where something is a matter of judgment, it's described that way too.
 | [rust-style](rust-style.md) | When writing or reviewing Rust code, and determining style/best practices. |
 | [coverage](coverage.md) | When checking test coverage of a change, or reading a Codecov report.     |
 | [mutation-testing](mutation-testing.md) | When running `cargo mutants` on a change before a PR, or reading its results. |
+| [release-workflow](release-workflow.md) | When upgrading cargo-dist, or changing `release.yml`, `dist-workspace.toml` or `.github/build-setup.yml`. |
 
