@@ -6719,6 +6719,7 @@ name = "weaver_resolved_schema"
 version = "0.28.0"
 dependencies = [
  "log",
+ "miette",
  "schemars",
  "serde",
  "serde_json",

@@ -6,6 +6,7 @@ allowed_external_types = [
     "serde_core::ser::Serialize",
     "serde_core::de::Deserialize",
     "weaver_common::*",
+    "miette::protocol::Diagnostic",
     "weaver_semconv::*",
     "weaver_version::*",
     "schemars::JsonSchema",

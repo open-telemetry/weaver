@@ -1,0 +1,3 @@
+file_format: definition_manifest/2.0
+name: leaf
+schema_url: https://example.com/leaf/1.0.0

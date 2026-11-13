@@ -1,6 +1,7 @@
 //! Version two of registry specification.
 
 use crate::v2::{attribute_group::AttributeGroupAttribute, provenance::Provenance};
+use miette::{Diagnostic, Severity};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet, VecDeque};
@@ -184,6 +185,7 @@ impl ForgeResolvedRegistry {
     pub fn try_from_resolved_schema<R: SchemaResolver>(
         schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema,
         resolver: &mut R,
+        tolerate_warnings: bool,
     ) -> WResult<Self, Error> {
         let mut non_fatal_errors = Vec::new();
         let schema_url = schema.schema_url.clone();
@@ -211,11 +213,24 @@ impl ForgeResolvedRegistry {
             let dep_schema = match &*resolved_bundle {
                 weaver_resolver::WeaverResolvedSchema::V2(v2) => v2.clone(),
                 weaver_resolver::WeaverResolvedSchema::V1(v1) => {
-                    match weaver_resolved_schema::v2::ResolvedTelemetrySchema::try_from(v1.clone())
+                    let converted =
+                        weaver_resolved_schema::v2::ResolvedTelemetrySchema::from_v1(v1.clone());
+                    let (schema, warnings) = match converted.into_result_with_non_fatal() {
+                        Ok(result) => result,
+                        Err(e) => return WResult::FatalErr(e.into()),
+                    };
+                    if !tolerate_warnings
+                        || warnings
+                            .iter()
+                            .any(|e| e.severity() != Some(Severity::Warning))
                     {
-                        Ok(v2) => v2,
-                        Err(e) => return WResult::FatalErr(Error::from(e)),
+                        if let Err(e) = weaver_resolved_schema::error::handle_errors(warnings) {
+                            return WResult::FatalErr(e.into());
+                        }
+                    } else {
+                        non_fatal_errors.extend(warnings.into_iter().map(Error::from));
                     }
+                    schema
                 }
             };
             pending.extend(
@@ -1020,6 +1035,7 @@ pub(crate) mod tests {
         let forge_registry = match ForgeResolvedRegistry::try_from_resolved_schema(
             resolved_schema,
             &mut mock_resolver,
+            false,
         ) {
             WResult::Ok(r) => r,
             WResult::OkWithNFEs(r, _) => r,
@@ -1411,11 +1427,14 @@ pub(crate) mod tests {
         };
 
         let mut resolver = NullSchemaResolver;
-        let forge =
-            match ForgeResolvedRegistry::try_from_resolved_schema(resolved_schema, &mut resolver) {
-                WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
-                WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
-            };
+        let forge = match ForgeResolvedRegistry::try_from_resolved_schema(
+            resolved_schema,
+            &mut resolver,
+            false,
+        ) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
+        };
 
         assert_eq!(
             forge
@@ -1576,6 +1595,7 @@ pub(crate) mod tests {
         let forge = match ForgeResolvedRegistry::try_from_resolved_schema(
             resolved_schema,
             &mut mock_resolver,
+            false,
         ) {
             WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
             WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
@@ -1759,7 +1779,7 @@ pub(crate) mod tests {
 
         let mut resolver = NullSchemaResolver;
         let result =
-            ForgeResolvedRegistry::try_from_resolved_schema(resolved_schema, &mut resolver);
+            ForgeResolvedRegistry::try_from_resolved_schema(resolved_schema, &mut resolver, false);
         assert!(result.is_fatal());
 
         if let WResult::FatalErr(Error::CompoundError(errors)) = result {
@@ -1834,8 +1854,11 @@ pub(crate) mod tests {
         let mut mock_resolver = MockSchemaResolver::new();
         mock_resolver.add_fatal(dep_url, weaver_resolver::Error::FailToResolveSchemaUrl {});
 
-        let result =
-            ForgeResolvedRegistry::try_from_resolved_schema(resolved_schema, &mut mock_resolver);
+        let result = ForgeResolvedRegistry::try_from_resolved_schema(
+            resolved_schema,
+            &mut mock_resolver,
+            false,
+        );
         assert!(result.is_fatal());
         if let WResult::FatalErr(Error::ResolverError(
             weaver_resolver::Error::FailToResolveSchemaUrl {},
@@ -1900,7 +1923,7 @@ pub(crate) mod tests {
             WResult::FatalErr(e) => panic!("failed to resolve `{path}`: {e}"),
         };
         let v2 = ResolvedTelemetrySchema::try_from(v1).expect("failed to convert to v2");
-        match ForgeResolvedRegistry::try_from_resolved_schema(v2, resolver) {
+        match ForgeResolvedRegistry::try_from_resolved_schema(v2, resolver, false) {
             WResult::Ok(f) | WResult::OkWithNFEs(f, _) => f,
             WResult::FatalErr(e) => panic!("failed to build the forge registry for `{path}`: {e}"),
         }
@@ -1962,6 +1985,7 @@ pub(crate) mod tests {
         let forge = match ForgeResolvedRegistry::try_from_resolved_schema(
             mock_root_schema(&root_url, &middle_url, &leaf_url),
             &mut mock_resolver,
+            false,
         ) {
             WResult::Ok(f) | WResult::OkWithNFEs(f, _) => f,
             WResult::FatalErr(e) => panic!("failed to build the forge registry: {e}"),
@@ -2056,6 +2080,7 @@ pub(crate) mod tests {
         let forge = match ForgeResolvedRegistry::try_from_resolved_schema(
             mock_root_schema(&root_url, &middle_url, &leaf_url),
             &mut mock_resolver,
+            false,
         ) {
             WResult::Ok(f) | WResult::OkWithNFEs(f, _) => f,
             WResult::FatalErr(e) => panic!("failed to build the forge registry: {e}"),
@@ -2078,6 +2103,7 @@ pub(crate) mod tests {
         let forge = match ForgeResolvedRegistry::try_from_resolved_schema(
             mock_root_schema(&root_url, &middle_url, &leaf_url),
             &mut mock_resolver,
+            false,
         ) {
             WResult::Ok(f) | WResult::OkWithNFEs(f, _) => f,
             WResult::FatalErr(e) => panic!("failed to build the forge registry: {e}"),
@@ -2151,7 +2177,7 @@ pub(crate) mod tests {
         );
 
         let result =
-            ForgeResolvedRegistry::try_from_resolved_schema(root_schema, &mut mock_resolver);
+            ForgeResolvedRegistry::try_from_resolved_schema(root_schema, &mut mock_resolver, false);
         if let WResult::OkWithNFEs(forge, nfes) = result {
             assert_eq!(forge.dependencies.len(), 1);
             assert_eq!(nfes.len(), 1);
@@ -2264,7 +2290,7 @@ pub(crate) mod tests {
         mock_resolver.add_direct_dependencies(dep_a_url.clone(), vec![dep_b_url.clone()]);
 
         let result =
-            ForgeResolvedRegistry::try_from_resolved_schema(root_schema, &mut mock_resolver);
+            ForgeResolvedRegistry::try_from_resolved_schema(root_schema, &mut mock_resolver, false);
         assert!(result.is_fatal());
     }
 
@@ -2443,6 +2469,7 @@ pub(crate) mod tests {
         let forge_registry = match ForgeResolvedRegistry::try_from_resolved_schema(
             root_schema,
             &mut mock_resolver,
+            false,
         ) {
             WResult::Ok(r) => r,
             WResult::OkWithNFEs(r, _) => r,
@@ -2738,6 +2765,7 @@ pub(crate) mod tests {
         let forge_registry = match ForgeResolvedRegistry::try_from_resolved_schema(
             root_schema,
             &mut mock_resolver,
+            false,
         ) {
             WResult::Ok(r) => r,
             WResult::OkWithNFEs(r, _) => r,
@@ -2794,12 +2822,15 @@ pub(crate) mod tests {
         };
 
         let mut mock_resolver = MockSchemaResolver::new();
-        let forge_registry =
-            match ForgeResolvedRegistry::try_from_resolved_schema(schema, &mut mock_resolver) {
-                WResult::Ok(r) => r,
-                WResult::OkWithNFEs(r, _) => r,
-                WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
-            };
+        let forge_registry = match ForgeResolvedRegistry::try_from_resolved_schema(
+            schema,
+            &mut mock_resolver,
+            false,
+        ) {
+            WResult::Ok(r) => r,
+            WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
+        };
 
         assert_eq!(forge_registry.registry.attribute_groups.len(), 2);
         assert_eq!(

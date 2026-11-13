@@ -17,6 +17,7 @@ weaver_version = { path = "../weaver_version" }
 weaver_semconv = { path = "../weaver_semconv" }
 
 thiserror.workspace = true
+miette.workspace = true
 serde.workspace = true
 schemars.workspace = true
 log.workspace = true

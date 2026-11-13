@@ -2191,6 +2191,7 @@ mod tests {
         let forge = match ForgeResolvedRegistry::try_from_resolved_schema(
             root_schema,
             &mut mock_resolver,
+            false,
         ) {
             WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
             WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
@@ -2210,7 +2211,7 @@ mod tests {
             make_v1_dep_resolution_setup("invalid schema url with spaces");
 
         let result =
-            ForgeResolvedRegistry::try_from_resolved_schema(root_schema, &mut mock_resolver);
+            ForgeResolvedRegistry::try_from_resolved_schema(root_schema, &mut mock_resolver, false);
         assert!(matches!(result, WResult::FatalErr(Error::SchemaError(_))));
     }
 }

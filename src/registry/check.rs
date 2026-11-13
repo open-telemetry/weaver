@@ -59,11 +59,17 @@ pub(crate) fn command(
     let main_resolved = weaver.load_and_resolve_main(&mut diag_msgs)?;
 
     // Initialize the baseline registry if provided.
+    let mut baseline_warnings = DiagnosticMessages::empty();
     let baseline = if let Some(br) = args.baseline_registry.as_ref() {
-        // ignore non-fatal loading warnings for baseline.
-        let mut ignored = DiagnosticMessages::empty();
-        let registry_repo = RegistryRepo::try_new_with_auth(None, br, &mut vec![], auth)?;
-        Some(weaver.load_and_resolve_repo(registry_repo, &mut ignored)?)
+        let mut nfes = vec![];
+        let registry_repo = RegistryRepo::try_new_with_auth(None, br, &mut nfes, auth)?;
+        let mut baseline_diags = DiagnosticMessages::from_errors(nfes);
+        let baseline = weaver.load_and_resolve_repo(registry_repo, &mut baseline_diags, true)?;
+        if baseline_diags.has_error() {
+            return Err(baseline_diags);
+        }
+        baseline_warnings.extend(baseline_diags);
+        Some(baseline)
     } else {
         None
     };
@@ -75,12 +81,13 @@ pub(crate) fn command(
     }
 
     if !diag_msgs.is_empty() {
+        diag_msgs.extend(baseline_warnings);
         return Err(diag_msgs);
     }
 
     Ok(ExitDirectives {
         exit_code: 0,
-        warnings: None,
+        warnings: (!baseline_warnings.is_empty()).then_some(baseline_warnings),
     })
 }
 
@@ -376,10 +383,239 @@ mod tests {
                     .contains("cannot change required/recommended attributes")));
             assert_eq!(
                 diag_msgs.len(),
-                1 /* Unstable file version */
+                2 /* Unstable file version, current and baseline */
                 + 1 /* baseline error checking */
             );
         }
+    }
+
+    #[test]
+    fn test_v2_legacy_baseline_warnings_and_comparison_filters() {
+        use clap::Parser;
+
+        let dir = tempfile::tempdir().unwrap();
+        let baseline = dir.path().join("baseline");
+        let current = dir.path().join("current");
+        std::fs::create_dir_all(&baseline).unwrap();
+        std::fs::create_dir_all(&current).unwrap();
+        std::fs::write(
+            baseline.join("registry.yaml"),
+            r#"
+groups:
+  - id: entity.legacy
+    type: entity
+    brief: Legacy entity.
+    stability: development
+    attributes:
+      - id: legacy.name
+        type: string
+        brief: Entity name.
+        stability: development
+        examples: [example]
+"#,
+        )
+        .unwrap();
+        std::fs::write(
+            current.join("registry.yaml"),
+            r#"
+groups:
+  - id: registry.example
+    type: attribute_group
+    brief: Current registry.
+    attributes:
+      - id: example.name
+        type: string
+        brief: Example name.
+        stability: development
+        examples: [example]
+"#,
+        )
+        .unwrap();
+        let policy = dir.path().join("comparison.rego");
+        std::fs::write(
+            &policy,
+            r#"
+package comparison_after_resolution
+import rego.v1
+
+deny contains {
+    "id": "compatibility_entity_missing",
+    "message": "Legacy entity remains visible to comparison policies",
+    "level": "violation",
+    "signal_type": "entity",
+    "signal_name": entity.type,
+} if {
+    some entity in data.registry.entities
+    entity.type == "legacy"
+    count(object.get(entity, "identity", [])) == 0
+    some attribute in entity.description
+    attribute.key == "legacy.name"
+}
+"#,
+        )
+        .unwrap();
+        let config = dir.path().join(".weaver.toml");
+        std::fs::write(&config, "").unwrap();
+        let check = |registry: &std::path::Path, baseline_registry: Option<&std::path::Path>| {
+            let mut argv = vec![
+                "weaver",
+                "--config",
+                config.to_str().unwrap(),
+                "registry",
+                "check",
+                "--v2",
+                "-r",
+                registry.to_str().unwrap(),
+                "--policy",
+                policy.to_str().unwrap(),
+            ];
+            if let Some(path) = baseline_registry {
+                argv.extend(["--baseline-registry", path.to_str().unwrap()]);
+            }
+            run_command(&Cli::try_parse_from(argv).unwrap())
+        };
+        assert_eq!(check(&current, Some(&baseline)).exit_code, 1);
+        std::fs::write(
+            &config,
+            r#"
+[[policy.finding_filters]]
+exclude = ["compatibility_entity_missing"]
+signal_type = "entity"
+signal_names = ["legacy"]
+"#,
+        )
+        .unwrap();
+        let result = check(&current, Some(&baseline));
+        assert_eq!(result.exit_code, 0);
+        let warnings = result.warnings.expect("baseline NFEs should be reported");
+        assert!(!warnings.has_error());
+        assert!(serde_json::to_string(&warnings)
+            .unwrap()
+            .contains("entity.legacy"));
+        assert_eq!(check(&baseline, None).exit_code, 1);
+
+        let baseline_file = baseline.join("registry.yaml");
+        let content = std::fs::read_to_string(&baseline_file).unwrap();
+        std::fs::write(
+            &baseline_file,
+            content.replace("examples: [example]", "examples: [42]"),
+        )
+        .unwrap();
+        let result = check(&current, Some(&baseline));
+        assert_eq!(result.exit_code, 1);
+
+        std::fs::write(
+            baseline.join("registry.yaml"),
+            r#"
+groups:
+  - id: entity.broken
+    type: entity
+    brief: Broken entity.
+    attributes:
+      - ref: missing.attribute
+"#,
+        )
+        .unwrap();
+        assert_eq!(check(&current, Some(&baseline)).exit_code, 1);
+
+        std::fs::write(
+            baseline.join("registry.yaml"),
+            r#"
+file_format: definition/2
+entities:
+  - type: legacy
+    brief: Invalid V2 entity.
+    stability: development
+    identity: []
+"#,
+        )
+        .unwrap();
+        assert_eq!(check(&current, Some(&baseline)).exit_code, 1);
+    }
+
+    #[test]
+    fn test_v1_baseline_dependency_warnings() {
+        use clap::Parser;
+
+        let fixtures = std::path::Path::new("tests/v2_check_baseline/legacy_dependencies");
+        let temp = tempfile::tempdir().unwrap();
+        for name in ["current", "baseline", "middle", "leaf"] {
+            let dir = temp.path().join(name);
+            std::fs::create_dir_all(&dir).unwrap();
+            for file in ["manifest.yaml", "registry.yaml"] {
+                let contents = std::fs::read_to_string(fixtures.join(name).join(file)).unwrap();
+                std::fs::write(
+                    dir.join(file),
+                    contents.replace(
+                        "registry_path: ../",
+                        &format!("registry_path: {}/", temp.path().display()),
+                    ),
+                )
+                .unwrap();
+            }
+        }
+        let current = temp.path().join("current");
+        let baseline = temp.path().join("baseline");
+        let config = temp.path().join(".weaver.toml");
+        let policy = fixtures.join("comparison.rego");
+        std::fs::write(&config, "").unwrap();
+        let check = |registry: &std::path::Path, base: &std::path::Path| {
+            run_command(
+                &Cli::try_parse_from([
+                    "weaver",
+                    "--config",
+                    config.to_str().unwrap(),
+                    "registry",
+                    "check",
+                    "--v2",
+                    "-r",
+                    registry.to_str().unwrap(),
+                    "--baseline-registry",
+                    base.to_str().unwrap(),
+                    "--policy",
+                    policy.to_str().unwrap(),
+                ])
+                .unwrap(),
+            )
+        };
+        assert_eq!(check(&current, &baseline).exit_code, 1);
+        std::fs::write(
+            &config,
+            r#"
+[[policy.finding_filters]]
+exclude = ["compatibility_entity_missing"]
+signal_type = "entity"
+signal_names = ["legacy"]
+"#,
+        )
+        .unwrap();
+        let result = check(&current, &baseline);
+        assert_eq!(result.exit_code, 0);
+        let warnings = result
+            .warnings
+            .expect("dependency warning should be reported");
+        assert!(!warnings.has_error());
+        let rendered = serde_json::to_string(&warnings).unwrap();
+        assert!(rendered.contains("entity.legacy"));
+        assert!(rendered.contains("https://example.com/leaf/1.0.0"));
+        assert_eq!(check(&baseline, &current).exit_code, 1);
+
+        let leaf = temp.path().join("leaf/registry.yaml");
+        let original = std::fs::read_to_string(&leaf).unwrap();
+        std::fs::write(
+            &leaf,
+            original.replace("examples: [example]", "examples: [42]"),
+        )
+        .unwrap();
+        assert_eq!(check(&current, &baseline).exit_code, 1);
+        std::fs::write(&leaf, original).unwrap();
+
+        std::fs::write(
+            &leaf,
+            "file_format: definition/2\nentities:\n  - type: legacy\n    brief: Invalid V2 entity.\n    identity: []\n",
+        )
+        .unwrap();
+        assert_eq!(check(&current, &baseline).exit_code, 1);
     }
 
     #[test]

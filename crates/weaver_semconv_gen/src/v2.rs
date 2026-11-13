@@ -478,6 +478,7 @@ mod tests {
         let template_registry = match ForgeResolvedRegistry::try_from_resolved_schema(
             registry.clone(),
             &mut null_resolver,
+            false,
         ) {
             weaver_common::result::WResult::Ok(r) => r,
             weaver_common::result::WResult::OkWithNFEs(r, _) => r,
