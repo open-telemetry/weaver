@@ -40,7 +40,7 @@
     "globals": "17.13.0",
     "tailwindcss": "4.3.5",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.72.1",
+    "typescript-eslint": "8.72.2",
     "vite": "8.3.7"
   },
   "overrides-notes": {
@@ -48,7 +48,8 @@
   },
   "pnpm": {
     "overrides": {
-      "monaco-editor>dompurify": ">=3.4.2"
+      "monaco-editor>dompurify": ">=3.4.2",
+      "minimatch@<11.0.1": "^11.0.1"
     },
     "peerDependencyRules": {
       "allowedVersions": {
