@@ -1,0 +1,5 @@
+description: Consumer registry that declares, inherits, and imports span links.
+schema_url: https://links-consumer.example.com/schemas/1.0.0
+dependencies:
+  - schema_url: https://linkserver.example.com/schemas/1.0.0
+    registry_path: data/registry-test-v2-dep/span_links_registry/published

@@ -58,6 +58,7 @@ mod tests {
             spans: vec![SpanRefinement {
                 id: "http.client.request".to_owned().into(),
                 span: crate::v2::span::Span {
+                    links: vec![],
                     r#type: "http.client".to_owned().into(),
                     kind: weaver_semconv::v2::span::SpanKindSpec::Client,
                     name: weaver_semconv::v2::span::SpanName {
