@@ -444,7 +444,7 @@ pub struct BrowseNamespaceParams {
 pub struct LoadRegistryParams {
     /// Local folder, Git repo URL, or Git archive URL of the registry. For Git URLs, a
     /// reference can be set with `@refspec` and a sub-folder with `[sub-folder]` after the URL,
-    /// e.g. 'https://github.com/open-telemetry/semantic-conventions.git@v1.34.0[model]'.
+    /// e.g. `https://github.com/open-telemetry/semantic-conventions.git@v1.34.0[model]`.
     registry: String,
 }
 
