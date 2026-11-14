@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
-- 💥 BREAKING CHANGE 💥 `advice_policies` in the `[live-check]` and `[mcp]` sections of `.weaver.toml` is now a list. `--advice-policies` can be passed more than once, and `builtin://otel.rego` keeps the built-in policies alongside custom ones. Fixes [#1679](https://github.com/open-telemetry/weaver/issues/1679) - ([#XXXX](https://github.com/open-telemetry/weaver/pull/XXXX) by @jerbly)
+- 💥 BREAKING CHANGE 💥 `advice_policies` in the `[live-check]` and `[mcp]` sections of `.weaver.toml` is now a list. `--advice-policies` can be passed more than once, and `builtin://otel.rego` keeps the built-in policies alongside custom ones. Fixes [#1679](https://github.com/open-telemetry/weaver/issues/1679) - ([#1911](https://github.com/open-telemetry/weaver/pull/1911) by @jerbly)
 - Live-check over OTLP keeps map and bytes attribute values, and log bodies are no longer in Rust debug format. Fixes [#1872](https://github.com/open-telemetry/weaver/issues/1872) - ([#1873](https://github.com/open-telemetry/weaver/pull/1873) by @lmolkova)
 - 💥 BREAKING CHANGE 💥 Migrate YAML parsing from the unmaintained `serde_yaml` crate to `serde-saphyr` (`2.0`) for strict YAML 1.2 specification compliance.
   - **Multiline quoted scalar indentation**: Continuation lines in multiline single- or double-quoted flow scalars (`'...'` / `"..."`) inside a block mapping must be indented strictly more than the enclosing block (YAML 1.2.2 `[69] s-flow-line-prefix(n)`), rather than at the same column as the mapping key.
