@@ -530,8 +530,9 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 
 * `--fail-on <FAIL_ON>` — Findings at this level or higher cause a non-zero exit code. Levels (highest→lowest): violation, improvement, information. Use `none` to never fail. [default: violation]
 * `-o`, `--output <OUTPUT>` — Path to save generated artifacts. Use "none" to suppress output, "http" to serve the report at GET /report on the admin port until POST /shutdown (the inactivity timeout is then ignored)
-* `--otlp-grpc-address <OTLP_GRPC_ADDRESS>` — Address used by the gRPC OTLP listener
+* `--otlp-grpc-address <OTLP_GRPC_ADDRESS>` — Address used by the gRPC and HTTP OTLP listeners and the admin port
 * `--otlp-grpc-port <OTLP_GRPC_PORT>` — Port used by the gRPC OTLP listener. 0 picks a free port
+* `--otlp-http-port <OTLP_HTTP_PORT>` — Port used by the HTTP OTLP listener (binary protobuf). 0 picks a free port
 * `--emit-otlp-logs <EMIT_OTLP_LOGS>` — Enable OTLP log emission for live check policy findings
 
   Possible values: `true`, `false`
@@ -603,8 +604,9 @@ Generates a schema file by inferring the schema from a OTLP message.
   Possible values: `true`, `false`
 
 * `-o`, `--output <OUTPUT>` — Output folder for generated YAML files. [default: ./inferred-registry/]
-* `--otlp-grpc-address <OTLP_GRPC_ADDRESS>` — Address used by the gRPC OTLP listener. [default: 127.0.0.1]
+* `--otlp-grpc-address <OTLP_GRPC_ADDRESS>` — Address used by the gRPC and HTTP OTLP listeners and the admin port. [default: 127.0.0.1]
 * `--otlp-grpc-port <OTLP_GRPC_PORT>` — Port used by the gRPC OTLP listener. [default: 4317]
+* `--otlp-http-port <OTLP_HTTP_PORT>` — Port used by the HTTP OTLP listener (binary protobuf). [default: 4318]
 * `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin server (endpoints: /stop). [default: 8080]
 * `--inactivity-timeout <INACTIVITY_TIMEOUT>` — Seconds of inactivity before auto-stop (0 = never). [default: 60]
 
