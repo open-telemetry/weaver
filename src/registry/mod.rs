@@ -25,11 +25,12 @@ use check::RegistryCheckArgs;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::log_warn;
-use weaver_common::vdir::VirtualDirectoryPath;
+use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
 use weaver_config::{
     CliOverrides, CommandConfig, EffectivePolicyConfig, EffectiveRegistryConfig,
     EffectiveResolveConfig,
 };
+use weaver_live_check::advice::AdvicePolicySource;
 
 mod check;
 mod diff;
@@ -485,6 +486,29 @@ pub fn semconv_registry(
             args.diagnostic.to_effective(cfg),
         ),
     }
+}
+
+/// Resolves `--advice-policies` values to policy sources. The returned virtual
+/// directories own the files the sources point to.
+pub(crate) fn resolve_advice_policies(
+    paths: &[VirtualDirectoryPath],
+    auth: &HttpAuthResolver,
+) -> Result<(Vec<AdvicePolicySource>, Vec<VirtualDirectory>), DiagnosticMessages> {
+    let mut dirs = Vec::with_capacity(paths.len());
+    let sources = paths
+        .iter()
+        .map(|path| {
+            if let Some(builtin) = AdvicePolicySource::builtin(&path.to_string())? {
+                return Ok(builtin);
+            }
+            let dir = VirtualDirectory::try_new_with_auth(path, auth)
+                .map_err(DiagnosticMessages::from_error)?;
+            let source = AdvicePolicySource::Path(dir.path_buf());
+            dirs.push(dir);
+            Ok(source)
+        })
+        .collect::<Result<Vec<_>, DiagnosticMessages>>()?;
+    Ok((sources, dirs))
 }
 
 #[cfg(test)]

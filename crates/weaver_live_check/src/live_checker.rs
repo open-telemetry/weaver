@@ -593,7 +593,10 @@ mod tests {
     use std::path::Path;
 
     use crate::{
-        advice::{DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor},
+        advice::{
+            AdvicePolicySource, DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor,
+            TypeAdvisor,
+        },
         sample_attribute::SampleAttribute,
         sample_instrumentation_scope::SampleInstrumentationScope,
         sample_metric::{
@@ -699,7 +702,7 @@ mod tests {
                 .search_all_attributes()
                 .expect("the fixture registry is v2");
         }
-        let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
+        let rego_advisor = RegoAdvisor::new(&live_checker, &[], &None, &None)
             .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
@@ -979,7 +982,7 @@ mod tests {
                     .search_all_attributes()
                     .expect("the fixture registry is v2");
             }
-            let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
+            let rego_advisor = RegoAdvisor::new(&live_checker, &[], &None, &None)
                 .expect("Failed to create Rego advisor");
             live_checker.add_advisor(Box::new(rego_advisor));
 
@@ -1661,7 +1664,7 @@ mod tests {
         }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some(Path::new("data/policies/live_check_advice/").into()),
+            &[Path::new("data/policies/live_check_advice/").into()],
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -1754,7 +1757,7 @@ mod tests {
                 .search_all_attributes()
                 .expect("the fixture registry is v2");
         }
-        let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
+        let rego_advisor = RegoAdvisor::new(&live_checker, &[], &None, &None)
             .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
@@ -1823,7 +1826,7 @@ mod tests {
         }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some(Path::new("data/policies/live_check_advice/").into()),
+            &[Path::new("data/policies/live_check_advice/").into()],
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -1884,7 +1887,7 @@ mod tests {
                 .search_all_attributes()
                 .expect("the fixture registry is v2");
         }
-        let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
+        let rego_advisor = RegoAdvisor::new(&live_checker, &[], &None, &None)
             .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
@@ -1973,7 +1976,7 @@ mod tests {
         }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some(Path::new("data/policies/live_check_advice/").into()),
+            &[Path::new("data/policies/live_check_advice/").into()],
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -2028,7 +2031,7 @@ mod tests {
         }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some(Path::new("data/policies/live_check_advice/").into()),
+            &[Path::new("data/policies/live_check_advice/").into()],
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -2331,7 +2334,7 @@ mod tests {
                 .search_all_attributes()
                 .expect("the fixture registry is v2");
         }
-        let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
+        let rego_advisor = RegoAdvisor::new(&live_checker, &[], &None, &None)
             .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
@@ -2419,7 +2422,7 @@ mod tests {
         }
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some(Path::new("data/policies/bad_advice/").into()),
+            &[Path::new("data/policies/bad_advice/").into()],
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -2577,7 +2580,7 @@ mod tests {
 
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some(Path::new("data/policies/live_check_advice/").into()),
+            &[Path::new("data/policies/live_check_advice/").into()],
             &Some("data/jq/test.jq".into()),
             &None,
         )
@@ -3220,9 +3223,8 @@ mod tests {
 
         let registry = make_registry(false);
         let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
-        let rego_advisor =
-            RegoAdvisor::new(&live_checker, &Some(temp_dir.path().into()), &None, &None)
-                .expect("Failed to create Rego advisor");
+        let rego_advisor = RegoAdvisor::new(&live_checker, &[temp_dir.path().into()], &None, &None)
+            .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
         let mut sample = Sample::Span(SampleSpan {
@@ -4041,7 +4043,7 @@ mod tests {
         let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some(Path::new("data/policies/entity_advice/").into()),
+            &[Path::new("data/policies/entity_advice/").into()],
             &None,
             &None,
         )
@@ -4150,7 +4152,7 @@ mod tests {
                     .search_all_attributes()
                     .expect("the registry is v2");
             }
-            let rego_advisor = RegoAdvisor::new(&live_checker, &None, &None, &None)
+            let rego_advisor = RegoAdvisor::new(&live_checker, &[], &None, &None)
                 .expect("the default policies load");
             live_checker.add_advisor(Box::new(rego_advisor));
 
@@ -4564,9 +4566,8 @@ mod tests {
         let registry = make_registry(false);
         let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
 
-        let rego_advisor =
-            RegoAdvisor::new(&live_checker, &Some(temp_path.to_path_buf()), &None, &None)
-                .expect("Failed to create Rego advisor");
+        let rego_advisor = RegoAdvisor::new(&live_checker, &[temp_path.into()], &None, &None)
+            .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
         let mut sample =
@@ -4592,6 +4593,76 @@ mod tests {
             has_custom_advice,
             "Expected custom_advice_finding to be present. Found: {:?}",
             advice
+        );
+    }
+
+    fn custom_advice_policy(dir: &Path, advice_type: &str) {
+        let rego = format!(
+            r#"
+            package live_check_advice
+
+            import rego.v1
+
+            deny contains {{
+                "type": "advice",
+                "advice_type": "{advice_type}",
+                "advice_level": "information",
+                "advice_context": {{}},
+                "message": "{advice_type}",
+            }} if {{
+                input.sample.attribute
+            }}
+        "#
+        );
+        std::fs::write(dir.join("custom.rego"), rego).expect("Failed to write custom policy");
+    }
+
+    fn rego_advice_ids(policies: &[AdvicePolicySource]) -> Vec<String> {
+        let mut live_checker = LiveChecker::new(Arc::new(make_registry(false)), vec![]);
+        let rego_advisor = RegoAdvisor::new(&live_checker, policies, &None, &None)
+            .expect("Failed to create Rego advisor");
+        live_checker.add_advisor(Box::new(rego_advisor));
+
+        let mut sample = Sample::Attribute(
+            SampleAttribute::try_from("nonamespace=val").expect("a valid attribute"),
+        );
+        let mut stats =
+            LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+        sample
+            .run_live_check(&mut live_checker, &mut stats, None, &sample.clone())
+            .expect("live check runs");
+
+        let mut ids: Vec<String> = get_all_advice(&mut sample)
+            .iter()
+            .map(|advice| advice.id.clone())
+            .filter(|id| id != "missing_attribute")
+            .collect();
+        ids.sort();
+        ids
+    }
+
+    #[test]
+    fn test_rego_advisor_loads_every_policy_source() {
+        let first = tempfile::tempdir().expect("Failed to create temp dir");
+        let second = tempfile::tempdir().expect("Failed to create temp dir");
+        custom_advice_policy(first.path(), "first_custom");
+        custom_advice_policy(second.path(), "second_custom");
+
+        assert_eq!(
+            rego_advice_ids(&[first.path().into(), second.path().into()]),
+            ["first_custom", "second_custom"]
+        );
+    }
+
+    #[test]
+    fn test_rego_advisor_loads_builtin_policies_with_custom_policies() {
+        let custom = tempfile::tempdir().expect("Failed to create temp dir");
+        custom_advice_policy(custom.path(), "first_custom");
+
+        assert_eq!(rego_advice_ids(&[]), ["missing_namespace"]);
+        assert_eq!(
+            rego_advice_ids(&[AdvicePolicySource::Builtin, custom.path().into()]),
+            ["first_custom", "missing_namespace"]
         );
     }
 
@@ -4648,7 +4719,7 @@ mod tests {
 
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some(policy_dir),
+            &[policy_dir.into()],
             &None,
             &Some(format!("{}/**/*.json", data_dir.to_str().unwrap())),
         )
@@ -4729,9 +4800,13 @@ mod tests {
 
         let glob_pattern = format!("{}/data/*.json", temp_path.to_str().unwrap());
 
-        let rego_advisor =
-            RegoAdvisor::new(&live_checker, &Some(policy_dir), &None, &Some(glob_pattern))
-                .expect("Failed to create Rego advisor");
+        let rego_advisor = RegoAdvisor::new(
+            &live_checker,
+            &[policy_dir.into()],
+            &None,
+            &Some(glob_pattern),
+        )
+        .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Box::new(rego_advisor));
 
         let mut sample =
@@ -4761,7 +4836,7 @@ mod tests {
         // A non-existent advice_data path should surface as an AdviceError.
         let result = RegoAdvisor::new(
             &live_checker,
-            &None,
+            &[],
             &None,
             &Some("/non/existent/path/*.json".to_owned()),
         );

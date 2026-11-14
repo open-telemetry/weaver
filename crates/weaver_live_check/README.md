@@ -152,7 +152,7 @@ As mentioned, a list of `PolicyFinding` is returned in the report for each sampl
 
 ### Custom advisors
 
-Use the `--advice-policies` command line option to provide a path to a directory or [virtual directory (`vdir`)](/docs/vdir.md) (such as a Git repository or archive) containing Rego policies with the `live_check_advice` package name. Here's a very simple example that rejects any attribute name containing the string "test":
+Use the `--advice-policies` command line option to provide a path to a directory or [virtual directory (`vdir`)](/docs/vdir.md) (such as a Git repository or archive) containing Rego policies with the `live_check_advice` package name. The option can be given more than once, and all the policies are loaded together. Custom policies replace the built-in ones; add `--advice-policies builtin://otel.rego` to keep the built-in policies as well. Policies loaded with the built-in ones can call its `make_advice` helper and must not define their own. Here's a very simple example that rejects any attribute name containing the string "test":
 
 ```rego
 package live_check_advice
@@ -236,7 +236,7 @@ no_stream = false
 no_stats = false
 fail_on = "violation"  # violation | improvement | information | none
 output = "reports"
-advice_policies = "policies"
+advice_policies = ["builtin://otel.rego", "policies"]
 advice_preprocessor = "preprocessor.jq"
 
 [live-check.otlp]

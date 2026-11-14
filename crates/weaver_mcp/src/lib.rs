@@ -26,13 +26,14 @@ use std::sync::Arc;
 use rmcp::transport::stdio;
 use rmcp::ServiceExt;
 use weaver_forge::v2::registry::ForgeResolvedRegistry;
+use weaver_live_check::advice::AdvicePolicySource;
 
 /// Configuration for the MCP server.
 #[derive(Debug, Clone, Default)]
 pub struct McpConfig {
-    /// Path to custom Rego advice policies directory.
-    /// If None, default built-in policies are used.
-    pub advice_policies: Option<PathBuf>,
+    /// Rego advice policy sources.
+    /// If empty, default built-in policies are used.
+    pub advice_policies: Vec<AdvicePolicySource>,
 
     /// Glob pattern pointing to additional JSON/YAML files to load into OPA rego data.
     /// Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).
@@ -132,7 +133,7 @@ mod tests {
     #[test]
     fn test_mcp_config_default() {
         let config = McpConfig::default();
-        assert!(config.advice_policies.is_none());
+        assert!(config.advice_policies.is_empty());
         assert!(config.advice_data.is_none());
         assert!(config.advice_preprocessor.is_none());
     }
@@ -140,13 +141,13 @@ mod tests {
     #[test]
     fn test_mcp_config_with_paths() {
         let config = McpConfig {
-            advice_policies: Some(PathBuf::from("/path/to/policies")),
+            advice_policies: vec![PathBuf::from("/path/to/policies").into()],
             advice_data: Some("/path/to/data".to_owned()),
             advice_preprocessor: Some(PathBuf::from("/path/to/preprocessor.jq")),
         };
         assert_eq!(
             config.advice_policies,
-            Some(PathBuf::from("/path/to/policies"))
+            [PathBuf::from("/path/to/policies").into()]
         );
         assert_eq!(config.advice_data, Some("/path/to/data".to_owned()));
         assert_eq!(

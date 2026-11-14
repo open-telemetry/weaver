@@ -201,16 +201,15 @@
           "default": null
         },
         "advice_policies": {
-          "description": "Advice policies directory or virtual directory. Overrides the built-in default policies.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/VirtualDirectoryPath"
-            },
-            {
-              "type": "null"
-            }
+          "description": "Advice policies files, directories or virtual directories. Override the built-in default policies; `builtin://otel.rego` adds them back.",
+          "type": [
+            "array",
+            "null"
           ],
-          "default": null
+          "default": null,
+          "items": {
+            "$ref": "#/$defs/VirtualDirectoryPath"
+          }
         },
         "advice_preprocessor": {
           "description": "Advice preprocessor — a jq script run once over the registry data before\nbeing passed to rego policies.",
@@ -317,16 +316,15 @@
           "default": null
         },
         "advice_policies": {
-          "description": "Advice policies directory or virtual directory. Set this to override the default policies.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/VirtualDirectoryPath"
-            },
-            {
-              "type": "null"
-            }
+          "description": "Advice policies file, directory or virtual directory. Set this to override the default policies; `builtin://otel.rego` adds them back. Can be specified multiple times.",
+          "type": [
+            "array",
+            "null"
           ],
-          "default": null
+          "default": null,
+          "items": {
+            "$ref": "#/$defs/VirtualDirectoryPath"
+          }
         },
         "advice_preprocessor": {
           "description": "Advice preprocessor. A jq script to preprocess the registry data before passing to rego.",

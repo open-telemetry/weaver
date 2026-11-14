@@ -543,7 +543,7 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 
 * `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin port (endpoints: /health, /stop, /report, /shutdown)
 * `--inactivity-timeout <INACTIVITY_TIMEOUT>` — Max inactivity time in seconds before stopping the listener
-* `--advice-policies <ADVICE_POLICIES>` — Advice policies directory or virtual directory. Set this to override the default policies
+* `--advice-policies <ADVICE_POLICIES>` — Advice policies file, directory or virtual directory. Set this to override the default policies; `builtin://otel.rego` adds them back. Can be specified multiple times
 * `--advice-data <ADVICE_DATA>` — Virtual directory, file, or glob pattern pointing to additional JSON/YAML files to load into OPA rego data (other extensions are ignored). Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user)
 * `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego
 
@@ -582,7 +582,7 @@ The server communicates over stdio using JSON-RPC.
 
   Possible values: `true`, `false`
 
-* `--advice-policies <ADVICE_POLICIES>` — Advice policies directory or virtual directory. Set this to override the default policies
+* `--advice-policies <ADVICE_POLICIES>` — Advice policies file, directory or virtual directory. Set this to override the default policies; `builtin://otel.rego` adds them back. Can be specified multiple times
 * `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego
 * `--advice-data <ADVICE_DATA>` — Virtual directory, file, or glob pattern pointing to additional JSON/YAML files to load into OPA rego data. Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user)
 

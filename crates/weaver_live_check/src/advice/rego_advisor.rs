@@ -3,7 +3,11 @@
 //! Rego policy-based advisor
 
 use serde::Serialize;
-use std::{collections::BTreeMap, path::PathBuf, rc::Rc};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 use weaver_checker::{Engine, PolicyFinding};
 use weaver_forge::jq;
 
@@ -15,6 +19,49 @@ use crate::{
     DEFAULT_LIVE_CHECK_REGO, DEFAULT_LIVE_CHECK_REGO_POLICY_PATH,
 };
 
+/// The `--advice-policies` value that names the built-in policies.
+pub const BUILTIN_ADVICE_POLICIES: &str = "builtin://otel.rego";
+
+const BUILTIN_SCHEME: &str = "builtin://";
+
+/// A source of rego advice policies.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AdvicePolicySource {
+    /// The policies built into weaver.
+    Builtin,
+    /// A `.rego` file or a directory of them.
+    Path(PathBuf),
+}
+
+impl AdvicePolicySource {
+    /// Returns the built-in source that `source` names, or `None` when `source` is not a `builtin://` URI.
+    pub fn builtin(source: &str) -> Result<Option<Self>, Error> {
+        if source == BUILTIN_ADVICE_POLICIES {
+            Ok(Some(Self::Builtin))
+        } else if source.starts_with(BUILTIN_SCHEME) {
+            Err(Error::AdviceError {
+                error: format!(
+                    "Unknown built-in advice policies `{source}`; expected `{BUILTIN_ADVICE_POLICIES}`."
+                ),
+            })
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+impl From<PathBuf> for AdvicePolicySource {
+    fn from(path: PathBuf) -> Self {
+        Self::Path(path)
+    }
+}
+
+impl From<&Path> for AdvicePolicySource {
+    fn from(path: &Path) -> Self {
+        Self::Path(path.to_path_buf())
+    }
+}
+
 /// An advisor which runs a rego policy on the attribute
 #[derive(Clone)]
 pub struct RegoAdvisor {
@@ -22,26 +69,30 @@ pub struct RegoAdvisor {
 }
 
 impl RegoAdvisor {
-    /// Create a new RegoAdvisor
+    /// Creates a RegoAdvisor from `policies`, or from the built-in policies when there are none.
     pub fn new(
         live_checker: &LiveChecker,
-        policy_dir: &Option<PathBuf>,
+        policies: &[AdvicePolicySource],
         jq_preprocessor: &Option<PathBuf>,
         advice_data: &Option<String>,
     ) -> Result<Self, Error> {
         let mut engine = Engine::new();
-        if let Some(path) = policy_dir {
-            engine
-                .add_policy_from_file_or_dir(path)
-                .map_err(|e| Error::AdviceError {
-                    error: e.to_string(),
-                })?;
-        } else {
+        // The built-in policies load first: regorus panics when a later module redefines one of their functions.
+        if policies.is_empty() || policies.contains(&AdvicePolicySource::Builtin) {
             let _ = engine
                 .add_policy(DEFAULT_LIVE_CHECK_REGO_POLICY_PATH, DEFAULT_LIVE_CHECK_REGO)
                 .map_err(|e| Error::AdviceError {
                     error: e.to_string(),
                 })?;
+        }
+        for source in policies {
+            if let AdvicePolicySource::Path(path) = source {
+                engine
+                    .add_policy_from_file_or_dir(path)
+                    .map_err(|e| Error::AdviceError {
+                        error: e.to_string(),
+                    })?;
+            }
         }
 
         if let Some(pattern) = advice_data {
@@ -143,5 +194,23 @@ impl Advisor for RegoAdvisor {
         emit_findings(&findings, &sample, otlp_emitter.as_deref(), signal);
 
         Ok(findings)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn builtin_source_is_parsed_from_its_uri() {
+        assert_eq!(
+            AdvicePolicySource::builtin(BUILTIN_ADVICE_POLICIES).expect("a known built-in"),
+            Some(AdvicePolicySource::Builtin)
+        );
+        assert_eq!(
+            AdvicePolicySource::builtin("policies").expect("not a built-in"),
+            None
+        );
+        assert!(AdvicePolicySource::builtin("builtin://unknown.rego").is_err());
     }
 }
