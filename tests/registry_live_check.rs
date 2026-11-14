@@ -219,6 +219,96 @@ fn live_check_archive_advice_policies_and_data() {
     );
 }
 
+/// Writes a policy to `dir` that gives every attribute an `advice_type` finding.
+fn write_advice_policy(dir: &std::path::Path, advice_type: &str) {
+    let rego = format!(
+        r#"
+        package live_check_advice
+
+        import rego.v1
+
+        deny contains {{
+            "type": "advice",
+            "advice_type": "{advice_type}",
+            "advice_level": "information",
+            "advice_context": {{}},
+            "message": "{advice_type}",
+        }} if {{
+            input.sample.attribute
+        }}
+    "#
+    );
+    std::fs::write(dir.join("custom.rego"), rego).expect("write policy");
+}
+
+/// Runs live-check on one attribute without a namespace and returns the JSON report.
+fn run_with_advice_policies(advice_policies: &[&str]) -> Output {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let input = dir.path().join("attributes.txt");
+    std::fs::write(&input, "nonamespace\n").expect("write input");
+    Command::cargo_bin("weaver")
+        .expect("weaver binary not found")
+        .args(["registry", "live-check", "-r", REGISTRY])
+        .args(["--input-source", input.to_str().expect("utf-8 path")])
+        .args(["--input-format", "text", "--format", "json"])
+        .args(["--fail-on", "none"])
+        .args(
+            advice_policies
+                .iter()
+                .flat_map(|policies| ["--advice-policies", policies]),
+        )
+        .timeout(std::time::Duration::from_secs(60))
+        .output()
+        .expect("failed to execute weaver binary")
+}
+
+#[test]
+fn advice_policies_can_be_passed_more_than_once() {
+    let first = tempfile::tempdir().expect("temp dir");
+    let second = tempfile::tempdir().expect("temp dir");
+    write_advice_policy(first.path(), "first_custom");
+    write_advice_policy(second.path(), "second_custom");
+
+    let out = run_with_advice_policies(&[
+        first.path().to_str().expect("utf-8 path"),
+        second.path().to_str().expect("utf-8 path"),
+    ]);
+
+    assert_eq!(exit_code(&out), 0);
+    let report = String::from_utf8_lossy(&out.stdout);
+    assert!(report.contains("first_custom"), "{report}");
+    assert!(report.contains("second_custom"), "{report}");
+    assert!(!report.contains("missing_namespace"), "{report}");
+}
+
+#[test]
+fn builtin_advice_policies_can_be_kept_with_custom_ones() {
+    let custom = tempfile::tempdir().expect("temp dir");
+    write_advice_policy(custom.path(), "first_custom");
+
+    let out = run_with_advice_policies(&[
+        "builtin://otel.rego",
+        custom.path().to_str().expect("utf-8 path"),
+    ]);
+
+    assert_eq!(exit_code(&out), 0);
+    let report = String::from_utf8_lossy(&out.stdout);
+    assert!(report.contains("first_custom"), "{report}");
+    assert!(report.contains("missing_namespace"), "{report}");
+}
+
+#[test]
+fn unknown_builtin_advice_policies_fail_at_startup() {
+    let out = run_with_advice_policies(&["builtin://unknown.rego"]);
+
+    assert_ne!(exit_code(&out), 0);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("Unknown built-in advice policies"),
+        "{stderr}"
+    );
+}
+
 /// Writes a `.weaver.toml` holding one matcher and runs live-check against it.
 fn run_with_matcher(matcher: &str) -> (Output, tempfile::TempDir) {
     run_with_matcher_on(V2_REGISTRY, &["--v2"], matcher)

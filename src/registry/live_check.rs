@@ -38,7 +38,7 @@ use weaver_live_check::{
 use weaver_macros::weaver_command;
 
 use crate::registry::generate::{generate_params_shared, parse_key_val};
-use crate::registry::{load_config, PolicyArgs, RegistryArgs};
+use crate::registry::{load_config, resolve_advice_policies, PolicyArgs, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_config::WeaverCommand;
@@ -206,10 +206,10 @@ pub struct RegistryLiveCheckArgs {
     #[config(path = "otlp.inactivity_timeout")]
     inactivity_timeout: Option<u64>,
 
-    /// Advice policies directory or virtual directory. Set this to override the default policies.
+    /// Advice policies file, directory or virtual directory. Set this to override the default policies; `builtin://otel.rego` adds them back. Can be specified multiple times.
     #[arg(long)]
     #[config]
-    advice_policies: Option<VirtualDirectoryPath>,
+    advice_policies: Option<Vec<VirtualDirectoryPath>>,
 
     /// Virtual directory, file, or glob pattern pointing to additional JSON/YAML files to load into OPA rego data (other extensions are ignored). Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).
     #[arg(long)]
@@ -381,15 +381,13 @@ pub(crate) fn command(
         live_checker.search_all_attributes()?;
     }
 
-    let advice_policies_dir =
-        VirtualDirectory::try_from_opt_with_auth(config.advice_policies.as_ref(), auth)
-            .map_err(DiagnosticMessages::from_error)?;
+    let (advice_policies, _advice_policies_dirs) =
+        resolve_advice_policies(config.advice_policies.as_deref().unwrap_or_default(), auth)?;
 
     let advice_data_dir =
         VirtualDirectory::try_from_opt_with_auth(config.advice_data.as_ref(), auth)
             .map_err(DiagnosticMessages::from_error)?;
 
-    let policy_path = advice_policies_dir.as_ref().map(VirtualDirectory::path_buf);
     let data_pattern = advice_data_dir
         .as_ref()
         .map(|v| v.path_str().map(ToOwned::to_owned))
@@ -398,7 +396,7 @@ pub(crate) fn command(
 
     let rego_advisor = RegoAdvisor::new(
         &live_checker,
-        &policy_path,
+        &advice_policies,
         &config.advice_preprocessor,
         &data_pattern,
     )?;

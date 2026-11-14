@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use clap::Args;
 use log::info;
 
-use crate::registry::{load_config, RegistryArgs};
+use crate::registry::{load_config, resolve_advice_policies, RegistryArgs};
 use crate::weaver::WeaverEngine;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::diagnostic::DiagnosticMessages;
@@ -34,10 +34,10 @@ pub struct RegistryMcpArgs {
     #[shared(diagnostic)]
     pub diagnostic: DiagnosticArgs,
 
-    /// Advice policies directory or virtual directory. Set this to override the default policies.
+    /// Advice policies file, directory or virtual directory. Set this to override the default policies; `builtin://otel.rego` adds them back. Can be specified multiple times.
     #[arg(long)]
     #[config]
-    pub advice_policies: Option<VirtualDirectoryPath>,
+    pub advice_policies: Option<Vec<VirtualDirectoryPath>>,
 
     /// Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
     #[arg(long)]
@@ -82,16 +82,21 @@ pub(crate) fn command(
     info!("The server will run until stdin is closed.");
 
     // Build MCP config from effective config, resolving virtual directories upfront
-    let advice_policies_dir =
-        VirtualDirectory::try_from_opt_with_auth(cmd_config.config.advice_policies.as_ref(), auth)
-            .map_err(DiagnosticMessages::from_error)?;
+    let (advice_policies, _advice_policies_dirs) = resolve_advice_policies(
+        cmd_config
+            .config
+            .advice_policies
+            .as_deref()
+            .unwrap_or_default(),
+        auth,
+    )?;
 
     let advice_data_dir =
         VirtualDirectory::try_from_opt_with_auth(cmd_config.config.advice_data.as_ref(), auth)
             .map_err(DiagnosticMessages::from_error)?;
 
     let mcp_config = weaver_mcp::McpConfig {
-        advice_policies: advice_policies_dir.as_ref().map(VirtualDirectory::path_buf),
+        advice_policies,
         advice_data: advice_data_dir
             .as_ref()
             .map(|v| v.path_str().map(ToOwned::to_owned))

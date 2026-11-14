@@ -134,8 +134,8 @@ pub struct LiveCheckConfig {
     /// `http` serves the report at `GET /report` on the admin port until `POST /shutdown`.
     pub output: Option<PathBuf>,
 
-    /// Advice policies directory or virtual directory. Overrides the built-in default policies.
-    pub advice_policies: Option<VirtualDirectoryPath>,
+    /// Advice policies files, directories or virtual directories. Override the built-in default policies; `builtin://otel.rego` adds them back.
+    pub advice_policies: Option<Vec<VirtualDirectoryPath>>,
 
     /// Virtual directory, file, or glob pattern pointing to additional JSON/YAML files to load into OPA rego data.
     /// Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).
@@ -573,7 +573,7 @@ no_stream = false
 no_stats = true
 fail_on = "improvement"
 output = "reports"
-advice_policies = "policies"
+advice_policies = ["policies", "more_policies"]
 advice_data = "data"
 advice_preprocessor = "pre.jq"
 
@@ -600,9 +600,14 @@ otlp_logs_stdout = false
         assert_eq!(lc.output.as_deref(), Some(Path::new("reports")));
         assert_eq!(
             lc.advice_policies,
-            Some(VirtualDirectoryPath::LocalFolder {
-                path: "policies".to_owned()
-            })
+            Some(vec![
+                VirtualDirectoryPath::LocalFolder {
+                    path: "policies".to_owned()
+                },
+                VirtualDirectoryPath::LocalFolder {
+                    path: "more_policies".to_owned()
+                },
+            ])
         );
         assert_eq!(
             lc.advice_data,
