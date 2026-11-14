@@ -31,10 +31,12 @@ impl Default for InferConfig {
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct InferOtlpConfig {
-    /// Address used by the gRPC OTLP listener.
+    /// Address used by the gRPC and HTTP OTLP listeners and the admin port.
     pub grpc_address: String,
     /// Port used by the gRPC OTLP listener.
     pub grpc_port: u16,
+    /// Port used by the HTTP OTLP listener (binary protobuf).
+    pub http_port: u16,
     /// Port used by the HTTP admin server (endpoints: `/stop`, `/health`).
     pub admin_port: u16,
     /// Seconds of inactivity before auto-stop (0 = never).
@@ -46,6 +48,7 @@ impl Default for InferOtlpConfig {
         Self {
             grpc_address: "127.0.0.1".to_owned(),
             grpc_port: 4317,
+            http_port: 4318,
             admin_port: 8080,
             inactivity_timeout: 60,
         }

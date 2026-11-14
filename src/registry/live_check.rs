@@ -169,7 +169,7 @@ pub struct RegistryLiveCheckArgs {
     #[config]
     output: Option<PathBuf>,
 
-    /// Address used by the gRPC OTLP listener.
+    /// Address used by the gRPC and HTTP OTLP listeners and the admin port.
     #[clap(long)]
     #[config(path = "otlp.grpc_address")]
     otlp_grpc_address: Option<String>,
@@ -178,6 +178,11 @@ pub struct RegistryLiveCheckArgs {
     #[clap(long)]
     #[config(path = "otlp.grpc_port")]
     otlp_grpc_port: Option<u16>,
+
+    /// Port used by the HTTP OTLP listener (binary protobuf). 0 picks a free port.
+    #[clap(long)]
+    #[config(path = "otlp.http_port")]
+    otlp_http_port: Option<u16>,
 
     /// Enable OTLP log emission for live check policy findings.
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
@@ -433,6 +438,7 @@ pub(crate) fn command(
             let otlp = OtlpIngester {
                 otlp_grpc_address: config.otlp.grpc_address.clone(),
                 otlp_grpc_port: config.otlp.grpc_port,
+                otlp_http_port: config.otlp.http_port,
                 admin_port: config.otlp.admin_port,
                 inactivity_timeout,
             };

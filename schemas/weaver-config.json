@@ -725,7 +725,7 @@
           "minimum": 0
         },
         "grpc_address": {
-          "description": "Address used by the gRPC OTLP listener.",
+          "description": "Address used by the gRPC and HTTP OTLP listeners and the admin port.",
           "type": "string",
           "default": "127.0.0.1"
         },
@@ -734,6 +734,14 @@
           "type": "integer",
           "format": "uint16",
           "default": 4317,
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "http_port": {
+          "description": "Port used by the HTTP OTLP listener (binary protobuf).",
+          "type": "integer",
+          "format": "uint16",
+          "default": 4318,
           "maximum": 65535,
           "minimum": 0
         },
@@ -785,7 +793,7 @@
           "minimum": 0
         },
         "grpc_address": {
-          "description": "Address used by the gRPC OTLP listener.",
+          "description": "Address used by the gRPC and HTTP OTLP listeners and the admin port.",
           "type": "string",
           "default": "127.0.0.1"
         },
@@ -794,6 +802,14 @@
           "type": "integer",
           "format": "uint16",
           "default": 4317,
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "http_port": {
+          "description": "Port used by the HTTP OTLP listener (binary protobuf). `0` picks a free port.",
+          "type": "integer",
+          "format": "uint16",
+          "default": 4318,
           "maximum": 65535,
           "minimum": 0
         },

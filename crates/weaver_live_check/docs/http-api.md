@@ -1,6 +1,6 @@
 # Driving live-check over HTTP
 
-`weaver registry live-check --input-source otlp` receives OTLP over gRPC and checks it.
+`weaver registry live-check --input-source otlp` receives OTLP over gRPC or HTTP and checks it.
 In CI, a script usually controls the run: start weaver, run the code under test, then
 collect the report. The admin port serves four endpoints for this. With `--output=http`,
 the report is also served on the admin port.
@@ -121,6 +121,6 @@ usual.
 
 ## Ports
 
-`--otlp-grpc-port` and `--admin-port` must be different. Set either to `0` to use a free
-port. The startup log shows the bound addresses. Both ports bind to
-`--otlp-grpc-address`, which defaults to the loopback interface.
+`--otlp-grpc-port`, `--otlp-http-port` and `--admin-port` must be different. Set any of
+them to `0` to use a free port. The startup log shows the bound addresses. Every port
+binds to `--otlp-grpc-address`, which defaults to the loopback interface.

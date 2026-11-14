@@ -72,6 +72,7 @@ pub fn start_live_check(
             .args(["--input-source", "otlp", "--format", "json"])
             .args(["--output", "http"])
             .args(["--otlp-grpc-port", &grpc_port.to_string()])
+            .args(["--otlp-http-port", "0"])
             .args(["--admin-port", &admin_port.to_string()])
             // Ignored with --output http. Short on purpose: if it were honoured
             // the run would stop before the telemetry arrives and the report
