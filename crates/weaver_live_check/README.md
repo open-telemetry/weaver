@@ -305,6 +305,23 @@ signal_type = "span"
 sample_names = ["http.*"]
 ```
 
+### Coverage
+
+`registry_coverage` in the [statistics](#statistics) is the fraction of the names the registry declares that the samples used: attributes, metrics and events, and for a v2 registry also spans. Against a large registry a focused test uses only a small part of it, so `[live-check.coverage]` sets which names are counted:
+
+```toml
+[live-check.coverage]
+include = ["http.*", "url.*"]     # count only these names; empty counts every name
+exclude = ["http.response.*"]     # then leave these out
+fail_below = 0.8                  # exit non-zero when coverage is below this fraction
+```
+
+`include` and `exclude` match attribute keys, metric names, event names and span types, and support glob wildcards. They change only what `registry_coverage` counts; samples outside the scope are still checked.
+
+`fail_below` can also be set with `--fail-on-coverage-below`. When the coverage is below it, live-check exits non-zero and lists the names that were not seen. `fail_below = 1.0` requires every name in scope to be seen at least once.
+
+The coverage settings need a v2 registry, and `fail_below` needs statistics, so it cannot be used with `no_stats`.
+
 ## Output
 
 The output follows existing Weaver paradigms providing overridable jinja template based processing alongside builtin standard formats.
@@ -408,7 +425,8 @@ These should be self-explanatory, but:
 - `seen_non_registry_metrics` is a record of how many times each non-registry metric was seen in the samples
 - `seen_registry_events` is a record of how many times each event in the registry was seen in the samples. Only logs count toward events; span events do not (see [Matchers](docs/matchers.md#what-signal-can-name))
 - `seen_non_registry_events` is a record of how many times each non-registry event was seen in the samples
-- `registry_coverage` is the fraction of seen registry entities over the total registry entities
+- `seen_registry_spans` is a record of how many samples matched each span in the registry. A span counts only when a [matcher](docs/matchers.md) names it as the `signal`, because a span sample does not carry its type. v2 registries only
+- `registry_coverage` is the fraction of seen registry entities over the total registry entities. [Coverage](#coverage) settings limit which entities are counted
 
 This could be parsed for a more sophisticated way to determine pass/fail in CI for example.
 

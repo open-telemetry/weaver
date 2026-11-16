@@ -150,6 +150,10 @@ pub struct LiveCheckConfig {
 
     /// OTLP log emission settings.
     pub emit: LiveCheckEmitConfig,
+
+    /// Which registry items count toward `registry_coverage`, and the
+    /// coverage below which the run fails. Requires a v2 registry.
+    pub coverage: LiveCheckCoverageConfig,
 }
 
 impl Default for LiveCheckConfig {
@@ -172,8 +176,24 @@ impl Default for LiveCheckConfig {
             advice_preprocessor: None,
             otlp: LiveCheckOtlpConfig::default(),
             emit: LiveCheckEmitConfig::default(),
+            coverage: LiveCheckCoverageConfig::default(),
         }
     }
+}
+
+/// Registry coverage settings for live-check.
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, JsonSchema)]
+#[serde(default, deny_unknown_fields)]
+pub struct LiveCheckCoverageConfig {
+    /// Count only the registry attributes, metrics and events whose name
+    /// matches one of these patterns (supports glob wildcards, e.g.
+    /// `"http.*"`). When empty, every name counts.
+    pub include: Vec<String>,
+    /// Do not count the names that match one of these patterns. Applied
+    /// after `include`.
+    pub exclude: Vec<String>,
+    /// Fail the run when `registry_coverage` is below this fraction (0 to 1).
+    pub fail_below: Option<f32>,
 }
 
 /// OTLP listener settings for live-check.
@@ -384,6 +404,27 @@ attribute_groups = ["myapp.common"]
         assert_eq!(log.sample_type, MatcherSampleType::Log);
         assert!(log.when.is_none());
         assert!(log.signal.is_none());
+    }
+
+    #[test]
+    fn coverage_is_read_from_its_section() {
+        let toml = r#"
+["live-check".coverage]
+include = ["http.*", "url.*"]
+exclude = ["http.response.*"]
+fail_below = 0.8
+"#;
+        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
+        let coverage = live_check(&config).coverage;
+        assert_eq!(coverage.include, ["http.*", "url.*"]);
+        assert_eq!(coverage.exclude, ["http.response.*"]);
+        assert_eq!(coverage.fail_below, Some(0.8));
+
+        let config: WeaverConfig = toml::from_str("").expect("Failed to parse TOML");
+        assert_eq!(
+            live_check(&config).coverage,
+            LiveCheckCoverageConfig::default()
+        );
     }
 
     #[test]

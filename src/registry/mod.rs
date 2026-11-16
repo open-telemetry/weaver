@@ -87,6 +87,14 @@ pub enum Error {
     #[diagnostic(severity(warning))]
     MatcherNeverFired { id: String },
 
+    /// The registry coverage is below `coverage.fail_below`.
+    #[error("Registry coverage {coverage:.3} is below {threshold}. Not seen: {unseen}")]
+    CoverageBelowThreshold {
+        coverage: f32,
+        threshold: f32,
+        unseen: String,
+    },
+
     /// Configuration error (loading or parsing `.weaver.toml`)
     #[error("{error}")]
     Config { error: String },

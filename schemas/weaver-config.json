@@ -220,6 +220,10 @@
           ],
           "default": null
         },
+        "coverage": {
+          "description": "Which registry items count toward `registry_coverage`, and the\ncoverage below which the run fails. Requires a v2 registry.",
+          "$ref": "#/$defs/LiveCheckCoverageConfig"
+        },
         "emit": {
           "description": "OTLP log emission settings.",
           "$ref": "#/$defs/LiveCheckEmitConfig"
@@ -743,6 +747,38 @@
           "format": "uint64",
           "default": 60,
           "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "LiveCheckCoverageConfig": {
+      "description": "Registry coverage settings for live-check.",
+      "type": "object",
+      "properties": {
+        "exclude": {
+          "description": "Do not count the names that match one of these patterns. Applied\nafter `include`.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "fail_below": {
+          "description": "Fail the run when `registry_coverage` is below this fraction (0 to 1).",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "float",
+          "default": null
+        },
+        "include": {
+          "description": "Count only the registry attributes, metrics and events whose name\nmatches one of these patterns (supports glob wildcards, e.g.\n`\"http.*\"`). When empty, every name counts.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false

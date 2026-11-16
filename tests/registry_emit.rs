@@ -140,7 +140,10 @@ fn run_emit_with_live_check_test(use_v2: bool) {
     assert_eq!(no_advice_count, no_advice);
     assert_eq!(total_advisories, advisories);
     assert_eq!(total_entities, 76);
-    assert!(registry_coverage > 0.7);
+    // v2 coverage also counts the registry's spans, and without matchers no
+    // span sample is matched to one.
+    let min_coverage = if use_v2 { 0.6 } else { 0.7 };
+    assert!(registry_coverage > min_coverage);
 
     // The temporary directory will be automatically cleaned up when temp_dir goes out of scope
 }

@@ -1,0 +1,31 @@
+file_format: definition/2
+attributes:
+  - key: http.request.method
+    type: string
+    brief: HTTP request method.
+    stability: stable
+    examples: ["GET"]
+  - key: http.response.status_code
+    type: int
+    brief: HTTP response status code.
+    stability: stable
+    examples: [200]
+  - key: url.path
+    type: string
+    brief: The URI path.
+    stability: stable
+    examples: ["/search"]
+  - key: db.name
+    type: string
+    brief: The database name.
+    stability: stable
+    examples: ["orders"]
+metrics:
+  - name: http.server.duration
+    brief: Duration of HTTP server requests.
+    instrument: histogram
+    unit: s
+    stability: stable
+    requirement_level: recommended
+    attributes:
+      - ref: http.request.method

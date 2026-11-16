@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Live-check: `registry_coverage` now counts the spans of a v2 registry, reported as `seen_registry_spans`. A span is seen when a matcher names it as the `signal`. ([#1913](https://github.com/open-telemetry/weaver/pull/1913) by @jerbly)
+- Live-check: add a `[live-check.coverage]` config section with `include` and `exclude` patterns that set which registry names `registry_coverage` counts, and `--fail-on-coverage-below` (`fail_below`) to exit non-zero when coverage is below a fraction. v2 registries only. Fixes [#1474](https://github.com/open-telemetry/weaver/issues/1474) - ([#1913](https://github.com/open-telemetry/weaver/pull/1913) by @jerbly)
 - Live-check over OTLP keeps map and bytes attribute values, and log bodies are no longer in Rust debug format. Fixes [#1872](https://github.com/open-telemetry/weaver/issues/1872) - ([#1873](https://github.com/open-telemetry/weaver/pull/1873) by @lmolkova)
 - 💥 BREAKING CHANGE 💥 Migrate YAML parsing from the unmaintained `serde_yaml` crate to `serde-saphyr` (`2.0`) for strict YAML 1.2 specification compliance.
   - **Multiline quoted scalar indentation**: Continuation lines in multiline single- or double-quoted flow scalars (`'...'` / `"..."`) inside a block mapping must be indented strictly more than the enclosing block (YAML 1.2.2 `[69] s-flow-line-prefix(n)`), rather than at the same column as the mapping key.
