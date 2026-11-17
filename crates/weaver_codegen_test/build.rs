@@ -228,7 +228,7 @@ fn print_logs(logger: &MemLog) {
 
 /// Process the error message and exit the build script with a non-zero exit code.
 fn process_error(logger: &MemLog, error: impl std::fmt::Display) -> ! {
-    error!("{}", &error.to_string());
+    error!("{error}");
     print_logs(logger);
     #[allow(clippy::exit)] // Expected behavior
     exit(1)

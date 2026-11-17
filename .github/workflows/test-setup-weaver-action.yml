@@ -23,7 +23,7 @@ jobs:
           persist-credentials: false
 
       - name: Test setup-weaver action
-        uses: ./.github/actions/setup-weaver
+        uses: $/.github/actions/setup-weaver
 
       - name: Verify installation
         run: weaver --version

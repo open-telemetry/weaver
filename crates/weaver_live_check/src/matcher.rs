@@ -338,7 +338,7 @@ impl Matcher {
     ///
     /// A `when` that fails to evaluate does not match. The error is returned
     /// so that the caller can record it.
-    fn applies_to(&self, context: &Context<'_>) -> Result<bool, ExecutionError> {
+    fn applies_to(&self, context: &Context<'_, '_>) -> Result<bool, ExecutionError> {
         self.when
             .as_ref()
             .map_or(Ok(true), |when| execute(when, context))
