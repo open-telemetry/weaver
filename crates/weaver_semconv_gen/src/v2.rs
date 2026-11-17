@@ -488,11 +488,7 @@ mod tests {
         // Now we should check a snippet.
         let test = "data_v2/templates.md";
         println!("--- Running template engine test: {test} ---");
-        force_print_error(
-            generator
-                .update_markdown(test, true, Some(attribute_registry_url))
-                .into_result_failing_non_fatal(),
-        );
+        force_print_error(generator.update_markdown(test, true, Some(attribute_registry_url)));
         Ok(())
     }
 
