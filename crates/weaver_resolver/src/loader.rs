@@ -463,16 +463,12 @@ fn load_definition_repository(
     // Define helper functions for filtering files.
     fn is_hidden(entry: &DirEntry) -> bool {
         entry
+            .path()
             .file_name()
-            .to_str()
-            .map(|s| s.starts_with('.'))
-            .unwrap_or(false)
+            .and_then(|s| s.to_str())
+            .is_some_and(|s| s.starts_with('.'))
     }
-    // Canonical, so `is_hidden` sees the root's real name rather than `.` or `..`.
-    let local_path = registry_repo
-        .path()
-        .canonicalize()
-        .unwrap_or_else(|_| registry_repo.path().to_path_buf());
+    let local_path = registry_repo.path().to_path_buf();
     let registry_path_repr = registry_repo.registry_path_repr();
     let separator = if registry_path_repr.ends_with(['/', '\\']) {
         ""
@@ -483,7 +479,7 @@ fn load_definition_repository(
     // Loads the semantic convention specifications from the git repo.
     // All yaml files are recursively loaded and parsed in parallel from
     // the given path.
-    let result = walkdir::WalkDir::new(&local_path)
+    let result = walkdir::WalkDir::new(local_path.clone())
         .follow_links(follow_symlinks)
         .into_iter()
         .filter_entry(|e| !is_hidden(e))
@@ -505,7 +501,7 @@ fn load_definition_repository(
                             let relative_path = entry
                                 .path()
                                 .strip_prefix(&local_path)
-                                .unwrap_or(entry.path());
+                                .expect("walkdir entries are under the walk root");
                             format!("{registry_path_repr}{separator}{}", relative_path.display())
                         },
                     )]
