@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Resolve pure `definition/2` registries directly into V2 schemas under `--v2` without lowering through V1.
+  - 💥 BREAKING CHANGE 💥 Reject duplicate inline `- ref:` entries for the same attribute within a single V2 signal, attribute group, entity, or refinement (`DuplicateAttributeRef`).
+  - 💥 BREAKING CHANGE 💥 Enforce checked dependency upgrades when version arbitration selects a newer compatible dependency version, failing with `AttributeNotFoundInUpgradedSchema`, `GroupNotFoundInUpgradedSchema`, or `EntityNotFoundInUpgradedSchema` if a referenced item was removed or excluded.
+  - 💥 BREAKING CHANGE 💥 (`weaver_resolver` library API) Remove the pre-converted V1 `imports` field from `LoadedSemconvRegistry::Unresolved`, and add `SourceFormat`, `ResolvedSchemaCache`, and `WeaverResolvedSchema::into_v2`.
+  - Hide `dependency_resolution.exclude: true` items across dependency boundaries in V2 so dependents report standard unresolved or unmatched diagnostics instead of `ExcludedFromDependencyResolution`.
+  - Emit `DeprecatedSignalRefGroup` when `ref_group` targets a signal instead of an `attribute_group`, and emit `MixedRegistryUsesV1Path` / `V1DependencyUsesV1Path` when mixed or V1 inputs use the V1 resolution path under `--v2`.
+  - Fix V2 refinements inheriting `entity_associations` and event `name` from the refined signal, linearize resolved `dependencies` for Forge rendering, and fix recursive `YamlValue::Ord` comparison for nested maps and arrays.
 - Live-check over OTLP keeps map and bytes attribute values, and log bodies are no longer in Rust debug format. Fixes [#1872](https://github.com/open-telemetry/weaver/issues/1872) - ([#1873](https://github.com/open-telemetry/weaver/pull/1873) by @lmolkova)
 - 💥 BREAKING CHANGE 💥 Migrate YAML parsing from the unmaintained `serde_yaml` crate to `serde-saphyr` (`2.0`) for strict YAML 1.2 specification compliance.
   - **Multiline quoted scalar indentation**: Continuation lines in multiline single- or double-quoted flow scalars (`'...'` / `"..."`) inside a block mapping must be indented strictly more than the enclosing block (YAML 1.2.2 `[69] s-flow-line-prefix(n)`), rather than at the same column as the mapping key.

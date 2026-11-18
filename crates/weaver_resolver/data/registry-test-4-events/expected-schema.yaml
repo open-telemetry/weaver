@@ -1,0 +1,503 @@
+file_format: resolved/2.0
+schema_url: https://default/0.1.0
+attribute_catalog:
+- key: android.state
+  type:
+    members:
+    - id: created
+      value: created
+      brief: |
+        Any time before Activity.onResume() or, if the app has no Activity, Context.startService() has been called in the app for the first time.
+      stability: stable
+    - id: background
+      value: background
+      brief: |
+        Any time after Activity.onPause() or, if the app has no Activity, Context.stopService() has been called when the app was in the foreground state.
+      stability: stable
+    - id: foreground
+      value: foreground
+      brief: |
+        Any time after Activity.onResume() or, if the app has no Activity, Context.startService() has been called when the app was in either the created or background states.
+      stability: stable
+  brief: |
+    This attribute represents the state the application has transitioned into at the occurrence of the event.
+  note: |
+    The Android lifecycle states are defined in [Activity lifecycle callbacks](https://developer.android.com/guide/components/activities/activity-lifecycle#lc), and from which the `OS identifiers` are derived.
+  stability: stable
+- key: browser.brands
+  type: string[]
+  examples:
+  - - " Not A;Brand 99"
+    - Chromium 99
+    - Chrome 99
+  brief: Array of brand name and version separated by a space
+  note: |
+    This value is intended to be taken from the [UA client hints API](https://wicg.github.io/ua-client-hints/#interface) (`navigator.userAgentData.brands`).
+  stability: stable
+- key: browser.language
+  type: string
+  examples:
+  - en
+  - en-US
+  - en-AU
+  - fr
+  - fr-FR
+  brief: Preferred language of the user using the browser
+  note: |
+    This value is intended to be taken from the Navigator API `navigator.language`.
+  stability: stable
+- key: browser.mobile
+  type: boolean
+  brief: A boolean that is true if the browser is running on a mobile device
+  note: |
+    This value is intended to be taken from the [UA client hints API](https://wicg.github.io/ua-client-hints/#interface) (`navigator.userAgentData.mobile`). If unavailable, this attribute SHOULD be left unset.
+  stability: stable
+- key: browser.platform
+  type: string
+  examples:
+  - Windows
+  - macOS
+  - Android
+  - iOS
+  - Linux
+  brief: The platform on which the browser is running
+  note: |
+    This value is intended to be taken from the [UA client hints API](https://wicg.github.io/ua-client-hints/#interface) (`navigator.userAgentData.platform`). 
+  stability: stable
+- key: client.address
+  type: string
+  examples:
+  - client.example.com
+  - "10.1.2.80"
+  - /tmp/my.sock
+  brief: Test Client address ....
+  note: |
+    Test client address note
+  stability: stable
+- key: client.name
+  type: string
+  examples:
+  - myclient
+  brief: |
+    The name of the client that reported the exception.
+  stability: stable
+- key: client.port
+  type: int
+  examples:
+  - 65123
+  brief: Client port number.
+  note: Test client port
+  stability: stable
+- key: exception.escaped
+  type: boolean
+  brief: |
+    SHOULD be set to true if the exception event is recorded at a point where it is known that the exception is escaping the scope of the span.
+  stability: stable
+- key: exception.message
+  type: string
+  examples:
+  - Division by zero
+  - Can't convert 'int' object to str implicitly
+  brief: The exception message.
+  stability: stable
+- key: exception.stacktrace
+  type: string
+  examples: "Exception in thread \"main\" java.lang.RuntimeException: Test exception\\n"
+  brief: '.'
+  stability: stable
+- key: exception.type
+  type: string
+  examples:
+  - java.net.ConnectException
+  - OSError
+  brief: |
+    The type of the exception (its fully-qualified class name, if applicable).
+  stability: stable
+- key: feature_flag.key
+  type: string
+  examples:
+  - logo-color
+  brief: The unique identifier of the feature flag.
+  stability: stable
+- key: feature_flag.provider_name
+  type: string
+  examples:
+  - Flag Manager
+  brief: The name of the service provider that performs the flag evaluation.
+  stability: stable
+- key: feature_flag.variant
+  type: string
+  examples:
+  - red
+  - "true"
+  - "on"
+  brief: |
+    SHOULD be a semantic identifier for a value. If one is unavailable, a stringified version of the value can be used.
+  note: |-
+    A semantic identifier, commonly referred to as a variant, provides a means
+    for referring to a value without including the value itself. This can
+    provide additional context for understanding the meaning behind a value.
+    For example, the variant `red` maybe be used for the value `#c05543`.
+    
+    A stringified version of the value can be used in situations where a
+    semantic identifier is unavailable. String representation of the value
+    should be determined by the implementer.
+  stability: stable
+- key: ios.state
+  type:
+    members:
+    - id: active
+      value: active
+      brief: |
+        The app has become `active`. Associated with UIKit notification `applicationDidBecomeActive`.
+      stability: stable
+    - id: inactive
+      value: inactive
+      brief: |
+        The app is now `inactive`. Associated with UIKit notification `applicationWillResignActive`.
+      stability: stable
+    - id: background
+      value: background
+      brief: |
+        The app is now in the background. This value is associated with UIKit notification `applicationDidEnterBackground`.
+      stability: stable
+    - id: foreground
+      value: foreground
+      brief: |
+        The app is now in the foreground. This value is associated with UIKit notification `applicationWillEnterForeground`.
+      stability: stable
+    - id: terminate
+      value: terminate
+      brief: |
+        The app is about to terminate. Associated with UIKit notification `applicationWillTerminate`.
+      stability: stable
+  brief: |
+    This attribute represents the state the application has transitioned into at the occurrence of the event.
+  note: |
+    The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](https://developer.apple.com/documentation/uikit/uiapplicationdelegate#1656902), and from which the `OS terminology` column values are derived.
+  stability: stable
+- key: test_attr.event.attr
+  type: string
+  examples: some value
+  brief: Just making sure the referenced attributes are defined
+  note: Test value.
+  stability: stable
+- key: test_attr.event.attr
+  type: string
+  examples: some value
+  brief: Just making sure the referenced attributes are defined
+  note: |
+    test attribute
+  stability: stable
+- key: test_attr.http.url
+  type: string
+  examples:
+  - https://example.com
+  brief: The Url
+  note: Test url value.
+  stability: stable
+- key: test_attr.platform
+  type: string
+  examples:
+  - Windows
+  - macOS
+  - Android
+  brief: The browser platform
+  note: Test value.
+  stability: stable
+- key: test_attr.session.id
+  type: string
+  examples: 127836abcdef98
+  brief: The session id
+  note: |
+    Another test attribute
+  stability: stable
+- key: test_attr.session.id
+  type: string
+  examples: 127836abcdef98
+  brief: The session id
+  note: Test value.
+  stability: stable
+registry:
+  attributes:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  - 12
+  - 13
+  - 14
+  - 15
+  - 16
+  - 18
+  - 19
+  - 21
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events:
+  - name: android.device.app.lifecycle
+    attributes:
+    - base: 0
+      requirement_level: required
+    brief: |
+      This event represents an occurrence of a lifecycle transition on the Android platform.
+    stability: development
+  - name: browser.test.event_with_body_details
+    brief: |
+      An event that adds global attributes for reuse.
+    stability: development
+  - name: browser.test.event_with_fields
+    attributes:
+    - base: 1
+      requirement_level: recommended
+    - base: 2
+      requirement_level: recommended
+    - base: 3
+      requirement_level: recommended
+    - base: 4
+      requirement_level: recommended
+    brief: |
+      An event that adds global attributes for reuse.
+    stability: development
+  - name: client.exception.event
+    attributes:
+    - base: 6
+      requirement_level: recommended
+    brief: |
+      This document defines the log event used to report a client exception.
+    stability: development
+  - name: device.app.lifecycle
+    brief: |
+      This event represents an occurrence of a lifecycle transition on Android or iOS platform.
+    note: |
+      This event identifies the fields that are common to all lifecycle events for android and iOS using the `android.state` and `ios.state` fields. The `android.state` and `ios.state` attributes are mutually exclusive.
+    stability: development
+  - name: trace_feature_flag
+    attributes:
+    - base: 12
+      requirement_level: required
+    - base: 13
+      requirement_level: recommended
+    - base: 14
+      requirement_level: recommended
+    brief: |
+      This semantic convention defines the attributes used to represent a feature flag evaluation as an event.
+    stability: development
+  - name: ios.device.app.lifecycle
+    attributes:
+    - base: 15
+      requirement_level: required
+    brief: |
+      This event represents an occurrence of a lifecycle transition on the iOS platform.
+    stability: development
+  - name: feature_flag
+    attributes:
+    - base: 12
+      requirement_level: required
+    - base: 13
+      requirement_level: recommended
+    - base: 14
+      requirement_level: recommended
+    brief: |
+      This document defines attributes for feature flag evaluations represented using Log Records.
+    stability: development
+  - name: some.event
+    attributes:
+    - base: 16
+      requirement_level: recommended
+    brief: brief
+    stability: development
+  - name: empty.event
+    brief: brief
+    stability: development
+  - name: string.body.detailed.event
+    brief: |
+      This event represents an occurrence of a something.
+    note: |
+      This event transmits the body as a JSON encoded string.
+    stability: development
+  - name: string.body.event
+    brief: |
+      This event represents an occurrence of a something.
+    note: |
+      This event transmits the body as a JSON encoded string.
+    stability: development
+  - name: test_evt.session
+    attributes:
+    - base: 20
+      requirement_level:
+        conditionally_required: if and only if corresponding event is enabled
+    brief: |
+      Another simple span event with another attribute
+    stability: development
+  - name: test_evt.with_attr
+    attributes:
+    - base: 17
+      requirement_level:
+        conditionally_required: if and only if corresponding event is enabled
+    brief: |
+      Simple example span event with an attribute
+    stability: development
+  - name: exception
+    attributes:
+    - base: 8
+      requirement_level: recommended
+    - base: 9
+      requirement_level:
+        conditionally_required: Required if `exception.type` is not set, recommended otherwise.
+    - base: 10
+      requirement_level: recommended
+    - base: 11
+      requirement_level:
+        conditionally_required: Required if `exception.message` is not set, recommended otherwise.
+    brief: |
+      This document defines the attributes used to report a single exception associated with a span.
+    stability: development
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events:
+  - id: android.device.app.lifecycle
+    name: android.device.app.lifecycle
+    attributes:
+    - base: 0
+      requirement_level: required
+    brief: |
+      This event represents an occurrence of a lifecycle transition on the Android platform.
+    stability: development
+  - id: browser.test.event_with_body_details
+    name: browser.test.event_with_body_details
+    brief: |
+      An event that adds global attributes for reuse.
+    stability: development
+  - id: browser.test.event_with_fields
+    name: browser.test.event_with_fields
+    attributes:
+    - base: 1
+      requirement_level: recommended
+    - base: 2
+      requirement_level: recommended
+    - base: 3
+      requirement_level: recommended
+    - base: 4
+      requirement_level: recommended
+    brief: |
+      An event that adds global attributes for reuse.
+    stability: development
+  - id: client.exception.event
+    name: client.exception.event
+    attributes:
+    - base: 6
+      requirement_level: recommended
+    brief: |
+      This document defines the log event used to report a client exception.
+    stability: development
+  - id: device.app.lifecycle
+    name: device.app.lifecycle
+    brief: |
+      This event represents an occurrence of a lifecycle transition on Android or iOS platform.
+    note: |
+      This event identifies the fields that are common to all lifecycle events for android and iOS using the `android.state` and `ios.state` fields. The `android.state` and `ios.state` attributes are mutually exclusive.
+    stability: development
+  - id: trace_feature_flag
+    name: trace_feature_flag
+    attributes:
+    - base: 12
+      requirement_level: required
+    - base: 13
+      requirement_level: recommended
+    - base: 14
+      requirement_level: recommended
+    brief: |
+      This semantic convention defines the attributes used to represent a feature flag evaluation as an event.
+    stability: development
+  - id: ios.device.app.lifecycle
+    name: ios.device.app.lifecycle
+    attributes:
+    - base: 15
+      requirement_level: required
+    brief: |
+      This event represents an occurrence of a lifecycle transition on the iOS platform.
+    stability: development
+  - id: feature_flag
+    name: feature_flag
+    attributes:
+    - base: 12
+      requirement_level: required
+    - base: 13
+      requirement_level: recommended
+    - base: 14
+      requirement_level: recommended
+    brief: |
+      This document defines attributes for feature flag evaluations represented using Log Records.
+    stability: development
+  - id: some.event
+    name: some.event
+    attributes:
+    - base: 16
+      requirement_level: recommended
+    brief: brief
+    stability: development
+  - id: empty.event
+    name: empty.event
+    brief: brief
+    stability: development
+  - id: string.body.detailed.event
+    name: string.body.detailed.event
+    brief: |
+      This event represents an occurrence of a something.
+    note: |
+      This event transmits the body as a JSON encoded string.
+    stability: development
+  - id: string.body.event
+    name: string.body.event
+    brief: |
+      This event represents an occurrence of a something.
+    note: |
+      This event transmits the body as a JSON encoded string.
+    stability: development
+  - id: test_evt.session
+    name: test_evt.session
+    attributes:
+    - base: 20
+      requirement_level:
+        conditionally_required: if and only if corresponding event is enabled
+    brief: |
+      Another simple span event with another attribute
+    stability: development
+  - id: test_evt.with_attr
+    name: test_evt.with_attr
+    attributes:
+    - base: 17
+      requirement_level:
+        conditionally_required: if and only if corresponding event is enabled
+    brief: |
+      Simple example span event with an attribute
+    stability: development
+  - id: exception
+    name: exception
+    attributes:
+    - base: 8
+      requirement_level: recommended
+    - base: 9
+      requirement_level:
+        conditionally_required: Required if `exception.type` is not set, recommended otherwise.
+    - base: 10
+      requirement_level: recommended
+    - base: 11
+      requirement_level:
+        conditionally_required: Required if `exception.message` is not set, recommended otherwise.
+    brief: |
+      This document defines the attributes used to report a single exception associated with a span.
+    stability: development
+  entities: []

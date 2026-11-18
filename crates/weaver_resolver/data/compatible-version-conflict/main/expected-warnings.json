@@ -1,0 +1,26 @@
+[
+  {
+    "FailToResolveDefinition": {
+      "MissingRequirementLevelWarning": {
+        "path_or_url": "data/compatible-version-conflict/registry_c_v1_1/semconv.yaml",
+        "group_id": "metric.c.metric.1"
+      }
+    }
+  },
+  {
+    "FailToResolveDefinition": {
+      "MissingRequirementLevelWarning": {
+        "path_or_url": "data/compatible-version-conflict/registry_c_v1_2/semconv.yaml",
+        "group_id": "metric.c.metric.1"
+      }
+    }
+  },
+  {
+    "FailToResolveDefinition": {
+      "MissingRequirementLevelWarning": {
+        "path_or_url": "data/compatible-version-conflict/registry_c_v1_2/semconv.yaml",
+        "group_id": "span.c.span.2"
+      }
+    }
+  }
+]

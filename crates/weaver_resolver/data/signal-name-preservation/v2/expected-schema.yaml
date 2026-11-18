@@ -1,0 +1,64 @@
+file_format: resolved/2.0
+schema_url: https://example.com/signal-name-preservation-v2/1.0.0
+attribute_catalog:
+- key: test.id
+  type: string
+  examples:
+  - x
+  brief: An id.
+  stability: stable
+registry:
+  attributes:
+  - 0
+  attribute_groups: []
+  spans:
+  - type: span.test
+    kind: client
+    name:
+      note: A span.
+    brief: A span whose type starts with `span.`.
+    stability: stable
+  metrics:
+  - name: metric.test
+    instrument: counter
+    unit: "1"
+    brief: A metric whose name starts with `metric.`.
+    stability: stable
+  events:
+  - name: event.test
+    brief: An event whose name starts with `event.`.
+    stability: stable
+  entities:
+  - type: entity.test
+    identity:
+    - 0
+    brief: An entity whose type starts with `entity.`.
+    stability: stable
+refinements:
+  spans:
+  - id: span.test
+    type: span.test
+    kind: client
+    name:
+      note: A span.
+    brief: A span whose type starts with `span.`.
+    stability: stable
+  metrics:
+  - id: metric.test
+    name: metric.test
+    instrument: counter
+    unit: "1"
+    brief: A metric whose name starts with `metric.`.
+    stability: stable
+  events:
+  - id: event.test
+    name: event.test
+    brief: An event whose name starts with `event.`.
+    stability: stable
+  entities:
+  - id: entity.test
+    type: entity.test
+    identity:
+    - 0
+    brief: An entity whose type starts with `entity.`.
+    stability: stable

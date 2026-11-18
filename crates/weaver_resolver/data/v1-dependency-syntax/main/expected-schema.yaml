@@ -1,0 +1,46 @@
+file_format: resolved/2.0
+schema_url: https://example.com/main/0.1.0
+attribute_catalog:
+- key: dep.id
+  type: string
+  examples:
+  - abc123
+  brief: Unique ID.
+  stability: stable
+  provenance:
+    source: 0
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics:
+  - name: dep.uptime
+    instrument: gauge
+    unit: s
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    brief: Uptime metric defined in dep.
+    stability: stable
+    provenance:
+      source: 0
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics:
+  - id: dep.uptime
+    name: dep.uptime
+    instrument: gauge
+    unit: s
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    brief: Uptime metric defined in dep.
+    stability: stable
+    provenance:
+      source: 0
+  events: []
+  entities: []
+dependencies:
+- https://example.com/dep/1.0.0

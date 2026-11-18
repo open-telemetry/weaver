@@ -1,0 +1,39 @@
+file_format: resolved/2.0
+schema_url: https://default/0.1.0
+attribute_catalog:
+- key: host.id
+  type: string
+  examples:
+  - host-1
+  brief: Host identifier.
+  stability: development
+registry:
+  attributes:
+  - 0
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities:
+  - type: host
+    identity:
+    - 0
+    brief: Host.
+    stability: development
+refinements:
+  spans: []
+  metrics: []
+  events: []
+  entities:
+  - id: host
+    type: host
+    identity:
+    - 0
+    brief: Host.
+    stability: development
+  - id: refined.host
+    type: host
+    identity:
+    - 0
+    brief: Refined host.
+    stability: development

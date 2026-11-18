@@ -1,0 +1,71 @@
+file_format: resolved/2.0
+schema_url: https://default/0.1.0
+attribute_catalog:
+- key: client.geo.lat
+  type: string
+  examples:
+  - "123.456"
+  brief: My own latitude
+  stability: development
+- key: client.geo.lat
+  type: string
+  examples:
+  - "123.456"
+  brief: this is embedded attribute
+  stability: development
+- key: client.id
+  type: string
+  examples:
+  - a.einstein
+  brief: |
+    some client id
+  stability: development
+- key: geo.country
+  type: string
+  examples:
+  - US
+  brief: |
+    country of the geo coordinates.
+  stability: development
+- key: geo.country
+  type: string
+  examples:
+  - US
+  brief: this is ref country attribute
+  stability: development
+- key: geo.lat
+  type: string
+  examples:
+  - "123.456"
+  brief: |
+    latitude of the geo coordinates.
+  stability: development
+- key: geo.lat
+  type: string
+  examples:
+  - "123.456"
+  brief: this is ref attribute
+  stability: development
+- key: geo.lon
+  type: string
+  examples:
+  - "234.456"
+  brief: |
+    longitude of the geo coordinates.
+  stability: development
+registry:
+  attributes:
+  - 2
+  - 3
+  - 5
+  - 7
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []
+  entities: []

@@ -285,7 +285,7 @@ metrics:
       ...
 ```
 
-The `ref_group` identifies the attribute group by its `id` and does not have any properties.
+The `ref_group` identifies the attribute group by its `id` and does not have any properties. A `ref_group` must reference an `attribute_group` by `id`; referencing a signal via `ref_group` is deprecated and emits a warning.
 
 Attribute refinements can be applied along with group references:
 
@@ -303,6 +303,8 @@ spans:
 > Collisions between attribute groups are not allowed: semantic
 > conventions cannot be resolved if two groups included on the
 > same signal (or group) reference the same attribute key.
+> Furthermore, duplicate inline `- ref:` entries for the same attribute key
+> within a single signal, attribute group, entity, or refinement are rejected.
 
 > [!NOTE]
 > It's NOT RECOMMENDED to use `ref_groups` on other attribute groups
@@ -388,7 +390,7 @@ A span refinement definition consists of the following properties:
 - `ref` - Required. The type of the span being refined.
 - `name` - Optional. Overrides the [span name](#span-name) specification from the referenced base span. If set, the entire `name` structure from the refinement replaces the base span's `name`; otherwise, the base span's `name` is inherited.
 - `attributes` - Optional. List of attribute references, group references, or [`unref` entries](#removing-inherited-attributes).
-- `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this span should be associated with.
+- `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this span should be associated with. Inherited from the refined signal when omitted; replaces it when set.
 - `brief` - Optional. Refines the brief description of the signal.
 - `note` - Optional. Refines the more elaborate description of the signal.
 - `stability` - Optional. Refines the stability of the signal.
@@ -578,7 +580,7 @@ An event refinement definition consists of the following properties:
 - `id` - Required. Uniquely identifies the event refinement.
 - `ref` - Required. The name of the event being refined.
 - `attributes` - Optional. List of attribute references, group references, or [`unref` entries](#removing-inherited-attributes).
-- `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this event should be associated with.
+- `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this event should be associated with. Inherited from the refined signal when omitted; replaces it when set.
 - `brief` - Optional. Refines the brief description of the signal.
 - `note` - Optional. Refines the more elaborate description of the signal.
 - `stability` - Optional. Refines the stability of the signal.
@@ -635,7 +637,7 @@ A metric refinement definition consists of the following properties:
 - `id` - Required. Uniquely identifies the metric refinement.
 - `ref` - Required. The name of the metric being refined.
 - `attributes` - Optional. List of attribute references, group references, or [`unref` entries](#removing-inherited-attributes).
-- `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this metric should be associated with.
+- `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this metric should be associated with. Inherited from the refined signal when omitted; replaces it when set.
 - `brief` - Optional. Refines the brief description of the signal.
 - `note` - Optional. Refines the more elaborate description of the signal.
 - `stability` - Optional. Refines the stability of the signal.
@@ -853,9 +855,11 @@ attributes:
 #### Dependency Resolution Annotations
 
 The `dependency_resolution` annotation hides an attribute, group, or signal from
-registries that consume this one as a dependency. Any dependent registry that
-references the item (via `ref`, `extends`, `include_groups`, `imports`,
-`entity_associations`, or a v2 refinement) fails to resolve.
+registries that consume this one as a dependency. In V2 resolution, excluded items
+are completely hidden across dependency boundaries: wildcard imports silently skip
+them, explicit references (via `ref`, `ref_group`, `entity_associations`, or
+signal/entity refinements) fail as unresolved, and explicit `imports` patterns emit
+an `UnmatchedImport` warning without exposing internal exclusion state.
 
 The owning registry still sees the item — resolution, codegen, and docs are
 unaffected — with one restriction: only a definition that is itself excluded may

@@ -59,6 +59,12 @@ cargo run -- --quiet registry json-schema -j materialized-registry-v2 -o ./schem
 cargo run -- --quiet registry json-schema -j policy-finding -o ./schemas/policy.finding.json
 ```
 
+**When a change alters resolved output, update the resolver's golden V2 snapshots.**
+`weaver_resolver` compares every fixture's resolved V2 schema semantically against an
+`expected-schema.yaml` file. See
+[Golden V2 snapshots](crates/weaver_resolver/README.md#golden-v2-snapshots) for how they
+work and how to regenerate them.
+
 **Run `just` before any push to pre-validate all the steps performed by CI.**
 
 ### Checking downstream repositories
@@ -118,8 +124,8 @@ Before introducing any non-trivial schema changes, we recommend discussing them 
 
 Changes affecting semantic conventions schema should be reflected in the formal schema definition and require approval from @open-telemetry/specs-semconv-approvers.
 
-Semantic conventions schema is formally defined in [semconv.schema.json](./schemas/semconv.schema.json),
-human-readable documentation is available in [semconv-syntax.md](./schemas/semconv-syntax.md).
+Semantic conventions schemas are formally defined in [semconv.schema.json](./schemas/semconv.schema.json) (V1) and [semconv.schema.v2.json](./schemas/semconv.schema.v2.json) (V2),
+with human-readable documentation available in [semconv-syntax.md](./schemas/semconv-syntax.md) (V1) and [semconv-syntax.v2.md](./schemas/semconv-syntax.v2.md) (V2).
 
 ### Creating a New Release for the Weaver Project
 
