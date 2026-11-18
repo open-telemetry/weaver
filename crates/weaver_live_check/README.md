@@ -185,10 +185,10 @@ make_finding(id, level, context, message) := {
 
 `input.instrumentation_scope` contains the instrumentation scope associated with the signal being assessed, or `null` when no scope is available. When present, it includes `name`, `version`, `schema_url`, `attributes`, and `dropped_attributes_count`.
 
-Every `attributes` list in `input.sample`, `input.resource` and `input.instrumentation_scope` has an `attributes_by_name` map next to it, from attribute name to value. This includes the lists on span events, span links and data points. An exemplar has `filtered_attributes_by_name`. Use the map to read one attribute without a search of the list:
+Every `attributes` list in `input.sample`, `input.resource` and `input.instrumentation_scope` has an `attributes_by_key` map next to it, from attribute key to value. This includes the lists on span events, span links and data points. An exemplar has `filtered_attributes_by_key`. Use the map to read one attribute without a search of the list:
 
 ```rego
-input.sample.span.attributes_by_name["error.type"] == "timeout"
+input.sample.span.attributes_by_key["error.type"] == "timeout"
 ```
 
 The maps exist only in the policy input. They are not in the report.

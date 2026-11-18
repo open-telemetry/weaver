@@ -102,38 +102,38 @@ impl RegoAdvisor {
     }
 }
 
-/// Attribute list fields of a sample, each with the name of its by-name map.
+/// Attribute list fields of a sample, each with the name of its by-key map.
 const ATTRIBUTE_LISTS: [(&str, &str); 2] = [
-    ("attributes", "attributes_by_name"),
-    ("filtered_attributes", "filtered_attributes_by_name"),
+    ("attributes", "attributes_by_key"),
+    ("filtered_attributes", "filtered_attributes_by_key"),
 ];
 
 /// Fields that are not searched for attribute lists.
 const SKIPPED_FIELDS: [&str; 3] = ["attributes", "filtered_attributes", "live_check_result"];
 
-/// Adds a name-to-value map next to every attribute list in a serialized sample.
-fn add_attributes_by_name(value: &mut Value) {
+/// Adds a key-to-value map next to every attribute list in a serialized sample.
+fn add_attributes_by_key(value: &mut Value) {
     match value {
         Value::Object(object) => {
             object
                 .iter_mut()
                 .filter(|(key, _)| !SKIPPED_FIELDS.contains(&key.as_str()))
-                .for_each(|(_, child)| add_attributes_by_name(child));
-            for (list, by_name) in ATTRIBUTE_LISTS {
+                .for_each(|(_, child)| add_attributes_by_key(child));
+            for (list, by_key) in ATTRIBUTE_LISTS {
                 if let Some(Value::Array(attributes)) = object.get(list) {
                     let map: Map<String, Value> = attributes
                         .iter()
                         .filter_map(|attribute| {
-                            let name = attribute.get("name")?.as_str()?;
+                            let key = attribute.get("name")?.as_str()?;
                             let value = attribute.get("value").cloned().unwrap_or(Value::Null);
-                            Some((name.to_owned(), value))
+                            Some((key.to_owned(), value))
                         })
                         .collect();
-                    let _ = object.insert(by_name.to_owned(), Value::Object(map));
+                    let _ = object.insert(by_key.to_owned(), Value::Object(map));
                 }
             }
         }
-        Value::Array(items) => items.iter_mut().for_each(add_attributes_by_name),
+        Value::Array(items) => items.iter_mut().for_each(add_attributes_by_key),
         _ => {}
     }
 }
@@ -151,7 +151,7 @@ fn input_value<T: Serialize>(value: &T, maps: AttributeMaps) -> Result<InputValu
         error: e.to_string(),
     })?;
     if maps == AttributeMaps::Add {
-        add_attributes_by_name(&mut json);
+        add_attributes_by_key(&mut json);
     }
     InputValue::from_json(json).map_err(|e| Error::AdviceError {
         error: e.to_string(),
@@ -234,7 +234,7 @@ impl Advisor for RegoAdvisor {
 
 #[cfg(test)]
 mod tests {
-    use super::add_attributes_by_name;
+    use super::add_attributes_by_key;
     use serde_json::json;
 
     #[test]
@@ -253,18 +253,18 @@ mod tests {
                 "span_links": [{"attributes": []}]
             }
         });
-        add_attributes_by_name(&mut sample);
+        add_attributes_by_key(&mut sample);
 
         let span = &sample["span"];
         assert_eq!(
-            span["attributes_by_name"],
+            span["attributes_by_key"],
             json!({"error.type": "timeout", "retry.count": 2, "no.value": null})
         );
         assert_eq!(
-            span["span_events"][0]["attributes_by_name"],
+            span["span_events"][0]["attributes_by_key"],
             json!({"attempt": 1})
         );
-        assert_eq!(span["span_links"][0]["attributes_by_name"], json!({}));
+        assert_eq!(span["span_links"][0]["attributes_by_key"], json!({}));
         assert_eq!(span["attributes"].as_array().map(Vec::len), Some(3));
     }
 
@@ -278,12 +278,12 @@ mod tests {
                 ]
             }
         });
-        add_attributes_by_name(&mut sample);
+        add_attributes_by_key(&mut sample);
 
         let point = &sample["number_data_point"];
-        assert_eq!(point["attributes_by_name"], json!({"state": "idle"}));
+        assert_eq!(point["attributes_by_key"], json!({"state": "idle"}));
         assert_eq!(
-            point["exemplars"][0]["filtered_attributes_by_name"],
+            point["exemplars"][0]["filtered_attributes_by_key"],
             json!({"user.id": "u1"})
         );
     }
@@ -297,11 +297,11 @@ mod tests {
                 "live_check_result": {"all_advice": [{"context": nested.clone()}]}
             }
         });
-        add_attributes_by_name(&mut sample);
+        add_attributes_by_key(&mut sample);
 
         let log = &sample["log"];
         assert_eq!(log["attributes"][0]["value"], nested);
-        assert_eq!(log["attributes_by_name"]["payload"], nested);
+        assert_eq!(log["attributes_by_key"]["payload"], nested);
         assert_eq!(log["live_check_result"]["all_advice"][0]["context"], nested);
     }
 }

@@ -4596,7 +4596,7 @@ mod tests {
     }
 
     #[test]
-    fn test_rego_input_has_attributes_by_name() {
+    fn test_rego_input_has_attributes_by_key() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let policy_path = temp_dir.path().join("custom.rego");
 
@@ -4610,14 +4610,14 @@ mod tests {
                 "advice_type": "by_name_finding",
                 "advice_level": "violation",
                 "advice_context": {},
-                "message": "attributes read by name",
+                "message": "attributes read by key",
             } if {
                 span := input.sample.span
-                span.attributes_by_name["error.type"] == "timeout"
-                span.span_events[0].attributes_by_name.attempt == 2
-                input.resource.attributes_by_name["service.name"] == "checkout"
-                input.instrumentation_scope.attributes_by_name["scope.kind"] == "test"
-                not span.attributes_by_name["missing.attribute"]
+                span.attributes_by_key["error.type"] == "timeout"
+                span.span_events[0].attributes_by_key.attempt == 2
+                input.resource.attributes_by_key["service.name"] == "checkout"
+                input.instrumentation_scope.attributes_by_key["scope.kind"] == "test"
+                not span.attributes_by_key["missing.attribute"]
             }
         "#;
         std::fs::write(&policy_path, rego_content).expect("Failed to write custom policy");
@@ -4689,7 +4689,7 @@ mod tests {
                 "type": "advice",
                 "advice_type": "service_finding",
                 "advice_level": "information",
-                "advice_context": {"service": input.resource.attributes_by_name["service.name"]},
+                "advice_context": {"service": input.resource.attributes_by_key["service.name"]},
                 "message": "service read by name",
             } if {
                 input.sample.span
