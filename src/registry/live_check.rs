@@ -32,8 +32,8 @@ use weaver_live_check::live_checker::LiveChecker;
 use weaver_live_check::text_file_ingester::TextFileIngester;
 use weaver_live_check::text_stdin_ingester::TextStdinIngester;
 use weaver_live_check::{
-    sample_resource::SampleResource, CumulativeStatistics, DisabledStatistics, Error, Ingester,
-    LiveCheckReport, LiveCheckRunner, LiveCheckStatistics, Sample, VersionedRegistry,
+    CumulativeStatistics, DisabledStatistics, Error, Ingester, LiveCheckReport, LiveCheckRunner,
+    LiveCheckStatistics, Sample, VersionedRegistry,
 };
 use weaver_macros::weaver_command;
 
@@ -89,7 +89,7 @@ impl From<String> for InputFormat {
 #[weaver_command(
     section = "live-check",
     config_type = "::weaver_config::LiveCheckConfig",
-    extra_config_only = "finding_filters,finding_level_overrides,matchers"
+    extra_config_only = "finding_filters,finding_level_overrides,matchers,coverage_include,coverage_exclude"
 )]
 #[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryLiveCheckArgs {
@@ -162,6 +162,12 @@ pub struct RegistryLiveCheckArgs {
     #[config(default = "violation")]
     fail_on: Option<FailOnLevel>,
 
+    /// Fail when the registry coverage is below this fraction (0 to 1).
+    /// The `coverage` section of the config file scopes what is counted.
+    #[arg(long)]
+    #[config(path = "coverage.fail_below", optional)]
+    fail_on_coverage_below: Option<f32>,
+
     /// Path to save generated artifacts. Use "none" to suppress output,
     /// "http" to serve the report at GET /report on the admin port until POST /shutdown
     /// (the inactivity timeout is then ignored).
@@ -169,7 +175,7 @@ pub struct RegistryLiveCheckArgs {
     #[config]
     output: Option<PathBuf>,
 
-    /// Address used by the gRPC OTLP listener.
+    /// Address used by the gRPC and HTTP OTLP listeners and the admin port.
     #[clap(long)]
     #[config(path = "otlp.grpc_address")]
     otlp_grpc_address: Option<String>,
@@ -178,6 +184,11 @@ pub struct RegistryLiveCheckArgs {
     #[clap(long)]
     #[config(path = "otlp.grpc_port")]
     otlp_grpc_port: Option<u16>,
+
+    /// Port used by the HTTP OTLP listener (binary protobuf). 0 picks a free port.
+    #[clap(long)]
+    #[config(path = "otlp.http_port")]
+    otlp_http_port: Option<u16>,
 
     /// Enable OTLP log emission for live check policy findings.
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
@@ -297,6 +308,23 @@ fn generate_report(
     }
 }
 
+/// The most unseen names a coverage failure lists.
+const MAX_UNSEEN_LISTED: usize = 20;
+
+/// The first unseen names, and how many were left out.
+fn unseen_summary(unseen: &[&str]) -> String {
+    let listed = unseen
+        .iter()
+        .take(MAX_UNSEEN_LISTED)
+        .copied()
+        .collect::<Vec<_>>()
+        .join(", ");
+    match unseen.len().saturating_sub(MAX_UNSEEN_LISTED) {
+        0 => listed,
+        more => format!("{listed}, and {more} more"),
+    }
+}
+
 /// Perform a live check on sample data by comparing it to a semantic convention registry.
 pub(crate) fn command(
     args: &RegistryLiveCheckArgs,
@@ -310,15 +338,10 @@ pub(crate) fn command(
     let registry_args = cmd_config.registry;
     let policy_args = cmd_config.policy;
 
-    // --no-stats disables the statistics accumulator, so --fail-on cannot be
-    // evaluated. Warn the user so the silent no-op is visible.
-    if config.no_stats && config.fail_on != FailOnLevel::None {
-        log_warn(format!(
-            "--no-stats disables statistics; --fail-on={} cannot be enforced. \
-             The command will exit 0 regardless of findings. \
-             Pass --fail-on=none to suppress this warning.",
-            config.fail_on
-        ));
+    if config.no_stats && config.coverage.fail_below.is_some() {
+        return Err(DiagnosticMessages::from(crate::registry::Error::Config {
+            error: "--fail-on-coverage-below needs statistics; remove --no-stats.".to_owned(),
+        }));
     }
 
     let input_source = InputSource::from(config.input_source.clone());
@@ -381,6 +404,8 @@ pub(crate) fn command(
         live_checker.search_all_attributes()?;
     }
 
+    live_checker.set_coverage(&config.coverage)?;
+
     let (advice_policies, _advice_policies_dirs) =
         resolve_advice_policies(config.advice_policies.as_deref().unwrap_or_default(), auth)?;
 
@@ -431,6 +456,7 @@ pub(crate) fn command(
             let otlp = OtlpIngester {
                 otlp_grpc_address: config.otlp.grpc_address.clone(),
                 otlp_grpc_port: config.otlp.grpc_port,
+                otlp_http_port: config.otlp.http_port,
                 admin_port: config.otlp.admin_port,
                 inactivity_timeout,
             };
@@ -500,26 +526,14 @@ pub(crate) fn command(
     };
 
     let mut stats = if config.no_stats {
-        LiveCheckStatistics::Disabled(DisabledStatistics)
+        LiveCheckStatistics::Disabled(DisabledStatistics::default())
     } else {
         LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry))
     };
 
     let mut samples = Vec::new();
-    let mut current_resource: Option<std::rc::Rc<SampleResource>> = None;
     for mut sample in ingester {
-        // Track the most-recently-seen resource and attach it to signals that carry one.
-        // This mirrors what the OTLP ingester does when building metrics/logs/spans from
-        // OTLP protocol buffers, and allows JSON file inputs to associate a resource.
-        match &mut sample {
-            Sample::Resource(r) => current_resource = Some(std::rc::Rc::new(r.clone())),
-            Sample::Metric(m) => m.resource = current_resource.clone(),
-            Sample::Log(l) => l.resource = current_resource.clone(),
-            Sample::Span(s) => s.resource = current_resource.clone(),
-            _ => {}
-        }
         sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone())?;
-        //TODO: Check for violations and set exit_code here for no-stats mode
         if report_mode {
             samples.push(sample);
         } else {
@@ -528,13 +542,25 @@ pub(crate) fn command(
         }
     }
 
-    stats.finalize(live_checker.matchers());
-    // Set exit_code based on the configured --fail-on threshold. `None`
-    // threshold means "never fail". `should_fail` returns false for disabled
-    // stats; the startup check above warns about --no-stats + non-`none` gates.
+    stats.finalize(&live_checker);
+    // A `None` threshold never fails.
     if let Some(threshold) = config.fail_on.as_finding_threshold() {
         if stats.should_fail(threshold) {
             exit_code = 1;
+        }
+    }
+
+    if let (Some(threshold), Some(coverage)) =
+        (config.coverage.fail_below, stats.registry_coverage())
+    {
+        if coverage < threshold {
+            diag_msgs.extend_from_vec(vec![DiagnosticMessage::new(
+                crate::registry::Error::CoverageBelowThreshold {
+                    coverage,
+                    threshold,
+                    unseen: unseen_summary(&stats.unseen(live_checker.coverage_scope())),
+                },
+            )]);
         }
     }
 

@@ -17,14 +17,14 @@ use crate::{
     finding_modifier::FindingModifier,
     matcher::{Matchers, SampleMatch, SignalKind},
     otlp_logger::OtlpEmitter,
-    Error, SampleType, VersionedAttribute, VersionedEntity, VersionedRegistry, VersionedSignal,
+    CoverageScope, Error, SampleType, VersionedAttribute, VersionedEntity, VersionedRegistry,
+    VersionedSignal,
 };
-use weaver_config::live_check::MatcherConfig;
+use weaver_config::live_check::{LiveCheckCoverageConfig, MatcherConfig};
 use weaver_forge::v2::attribute::Attribute as V2Attribute;
 use weaver_forge::v2::attribute_group::AttributeGroup;
 use weaver_forge::v2::entity::{Entity as V2Entity, EntityRef};
 
-#[cfg(test)]
 use crate::CumulativeStatistics;
 
 /// Attributes of one signal or attribute group, keyed by attribute key.
@@ -133,6 +133,8 @@ pub struct LiveChecker {
     pub finding_modifier: Option<FindingModifier>,
     /// The configured matchers, compiled and checked against the registry
     matchers: Matchers,
+    /// The registry names that count toward coverage
+    coverage_scope: CoverageScope,
 }
 
 /// Serializes the input of the advice preprocessor.
@@ -298,6 +300,7 @@ impl LiveChecker {
             otlp_emitter: None,
             finding_modifier: None,
             matchers: Matchers::default(),
+            coverage_scope: CoverageScope::default(),
         }
     }
 
@@ -317,6 +320,39 @@ impl LiveChecker {
     #[must_use]
     pub fn matchers(&self) -> &Matchers {
         &self.matchers
+    }
+
+    /// Set which registry names count toward coverage.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for a v1 registry, an invalid pattern, patterns that
+    /// match nothing in the registry, or a `fail_below` outside 0 to 1.
+    pub fn set_coverage(&mut self, config: &LiveCheckCoverageConfig) -> Result<(), Error> {
+        if *config == LiveCheckCoverageConfig::default() {
+            return Ok(());
+        }
+        if matches!(self.registry.as_ref(), VersionedRegistry::V1(_)) {
+            return Err(Error::CoverageRequiresV2Registry);
+        }
+        if let Some(value) = config.fail_below {
+            if !(0.0..=1.0).contains(&value) {
+                return Err(Error::InvalidCoverageThreshold { value });
+            }
+        }
+        let scope = CoverageScope::try_from(config)?;
+        let has_patterns = !config.include.is_empty() || !config.exclude.is_empty();
+        if has_patterns && !CumulativeStatistics::new(&self.registry).has_names_in(&scope) {
+            return Err(Error::CoverageScopeEmpty);
+        }
+        self.coverage_scope = scope;
+        Ok(())
+    }
+
+    /// The registry names that count toward coverage
+    #[must_use]
+    pub fn coverage_scope(&self) -> &CoverageScope {
+        &self.coverage_scope
     }
 
     /// Find the signal a matcher's `signal` names for this sample type
@@ -713,7 +749,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
 
         let all_advice = get_all_advice(&mut samples[0]);
         assert!(all_advice.is_empty());
@@ -1678,7 +1714,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
 
         let all_advice = get_all_advice(&mut samples[0]);
         assert!(all_advice.is_empty());
@@ -1768,7 +1804,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
 
         // Check the statistics
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
@@ -1840,7 +1876,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
 
         // Check the statistics
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
@@ -1898,7 +1934,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
 
         // Check the statistics
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
@@ -1991,7 +2027,7 @@ mod tests {
 
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
                 cumulative_stats
@@ -2046,7 +2082,7 @@ mod tests {
 
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
 
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
@@ -2345,7 +2381,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
 
         // Check the statistics
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
@@ -2501,7 +2537,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
                 cumulative_stats
@@ -2592,7 +2628,7 @@ mod tests {
         let result = sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
 
         assert!(result.is_ok());
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
                 cumulative_stats.advice_type_counts.get("low_value"),
@@ -2651,7 +2687,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
                 cumulative_stats
@@ -4716,6 +4752,151 @@ mod tests {
             rego_advice_ids(&[custom.path().into()]),
             ["imported_helper"]
         );
+    }
+
+    #[test]
+    fn test_rego_input_has_attributes_by_key() {
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let policy_path = temp_dir.path().join("custom.rego");
+
+        let rego_content = r#"
+            package live_check_advice
+
+            import rego.v1
+
+            deny contains {
+                "type": "advice",
+                "advice_type": "by_name_finding",
+                "advice_level": "violation",
+                "advice_context": {},
+                "message": "attributes read by key",
+            } if {
+                span := input.sample.span
+                span.attributes_by_key["error.type"] == "timeout"
+                span.span_events[0].attributes_by_key.attempt == 2
+                input.resource.attributes_by_key["service.name"] == "checkout"
+                input.instrumentation_scope.attributes_by_key["scope.kind"] == "test"
+                not span.attributes_by_key["missing.attribute"]
+            }
+        "#;
+        std::fs::write(&policy_path, rego_content).expect("Failed to write custom policy");
+
+        let registry = make_registry(false);
+        let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
+        let rego_advisor = RegoAdvisor::new(&live_checker, &[temp_dir.path().into()], &None, &None)
+            .expect("Failed to create Rego advisor");
+        live_checker.add_advisor(Box::new(rego_advisor));
+
+        let mut span: SampleSpan = serde_json::from_value(json!({
+            "name": "checkout",
+            "kind": "internal",
+            "attributes": [{"name": "error.type", "value": "timeout"}],
+            "span_events": [
+                {"name": "retry", "attributes": [{"name": "attempt", "value": 2}]}
+            ]
+        }))
+        .expect("Failed to parse span");
+        let resource: SampleResource = serde_json::from_value(json!({
+            "attributes": [{"name": "service.name", "value": "checkout"}]
+        }))
+        .expect("Failed to parse resource");
+        span.resource = Some(Rc::new(resource));
+        let scope: SampleInstrumentationScope = serde_json::from_value(json!({
+            "name": "test-scope",
+            "attributes": [{"name": "scope.kind", "value": "test"}]
+        }))
+        .expect("Failed to parse instrumentation scope");
+        span.instrumentation_scope = Some(Rc::new(scope));
+
+        let mut sample = Sample::Span(span);
+        let mut stats =
+            LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+        sample
+            .run_live_check(&mut live_checker, &mut stats, None, &sample.clone())
+            .expect("live check failed");
+
+        let Sample::Span(span) = &sample else {
+            panic!("Expected a span sample");
+        };
+        let findings = &span
+            .live_check_result
+            .as_ref()
+            .expect("span has no live check result")
+            .all_advice;
+        assert!(
+            findings.iter().any(|f| f.id == "by_name_finding"),
+            "Expected by_name_finding on the span. Found: {findings:?}"
+        );
+    }
+
+    #[test]
+    fn test_rego_input_resource_follows_the_signal() {
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let policy_path = temp_dir.path().join("custom.rego");
+
+        let rego_content = r#"
+            package live_check_advice
+
+            import rego.v1
+
+            deny contains {
+                "type": "advice",
+                "advice_type": "service_finding",
+                "advice_level": "information",
+                "advice_context": {"service": input.resource.attributes_by_key["service.name"]},
+                "message": "service read by name",
+            } if {
+                input.sample.span
+            }
+        "#;
+        std::fs::write(&policy_path, rego_content).expect("Failed to write custom policy");
+
+        let registry = make_registry(false);
+        let mut live_checker = LiveChecker::new(Arc::new(registry), vec![]);
+        let rego_advisor = RegoAdvisor::new(&live_checker, &[temp_dir.path().into()], &None, &None)
+            .expect("Failed to create Rego advisor");
+        live_checker.add_advisor(Box::new(rego_advisor));
+        let mut stats =
+            LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+
+        let resource = |service: &str| -> Rc<SampleResource> {
+            Rc::new(
+                serde_json::from_value(json!({
+                    "attributes": [{"name": "service.name", "value": service}]
+                }))
+                .expect("Failed to parse resource"),
+            )
+        };
+        let cart = resource("cart");
+        let checkout = resource("checkout");
+
+        // The first two spans share one resource.
+        let services: Vec<_> = [&cart, &cart, &checkout, &cart]
+            .into_iter()
+            .map(|resource| {
+                let mut span: SampleSpan =
+                    serde_json::from_value(json!({"name": "op", "kind": "internal"}))
+                        .expect("Failed to parse span");
+                span.resource = Some(Rc::clone(resource));
+                let mut sample = Sample::Span(span);
+                sample
+                    .run_live_check(&mut live_checker, &mut stats, None, &sample.clone())
+                    .expect("live check failed");
+                let Sample::Span(span) = sample else {
+                    panic!("Expected a span sample");
+                };
+                span.live_check_result
+                    .expect("span has no live check result")
+                    .all_advice
+                    .into_iter()
+                    .find(|finding| finding.id == "service_finding")
+                    .expect("service_finding not found")
+                    .context
+                    .expect("finding has no context")["service"]
+                    .clone()
+            })
+            .collect();
+        assert_eq!(services, ["cart", "cart", "checkout", "cart"]);
     }
 
     #[test]

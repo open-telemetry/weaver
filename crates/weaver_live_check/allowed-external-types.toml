@@ -17,6 +17,7 @@ allowed_external_types = [
     "weaver_config::live_check::FindingFilter",
     "weaver_config::live_check::FindingLevelOverride",
     "weaver_config::live_check::LiveCheckConfig",
+    "weaver_config::live_check::LiveCheckCoverageConfig",
     "weaver_config::live_check::MatcherConfig",
     "weaver_config::live_check::MatcherSampleType",
     "cel::*",
