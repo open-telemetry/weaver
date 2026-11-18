@@ -3,7 +3,7 @@
 //! MCP (Model Context Protocol) server for the semantic convention registry.
 //!
 //! This crate provides an MCP server that exposes the semantic conventions
-//! registry to LLMs. It supports 8 tools:
+//! registry to LLMs. It supports 10 tools:
 //!
 //! - `search` - Search across all registry items
 //! - `get_attribute` - Get a specific attribute by key
@@ -13,6 +13,8 @@
 //! - `get_entity` - Get a specific entity by type
 //! - `live_check` - Validate telemetry samples (with full/findings_only output modes)
 //! - `browse_namespace` - Browse attribute namespace hierarchy
+//! - `load_registry` - Replace the served registry with another one
+//! - `get_registry_info` - Describe the served registry
 //!
 //! The server uses the rmcp SDK with JSON-RPC 2.0 over stdio for communication.
 
@@ -21,7 +23,6 @@ mod service;
 pub use service::WeaverMcpService;
 
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use rmcp::transport::stdio;
 use rmcp::ServiceExt;
@@ -56,58 +57,46 @@ impl std::fmt::Display for McpError {
 
 impl std::error::Error for McpError {}
 
-/// Run the MCP server with the given registry and default configuration.
-///
-/// This function blocks until the server is shut down (e.g., when stdin is closed).
-///
-/// # Arguments
-///
-/// * `registry` - The resolved semantic convention registry to serve.
-///
-/// # Errors
-///
-/// Errors if there's an IO error during communication.
-pub fn run(registry: ForgeResolvedRegistry) -> Result<(), McpError> {
-    run_with_config(registry, McpConfig::default())
+/// Loads registries for the `load_registry` tool.
+pub trait RegistryLoader: Send + Sync {
+    /// Loads and resolves the registry at `source`, given in the `--registry` CLI flag format.
+    ///
+    /// # Errors
+    ///
+    /// Errors if the registry cannot be fetched, loaded, or resolved.
+    fn load(&self, source: &str) -> Result<ForgeResolvedRegistry, McpError>;
 }
 
-/// Run the MCP server with the given registry and configuration.
+impl McpError {
+    /// Creates an error with the given message.
+    pub fn new(message: impl Into<String>) -> Self {
+        Self(message.into())
+    }
+}
+
+/// Run the MCP server over stdio.
 ///
 /// This function blocks until the server is shut down (e.g., when stdin is closed).
-///
-/// # Arguments
-///
-/// * `registry` - The resolved semantic convention registry to serve.
-/// * `config` - Configuration options for the server.
 ///
 /// # Errors
 ///
 /// Errors if there's an IO error during communication.
-pub fn run_with_config(registry: ForgeResolvedRegistry, config: McpConfig) -> Result<(), McpError> {
-    // Create a tokio runtime for the async rmcp server
+pub fn run(service: WeaverMcpService) -> Result<(), McpError> {
     let rt = tokio::runtime::Runtime::new().map_err(|e| McpError(e.to_string()))?;
 
-    rt.block_on(async { run_async(registry, config).await })
-}
+    rt.block_on(async {
+        let server = service
+            .serve(stdio())
+            .await
+            .map_err(|e| McpError(e.to_string()))?;
 
-/// Run the MCP server asynchronously.
-///
-/// This is the async implementation that uses rmcp's stdio transport.
-async fn run_async(registry: ForgeResolvedRegistry, config: McpConfig) -> Result<(), McpError> {
-    let registry = Arc::new(registry);
-    let service = WeaverMcpService::new(registry, config);
+        let _quit_reason = server
+            .waiting()
+            .await
+            .map_err(|e| McpError(e.to_string()))?;
 
-    let server = service
-        .serve(stdio())
-        .await
-        .map_err(|e| McpError(e.to_string()))?;
-
-    let _quit_reason = server
-        .waiting()
-        .await
-        .map_err(|e| McpError(e.to_string()))?;
-
-    Ok(())
+        Ok(())
+    })
 }
 
 #[cfg(test)]
@@ -127,6 +116,11 @@ mod tests {
         let debug = format!("{error:?}");
         assert!(debug.contains("McpError"));
         assert!(debug.contains("test"));
+    }
+
+    #[test]
+    fn test_mcp_error_new() {
+        assert_eq!(McpError::new("boom").to_string(), "MCP error: boom");
     }
 
     #[test]
