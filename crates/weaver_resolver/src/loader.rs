@@ -490,6 +490,16 @@ fn load_definition_repository(
                     if !is_semantic_convention_file(entry.path()) {
                         return vec![].into_par_iter();
                     }
+                    let Ok(relative_path) = entry.path().strip_prefix(&local_path) else {
+                        return vec![WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
+                            error: format!(
+                                "{} is not under the registry path {}",
+                                entry.path().display(),
+                                local_path.display()
+                            ),
+                        })]
+                        .into_par_iter();
+                    };
 
                     // TODO - less confusing way to load semconv specs.
                     vec![SemConvRegistry::semconv_spec_from_file(
@@ -498,10 +508,6 @@ fn load_definition_repository(
                         |_| {
                             // Replace the local path with the git URL combined with the relative path
                             // of the semantic convention file.
-                            let relative_path = entry
-                                .path()
-                                .strip_prefix(&local_path)
-                                .expect("walkdir entries are under the walk root");
                             format!("{registry_path_repr}{separator}{}", relative_path.display())
                         },
                     )]
