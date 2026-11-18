@@ -4,7 +4,7 @@
 //!
 //! This module provides two modes of operation:
 //! - `Cumulative`: Full statistics accumulation for reporting
-//! - `Disabled`: No-op mode for long-running sessions to prevent memory growth
+//! - `Disabled`: Tracks only the highest finding level, for long-running sessions to prevent memory growth
 
 use serde::{Serialize, Serializer};
 use std::collections::HashMap;
