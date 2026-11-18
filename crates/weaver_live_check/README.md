@@ -81,9 +81,10 @@ The admin port serves a small HTTP API, described in [Driving live-check over HT
 
 Options for OTLP ingest:
 
-- `--otlp-grpc-address`: Address the gRPC OTLP listener binds to. Defaults to `127.0.0.1` (loopback only); set it to a specific interface address, or to `0.0.0.0` to listen on all of them. The admin listener binds to the same address.
-- `--otlp-grpc-port`: Port used by the gRPC OTLP listener. `0` picks a free port, which the startup log reports.
-- `--admin-port`: Port used by the HTTP admin port (endpoints: /health, /stop, /report, /shutdown). Must differ from the gRPC port.
+- `--otlp-grpc-address`: Address the gRPC OTLP listener binds to. Defaults to `127.0.0.1` (loopback only); set it to a specific interface address, or to `0.0.0.0` to listen on all of them. The HTTP OTLP listener and the admin listener bind to the same address.
+- `--otlp-grpc-port`: Port used by the gRPC OTLP listener. Defaults to `4317`. `0` picks a free port, which the startup log reports.
+- `--otlp-http-port`: Port used by the HTTP OTLP listener. Defaults to `4318`. `0` picks a free port, which the startup log reports. It accepts uncompressed binary protobuf (`http/protobuf`) on `/v1/traces`, `/v1/metrics`, `/v1/logs` and `/v1development/profiles`; JSON and gzip bodies get `415`.
+- `--admin-port`: Port used by the HTTP admin port (endpoints: /health, /stop, /report, /shutdown). Must differ from the OTLP ports.
 - `--inactivity-timeout`: Max inactivity time in seconds before stopping the listener. Ignored with `--output=http`, where the client stops the run.
 
 ## Matchers
@@ -250,6 +251,7 @@ advice_preprocessor = "preprocessor.jq"
 [live-check.otlp]
 grpc_address = "127.0.0.1"
 grpc_port = 4317
+http_port = 4318
 admin_port = 4320
 inactivity_timeout = 10
 
@@ -488,7 +490,7 @@ For long-running live-check sessions (for example, in a staging environment), th
 
 - `--inactivity-timeout=0`: If this is set to zero then weaver never times out.
 - `--output=none`: If this is set to none then no template engine is loaded and nothing is rendered out to the console or files.
-- `--no-stats`: If this is set then statistics are not accumulated over the running time of live-check which has the potential to otherwise store a lot of info in memory.
+- `--no-stats`: If this is set then statistics are not accumulated over the running time of live-check which has the potential to otherwise store a lot of info in memory. Only the highest finding level is kept, so `--fail-on` still sets the exit code.
 
 ## Usage examples
 

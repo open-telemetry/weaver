@@ -169,7 +169,7 @@ pub struct RegistryLiveCheckArgs {
     #[config]
     output: Option<PathBuf>,
 
-    /// Address used by the gRPC OTLP listener.
+    /// Address used by the gRPC and HTTP OTLP listeners and the admin port.
     #[clap(long)]
     #[config(path = "otlp.grpc_address")]
     otlp_grpc_address: Option<String>,
@@ -178,6 +178,11 @@ pub struct RegistryLiveCheckArgs {
     #[clap(long)]
     #[config(path = "otlp.grpc_port")]
     otlp_grpc_port: Option<u16>,
+
+    /// Port used by the HTTP OTLP listener (binary protobuf). 0 picks a free port.
+    #[clap(long)]
+    #[config(path = "otlp.http_port")]
+    otlp_http_port: Option<u16>,
 
     /// Enable OTLP log emission for live check policy findings.
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
@@ -310,17 +315,6 @@ pub(crate) fn command(
     let registry_args = cmd_config.registry;
     let policy_args = cmd_config.policy;
 
-    // --no-stats disables the statistics accumulator, so --fail-on cannot be
-    // evaluated. Warn the user so the silent no-op is visible.
-    if config.no_stats && config.fail_on != FailOnLevel::None {
-        log_warn(format!(
-            "--no-stats disables statistics; --fail-on={} cannot be enforced. \
-             The command will exit 0 regardless of findings. \
-             Pass --fail-on=none to suppress this warning.",
-            config.fail_on
-        ));
-    }
-
     let input_source = InputSource::from(config.input_source.clone());
     let input_format = InputFormat::from(config.input_format.clone());
 
@@ -433,6 +427,7 @@ pub(crate) fn command(
             let otlp = OtlpIngester {
                 otlp_grpc_address: config.otlp.grpc_address.clone(),
                 otlp_grpc_port: config.otlp.grpc_port,
+                otlp_http_port: config.otlp.http_port,
                 admin_port: config.otlp.admin_port,
                 inactivity_timeout,
             };
@@ -502,7 +497,7 @@ pub(crate) fn command(
     };
 
     let mut stats = if config.no_stats {
-        LiveCheckStatistics::Disabled(DisabledStatistics)
+        LiveCheckStatistics::Disabled(DisabledStatistics::default())
     } else {
         LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry))
     };
@@ -510,7 +505,6 @@ pub(crate) fn command(
     let mut samples = Vec::new();
     for mut sample in ingester {
         sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone())?;
-        //TODO: Check for violations and set exit_code here for no-stats mode
         if report_mode {
             samples.push(sample);
         } else {
@@ -520,9 +514,7 @@ pub(crate) fn command(
     }
 
     stats.finalize(live_checker.matchers());
-    // Set exit_code based on the configured --fail-on threshold. `None`
-    // threshold means "never fail". `should_fail` returns false for disabled
-    // stats; the startup check above warns about --no-stats + non-`none` gates.
+    // A `None` threshold never fails.
     if let Some(threshold) = config.fail_on.as_finding_threshold() {
         if stats.should_fail(threshold) {
             exit_code = 1;
