@@ -1284,6 +1284,31 @@ mod tests {
         );
     }
 
+    /// A pre-resolved registry gets the same V2 id collision check.
+    #[test]
+    fn test_v2_entity_without_identity_collides_in_pre_resolved_registry() {
+        let schema = resolve_without_identity_fixture("collision", false)
+            .into_result_failing_non_fatal()
+            .expect("Failed to resolve")
+            .into_v1()
+            .unwrap();
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig {
+            v2: true,
+            ..Default::default()
+        });
+        let (_, nfes) = resolver
+            .resolve_loaded(LoadedSemconvRegistry::Resolved {
+                schema,
+                direct_dependencies: vec![],
+            })
+            .into_result_with_non_fatal()
+            .expect("Failed to load");
+        assert!(
+            nfes.iter().any(|e| matches!(e, Error::CollidingV2SignalId { signal_id, .. } if signal_id == "entity.legacy")),
+            "unexpected errors: {nfes:?}"
+        );
+    }
+
     /// A converted entity takes its group id in the attribute group namespace,
     /// so it can't share that id with an existing public attribute group.
     #[test]

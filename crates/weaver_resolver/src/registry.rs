@@ -744,6 +744,9 @@ pub(crate) fn convert_resolved_entities_without_identity(
         to_public_attribute_group(g);
         let _ = converted.insert(g.id.clone());
     }
+    if !converted.is_empty() {
+        check_v2_signal_id_collisions(&schema.registry, errors);
+    }
     reject_refinements_of(
         schema.registry.groups.iter().map(|g| (g, g.provenance())),
         &converted,
