@@ -6,6 +6,7 @@
 
 use std::io::{self, Read};
 
+use crate::json_file_ingester::attach_resources;
 use crate::{Error, Ingester, Sample};
 
 /// An ingester that reads JSON samples input via standard input.
@@ -44,6 +45,6 @@ impl Ingester for JsonStdinIngester {
                 error: format!("Failed to parse JSON from stdin: {e}"),
             })?;
 
-        Ok(Box::new(samples.into_iter()))
+        Ok(Box::new(attach_resources(samples)))
     }
 }
