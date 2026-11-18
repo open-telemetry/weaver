@@ -226,7 +226,7 @@ pub(crate) fn sanitize_name<'a>(s: &Cow<'a, str>) -> Cow<'a, str> {
             true
         } else {
             // keep checking
-            !c.is_alphanumeric() && *c != '_' && *c != ':'
+            !c.is_ascii_alphanumeric() && *c != '_' && *c != ':'
         }
     }) {
         // up to `replace_idx` have been validated, convert the rest
@@ -271,6 +271,10 @@ mod tests {
             ("a lid_23name", "a_lid_23name"),
             (":leading_colon", ":leading_colon"),
             ("colon:in:the:middle", "colon:in:the:middle"),
+            ("café", "caf_"),
+            ("café.x", "caf__x"),
+            ("x.café", "x_caf_"),
+            ("außen.temperatur", "au_en_temperatur"),
             ("", ""),
         ];
 
