@@ -99,45 +99,22 @@ fn fail_on_invalid_value_is_rejected() {
     );
 }
 
-/// `--no-stats` disables the stats accumulator, so the severity gate can't be
-/// evaluated. Preserve the pre-#1473 behavior of always exiting 0 in that
-/// mode, but warn the user when they also configured a stats-dependent
-/// `--fail-on` value.
 #[test]
-fn no_stats_with_violation_threshold_warns_and_exits_zero() {
-    let out = run_live_check(&["--no-stats", "--fail-on", "violation"]);
-    assert_eq!(
-        exit_code(&out),
-        0,
-        "--no-stats must always exit 0 (preserves pre-#1473 behavior)"
-    );
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&out.stdout),
-        String::from_utf8_lossy(&out.stderr)
-    );
-    assert!(
-        combined.contains("--no-stats")
-            && combined.contains("--fail-on")
-            && combined.contains("cannot be enforced"),
-        "expected a warning explaining the --no-stats / --fail-on conflict, got: {combined}"
-    );
+fn no_stats_with_default_threshold_exits_one() {
+    let out = run_live_check(&["--no-stats"]);
+    assert_eq!(exit_code(&out), 1);
 }
 
-/// `--no-stats --fail-on=none` is the unambiguous, warning-free combination.
 #[test]
-fn no_stats_with_none_threshold_is_silent_and_exits_zero() {
+fn no_stats_with_violation_threshold_exits_one() {
+    let out = run_live_check(&["--no-stats", "--fail-on", "violation"]);
+    assert_eq!(exit_code(&out), 1);
+}
+
+#[test]
+fn no_stats_with_none_threshold_exits_zero() {
     let out = run_live_check(&["--no-stats", "--fail-on", "none"]);
     assert_eq!(exit_code(&out), 0);
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&out.stdout),
-        String::from_utf8_lossy(&out.stderr)
-    );
-    assert!(
-        !combined.contains("cannot be enforced"),
-        "should not warn when --fail-on=none, got: {combined}"
-    );
 }
 
 /// Advice policies and data can be loaded from a virtual directory archive (`.zip` with `[sub_folder]`).
