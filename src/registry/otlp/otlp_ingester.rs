@@ -19,15 +19,17 @@ use super::{
         sample_attribute_from_key_value, span_id_hex, span_kind_from_otlp_kind,
         status_from_otlp_status, trace_id_hex,
     },
-    listen_otlp_requests, ListenerHandle, OtlpRequest,
+    listen_otlp_requests, ListenerHandle, ListenerPorts, OtlpRequest,
 };
 
 /// An ingester for OTLP data
 pub struct OtlpIngester {
-    /// The address of the OTLP gRPC server
+    /// The address of the OTLP listeners and the admin server
     pub otlp_grpc_address: String,
     /// The port of the OTLP gRPC server. `0` picks a free port.
     pub otlp_grpc_port: u16,
+    /// The port of the OTLP HTTP server. `0` picks a free port.
+    pub otlp_http_port: u16,
     /// The port of the admin server
     pub admin_port: u16,
     /// Seconds without an export before the listener stops. `0` never stops.
@@ -289,8 +291,11 @@ impl OtlpIngester {
     pub fn ingest_otlp(&self) -> Result<(Box<dyn Iterator<Item = Sample>>, ListenerHandle), Error> {
         let listener = listen_otlp_requests(
             self.otlp_grpc_address.as_str(),
-            self.otlp_grpc_port,
-            self.admin_port,
+            ListenerPorts {
+                grpc: self.otlp_grpc_port,
+                http: self.otlp_http_port,
+                admin: self.admin_port,
+            },
             Duration::from_secs(self.inactivity_timeout),
         )
         .map_err(|e| Error::IngestError {
@@ -300,6 +305,10 @@ impl OtlpIngester {
         log_info(format!(
             "OTLP gRPC listener started on {}",
             listener.grpc_addr
+        ));
+        log_info(format!(
+            "OTLP HTTP listener started on {}",
+            listener.http_addr
         ));
         info!("To stop the OTLP receiver:");
         info!("  - press CTRL+C,");

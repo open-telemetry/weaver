@@ -19,7 +19,7 @@ use super::otlp::conversion::{
     sample_attribute_from_key_value, span_kind_from_otlp_kind, status_from_otlp_status,
 };
 use super::otlp::grpc_stubs::proto::resource::v1::Resource;
-use super::otlp::{listen_otlp_requests, OtlpRequest};
+use super::otlp::{listen_otlp_requests, ListenerPorts, OtlpRequest};
 use crate::registry::load_config;
 use crate::{DiagnosticArgs, ExitDirectives};
 use weaver_common::diagnostic::DiagnosticMessages;
@@ -46,7 +46,7 @@ pub struct RegistryInferArgs {
     #[config(default = "./inferred-registry/")]
     output: Option<PathBuf>,
 
-    /// Address used by the gRPC OTLP listener. [default: 127.0.0.1]
+    /// Address used by the gRPC and HTTP OTLP listeners and the admin port. [default: 127.0.0.1]
     #[arg(long)]
     #[config(path = "otlp.grpc_address")]
     otlp_grpc_address: Option<String>,
@@ -55,6 +55,11 @@ pub struct RegistryInferArgs {
     #[arg(long)]
     #[config(path = "otlp.grpc_port")]
     otlp_grpc_port: Option<u16>,
+
+    /// Port used by the HTTP OTLP listener (binary protobuf). [default: 4318]
+    #[arg(long)]
+    #[config(path = "otlp.http_port")]
+    otlp_http_port: Option<u16>,
 
     /// Port used by the HTTP admin server (endpoints: /stop). [default: 8080]
     #[arg(long)]
@@ -202,25 +207,27 @@ pub(crate) fn command(
 
     let output = config.output;
     let grpc_address = config.otlp.grpc_address;
-    let grpc_port = config.otlp.grpc_port;
-    let admin_port = config.otlp.admin_port;
+    let ports = ListenerPorts {
+        grpc: config.otlp.grpc_port,
+        http: config.otlp.http_port,
+        admin: config.otlp.admin_port,
+    };
     let inactivity_timeout = config.otlp.inactivity_timeout;
 
     info!("Weaver Registry Infer");
-    info!("Starting OTLP gRPC server on {grpc_address}:{grpc_port}");
+    info!("Starting OTLP gRPC server on {grpc_address}:{}", ports.grpc);
 
     // Start the OTLP gRPC server and get an iterator of requests
     let listener = listen_otlp_requests(
         &grpc_address,
-        grpc_port,
-        admin_port,
+        ports,
         Duration::from_secs(inactivity_timeout),
     )
     .map_err(DiagnosticMessages::from)?;
 
     info!(
-        "OTLP gRPC server started on {}. Waiting for telemetry...",
-        listener.grpc_addr
+        "OTLP gRPC server started on {} and OTLP HTTP server on {}. Waiting for telemetry...",
+        listener.grpc_addr, listener.http_addr
     );
     info!(
         "To stop: press CTRL+C, send SIGHUP, or POST to http://{}/stop",

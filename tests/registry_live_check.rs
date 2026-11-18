@@ -534,6 +534,7 @@ fn run_emitting_live_check(
         "otlp",
     ])
     .args(["--otlp-grpc-port", &grpc_port.to_string()])
+    .args(["--otlp-http-port", "0"])
     .args(["--admin-port", &admin_port.to_string()])
     .args([
         "--inactivity-timeout",
