@@ -16,7 +16,8 @@ use crate::{
     live_checker::LiveChecker, otlp_logger::OtlpEmitter,
     sample_instrumentation_scope::SampleInstrumentationScope, sample_resource::SampleResource,
     Error, Sample, SampleRef, VersionedAttribute, VersionedSignal, DEFAULT_LIVE_CHECK_JQ,
-    DEFAULT_LIVE_CHECK_REGO, DEFAULT_LIVE_CHECK_REGO_POLICY_PATH,
+    DEFAULT_LIVE_CHECK_REGO, DEFAULT_LIVE_CHECK_REGO_HELPERS, DEFAULT_LIVE_CHECK_REGO_HELPERS_PATH,
+    DEFAULT_LIVE_CHECK_REGO_POLICY_PATH,
 };
 
 /// The `--advice-policies` value that names the built-in policies.
@@ -77,13 +78,20 @@ impl RegoAdvisor {
         advice_data: &Option<String>,
     ) -> Result<Self, Error> {
         let mut engine = Engine::new();
-        // The built-in policies load first: regorus panics when a later module redefines one of their functions.
-        if policies.is_empty() || policies.contains(&AdvicePolicySource::Builtin) {
-            let _ = engine
-                .add_policy(DEFAULT_LIVE_CHECK_REGO_POLICY_PATH, DEFAULT_LIVE_CHECK_REGO)
+        let mut add_builtin = |path: &str, rego: &str| {
+            engine
+                .add_policy(path, rego)
+                .map(|_| ())
                 .map_err(|e| Error::AdviceError {
                     error: e.to_string(),
-                })?;
+                })
+        };
+        add_builtin(
+            DEFAULT_LIVE_CHECK_REGO_HELPERS_PATH,
+            DEFAULT_LIVE_CHECK_REGO_HELPERS,
+        )?;
+        if policies.is_empty() || policies.contains(&AdvicePolicySource::Builtin) {
+            add_builtin(DEFAULT_LIVE_CHECK_REGO_POLICY_PATH, DEFAULT_LIVE_CHECK_REGO)?;
         }
         for source in policies {
             if let AdvicePolicySource::Path(path) = source {

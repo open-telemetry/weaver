@@ -4667,6 +4667,58 @@ mod tests {
     }
 
     #[test]
+    fn test_custom_policy_defines_make_advice_alongside_builtin_policies() {
+        let custom = tempfile::tempdir().expect("Failed to create temp dir");
+        let rego = r#"
+            package live_check_advice
+
+            import rego.v1
+
+            deny contains make_advice("own_helper", "information", {}, "custom") if {
+                input.sample.attribute
+            }
+
+            make_advice(advice_type, advice_level, advice_context, message) := {
+                "type": "advice",
+                "advice_type": advice_type,
+                "advice_level": advice_level,
+                "advice_context": advice_context,
+                "message": concat(": ", ["custom", message]),
+            }
+        "#;
+        std::fs::write(custom.path().join("custom.rego"), rego)
+            .expect("Failed to write custom policy");
+
+        assert_eq!(
+            rego_advice_ids(&[AdvicePolicySource::Builtin, custom.path().into()]),
+            ["missing_namespace", "own_helper"]
+        );
+    }
+
+    #[test]
+    fn test_custom_policy_imports_builtin_helpers_without_builtin_policies() {
+        let custom = tempfile::tempdir().expect("Failed to create temp dir");
+        let rego = r#"
+            package live_check_advice
+
+            import rego.v1
+
+            import data.live_check_advice.builtin
+
+            deny contains builtin.make_advice("imported_helper", "information", {}, "custom") if {
+                input.sample.attribute
+            }
+        "#;
+        std::fs::write(custom.path().join("custom.rego"), rego)
+            .expect("Failed to write custom policy");
+
+        assert_eq!(
+            rego_advice_ids(&[custom.path().into()]),
+            ["imported_helper"]
+        );
+    }
+
+    #[test]
     fn test_live_checker_loads_advice_data() {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
         let temp_path = temp_dir.path();

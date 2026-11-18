@@ -121,6 +121,14 @@ pub const DEFAULT_LIVE_CHECK_REGO: &str =
 pub const DEFAULT_LIVE_CHECK_REGO_POLICY_PATH: &str =
     "defaults/policies/live_check_advice/otel.rego";
 
+/// Embedded rego helpers in the `live_check_advice.builtin` package, loaded with every policy
+pub const DEFAULT_LIVE_CHECK_REGO_HELPERS: &str =
+    include_str!("../../../defaults/policies/live_check_advice/builtin.rego");
+
+/// Rego helpers path - used in error messages
+pub const DEFAULT_LIVE_CHECK_REGO_HELPERS_PATH: &str =
+    "defaults/policies/live_check_advice/builtin.rego";
+
 /// Embedded default live check jq preprocessor
 pub const DEFAULT_LIVE_CHECK_JQ: &str = include_str!("../../../defaults/jq/advice.jq");
 
