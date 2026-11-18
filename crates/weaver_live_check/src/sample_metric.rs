@@ -457,7 +457,7 @@ impl Matchable for SampleMetric {
         SampleType::Metric
     }
 
-    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+    fn bind(&self, context: &mut Context<'_, '_>) -> Result<(), SerializationError> {
         context.add_variable("name", &self.name)?;
         context.add_variable("unit", &self.unit)?;
         context.add_variable("instrument", &self.instrument)?;

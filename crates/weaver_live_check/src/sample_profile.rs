@@ -80,7 +80,7 @@ impl Matchable for SampleProfile {
         SampleType::Profile
     }
 
-    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+    fn bind(&self, context: &mut Context<'_, '_>) -> Result<(), SerializationError> {
         context.add_variable("attributes", attribute_map(self.attributes.iter()))?;
         bind_signal_context(
             self.resource.as_deref(),

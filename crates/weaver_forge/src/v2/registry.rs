@@ -312,7 +312,7 @@ impl ForgeResolvedRegistry {
                     });
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
-                            group_id: format!("metric.{}", &metric.name),
+                            group_id: format!("metric.{}", metric.name),
                             attr_ref: ar.base.0,
                         });
                     }
@@ -351,7 +351,7 @@ impl ForgeResolvedRegistry {
                     });
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
-                            group_id: format!("metric.{}", &metric.metric.name),
+                            group_id: format!("metric.{}", metric.metric.name),
                             attr_ref: ar.base.0,
                         });
                     }
@@ -393,7 +393,7 @@ impl ForgeResolvedRegistry {
                     });
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
-                            group_id: format!("span.{}", &span.r#type),
+                            group_id: format!("span.{}", span.r#type),
                             attr_ref: ar.base.0,
                         });
                     }
@@ -432,7 +432,7 @@ impl ForgeResolvedRegistry {
                     });
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
-                            group_id: format!("span.{}", &span.id),
+                            group_id: format!("span.{}", span.id),
                             attr_ref: ar.base.0,
                         });
                     }
@@ -473,7 +473,7 @@ impl ForgeResolvedRegistry {
                     });
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
-                            group_id: format!("event.{}", &event.name),
+                            group_id: format!("event.{}", event.name),
                             attr_ref: ar.base.0,
                         });
                     }
@@ -511,7 +511,7 @@ impl ForgeResolvedRegistry {
                     });
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
-                            group_id: format!("event.{}", &event.id),
+                            group_id: format!("event.{}", event.id),
                             attr_ref: ar.base.0,
                         });
                     }
@@ -585,7 +585,7 @@ impl ForgeResolvedRegistry {
 
         let mut entities = Vec::new();
         for e in schema.registry.entities {
-            let group_id = format!("entity.{}", &e.r#type);
+            let group_id = format!("entity.{}", e.r#type);
             let identity = convert_identity_attrs(&e.identity, &group_id, &mut errors);
             let description = convert_entity_attrs(&e.description, &group_id, &mut errors);
             entities.push(Entity {
@@ -601,7 +601,7 @@ impl ForgeResolvedRegistry {
 
         let mut entity_refinements = Vec::new();
         for e in schema.refinements.entities {
-            let group_id = format!("entity.{}", &e.id);
+            let group_id = format!("entity.{}", e.id);
             let identity = convert_identity_attrs(&e.entity.identity, &group_id, &mut errors);
             let description = convert_entity_attrs(&e.entity.description, &group_id, &mut errors);
             entity_refinements.push(EntityRefinement {
@@ -636,7 +636,7 @@ impl ForgeResolvedRegistry {
                     });
                     if attr.is_none() {
                         errors.push(Error::AttributeNotFound {
-                            group_id: format!("attribute_group.{}", &ag.id),
+                            group_id: format!("attribute_group.{}", ag.id),
                             attr_ref: ar.base.0,
                         });
                     }

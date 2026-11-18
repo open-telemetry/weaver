@@ -66,7 +66,7 @@ impl Registry {
                 {
                     format!("enum(card:{:03})", members.len())
                 } else {
-                    format!("{:#}", &attribute.r#type)
+                    format!("{:#}", attribute.r#type)
                 };
                 if attribute.common.deprecated.is_some() {
                     deprecated_count += 1;
