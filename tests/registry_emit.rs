@@ -54,6 +54,8 @@ fn run_emit_with_live_check_test(use_v2: bool) {
         "8".to_owned(),
         "--otlp-grpc-port".to_owned(),
         otlp_grpc_port.to_string(),
+        "--otlp-http-port".to_owned(),
+        "0".to_owned(),
         "--admin-port".to_owned(),
         admin_port.to_string(),
     ];
@@ -189,6 +191,8 @@ fn test_emit_with_resource_attributes() {
             "8",
             "--otlp-grpc-port",
             &w3_grpc_port.to_string(),
+            "--otlp-http-port",
+            "0",
             "--admin-port",
             &w3_admin_port.to_string(),
         ])
@@ -216,6 +220,8 @@ fn test_emit_with_resource_attributes() {
             "4",
             "--otlp-grpc-port",
             &w2_grpc_port.to_string(),
+            "--otlp-http-port",
+            "0",
             "--admin-port",
             &w2_admin_port.to_string(),
             "--emit-otlp-logs",

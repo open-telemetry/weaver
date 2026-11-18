@@ -180,10 +180,12 @@ impl Default for LiveCheckConfig {
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct LiveCheckOtlpConfig {
-    /// Address used by the gRPC OTLP listener.
+    /// Address used by the gRPC and HTTP OTLP listeners and the admin port.
     pub grpc_address: String,
     /// Port used by the gRPC OTLP listener. `0` picks a free port.
     pub grpc_port: u16,
+    /// Port used by the HTTP OTLP listener (binary protobuf). `0` picks a free port.
+    pub http_port: u16,
     /// Port used by the HTTP admin port (endpoints: `/health`, `/stop`, `/report`, `/shutdown`).
     pub admin_port: u16,
     /// Max inactivity time in seconds before stopping the listener.
@@ -195,6 +197,7 @@ impl Default for LiveCheckOtlpConfig {
         Self {
             grpc_address: "127.0.0.1".to_owned(),
             grpc_port: 4317,
+            http_port: 4318,
             admin_port: 4320,
             inactivity_timeout: 10,
         }
@@ -580,6 +583,7 @@ advice_preprocessor = "pre.jq"
 ["live-check".otlp]
 grpc_address = "127.0.0.1"
 grpc_port = 4317
+http_port = 5318
 admin_port = 4320
 inactivity_timeout = 30
 
@@ -614,6 +618,7 @@ otlp_logs_stdout = false
 
         assert_eq!(lc.otlp.grpc_address, "127.0.0.1");
         assert_eq!(lc.otlp.grpc_port, 4317);
+        assert_eq!(lc.otlp.http_port, 5318);
         assert_eq!(lc.otlp.admin_port, 4320);
         assert_eq!(lc.otlp.inactivity_timeout, 30);
 
@@ -635,6 +640,7 @@ grpc_port = 9999
         let lc = live_check(&config);
         assert_eq!(lc.otlp.grpc_port, 9999);
         assert_eq!(lc.otlp.grpc_address, "127.0.0.1");
+        assert_eq!(lc.otlp.http_port, 4318);
         assert_eq!(lc.otlp.admin_port, 4320);
         assert_eq!(lc.format, "ansi");
         assert!(!lc.emit.otlp_logs);
