@@ -537,15 +537,27 @@ impl WeaverResolver {
                 }
             }
             LoadedSemconvRegistry::Resolved {
-                schema,
+                mut schema,
                 direct_dependencies,
             } => {
+                let mut nfes = vec![];
+                if self.config.v2 {
+                    if let Err(e) =
+                        registry::convert_resolved_entities_without_identity(&mut schema, &mut nfes)
+                    {
+                        return WResult::FatalErr(e);
+                    }
+                }
                 let arc = Arc::new(WeaverResolvedSchema::V1(schema));
                 if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
                     self.record_direct_dependencies(&url, direct_dependencies);
                     _ = self.cache.put(url, arc.clone());
                 }
-                WResult::Ok(arc)
+                if nfes.is_empty() {
+                    WResult::Ok(arc)
+                } else {
+                    WResult::OkWithNFEs(arc, nfes)
+                }
             }
             LoadedSemconvRegistry::ResolvedV2 {
                 schema,
@@ -1239,6 +1251,36 @@ mod tests {
             message.contains("EntityRefinementWithoutIdentity")
                 && message.contains("entity.legacy.child"),
             "{message}"
+        );
+    }
+
+    /// A V1 registry that was resolved before loading converts the same way.
+    #[test]
+    fn test_v2_entity_without_identity_in_pre_resolved_registry() {
+        let schema = resolve_without_identity_fixture("local", false)
+            .into_result_failing_non_fatal()
+            .expect("Failed to resolve")
+            .into_v1()
+            .unwrap();
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig {
+            v2: true,
+            ..Default::default()
+        });
+        let (resolved, nfes) = resolver
+            .resolve_loaded(LoadedSemconvRegistry::Resolved {
+                schema,
+                direct_dependencies: vec![],
+            })
+            .into_result_with_non_fatal()
+            .expect("Failed to load");
+        let group = resolved
+            .as_v1()
+            .and_then(|s| s.group("entity.legacy"))
+            .expect("the converted group");
+        assert_eq!(group.r#type, GroupType::AttributeGroup);
+        assert!(
+            matches!(nfes.as_slice(), [Error::EntityMissingIdentity { group_id, .. }] if group_id == "entity.legacy"),
+            "unexpected warnings: {nfes:?}"
         );
     }
 

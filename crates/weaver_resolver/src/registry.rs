@@ -706,33 +706,78 @@ fn convert_entities_without_identity(
             group_id: g.group.id.clone(),
             provenance: g.provenance.clone().map(Box::new),
         });
-        g.group.r#type = GroupType::AttributeGroup;
-        g.group.visibility = Some(AttributeGroupVisibilitySpec::Public);
+        to_public_attribute_group(&mut g.group);
         g.visibility = Some(AttributeGroupVisibilitySpec::Public);
         let _ = converted.insert(g.group.id.clone());
     }
+    reject_refinements_of(
+        ureg.groups.iter().map(|g| (&g.group, g.provenance.clone())),
+        &converted,
+    )
+}
 
-    // Extends already ran, so an entity that keeps its identity may still
-    // refine one that was just converted.
-    let refinement_errors: Vec<Error> = ureg
+/// The same conversion for a V1 registry that was resolved before it was loaded.
+pub(crate) fn convert_resolved_entities_without_identity(
+    schema: &mut weaver_resolved_schema::v1::ResolvedTelemetrySchema,
+    errors: &mut Vec<Error>,
+) -> Result<(), Error> {
+    let catalog = &schema.catalog;
+    let mut converted = HashSet::new();
+    for g in schema
+        .registry
         .groups
-        .iter()
-        .filter(|g| g.group.r#type == GroupType::Entity)
-        .filter_map(|g| {
-            let parent = g.group.lineage.as_ref()?.extends_group.as_ref()?;
+        .iter_mut()
+        .filter(|g| g.r#type == GroupType::Entity && !g.is_v2)
+    {
+        let has_identity = g
+            .attributes
+            .iter()
+            .filter_map(|ar| catalog.attribute(ar))
+            .any(|a| a.role == Some(AttributeRole::Identifying));
+        if has_identity {
+            continue;
+        }
+        errors.push(Error::EntityMissingIdentity {
+            group_id: g.id.clone(),
+            provenance: g.provenance().map(Box::new),
+        });
+        to_public_attribute_group(g);
+        let _ = converted.insert(g.id.clone());
+    }
+    reject_refinements_of(
+        schema.registry.groups.iter().map(|g| (g, g.provenance())),
+        &converted,
+    )
+}
+
+fn to_public_attribute_group(group: &mut Group) {
+    group.r#type = GroupType::AttributeGroup;
+    group.visibility = Some(AttributeGroupVisibilitySpec::Public);
+}
+
+/// Extends already ran, so an entity that keeps its identity may still refine
+/// one that was just converted.
+fn reject_refinements_of<'a>(
+    groups: impl Iterator<Item = (&'a Group, Option<Provenance>)>,
+    converted: &HashSet<String>,
+) -> Result<(), Error> {
+    let errors: Vec<Error> = groups
+        .filter(|(g, _)| g.r#type == GroupType::Entity)
+        .filter_map(|(g, provenance)| {
+            let parent = g.lineage.as_ref()?.extends_group.as_ref()?;
             converted
                 .contains(parent)
                 .then(|| Error::EntityRefinementWithoutIdentity {
-                    refinement_id: g.group.id.clone(),
+                    refinement_id: g.id.clone(),
                     r#ref: parent.clone(),
-                    provenance: g.provenance.clone().map(Box::new),
+                    provenance: provenance.map(Box::new),
                 })
         })
         .collect();
-    if refinement_errors.is_empty() {
+    if errors.is_empty() {
         Ok(())
     } else {
-        Err(Error::CompoundError(refinement_errors))
+        Err(Error::CompoundError(errors))
     }
 }
 
