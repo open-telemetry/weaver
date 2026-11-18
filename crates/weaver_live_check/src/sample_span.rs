@@ -18,7 +18,7 @@ use crate::{
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_resource::SampleResource,
     Advisable, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
-    SampleType,
+    SampleType, VersionedSignal,
 };
 
 /// The status code of the span
@@ -132,6 +132,9 @@ impl LiveCheckRunner for SampleSpan {
         );
         self.live_check_result = Some(result);
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
+        if let Some(VersionedSignal::Span(span)) = sample_match.signal.as_deref() {
+            stats.add_span_type_to_coverage(&span.r#type);
+        }
         self.attributes.run_live_check(
             live_checker,
             stats,

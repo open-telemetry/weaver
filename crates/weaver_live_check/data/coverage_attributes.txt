@@ -1,0 +1,2 @@
+http.request.method
+url.path

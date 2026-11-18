@@ -82,7 +82,9 @@ pub mod text_file_ingester;
 pub mod text_stdin_ingester;
 
 // Re-export statistics types from stats module
-pub use stats::{CumulativeStatistics, DisabledStatistics, LiveCheckStatistics, MatcherStatistics};
+pub use stats::{
+    CoverageScope, CumulativeStatistics, DisabledStatistics, LiveCheckStatistics, MatcherStatistics,
+};
 
 /// Attribute key in advice context
 pub const ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: &str = "attribute_key";
@@ -329,6 +331,21 @@ pub enum Error {
     /// `search_all_attributes` is set against a v1 registry.
     #[error("`search_all_attributes` requires a v2 registry. A v1 registry has no dependencies to search.")]
     SearchAllAttributesRequiresV2Registry,
+
+    /// `coverage` is configured against a v1 registry.
+    #[error("The `coverage` settings require a v2 registry.")]
+    CoverageRequiresV2Registry,
+
+    /// The `coverage` patterns select nothing from the registry.
+    #[error("The `coverage` patterns match no attribute, metric, event or span in the registry.")]
+    CoverageScopeEmpty,
+
+    /// `coverage.fail_below` is not a fraction.
+    #[error("`coverage.fail_below` must be between 0 and 1, got {value}.")]
+    InvalidCoverageThreshold {
+        /// The configured value.
+        value: f32,
+    },
 
     /// A matcher sets `signal` for a sample type that has no signal.
     #[error("Matcher `{id}` sets `signal`, which a `{sample_type}` matcher does not allow. Use `attribute_groups` instead.")]

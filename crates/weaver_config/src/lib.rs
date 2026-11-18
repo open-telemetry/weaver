@@ -27,8 +27,8 @@ pub use effective::{
 };
 pub use infer::{InferConfig, InferOtlpConfig};
 pub use live_check::{
-    FailOnLevel, FindingFilter, FindingLevelOverride, LiveCheckConfig, LiveCheckEmitConfig,
-    LiveCheckOtlpConfig,
+    FailOnLevel, FindingFilter, FindingLevelOverride, LiveCheckConfig, LiveCheckCoverageConfig,
+    LiveCheckEmitConfig, LiveCheckOtlpConfig,
 };
 pub use overrides::{CliOverrides, CommandConfig, FieldMapping};
 pub use registry::{DiagnosticsConfig, PolicyConfig, PolicyFindingFilter, RegistryConfig};
