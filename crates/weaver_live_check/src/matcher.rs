@@ -740,6 +740,7 @@ mod tests {
 
     use std::collections::BTreeMap;
 
+    use weaver_config::LiveCheckCoverageConfig;
     use weaver_forge::v1::registry::ResolvedRegistry;
     use weaver_forge::v2::attribute::Attribute as V2Attribute;
     use weaver_forge::v2::attribute_group::AttributeGroupAttribute;
@@ -998,6 +999,52 @@ sample_type = "log"
         );
     }
 
+    fn coverage_config(include: &[&str], fail_below: Option<f32>) -> LiveCheckCoverageConfig {
+        LiveCheckCoverageConfig {
+            include: include.iter().map(|&name| name.to_owned()).collect(),
+            exclude: Vec::new(),
+            fail_below,
+        }
+    }
+
+    #[test]
+    fn coverage_settings_need_a_v2_registry() {
+        let error = v1_live_checker()
+            .set_coverage(&coverage_config(&[], Some(0.5)))
+            .expect_err("coverage settings are v2 only");
+        assert!(
+            matches!(error, Error::CoverageRequiresV2Registry),
+            "{error}"
+        );
+        v1_live_checker()
+            .set_coverage(&LiveCheckCoverageConfig::default())
+            .expect("no coverage settings");
+    }
+
+    #[test]
+    fn a_coverage_threshold_must_be_a_fraction() {
+        for value in [-0.1, 1.5] {
+            let error = v2_live_checker()
+                .set_coverage(&coverage_config(&[], Some(value)))
+                .expect_err("not a fraction");
+            assert!(
+                matches!(error, Error::InvalidCoverageThreshold { .. }),
+                "{error}"
+            );
+        }
+    }
+
+    #[test]
+    fn coverage_patterns_must_match_a_registry_name() {
+        let error = v2_live_checker()
+            .set_coverage(&coverage_config(&["absent.*"], None))
+            .expect_err("nothing in the registry matches");
+        assert!(matches!(error, Error::CoverageScopeEmpty), "{error}");
+        v2_live_checker()
+            .set_coverage(&coverage_config(&["myapp.*"], Some(1.0)))
+            .expect("the fixture has `myapp` names");
+    }
+
     #[test]
     fn a_v1_registry_indexes_no_spans_and_no_attribute_groups() {
         let live_checker = v1_live_checker();
@@ -1154,7 +1201,10 @@ sample_type = "span"
 
     mod sample_match {
         use super::*;
-        use crate::{sample_span::SampleSpan, CumulativeStatistics, LiveCheckStatistics};
+        use crate::{
+            sample_span::SampleSpan, CumulativeStatistics, LiveCheckRunner, LiveCheckStatistics,
+            Sample,
+        };
 
         fn matchers(toml_str: &str) -> Matchers {
             Matchers::compile(&matcher_configs(toml_str), &v2_live_checker()).expect("they compile")
@@ -1396,7 +1446,7 @@ attribute_groups = ["myapp.common"]
 
             let mut stats =
                 LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
-            stats.finalize(live_checker.matchers());
+            stats.finalize(&live_checker);
 
             let LiveCheckStatistics::Cumulative(stats) = stats else {
                 panic!("cumulative statistics");
@@ -1406,6 +1456,33 @@ attribute_groups = ["myapp.common"]
             assert_eq!(stats.matchers[0].matched, 1);
             assert_eq!(stats.matchers[0].errors, 0);
             assert!(stats.matchers[0].first_error.is_none());
+        }
+
+        #[test]
+        fn a_span_counts_toward_coverage_only_when_a_matcher_names_its_signal() {
+            let mut live_checker = checker_with(CHECKOUT);
+            let mut stats =
+                LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&live_checker.registry));
+            let seen = |stats: &LiveCheckStatistics| {
+                let LiveCheckStatistics::Cumulative(stats) = stats else {
+                    panic!("cumulative statistics");
+                };
+                stats.seen_registry_spans["myapp.checkout"]
+            };
+
+            let mut other = other_span();
+            let parent = Sample::Span(other.clone());
+            other
+                .run_live_check(&mut live_checker, &mut stats, None, &parent)
+                .expect("the live check runs");
+            assert_eq!(seen(&stats), 0);
+
+            let mut checkout = checkout_span();
+            let parent = Sample::Span(checkout.clone());
+            checkout
+                .run_live_check(&mut live_checker, &mut stats, None, &parent)
+                .expect("the live check runs");
+            assert_eq!(seen(&stats), 1);
         }
 
         /// The `match_info` that a config produces for a span sample.

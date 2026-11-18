@@ -89,7 +89,7 @@ impl From<String> for InputFormat {
 #[weaver_command(
     section = "live-check",
     config_type = "::weaver_config::LiveCheckConfig",
-    extra_config_only = "finding_filters,finding_level_overrides,matchers"
+    extra_config_only = "finding_filters,finding_level_overrides,matchers,coverage_include,coverage_exclude"
 )]
 #[derive(Debug, Args, WeaverCommand)]
 pub struct RegistryLiveCheckArgs {
@@ -161,6 +161,12 @@ pub struct RegistryLiveCheckArgs {
     #[arg(long)]
     #[config(default = "violation")]
     fail_on: Option<FailOnLevel>,
+
+    /// Fail when the registry coverage is below this fraction (0 to 1).
+    /// The `coverage` section of the config file scopes what is counted.
+    #[arg(long)]
+    #[config(path = "coverage.fail_below", optional)]
+    fail_on_coverage_below: Option<f32>,
 
     /// Path to save generated artifacts. Use "none" to suppress output,
     /// "http" to serve the report at GET /report on the admin port until POST /shutdown
@@ -302,6 +308,23 @@ fn generate_report(
     }
 }
 
+/// The most unseen names a coverage failure lists.
+const MAX_UNSEEN_LISTED: usize = 20;
+
+/// The first unseen names, and how many were left out.
+fn unseen_summary(unseen: &[&str]) -> String {
+    let listed = unseen
+        .iter()
+        .take(MAX_UNSEEN_LISTED)
+        .copied()
+        .collect::<Vec<_>>()
+        .join(", ");
+    match unseen.len().saturating_sub(MAX_UNSEEN_LISTED) {
+        0 => listed,
+        more => format!("{listed}, and {more} more"),
+    }
+}
+
 /// Perform a live check on sample data by comparing it to a semantic convention registry.
 pub(crate) fn command(
     args: &RegistryLiveCheckArgs,
@@ -314,6 +337,12 @@ pub(crate) fn command(
     let config = cmd_config.config;
     let registry_args = cmd_config.registry;
     let policy_args = cmd_config.policy;
+
+    if config.no_stats && config.coverage.fail_below.is_some() {
+        return Err(DiagnosticMessages::from(crate::registry::Error::Config {
+            error: "--fail-on-coverage-below needs statistics; remove --no-stats.".to_owned(),
+        }));
+    }
 
     let input_source = InputSource::from(config.input_source.clone());
     let input_format = InputFormat::from(config.input_format.clone());
@@ -374,6 +403,8 @@ pub(crate) fn command(
     if config.search_all_attributes {
         live_checker.search_all_attributes()?;
     }
+
+    live_checker.set_coverage(&config.coverage)?;
 
     let advice_policies_dir =
         VirtualDirectory::try_from_opt_with_auth(config.advice_policies.as_ref(), auth)
@@ -524,11 +555,25 @@ pub(crate) fn command(
         }
     }
 
-    stats.finalize(live_checker.matchers());
+    stats.finalize(&live_checker);
     // A `None` threshold never fails.
     if let Some(threshold) = config.fail_on.as_finding_threshold() {
         if stats.should_fail(threshold) {
             exit_code = 1;
+        }
+    }
+
+    if let (Some(threshold), Some(coverage)) =
+        (config.coverage.fail_below, stats.registry_coverage())
+    {
+        if coverage < threshold {
+            diag_msgs.extend_from_vec(vec![DiagnosticMessage::new(
+                crate::registry::Error::CoverageBelowThreshold {
+                    coverage,
+                    threshold,
+                    unseen: unseen_summary(&stats.unseen(live_checker.coverage_scope())),
+                },
+            )]);
         }
     }
 

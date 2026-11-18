@@ -17,14 +17,14 @@ use crate::{
     finding_modifier::FindingModifier,
     matcher::{Matchers, SampleMatch, SignalKind},
     otlp_logger::OtlpEmitter,
-    Error, SampleType, VersionedAttribute, VersionedEntity, VersionedRegistry, VersionedSignal,
+    CoverageScope, Error, SampleType, VersionedAttribute, VersionedEntity, VersionedRegistry,
+    VersionedSignal,
 };
-use weaver_config::live_check::MatcherConfig;
+use weaver_config::live_check::{LiveCheckCoverageConfig, MatcherConfig};
 use weaver_forge::v2::attribute::Attribute as V2Attribute;
 use weaver_forge::v2::attribute_group::AttributeGroup;
 use weaver_forge::v2::entity::{Entity as V2Entity, EntityRef};
 
-#[cfg(test)]
 use crate::CumulativeStatistics;
 
 /// Attributes of one signal or attribute group, keyed by attribute key.
@@ -133,6 +133,8 @@ pub struct LiveChecker {
     pub finding_modifier: Option<FindingModifier>,
     /// The configured matchers, compiled and checked against the registry
     matchers: Matchers,
+    /// The registry names that count toward coverage
+    coverage_scope: CoverageScope,
 }
 
 /// Serializes the input of the advice preprocessor.
@@ -298,6 +300,7 @@ impl LiveChecker {
             otlp_emitter: None,
             finding_modifier: None,
             matchers: Matchers::default(),
+            coverage_scope: CoverageScope::default(),
         }
     }
 
@@ -317,6 +320,39 @@ impl LiveChecker {
     #[must_use]
     pub fn matchers(&self) -> &Matchers {
         &self.matchers
+    }
+
+    /// Set which registry names count toward coverage.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for a v1 registry, an invalid pattern, patterns that
+    /// match nothing in the registry, or a `fail_below` outside 0 to 1.
+    pub fn set_coverage(&mut self, config: &LiveCheckCoverageConfig) -> Result<(), Error> {
+        if *config == LiveCheckCoverageConfig::default() {
+            return Ok(());
+        }
+        if matches!(self.registry.as_ref(), VersionedRegistry::V1(_)) {
+            return Err(Error::CoverageRequiresV2Registry);
+        }
+        if let Some(value) = config.fail_below {
+            if !(0.0..=1.0).contains(&value) {
+                return Err(Error::InvalidCoverageThreshold { value });
+            }
+        }
+        let scope = CoverageScope::try_from(config)?;
+        let has_patterns = !config.include.is_empty() || !config.exclude.is_empty();
+        if has_patterns && !CumulativeStatistics::new(&self.registry).has_names_in(&scope) {
+            return Err(Error::CoverageScopeEmpty);
+        }
+        self.coverage_scope = scope;
+        Ok(())
+    }
+
+    /// The registry names that count toward coverage
+    #[must_use]
+    pub fn coverage_scope(&self) -> &CoverageScope {
+        &self.coverage_scope
     }
 
     /// Find the signal a matcher's `signal` names for this sample type
@@ -710,7 +746,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
 
         let all_advice = get_all_advice(&mut samples[0]);
         assert!(all_advice.is_empty());
@@ -1675,7 +1711,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
 
         let all_advice = get_all_advice(&mut samples[0]);
         assert!(all_advice.is_empty());
@@ -1765,7 +1801,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
 
         // Check the statistics
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
@@ -1837,7 +1873,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
 
         // Check the statistics
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
@@ -1895,7 +1931,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
 
         // Check the statistics
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
@@ -1988,7 +2024,7 @@ mod tests {
 
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
                 cumulative_stats
@@ -2043,7 +2079,7 @@ mod tests {
 
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
 
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
@@ -2342,7 +2378,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
 
         // Check the statistics
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
@@ -2498,7 +2534,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
                 cumulative_stats
@@ -2589,7 +2625,7 @@ mod tests {
         let result = sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
 
         assert!(result.is_ok());
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
                 cumulative_stats.advice_type_counts.get("low_value"),
@@ -2648,7 +2684,7 @@ mod tests {
                 sample.run_live_check(&mut live_checker, &mut stats, None, &sample.clone());
             assert!(result.is_ok());
         }
-        stats.finalize(live_checker.matchers());
+        stats.finalize(&live_checker);
         if let LiveCheckStatistics::Cumulative(cumulative_stats) = &stats {
             assert_eq!(
                 cumulative_stats

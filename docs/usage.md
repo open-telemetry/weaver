@@ -529,6 +529,7 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
   Possible values: `true`, `false`
 
 * `--fail-on <FAIL_ON>` — Findings at this level or higher cause a non-zero exit code. Levels (highest→lowest): violation, improvement, information. Use `none` to never fail. [default: violation]
+* `--fail-on-coverage-below <FAIL_ON_COVERAGE_BELOW>` — Fail when the registry coverage is below this fraction (0 to 1). The `coverage` section of the config file scopes what is counted
 * `-o`, `--output <OUTPUT>` — Path to save generated artifacts. Use "none" to suppress output, "http" to serve the report at GET /report on the admin port until POST /shutdown (the inactivity timeout is then ignored)
 * `--otlp-grpc-address <OTLP_GRPC_ADDRESS>` — Address used by the gRPC and HTTP OTLP listeners and the admin port
 * `--otlp-grpc-port <OTLP_GRPC_PORT>` — Port used by the gRPC OTLP listener. 0 picks a free port
