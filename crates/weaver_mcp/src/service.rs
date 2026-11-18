@@ -16,7 +16,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use weaver_forge::v2::registry::ForgeResolvedRegistry;
 use weaver_live_check::advice::{
-    Advisor, DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
+    AdvicePolicySource, Advisor, DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor,
+    TypeAdvisor,
 };
 use weaver_live_check::live_checker::LiveChecker;
 use weaver_live_check::{
@@ -48,8 +49,8 @@ pub struct WeaverMcpService {
     served: Arc<RwLock<Arc<ServedRegistry>>>,
     /// Loader for `load_registry`; `None` disables the tool.
     registry_loader: Option<Arc<dyn RegistryLoader>>,
-    /// Path to custom Rego advice policies directory.
-    advice_policies: Option<PathBuf>,
+    /// Rego advice policy sources.
+    advice_policies: Vec<AdvicePolicySource>,
     /// Path, directory, or glob pattern containing additional rego data (JSON/YAML files).
     advice_data: Option<String>,
     /// Path to jq preprocessor script for Rego policies.
@@ -1619,7 +1620,7 @@ mod tests {
     fn test_live_check_custom_advice_policies() {
         // No advice_data: only the hardcoded rule can fire.
         let config = McpConfig {
-            advice_policies: Some(fixture_path("policies")),
+            advice_policies: vec![fixture_path("policies").into()],
             ..McpConfig::default()
         };
         let service = create_test_service_with_config(config);
@@ -1636,7 +1637,7 @@ mod tests {
     fn test_live_check_custom_advice_data() {
         // With the denylist loaded, the data-driven rule fires.
         let config = McpConfig {
-            advice_policies: Some(fixture_path("policies")),
+            advice_policies: vec![fixture_path("policies").into()],
             advice_data: Some(
                 fixture_path("data/denylist.json")
                     .to_string_lossy()

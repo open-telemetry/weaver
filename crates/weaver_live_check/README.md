@@ -153,7 +153,7 @@ As mentioned, a list of `PolicyFinding` is returned in the report for each sampl
 
 ### Custom advisors
 
-Use the `--advice-policies` command line option to provide a path to a directory or [virtual directory (`vdir`)](/docs/vdir.md) (such as a Git repository or archive) containing Rego policies with the `live_check_advice` package name. Here's a very simple example that rejects any attribute name containing the string "test":
+Use the `--advice-policies` command line option to provide a path to a directory or [virtual directory (`vdir`)](/docs/vdir.md) (such as a Git repository or archive) containing Rego policies with the `live_check_advice` package name. The option can be given more than once, and all the policies are loaded together. Custom policies replace the built-in ones; add `--advice-policies builtin://otel.rego` to keep the built-in policies as well. Here's a very simple example that rejects any attribute name containing the string "test":
 
 ```rego
 package live_check_advice
@@ -179,6 +179,22 @@ make_finding(id, level, context, message) := {
   "message": message,
 }
 ```
+
+The built-in helpers `make_advice` and `make_advice_with_signal_info` are in the `live_check_advice.builtin` package, which is always loaded. A policy can define its own helpers, as above, or use the built-in ones:
+
+```rego
+package live_check_advice
+
+import rego.v1
+import data.live_check_advice.builtin
+
+deny contains builtin.make_advice("contains_test", "violation", {}, "Attribute name must not contain 'test'") if {
+	contains(input.sample.attribute.name, "test")
+}
+```
+
+> **Warning**
+> Every policy shares the `live_check_advice` package, so a function defined in two files is one function with two definitions. When the definitions differ, policy evaluation fails, and when the files come from different `--advice-policies` sources, live-check panics. Define each helper in one file only, or give it a unique name or its own package.
 
 `input.sample` contains the sample entity for assessment wrapped in a type e.g. `input.sample.attribute` or `input.sample.span`.
 
@@ -245,7 +261,7 @@ no_stream = false
 no_stats = false
 fail_on = "violation"  # violation | improvement | information | none
 output = "reports"
-advice_policies = "policies"
+advice_policies = ["builtin://otel.rego", "policies"]
 advice_preprocessor = "preprocessor.jq"
 
 [live-check.otlp]
