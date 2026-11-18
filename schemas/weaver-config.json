@@ -773,7 +773,7 @@
           "default": null
         },
         "include": {
-          "description": "Count only the registry attributes, metrics and events whose name\nmatches one of these patterns (supports glob wildcards, e.g.\n`\"http.*\"`). When empty, every name counts.",
+          "description": "Count only the registry attributes, metrics, events and spans whose name\nmatches one of these patterns (supports glob wildcards, e.g.\n`\"http.*\"`). When empty, every name counts.",
           "type": "array",
           "default": [],
           "items": {

@@ -337,7 +337,7 @@ pub enum Error {
     CoverageRequiresV2Registry,
 
     /// The `coverage` patterns select nothing from the registry.
-    #[error("The `coverage` patterns match no attribute, metric or event in the registry.")]
+    #[error("The `coverage` patterns match no attribute, metric, event or span in the registry.")]
     CoverageScopeEmpty,
 
     /// `coverage.fail_below` is not a fraction.

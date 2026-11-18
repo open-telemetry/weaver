@@ -185,7 +185,7 @@ impl Default for LiveCheckConfig {
 #[derive(Debug, Clone, Default, Deserialize, PartialEq, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct LiveCheckCoverageConfig {
-    /// Count only the registry attributes, metrics and events whose name
+    /// Count only the registry attributes, metrics, events and spans whose name
     /// matches one of these patterns (supports glob wildcards, e.g.
     /// `"http.*"`). When empty, every name counts.
     pub include: Vec<String>,
