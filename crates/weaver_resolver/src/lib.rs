@@ -1225,6 +1225,23 @@ mod tests {
         }
     }
 
+    /// An entity that keeps its identity can't refine one that was converted.
+    #[test]
+    fn test_v2_entity_without_identity_cannot_be_refined() {
+        assert!(resolve_without_identity_fixture("refinement", false)
+            .into_result_failing_non_fatal()
+            .is_ok());
+        let error = resolve_without_identity_fixture("refinement", true)
+            .into_result_with_non_fatal()
+            .expect_err("refining a converted entity must fail");
+        let message = format!("{error:?}");
+        assert!(
+            message.contains("EntityRefinementWithoutIdentity")
+                && message.contains("entity.legacy.child"),
+            "{message}"
+        );
+    }
+
     /// A converted entity takes its group id in the attribute group namespace,
     /// so it can't share that id with an existing public attribute group.
     #[test]

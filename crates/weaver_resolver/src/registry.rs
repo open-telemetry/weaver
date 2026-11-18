@@ -170,7 +170,9 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
     // After attribute references, which settle identity roles, and before
     // imports and associations, so nothing can reach the converted entity.
     if v2 {
-        convert_entities_without_identity(&mut ureg, attr_catalog, &mut errors);
+        if let Err(e) = convert_entities_without_identity(&mut ureg, attr_catalog, &mut errors) {
+            return WResult::FatalErr(e);
+        }
     }
 
     // We need to *import* objects from the dependencies as required.
@@ -689,8 +691,9 @@ fn convert_entities_without_identity(
     ureg: &mut UnresolvedRegistry,
     attr_catalog: &AttributeCatalog,
     errors: &mut Vec<Error>,
-) {
+) -> Result<(), Error> {
     let identifying = attr_catalog.identifying_refs();
+    let mut converted = HashSet::new();
     for g in ureg
         .groups
         .iter_mut()
@@ -706,6 +709,30 @@ fn convert_entities_without_identity(
         g.group.r#type = GroupType::AttributeGroup;
         g.group.visibility = Some(AttributeGroupVisibilitySpec::Public);
         g.visibility = Some(AttributeGroupVisibilitySpec::Public);
+        let _ = converted.insert(g.group.id.clone());
+    }
+
+    // Extends already ran, so an entity that keeps its identity may still
+    // refine one that was just converted.
+    let refinement_errors: Vec<Error> = ureg
+        .groups
+        .iter()
+        .filter(|g| g.group.r#type == GroupType::Entity)
+        .filter_map(|g| {
+            let parent = g.group.lineage.as_ref()?.extends_group.as_ref()?;
+            converted
+                .contains(parent)
+                .then(|| Error::EntityRefinementWithoutIdentity {
+                    refinement_id: g.group.id.clone(),
+                    r#ref: parent.clone(),
+                    provenance: g.provenance.clone().map(Box::new),
+                })
+        })
+        .collect();
+    if refinement_errors.is_empty() {
+        Ok(())
+    } else {
+        Err(Error::CompoundError(refinement_errors))
     }
 }
 
