@@ -1,0 +1,19 @@
+groups:
+  - id: entity.legacy
+    type: entity
+    name: legacy
+    brief: Legacy entity without identity.
+    stability: development
+    attributes:
+      - id: legacy.name
+        type: string
+        brief: Legacy name.
+        stability: development
+        examples: [x]
+  - id: attribute_group.entity.legacy
+    type: attribute_group
+    visibility: public
+    brief: Public group.
+    stability: development
+    attributes:
+      - ref: legacy.name

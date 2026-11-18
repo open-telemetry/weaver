@@ -104,6 +104,10 @@ pub struct WeaverResolverConfig {
     /// Explicit overrides mapping a requested SchemaUrl to an alternative VirtualDirectoryPath.
     /// Used to redirect dependency graph requests to local clones, forks, or custom archives.
     pub schema_url_overrides: BTreeMap<SchemaUrl, weaver_common::vdir::VirtualDirectoryPath>,
+
+    /// Whether the resolved registry is going to be converted to V2. V1 entities
+    /// without identity attributes then become public attribute groups.
+    pub v2: bool,
 }
 
 impl Default for WeaverResolverConfig {
@@ -114,6 +118,7 @@ impl Default for WeaverResolverConfig {
             include_unreferenced: false,
             auth: HttpAuthResolver::empty(),
             schema_url_overrides: BTreeMap::new(),
+            v2: false,
         }
     }
 }
@@ -482,6 +487,7 @@ impl WeaverResolver {
             imports,
             resolved_dependencies,
             include_unreferenced,
+            self.config.v2,
             &lookup_ctx,
         )
         .map(move |resolved_registry| ResolvedTelemetrySchema {
@@ -1148,6 +1154,88 @@ mod tests {
             "got: {message}"
         );
         Ok(())
+    }
+
+    fn resolve_without_identity_fixture(
+        name: &str,
+        v2: bool,
+    ) -> WResult<WeaverResolvedSchema, Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: format!("data/v2-entity-without-identity/{name}"),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("Failed to load the registry");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig {
+            v2,
+            ..Default::default()
+        });
+        resolver
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .ignore(is_unstable_format_warning)
+    }
+
+    /// Resolved for V2, a V1 entity without identity becomes a public attribute
+    /// group, with a warning. Resolved for V1, it stays an entity.
+    #[test]
+    fn test_v2_entity_without_identity_becomes_attribute_group() {
+        let group_type = |v2| {
+            let (resolved, nfes) = resolve_without_identity_fixture("local", v2)
+                .into_result_with_non_fatal()
+                .expect("Failed to resolve");
+            let resolved = resolved.into_v1().unwrap();
+            let group = resolved.group("entity.legacy").unwrap();
+            (group.r#type.clone(), group.visibility.clone(), nfes)
+        };
+
+        let (r#type, _, nfes) = group_type(false);
+        assert_eq!(r#type, GroupType::Entity);
+        assert!(nfes.is_empty(), "unexpected warnings: {nfes:?}");
+
+        let (r#type, visibility, nfes) = group_type(true);
+        assert_eq!(r#type, GroupType::AttributeGroup);
+        assert_eq!(
+            visibility,
+            Some(weaver_semconv::v1::group::AttributeGroupVisibilitySpec::Public)
+        );
+        assert!(
+            matches!(nfes.as_slice(), [Error::EntityMissingIdentity { group_id, .. }] if group_id == "entity.legacy"),
+            "unexpected warnings: {nfes:?}"
+        );
+    }
+
+    /// Once converted, the entity can't be associated with, whether it is
+    /// defined locally or in a dependency.
+    #[test]
+    fn test_v2_entity_without_identity_cannot_be_associated() {
+        for name in ["local_assoc", "consumer"] {
+            assert!(
+                resolve_without_identity_fixture(name, false)
+                    .into_result_failing_non_fatal()
+                    .is_ok(),
+                "{name} must resolve for V1"
+            );
+            let error = resolve_without_identity_fixture(name, true)
+                .into_result_with_non_fatal()
+                .expect_err("association to a converted entity must fail");
+            let message = format!("{error:?}");
+            assert!(
+                message.contains("UnresolvedEntityAssociation") && message.contains("legacy"),
+                "{name}: {message}"
+            );
+        }
+    }
+
+    /// A converted entity takes its group id in the attribute group namespace,
+    /// so it can't share that id with an existing public attribute group.
+    #[test]
+    fn test_v2_entity_without_identity_collides_with_attribute_group() {
+        let (_, nfes) = resolve_without_identity_fixture("collision", true)
+            .into_result_with_non_fatal()
+            .expect("Failed to resolve");
+        assert!(
+            nfes.iter().any(|e| matches!(e, Error::CollidingV2SignalId { signal_id, .. } if signal_id == "entity.legacy")),
+            "unexpected errors: {nfes:?}"
+        );
     }
 
     /// A refinement can't `unref` an identity attribute of a v1 base entity,

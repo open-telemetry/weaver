@@ -1,0 +1,12 @@
+groups:
+  - id: entity.legacy
+    type: entity
+    name: legacy
+    brief: Legacy entity without identity.
+    stability: development
+    attributes:
+      - id: legacy.name
+        type: string
+        brief: Legacy name.
+        stability: development
+        examples: [x]

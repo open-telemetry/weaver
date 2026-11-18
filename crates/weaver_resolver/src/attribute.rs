@@ -64,6 +64,17 @@ impl AttributeCatalog {
             .find_map(|(a, r)| if ar == r { Some(a.clone()) } else { None })
     }
 
+    /// References of every attribute with the identifying role.
+    pub(crate) fn identifying_refs(&self) -> HashSet<AttributeRef> {
+        self.attribute_refs
+            .iter()
+            .filter(|(a, _)| {
+                a.role == Some(weaver_semconv::v1::attribute::AttributeRole::Identifying)
+            })
+            .map(|(_, r)| *r)
+            .collect()
+    }
+
     /// Returns the reference of the given attribute or creates a new reference if the attribute
     /// does not exist in the catalog.
     fn attribute_ref(&mut self, attr: attribute::Attribute) -> AttributeRef {

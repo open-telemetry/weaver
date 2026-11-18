@@ -298,6 +298,20 @@ pub enum Error {
         provenance: Option<Box<Provenance>>,
     },
 
+    /// A V1 entity without identity attributes, resolved for V2 output, which
+    /// becomes a public attribute group.
+    #[error("Entity `{group_id}` has no identity attributes and is converted to a public attribute group in V2 schema. It can't be refined or used in entity associations.\nProvenance: {provenance:?}")]
+    #[diagnostic(
+        severity(Warning),
+        help("Add at least one identifying attribute to keep it an entity.")
+    )]
+    EntityMissingIdentity {
+        /// The id of the entity group.
+        group_id: String,
+        /// The provenance of the entity (URL or path).
+        provenance: Option<Box<Provenance>>,
+    },
+
     /// A duplicate attribute id error.
     #[error("The attribute id `{attribute_id}` is declared multiple times in the following groups:\n{group_ids:?}")]
     DuplicateAttributeId {

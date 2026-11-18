@@ -104,6 +104,7 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
     imports: Vec<ImportsWithProvenance>,
     dependencies: Vec<ResolvedDependency>,
     include_unreferenced: bool,
+    v2: bool,
     cache_lookup: &C,
 ) -> WResult<Registry, Error> {
     let groups = specs
@@ -164,6 +165,12 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
 
     if let Err(e) = resolve_attribute_references(&mut ureg, attr_catalog, cache_lookup) {
         return WResult::FatalErr(e);
+    }
+
+    // After attribute references, which settle identity roles, and before
+    // imports and associations, so nothing can reach the converted entity.
+    if v2 {
+        convert_entities_without_identity(&mut ureg, attr_catalog, &mut errors);
     }
 
     // We need to *import* objects from the dependencies as required.
@@ -674,6 +681,32 @@ fn resolve_entity_associations(ureg: &mut UnresolvedRegistry) -> Result<(), Erro
             .extend(group_origins);
     }
     Ok(())
+}
+
+/// V2 entities require identity, so V1 entities without identity attributes
+/// become public attribute groups when the registry is resolved for V2.
+fn convert_entities_without_identity(
+    ureg: &mut UnresolvedRegistry,
+    attr_catalog: &AttributeCatalog,
+    errors: &mut Vec<Error>,
+) {
+    let identifying = attr_catalog.identifying_refs();
+    for g in ureg
+        .groups
+        .iter_mut()
+        .filter(|g| g.group.r#type == GroupType::Entity && !g.is_v2)
+    {
+        if g.group.attributes.iter().any(|ar| identifying.contains(ar)) {
+            continue;
+        }
+        errors.push(Error::EntityMissingIdentity {
+            group_id: g.group.id.clone(),
+            provenance: g.provenance.clone().map(Box::new),
+        });
+        g.group.r#type = GroupType::AttributeGroup;
+        g.group.visibility = Some(AttributeGroupVisibilitySpec::Public);
+        g.visibility = Some(AttributeGroupVisibilitySpec::Public);
+    }
 }
 
 /// Resolves attribute references in the given registry.
