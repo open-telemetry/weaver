@@ -246,6 +246,24 @@ pub(crate) fn load_semconv_repository(
     load_semconv_repository_with_cache(None, registry_repo, follow_symlinks, auth, &EMPTY_OVERRIDES)
 }
 
+/// Opens a dependency repository from an explicit override path and verifies its `SchemaUrl`.
+pub(crate) fn open_overridden_repo(
+    schema_url: &SchemaUrl,
+    override_path: &VirtualDirectoryPath,
+    auth: &HttpAuthResolver,
+    nfes: &mut Vec<weaver_semconv::Error>,
+) -> Result<RegistryRepo, Error> {
+    let repo = RegistryRepo::try_new_with_auth(Some(schema_url.clone()), override_path, nfes, auth)
+        .map_err(Error::FailToResolveDefinition)?;
+    if repo.schema_url() != schema_url {
+        return Err(Error::MismatchSchemaUrl {
+            expected: schema_url.as_str().to_owned(),
+            actual: repo.schema_url().as_str().to_owned(),
+        });
+    }
+    Ok(repo)
+}
+
 /// Loads a semantic convention repository and its dependency graph, serving cached schemas and
 /// applying URL overrides.
 pub(crate) fn load_semconv_repository_with_cache(
@@ -437,26 +455,10 @@ fn load_semconv_repository_recursive(
                 let mut semconv_nfes: Vec<weaver_semconv::Error> = vec![];
                 let d_repo_res =
                     if let Some(override_path) = schema_url_overrides.get(&d.schema_url) {
-                        match RegistryRepo::try_new_with_auth(
-                            Some(d.schema_url.clone()),
-                            override_path,
-                            &mut semconv_nfes,
-                            auth,
-                        ) {
-                            Ok(repo) => {
-                                if repo.schema_url() != &d.schema_url {
-                                    let _ = dependency_chain.pop();
-                                    return WResult::FatalErr(Error::MismatchSchemaUrl {
-                                        expected: d.schema_url.as_str().to_owned(),
-                                        actual: repo.schema_url().as_str().to_owned(),
-                                    });
-                                }
-                                Ok(repo)
-                            }
-                            Err(e) => Err(e),
-                        }
+                        open_overridden_repo(&d.schema_url, override_path, auth, &mut semconv_nfes)
                     } else {
                         RegistryRepo::try_new_dependency_with_auth(d, &mut semconv_nfes, auth)
+                            .map_err(Error::from)
                     };
 
                 match d_repo_res {
@@ -488,7 +490,7 @@ fn load_semconv_repository_recursive(
                     }
                     Err(err) => {
                         let _ = dependency_chain.pop();
-                        return WResult::FatalErr(err.into());
+                        return WResult::FatalErr(err);
                     }
                 }
             }

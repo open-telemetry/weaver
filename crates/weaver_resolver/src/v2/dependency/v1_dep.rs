@@ -67,15 +67,13 @@ thread_local! {
 
 /// A test-only RAII scope that asserts `V1Dependency` is never instantiated or called.
 #[cfg(test)]
-#[allow(dead_code)]
-pub struct DisallowV1AdapterScope;
+pub(crate) struct DisallowV1AdapterScope;
 
 #[cfg(test)]
 impl DisallowV1AdapterScope {
     /// Activates the check on the current test thread.
     #[must_use]
-    #[allow(dead_code)]
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         V1_ADAPTER_DISALLOWED.with(|c| c.set(true));
         Self
     }

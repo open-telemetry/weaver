@@ -6,9 +6,6 @@ pub(crate) mod engine;
 mod error;
 pub(crate) mod graph;
 pub(crate) mod v1;
-#[cfg(test)]
-pub mod v2;
-#[cfg(not(test))]
 pub(crate) mod v2;
 
 #[cfg(test)]
@@ -31,9 +28,9 @@ pub use crate::graph::loader::{LoadedSemconvRegistry, SourceFormat};
 #[cfg(test)]
 pub(crate) use crate::v1::dependency::ResolvedDependency;
 #[cfg(test)]
-pub use crate::v1::DisallowV1EngineScope;
+pub(crate) use crate::v1::DisallowV1EngineScope;
 #[cfg(test)]
-pub use crate::v2::DisallowV1AdapterScope;
+pub(crate) use crate::v2::DisallowV1AdapterScope;
 #[cfg(test)]
 pub(crate) use std::sync::Arc;
 #[cfg(test)]

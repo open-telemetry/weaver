@@ -31,7 +31,7 @@ The crate is structured into three primary submodules with strict separation of 
   - Resolves all pure-V1 registries and mixed V1+V2 registries, returning `WeaverResolvedSchema::V1`.
   - Supports dependency reading via traits in `v1/dependency/`, adapting both V1 dependencies
     (`v1_dep.rs`) and V2 dependencies (`v2_dep.rs`).
-  - When `--v2` is requested on a mixed or V1 registry, `weaver_resolver` resolves through V1 (`WeaverResolvedSchema::V1`) and downstream callers convert the result to V2 via `WeaverResolvedSchema::into_v2`.
+  - When `--v2` is requested on a mixed or V1 registry, `weaver_resolver` resolves through V1 and converts the resulting root schema to `WeaverResolvedSchema::V2` (`WeaverResolvedSchema::into_v2` is also available when converting a `ResolutionTarget::V1` result).
 
 - **`v2/` (Native V2 Resolution Engine)**:
   The resolution engine used when resolving pure `definition/2` registries with `--v2`
@@ -50,11 +50,11 @@ flowchart LR
     direction TB
     L["LoadedSemconvRegistry"] --> C{"Target & Format"}
     C -->|"Target::V2 + Pure V2"| V2Native["v2::resolve (Native)"]
-    C -->|"Target::V2 + Mixed"| V1Mixed["v1::resolve (MixedRegistryUsesV1Path)"]
-    C -->|"Target::V1 or Pure V1"| V1Legacy["v1::resolve (Legacy)"]
-    V1Mixed --> OutV1["WeaverResolvedSchema::V1 (caller converts to V2 if --v2)"]
-    V1Legacy --> OutV1
-    V2Native --> OutV2["WeaverResolvedSchema::V2 (native)"]
+    C -->|"Target::V2 + V1 or Mixed"| V1ToV2["v1::resolve + into_v2"]
+    C -->|"Target::V1"| V1Legacy["v1::resolve (Legacy)"]
+    V1Legacy --> OutV1["WeaverResolvedSchema::V1"]
+    V1ToV2 --> OutV2["WeaverResolvedSchema::V2"]
+    V2Native --> OutV2
   end
 
   subgraph V2Pipeline["8-Stage Native V2 Pipeline"]

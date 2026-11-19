@@ -8,7 +8,7 @@ use std::num::NonZeroUsize;
 use std::sync::Arc;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::result::WResult;
-use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
+use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_resolved_schema::error::Error as ResolvedSchemaError;
 use weaver_resolved_schema::v1::ResolvedTelemetrySchema;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
@@ -29,10 +29,8 @@ pub enum ResolutionTarget {
     V1,
     /// Resolve to OpenTelemetry V2 schema.
     ///
-    /// Under this target, `WeaverResolver::load_and_resolve_schema` returns
-    /// [`WeaverResolvedSchema::V2`] for pure-V2 definitions and published V2 registries,
-    /// and returns [`WeaverResolvedSchema::V1`] for pure-V1 or mixed registries
-    /// (which callers can convert to a [`V2Schema`] via [`WeaverResolvedSchema::into_v2`]).
+    /// Pure-V2 definitions and published V2 registries resolve directly into [`WeaverResolvedSchema::V2`],
+    /// while V1 and mixed registries resolve through the V1 engine and convert into [`WeaverResolvedSchema::V2`].
     V2,
 }
 
@@ -106,8 +104,8 @@ impl WeaverResolvedSchema {
 }
 
 /// Runtime configuration for [`WeaverResolver`].
-// TODO: Add `#[non_exhaustive]` and builder setters to allow adding fields without breaking callers.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct WeaverResolverConfig {
     /// Maximum number of resolved schemas retained in the LRU cache.
     pub cache_capacity: NonZeroUsize,
@@ -138,6 +136,53 @@ impl Default for WeaverResolverConfig {
             schema_url_overrides: BTreeMap::new(),
             target: ResolutionTarget::default(),
         }
+    }
+}
+
+impl WeaverResolverConfig {
+    /// Sets the maximum number of resolved schemas retained in the LRU cache.
+    #[must_use]
+    pub fn with_cache_capacity(mut self, cache_capacity: NonZeroUsize) -> Self {
+        self.cache_capacity = cache_capacity;
+        self
+    }
+
+    /// Sets whether symbolic links are followed during directory traversal.
+    #[must_use]
+    pub fn with_follow_symlinks(mut self, follow_symlinks: bool) -> Self {
+        self.follow_symlinks = follow_symlinks;
+        self
+    }
+
+    /// Sets whether unreferenced groups and attributes are retained in the resolved schema.
+    #[must_use]
+    pub fn with_include_unreferenced(mut self, include_unreferenced: bool) -> Self {
+        self.include_unreferenced = include_unreferenced;
+        self
+    }
+
+    /// Sets the HTTP authentication credentials resolver for remote registry fetches.
+    #[must_use]
+    pub fn with_auth(mut self, auth: HttpAuthResolver) -> Self {
+        self.auth = auth;
+        self
+    }
+
+    /// Sets explicit overrides mapping `SchemaUrl`s to alternative `VirtualDirectoryPath`s.
+    #[must_use]
+    pub fn with_schema_url_overrides(
+        mut self,
+        schema_url_overrides: BTreeMap<SchemaUrl, VirtualDirectoryPath>,
+    ) -> Self {
+        self.schema_url_overrides = schema_url_overrides;
+        self
+    }
+
+    /// Sets the target schema version (`V1` or `V2`) for resolution.
+    #[must_use]
+    pub fn with_target(mut self, target: ResolutionTarget) -> Self {
+        self.target = target;
+        self
     }
 }
 
@@ -287,64 +332,12 @@ impl WeaverResolver {
             return WResult::Ok(arc);
         }
 
-        let mut dep_override_nfes = Vec::new();
-        let loaded = if let Some(override_path) = self.config.schema_url_overrides.get(&schema_url)
-        {
-            let already_overridden = match &loaded {
-                LoadedSemconvRegistry::Unresolved { repo, .. } => {
-                    VirtualDirectory::try_new_with_auth(override_path, &self.config.auth)
-                        .map(|vdir| repo.path() == vdir.path())
-                        .unwrap_or(false)
-                }
-                _ => false,
-            };
-
-            if already_overridden {
-                loaded
-            } else {
-                let mut nfes = vec![];
-                match RegistryRepo::try_new_with_auth(
-                    Some(schema_url.clone()),
-                    override_path,
-                    &mut nfes,
-                    &self.config.auth,
-                ) {
-                    Ok(repo) => {
-                        if repo.schema_url() != &schema_url {
-                            return WResult::FatalErr(Error::MismatchSchemaUrl {
-                                expected: schema_url.as_str().to_owned(),
-                                actual: repo.schema_url().as_str().to_owned(),
-                            });
-                        }
-                        dep_override_nfes
-                            .extend(nfes.into_iter().map(Error::FailToResolveDefinition));
-                        match self.load_repository(repo) {
-                            WResult::Ok(l) => l,
-                            WResult::OkWithNFEs(l, load_nfes) => {
-                                dep_override_nfes.extend(load_nfes);
-                                l
-                            }
-                            WResult::FatalErr(e) => return WResult::FatalErr(e),
-                        }
-                    }
-                    Err(e) => return WResult::FatalErr(Error::FailToResolveDefinition(e)),
-                }
-            }
-        } else {
-            loaded
-        };
-
         let mut dep_warnings = Vec::new();
         if self.config.target == ResolutionTarget::V2 {
             self.collect_v2_dependency_warnings(&loaded, &mut dep_warnings);
         }
 
-        let mut res = self.resolve_loaded_internal(loaded, false);
-
-        if !dep_override_nfes.is_empty() {
-            res = res.extend_non_fatal_errors(dep_override_nfes);
-        }
-
+        let res = self.resolve_loaded_internal(loaded, false);
         if !dep_warnings.is_empty() {
             res.extend_non_fatal_errors(dep_warnings)
         } else {
@@ -476,26 +469,46 @@ impl WeaverResolver {
                     };
                 }
 
-                let res = v1::resolve_registry_internal(self, repo, specs, dependencies).map(
-                    |resolved| {
-                        let arc = Arc::new(WeaverResolvedSchema::V1(resolved));
-                        if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
-                            self.record_cached_schema(url, arc.clone());
-                        }
-                        arc
-                    },
-                );
-                if !v2_warnings.is_empty() {
-                    res.extend_non_fatal_errors(v2_warnings)
+                let res = match v1::resolve_registry_internal(self, repo, specs, dependencies) {
+                    WResult::Ok(resolved) => WResult::Ok((resolved, vec![])),
+                    WResult::OkWithNFEs(resolved, nfes) => WResult::Ok((resolved, nfes)),
+                    WResult::FatalErr(e) => WResult::FatalErr(e),
+                };
+                let (resolved, nfes) = match res {
+                    WResult::Ok(pair) => pair,
+                    WResult::OkWithNFEs(pair, _) => pair,
+                    WResult::FatalErr(e) => return WResult::FatalErr(e),
+                };
+
+                let bundle = if is_root && self.config.target == ResolutionTarget::V2 {
+                    match WeaverResolvedSchema::V1(resolved).into_v2() {
+                        Ok(v2) => WeaverResolvedSchema::V2(v2),
+                        Err(e) => return WResult::FatalErr(e),
+                    }
                 } else {
-                    res
+                    WeaverResolvedSchema::V1(resolved)
+                };
+                let arc = Arc::new(bundle);
+                if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
+                    self.record_cached_schema(url, arc.clone());
                 }
+                let mut all_nfes = nfes;
+                all_nfes.extend(v2_warnings);
+                WResult::with_non_fatal_errors(arc, all_nfes)
             }
             LoadedSemconvRegistry::Resolved {
                 schema,
                 direct_dependencies,
             } => {
-                let arc = Arc::new(WeaverResolvedSchema::V1(schema));
+                let bundle = if is_root && self.config.target == ResolutionTarget::V2 {
+                    match WeaverResolvedSchema::V1(schema).into_v2() {
+                        Ok(v2) => WeaverResolvedSchema::V2(v2),
+                        Err(e) => return WResult::FatalErr(e),
+                    }
+                } else {
+                    WeaverResolvedSchema::V1(schema)
+                };
+                let arc = Arc::new(bundle);
                 if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
                     self.record_direct_dependencies(&url, direct_dependencies);
                     self.record_cached_schema(url, arc.clone());
@@ -588,31 +601,33 @@ impl WeaverResolver {
             return WResult::Ok(cached);
         }
         if let Some(cached) = self.cache.get(schema_url) {
-            let arc = cached.clone();
-            let _ = self
-                .active_graph_schemas
-                .insert(schema_url.clone(), arc.clone());
+            let arc = if is_root && self.config.target == ResolutionTarget::V2 {
+                match &**cached {
+                    WeaverResolvedSchema::V2(_) => cached.clone(),
+                    WeaverResolvedSchema::V1(v1) => {
+                        match WeaverResolvedSchema::V1(v1.clone()).into_v2() {
+                            Ok(v2) => Arc::new(WeaverResolvedSchema::V2(v2)),
+                            Err(e) => return WResult::FatalErr(e),
+                        }
+                    }
+                }
+            } else {
+                cached.clone()
+            };
+            self.record_cached_schema(schema_url.clone(), arc.clone());
             return WResult::Ok(arc);
         }
 
         let mut nfes = vec![];
         let repo = if let Some(override_path) = self.config.schema_url_overrides.get(schema_url) {
-            match RegistryRepo::try_new_with_auth(
-                Some(schema_url.clone()),
+            match graph::loader::open_overridden_repo(
+                schema_url,
                 override_path,
-                &mut nfes,
                 &self.config.auth,
+                &mut nfes,
             ) {
-                Ok(r) => {
-                    if r.schema_url() != schema_url {
-                        return WResult::FatalErr(Error::MismatchSchemaUrl {
-                            expected: schema_url.as_str().to_owned(),
-                            actual: r.schema_url().as_str().to_owned(),
-                        });
-                    }
-                    r
-                }
-                Err(e) => return WResult::FatalErr(Error::FailToResolveDefinition(e)),
+                Ok(r) => r,
+                Err(e) => return WResult::FatalErr(e),
             }
         } else {
             let dep = Dependency {
@@ -688,16 +703,6 @@ impl WeaverResolver {
             WResult::FatalErr(e) => WResult::FatalErr(e),
         }
     }
-
-    /// Inserts a pre-resolved schema bundle into the LRU cache.
-    #[cfg(test)]
-    pub fn cache_schema(&mut self, schema_bundle: WeaverResolvedSchema) -> WeaverResolvedSchema {
-        let url = SchemaUrl::try_from(schema_bundle.schema_url_str())
-            .expect("WeaverResolvedSchema contains valid schema_url");
-        let arc = Arc::new(schema_bundle);
-        _ = self.cache.put(url, arc.clone());
-        Arc::unwrap_or_clone(arc)
-    }
 }
 
 /// Trait for resolving schemas on demand from cache or remote repositories.
@@ -707,14 +712,6 @@ pub trait SchemaResolver {
         &mut self,
         schema_url: &SchemaUrl,
     ) -> WResult<Arc<WeaverResolvedSchema>, Error>;
-
-    /// Resolves a dependency schema by its SchemaUrl with `is_root = false`.
-    fn resolve_dependency_schema(
-        &mut self,
-        schema_url: &SchemaUrl,
-    ) -> WResult<Arc<WeaverResolvedSchema>, Error> {
-        self.resolve_schema(schema_url)
-    }
 
     /// Returns the direct dependencies of `schema_url`, or `None` when pre-resolved schemas do not
     /// distinguish direct from transitive dependencies.
@@ -730,13 +727,6 @@ impl SchemaResolver for WeaverResolver {
         schema_url: &SchemaUrl,
     ) -> WResult<Arc<WeaverResolvedSchema>, Error> {
         self.resolve_schema(schema_url)
-    }
-
-    fn resolve_dependency_schema(
-        &mut self,
-        schema_url: &SchemaUrl,
-    ) -> WResult<Arc<WeaverResolvedSchema>, Error> {
-        self.resolve_dependency_schema(schema_url)
     }
 
     fn direct_dependencies(&self, schema_url: &SchemaUrl) -> Option<&[SchemaUrl]> {
@@ -859,7 +849,7 @@ mod tests {
         match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
             WResult::Ok(_) => panic!("Expected MixedRegistryUsesV1Path warning"),
             WResult::OkWithNFEs(resolved, nfes) => {
-                assert!(matches!(resolved, WeaverResolvedSchema::V1(_)));
+                assert!(matches!(resolved, WeaverResolvedSchema::V2(_)));
                 let mixed_warns: Vec<_> = nfes
                     .iter()
                     .filter(|e| matches!(e, Error::MixedRegistryUsesV1Path { .. }))

@@ -79,16 +79,13 @@ fn resolve_fixture_raw(
         Err(e) => return WResult::FatalErr(Error::FailToResolveDefinition(e)),
     };
 
-    let mut config = WeaverResolverConfig {
-        target,
-        ..Default::default()
-    };
+    let mut resolver = WeaverResolver::new(WeaverResolverConfig::default().with_target(target));
     for (url_str, local_path) in &settings.schema_url_overrides {
         let url: SchemaUrl = url_str
             .as_str()
             .try_into()
             .expect("valid override schema_url");
-        _ = config.schema_url_overrides.insert(
+        resolver.add_schema_url_override(
             url,
             VirtualDirectoryPath::LocalFolder {
                 path: local_path.clone(),
@@ -96,7 +93,6 @@ fn resolve_fixture_raw(
         );
     }
 
-    let mut resolver = WeaverResolver::new(config);
     resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor)
 }
 
@@ -260,10 +256,8 @@ spans:
     };
     let mut repo_nfes = Vec::new();
     let repo = RegistryRepo::try_new(None, &location, &mut repo_nfes).expect("repo");
-    let mut resolver = WeaverResolver::new(WeaverResolverConfig {
-        target: ResolutionTarget::V2,
-        ..Default::default()
-    });
+    let mut resolver =
+        WeaverResolver::new(WeaverResolverConfig::default().with_target(ResolutionTarget::V2));
     let res = resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor);
     match res {
         WResult::FatalErr(Error::SpanNameAttributeNotOnSpan {
@@ -308,10 +302,8 @@ entities:
     };
     let mut repo_nfes = Vec::new();
     let repo = RegistryRepo::try_new(None, &location, &mut repo_nfes).expect("repo");
-    let mut resolver = WeaverResolver::new(WeaverResolverConfig {
-        target: ResolutionTarget::V2,
-        ..Default::default()
-    });
+    let mut resolver =
+        WeaverResolver::new(WeaverResolverConfig::default().with_target(ResolutionTarget::V2));
     let res = resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor);
     match res {
         WResult::FatalErr(Error::EntityMissingIdentity { entity_type, .. }) => {
@@ -370,10 +362,8 @@ attribute_groups:
     };
     let mut repo_nfes = Vec::new();
     let repo = RegistryRepo::try_new(None, &location, &mut repo_nfes).expect("repo");
-    let mut resolver = WeaverResolver::new(WeaverResolverConfig {
-        target: ResolutionTarget::V2,
-        ..Default::default()
-    });
+    let mut resolver =
+        WeaverResolver::new(WeaverResolverConfig::default().with_target(ResolutionTarget::V2));
     let res = match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
         WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
         WResult::FatalErr(e) => panic!("Resolution failed: {e}"),
@@ -402,10 +392,7 @@ fn resolve_from_yaml(yaml: &str, target: ResolutionTarget) -> WResult<WeaverReso
     };
     let mut repo_nfes = Vec::new();
     let repo = RegistryRepo::try_new(None, &location, &mut repo_nfes).expect("repo");
-    let mut resolver = WeaverResolver::new(WeaverResolverConfig {
-        target,
-        ..Default::default()
-    });
+    let mut resolver = WeaverResolver::new(WeaverResolverConfig::default().with_target(target));
     resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor)
 }
 
@@ -455,10 +442,7 @@ spans:
     let run_resolver = |target: ResolutionTarget| {
         let mut repo_nfes = Vec::new();
         let repo = RegistryRepo::try_new(None, &location, &mut repo_nfes).expect("repo");
-        let mut resolver = WeaverResolver::new(WeaverResolverConfig {
-            target,
-            ..Default::default()
-        });
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default().with_target(target));
         match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
             WResult::Ok(r) | WResult::OkWithNFEs(r, _) => into_v2(&r),
             WResult::FatalErr(e) => panic!("Target {target:?} failed: {e}"),
@@ -701,10 +685,7 @@ spans:
     let run_resolver = |target: ResolutionTarget| {
         let mut repo_nfes = Vec::new();
         let repo = RegistryRepo::try_new(None, &location, &mut repo_nfes).expect("repo");
-        let mut resolver = WeaverResolver::new(WeaverResolverConfig {
-            target,
-            ..Default::default()
-        });
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default().with_target(target));
         match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
             WResult::Ok(r) | WResult::OkWithNFEs(r, _) => into_v2(&r),
             WResult::FatalErr(e) => panic!("Target {target:?} failed: {e}"),
@@ -791,10 +772,7 @@ spans:
     let run_resolver = |target: ResolutionTarget| {
         let mut repo_nfes = Vec::new();
         let repo = RegistryRepo::try_new(None, &location, &mut repo_nfes).expect("repo");
-        let mut resolver = WeaverResolver::new(WeaverResolverConfig {
-            target,
-            ..Default::default()
-        });
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default().with_target(target));
         match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
             WResult::Ok(r) | WResult::OkWithNFEs(r, _) => into_v2(&r),
             WResult::FatalErr(e) => panic!("Target {target:?} failed: {e}"),
@@ -1039,10 +1017,7 @@ span_refinements:
     let run_resolver = |target: ResolutionTarget| {
         let mut repo_nfes = Vec::new();
         let repo = RegistryRepo::try_new(None, &location, &mut repo_nfes).expect("repo");
-        let mut resolver = WeaverResolver::new(WeaverResolverConfig {
-            target,
-            ..Default::default()
-        });
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default().with_target(target));
         match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
             WResult::Ok(r) | WResult::OkWithNFEs(r, _) => into_v2(&r),
             WResult::FatalErr(e) => panic!("Target {target:?} failed: {e}"),
@@ -1512,11 +1487,9 @@ fn test_parity_include_unreferenced() {
     let resolve_with_include_unref = |target: ResolutionTarget| -> (V2Schema, Vec<Error>) {
         let mut repo_nfes = Vec::new();
         let repo = RegistryRepo::try_new(None, &location, &mut repo_nfes).expect("repo creation");
-        let config = WeaverResolverConfig {
-            target,
-            include_unreferenced: true,
-            ..Default::default()
-        };
+        let config = WeaverResolverConfig::default()
+            .with_target(target)
+            .with_include_unreferenced(true);
         let mut resolver = WeaverResolver::new(config);
         match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
             WResult::OkWithNFEs(schema, nfes) => (into_v2(&schema), nfes),
@@ -1561,10 +1534,7 @@ fn test_parity_unmatched_imports() {
         ] {
             let mut repo_nfes = Vec::new();
             let repo = RegistryRepo::try_new(None, &location, &mut repo_nfes).unwrap();
-            let config = WeaverResolverConfig {
-                target,
-                ..Default::default()
-            };
+            let config = WeaverResolverConfig::default().with_target(target);
             let mut resolver = WeaverResolver::new(config);
             match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
                 WResult::OkWithNFEs(_, nfes) => {
@@ -1859,10 +1829,7 @@ metrics:
     let collect_dups = |target: ResolutionTarget| -> Vec<String> {
         let mut repo_nfes = Vec::new();
         let repo = RegistryRepo::try_new(None, &location, &mut repo_nfes).expect("repo");
-        let mut resolver = WeaverResolver::new(WeaverResolverConfig {
-            target,
-            ..Default::default()
-        });
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default().with_target(target));
         match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
             WResult::OkWithNFEs(_, nfes) => {
                 let mut dups = Vec::new();
@@ -1978,10 +1945,7 @@ metric_refinements:
     let run_resolver = |target: ResolutionTarget| -> V2Schema {
         let mut repo_nfes = Vec::new();
         let repo = RegistryRepo::try_new(None, &location, &mut repo_nfes).expect("repo");
-        let mut resolver = WeaverResolver::new(WeaverResolverConfig {
-            target,
-            ..Default::default()
-        });
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default().with_target(target));
         match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
             WResult::Ok(r) | WResult::OkWithNFEs(r, _) => into_v2(&r),
             WResult::FatalErr(e) => panic!("Target {target:?} failed: {e}"),
@@ -2046,10 +2010,7 @@ events:
     let run_resolver = |target: ResolutionTarget| -> (V2Schema, Vec<Error>) {
         let mut repo_nfes = Vec::new();
         let repo = RegistryRepo::try_new(None, &location, &mut repo_nfes).expect("repo");
-        let mut resolver = WeaverResolver::new(WeaverResolverConfig {
-            target,
-            ..Default::default()
-        });
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default().with_target(target));
         let result = resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor);
 
         match result {
@@ -2127,10 +2088,7 @@ metrics:
     for target in [ResolutionTarget::V1, ResolutionTarget::V2] {
         let mut repo_nfes = Vec::new();
         let repo = RegistryRepo::try_new(None, &location, &mut repo_nfes).expect("repo");
-        let mut resolver = WeaverResolver::new(WeaverResolverConfig {
-            target,
-            ..Default::default()
-        });
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default().with_target(target));
         let result = resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor);
 
         match result {
@@ -2973,11 +2931,11 @@ metrics:
         )
         .expect("repo");
 
-        let mut resolver = WeaverResolver::new(WeaverResolverConfig {
-            cache_capacity: NonZeroUsize::new(capacity).unwrap(),
-            target,
-            ..Default::default()
-        });
+        let mut resolver = WeaverResolver::new(
+            WeaverResolverConfig::default()
+                .with_cache_capacity(NonZeroUsize::new(capacity).unwrap())
+                .with_target(target),
+        );
         let bundle = match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
             WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
             WResult::FatalErr(e) => panic!("Resolution failed: {e}"),
@@ -3032,10 +2990,8 @@ fn test_into_v2_converts_v1_and_passes_through_v2() {
         &mut repo_nfes,
     )
     .expect("v2 repo");
-    let mut resolver = WeaverResolver::new(WeaverResolverConfig {
-        target: ResolutionTarget::V2,
-        ..Default::default()
-    });
+    let mut resolver =
+        WeaverResolver::new(WeaverResolverConfig::default().with_target(ResolutionTarget::V2));
     let v2_bundle = match resolver.load_and_resolve_schema(v2_repo, DefaultSchemaVisitor) {
         WResult::Ok(b) | WResult::OkWithNFEs(b, _) => b,
         WResult::FatalErr(e) => panic!("V2 resolution failed: {e}"),
@@ -3043,6 +2999,26 @@ fn test_into_v2_converts_v1_and_passes_through_v2() {
     assert!(v2_bundle.as_v2().is_some());
     let v2_schema = v2_bundle.into_v2().expect("into_v2 on V2 bundle");
     assert!(!v2_schema.registry.metrics.is_empty());
+
+    let v1_for_v2_target = RegistryRepo::try_new(
+        None,
+        &VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-7-spans/registry".to_owned(),
+        },
+        &mut vec![],
+    )
+    .expect("v1 repo");
+    let mut v2_on_v1_resolver =
+        WeaverResolver::new(WeaverResolverConfig::default().with_target(ResolutionTarget::V2));
+    let v2_on_v1_bundle =
+        match v2_on_v1_resolver.load_and_resolve_schema(v1_for_v2_target, DefaultSchemaVisitor) {
+            WResult::Ok(b) | WResult::OkWithNFEs(b, _) => b,
+            WResult::FatalErr(e) => panic!("V2 target on V1 registry failed: {e}"),
+        };
+    assert!(
+        v2_on_v1_bundle.as_v2().is_some(),
+        "ResolutionTarget::V2 should always return WeaverResolvedSchema::V2"
+    );
 
     let v1_repo = RegistryRepo::try_new(
         None,
@@ -3052,16 +3028,14 @@ fn test_into_v2_converts_v1_and_passes_through_v2() {
         &mut vec![],
     )
     .expect("v1 repo");
-    let mut v1_resolver = WeaverResolver::new(WeaverResolverConfig {
-        target: ResolutionTarget::V2,
-        ..Default::default()
-    });
+    let mut v1_resolver =
+        WeaverResolver::new(WeaverResolverConfig::default().with_target(ResolutionTarget::V1));
     let v1_bundle = match v1_resolver.load_and_resolve_schema(v1_repo, DefaultSchemaVisitor) {
         WResult::Ok(b) | WResult::OkWithNFEs(b, _) => b,
         WResult::FatalErr(e) => panic!("V1 resolution failed: {e}"),
     };
     assert!(v1_bundle.as_v1().is_some());
-    let converted_v2 = v1_bundle.into_v2().expect("into_v2 on V1 fallback bundle");
+    let converted_v2 = v1_bundle.into_v2().expect("into_v2 on V1 bundle");
     assert!(!converted_v2.registry.spans.is_empty());
 }
 
@@ -3125,17 +3099,6 @@ fn test_v2_dependency_nfe_forwarding_and_authoring_lint_scoping() {
     )
     .expect("write");
 
-    let mut config = WeaverResolverConfig {
-        target: ResolutionTarget::V2,
-        ..Default::default()
-    };
-    _ = config.schema_url_overrides.insert(
-        SchemaUrl::try_from("https://example.com/base/1.1.0").unwrap(),
-        VirtualDirectoryPath::LocalFolder {
-            path: base_v2_dir.display().to_string(),
-        },
-    );
-
     let mut repo_nfes = vec![];
     let root_repo = RegistryRepo::try_new(
         None,
@@ -3146,7 +3109,14 @@ fn test_v2_dependency_nfe_forwarding_and_authoring_lint_scoping() {
     )
     .expect("root repo");
 
-    let mut resolver = WeaverResolver::new(config);
+    let mut resolver =
+        WeaverResolver::new(WeaverResolverConfig::default().with_target(ResolutionTarget::V2));
+    resolver.add_schema_url_override(
+        SchemaUrl::try_from("https://example.com/base/1.1.0").unwrap(),
+        VirtualDirectoryPath::LocalFolder {
+            path: base_v2_dir.display().to_string(),
+        },
+    );
     match resolver.load_and_resolve_schema(root_repo, DefaultSchemaVisitor) {
         WResult::OkWithNFEs(_, nfes) => {
             assert!(
@@ -3233,10 +3203,8 @@ fn test_inherited_ref_negative_fixtures_v1_and_v2() {
                 &mut repo_nfes,
             )
             .expect("repo");
-            let mut resolver = WeaverResolver::new(WeaverResolverConfig {
-                target,
-                ..Default::default()
-            });
+            let mut resolver =
+                WeaverResolver::new(WeaverResolverConfig::default().with_target(target));
             match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
                 WResult::FatalErr(Error::UnresolvedAttributeRef { attribute_ref, .. }) => {
                     assert_eq!(attribute_ref, expected_attr);

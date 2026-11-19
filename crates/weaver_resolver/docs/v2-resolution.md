@@ -24,10 +24,10 @@ The resolution path is dispatched according to the following matrix:
 | `ResolutionTarget` | Registry Format | Resolution Engine (`weaver_resolver`) | `WeaverResolver` Return Variant | Informational Warnings |
 |---|---|---|---|---|
 | `V2` | Pure `definition/2` (`SourceFormat::V2`) | **Native V2 Engine** (`v2::resolve`) | `WeaverResolvedSchema::V2` | None |
-| `V2` | Mixed (`SourceFormat::Mixed`) | Legacy V1 Engine (`v1::resolve`) | `WeaverResolvedSchema::V1` *(caller converts to V2 via `WeaverResolvedSchema::into_v2`)* | `MixedRegistryUsesV1Path` |
-| `V2` | Pure `definition/1` (`SourceFormat::V1`) | Legacy V1 Engine (`v1::resolve`) | `WeaverResolvedSchema::V1` *(caller converts to V2 via `WeaverResolvedSchema::into_v2`)* | None |
+| `V2` | Mixed (`SourceFormat::Mixed`) | Legacy V1 Engine (`v1::resolve`) + V1→V2 conversion | `WeaverResolvedSchema::V2` | `MixedRegistryUsesV1Path` |
+| `V2` | Pure `definition/1` (`SourceFormat::V1`) | Legacy V1 Engine (`v1::resolve`) + V1→V2 conversion | `WeaverResolvedSchema::V2` | None |
 | `V2` | Published `resolved/2.0` | Loader direct pass-through | `WeaverResolvedSchema::V2` | None |
-| `V1` | Any format | Legacy V1 Engine (`v1::resolve`) | `WeaverResolvedSchema::V1` | None |
+| `V1` | Any definition format | Legacy V1 Engine (`v1::resolve`) | `WeaverResolvedSchema::V1` | None |
 
 ### Mixed & Dependency Informational Warnings under `--v2`
 

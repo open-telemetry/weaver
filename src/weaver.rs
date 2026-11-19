@@ -100,18 +100,16 @@ impl<'a> WeaverEngine<'a> {
         let registry_path_repr: String = repo.registry_path_repr().to_owned();
         let policy_engine = prepare_policy_engine(self.policy_config, &repo, self.auth)?;
 
-        let config = WeaverResolverConfig {
-            follow_symlinks: self.registry_config.follow_symlinks,
-            include_unreferenced: self.registry_config.include_unreferenced,
-            auth: self.auth.clone(),
-            schema_url_overrides: self.resolve_config.schema_url_overrides.clone(),
-            target: if self.registry_config.v2 {
+        let config = WeaverResolverConfig::default()
+            .with_follow_symlinks(self.registry_config.follow_symlinks)
+            .with_include_unreferenced(self.registry_config.include_unreferenced)
+            .with_auth(self.auth.clone())
+            .with_schema_url_overrides(self.resolve_config.schema_url_overrides.clone())
+            .with_target(if self.registry_config.v2 {
                 ResolutionTarget::V2
             } else {
                 ResolutionTarget::V1
-            },
-            ..Default::default()
-        };
+            });
         let mut resolver = WeaverResolver::new(config);
 
         let mut fatal_err = None;

@@ -36,15 +36,13 @@ thread_local! {
 
 /// A test-only RAII scope that asserts `v1::resolve_registry_internal` is never entered.
 #[cfg(test)]
-#[allow(dead_code)]
-pub struct DisallowV1EngineScope;
+pub(crate) struct DisallowV1EngineScope;
 
 #[cfg(test)]
 impl DisallowV1EngineScope {
     /// Activates the check on the current test thread.
     #[must_use]
-    #[allow(dead_code)]
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         V1_ENGINE_DISALLOWED.with(|c| c.set(true));
         Self
     }

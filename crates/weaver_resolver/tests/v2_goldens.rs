@@ -165,24 +165,19 @@ fn resolve_test_case(
         }
     }
 
-    let mut config = WeaverResolverConfig {
-        target,
-        ..Default::default()
-    };
+    let mut resolver = WeaverResolver::new(WeaverResolverConfig::default().with_target(target));
     for (url_str, local_path) in &settings.schema_url_overrides {
         let url: SchemaUrl = url_str
             .as_str()
             .try_into()
             .expect("valid override schema_url");
-        _ = config.schema_url_overrides.insert(
+        resolver.add_schema_url_override(
             url,
             VirtualDirectoryPath::LocalFolder {
                 path: local_path.clone(),
             },
         );
     }
-
-    let mut resolver = WeaverResolver::new(config);
     let resolved = match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
         WResult::Ok(r) => Ok(r),
         WResult::OkWithNFEs(r, nfes) => {

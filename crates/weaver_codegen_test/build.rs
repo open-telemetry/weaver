@@ -44,10 +44,7 @@ fn main() {
     };
     let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
         .unwrap_or_else(|e| process_error(&logger, e));
-    let resolver_config = WeaverResolverConfig {
-        follow_symlinks: FOLLOW_SYMLINKS,
-        ..Default::default()
-    };
+    let resolver_config = WeaverResolverConfig::default().with_follow_symlinks(FOLLOW_SYMLINKS);
     let mut resolver = WeaverResolver::new(resolver_config);
     let schema = resolver
         .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)

@@ -32,8 +32,7 @@ use self::attributes::Catalog;
 use self::dependency::{DependencyAdapter, V2Dependencies};
 use self::index::{ImportOrigin, IndexedImports};
 #[cfg(test)]
-#[allow(unused_imports)]
-pub use dependency::DisallowV1AdapterScope;
+pub(crate) use dependency::DisallowV1AdapterScope;
 
 /// Returns `true` for dependency resolution warnings that propagate to consumers, excluding upstream authoring lints.
 fn is_forwarded_dependency_nfe(err: &Error) -> bool {

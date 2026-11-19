@@ -26,14 +26,11 @@ use crate::graph::conflict_strategy::{DependencyVersionConflictStrategy, UseLate
 pub(crate) use crate::graph::entity_lookup::{EntityLocation, EntityLookup};
 use crate::WeaverResolvedSchema;
 
-#[cfg(test)]
-pub mod v1_dep;
-#[cfg(not(test))]
 pub(crate) mod v1_dep;
 pub(crate) mod v2_dep;
 
 #[cfg(test)]
-pub use v1_dep::DisallowV1AdapterScope;
+pub(crate) use v1_dep::DisallowV1AdapterScope;
 pub(crate) use v1_dep::V1Dependency;
 pub(crate) use v2_dep::V2Dependency;
 
