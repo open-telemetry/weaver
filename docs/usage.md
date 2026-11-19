@@ -529,9 +529,11 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
   Possible values: `true`, `false`
 
 * `--fail-on <FAIL_ON>` — Findings at this level or higher cause a non-zero exit code. Levels (highest→lowest): violation, improvement, information. Use `none` to never fail. [default: violation]
+* `--fail-on-coverage-below <FAIL_ON_COVERAGE_BELOW>` — Fail when the registry coverage is below this fraction (0 to 1). The `coverage` section of the config file scopes what is counted
 * `-o`, `--output <OUTPUT>` — Path to save generated artifacts. Use "none" to suppress output, "http" to serve the report at GET /report on the admin port until POST /shutdown (the inactivity timeout is then ignored)
-* `--otlp-grpc-address <OTLP_GRPC_ADDRESS>` — Address used by the gRPC OTLP listener
+* `--otlp-grpc-address <OTLP_GRPC_ADDRESS>` — Address used by the gRPC and HTTP OTLP listeners and the admin port
 * `--otlp-grpc-port <OTLP_GRPC_PORT>` — Port used by the gRPC OTLP listener. 0 picks a free port
+* `--otlp-http-port <OTLP_HTTP_PORT>` — Port used by the HTTP OTLP listener (binary protobuf). 0 picks a free port
 * `--emit-otlp-logs <EMIT_OTLP_LOGS>` — Enable OTLP log emission for live check policy findings
 
   Possible values: `true`, `false`
@@ -543,7 +545,7 @@ Includes: Flexible input ingestion, configurable assessment, and template-based 
 
 * `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin port (endpoints: /health, /stop, /report, /shutdown)
 * `--inactivity-timeout <INACTIVITY_TIMEOUT>` — Max inactivity time in seconds before stopping the listener
-* `--advice-policies <ADVICE_POLICIES>` — Advice policies directory or virtual directory. Set this to override the default policies
+* `--advice-policies <ADVICE_POLICIES>` — Advice policies file, directory or virtual directory. Set this to override the default policies; `builtin://otel.rego` adds them back. Can be specified multiple times
 * `--advice-data <ADVICE_DATA>` — Virtual directory, file, or glob pattern pointing to additional JSON/YAML files to load into OPA rego data (other extensions are ignored). Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user)
 * `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego
 
@@ -582,7 +584,7 @@ The server communicates over stdio using JSON-RPC.
 
   Possible values: `true`, `false`
 
-* `--advice-policies <ADVICE_POLICIES>` — Advice policies directory or virtual directory. Set this to override the default policies
+* `--advice-policies <ADVICE_POLICIES>` — Advice policies file, directory or virtual directory. Set this to override the default policies; `builtin://otel.rego` adds them back. Can be specified multiple times
 * `--advice-preprocessor <ADVICE_PREPROCESSOR>` — Advice preprocessor. A jq script to preprocess the registry data before passing to rego
 * `--advice-data <ADVICE_DATA>` — Virtual directory, file, or glob pattern pointing to additional JSON/YAML files to load into OPA rego data. Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user)
 
@@ -603,8 +605,9 @@ Generates a schema file by inferring the schema from a OTLP message.
   Possible values: `true`, `false`
 
 * `-o`, `--output <OUTPUT>` — Output folder for generated YAML files. [default: ./inferred-registry/]
-* `--otlp-grpc-address <OTLP_GRPC_ADDRESS>` — Address used by the gRPC OTLP listener. [default: 127.0.0.1]
+* `--otlp-grpc-address <OTLP_GRPC_ADDRESS>` — Address used by the gRPC and HTTP OTLP listeners and the admin port. [default: 127.0.0.1]
 * `--otlp-grpc-port <OTLP_GRPC_PORT>` — Port used by the gRPC OTLP listener. [default: 4317]
+* `--otlp-http-port <OTLP_HTTP_PORT>` — Port used by the HTTP OTLP listener (binary protobuf). [default: 4318]
 * `--admin-port <ADMIN_PORT>` — Port used by the HTTP admin server (endpoints: /stop). [default: 8080]
 * `--inactivity-timeout <INACTIVITY_TIMEOUT>` — Seconds of inactivity before auto-stop (0 = never). [default: 60]
 

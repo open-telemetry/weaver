@@ -2,8 +2,8 @@
 
 //! A basic OTLP receiver integrated into Weaver.
 //!
-//! One axum app carries both the OTLP/gRPC services ([`receiver`]) and the
-//! live-check admin API ([`admin`]). It runs on one background thread with one
+//! One axum app carries the OTLP/gRPC services and OTLP/HTTP endpoints
+//! ([`receiver`]) and the live-check admin API ([`admin`]). It runs on one background thread with one
 //! runtime, and stops on a signal, on inactivity, on `POST /stop`, or when the
 //! checker is done.
 
@@ -165,6 +165,30 @@ pub enum OtlpRequest {
     Stop(StopSignal),
 }
 
+impl From<ExportLogsServiceRequest> for OtlpRequest {
+    fn from(request: ExportLogsServiceRequest) -> Self {
+        Self::Logs(request)
+    }
+}
+
+impl From<ExportMetricsServiceRequest> for OtlpRequest {
+    fn from(request: ExportMetricsServiceRequest) -> Self {
+        Self::Metrics(request)
+    }
+}
+
+impl From<ExportTraceServiceRequest> for OtlpRequest {
+    fn from(request: ExportTraceServiceRequest) -> Self {
+        Self::Traces(request)
+    }
+}
+
+impl From<ExportProfilesServiceRequest> for OtlpRequest {
+    fn from(request: ExportProfilesServiceRequest) -> Self {
+        Self::Profiles(request)
+    }
+}
+
 /// Why a run stopped.
 #[derive(Debug)]
 pub enum StopSignal {
@@ -189,12 +213,25 @@ impl Display for StopSignal {
     }
 }
 
+/// The ports of a listener. `0` picks a free port.
+#[derive(Debug, Clone, Copy)]
+pub struct ListenerPorts {
+    /// The OTLP/gRPC port.
+    pub grpc: u16,
+    /// The OTLP/HTTP port.
+    pub http: u16,
+    /// The admin port.
+    pub admin: u16,
+}
+
 /// A running listener.
 pub struct OtlpListener {
     /// The exports, ending with the `Stop` or `Error` that ended the run.
     pub requests: SyncReceiver,
     /// The bound gRPC address. Shows the real port when `0` was requested.
     pub grpc_addr: SocketAddr,
+    /// The bound OTLP/HTTP address. Shows the real port when `0` was requested.
+    pub http_addr: SocketAddr,
     /// The bound admin address. Shows the real port when `0` was requested.
     pub admin_addr: SocketAddr,
     /// Publishes the outcome of the run and ends the listener.
@@ -206,7 +243,7 @@ pub struct OtlpListener {
 pub struct ListenerHandle {
     state: Arc<AppState>,
     thread: Option<JoinHandle<()>>,
-    addrs: [SocketAddr; 2],
+    addrs: [SocketAddr; 3],
 }
 
 impl ListenerHandle {
@@ -267,36 +304,45 @@ impl Iterator for SyncReceiver {
     }
 }
 
-/// Starts the OTLP/gRPC services and the admin API and returns the exports as
-/// an iterator.
+/// Starts the OTLP/gRPC services, the OTLP/HTTP endpoints and the admin API
+/// and returns the exports as an iterator.
 ///
-/// Both ports bind to `grpc_address` and must differ. Port `0` picks a free
-/// port; read it from [`OtlpListener::grpc_addr`] or [`OtlpListener::admin_addr`].
+/// Every port binds to `address` and they must differ. Port `0` picks a free
+/// port; read it from the addresses on [`OtlpListener`].
 /// The sockets are bound before this returns, so exporters can connect at once.
 /// An `inactivity_timeout` of zero never stops the run.
 pub fn listen_otlp_requests(
-    grpc_address: &str,
-    grpc_port: u16,
-    admin_port: u16,
+    address: &str,
+    ports: ListenerPorts,
     inactivity_timeout: Duration,
 ) -> Result<OtlpListener, Error> {
     let parse = |port: u16| -> Result<SocketAddr, Error> {
-        format!("{grpc_address}:{port}")
+        format!("{address}:{port}")
             .parse()
             .map_err(|e: AddrParseError| otlp_error(e))
     };
-    let grpc_addr = parse(grpc_port)?;
-    let admin_addr = parse(admin_port)?;
-    if grpc_port != 0 && grpc_addr == admin_addr {
-        return Err(otlp_error(format!(
-            "the OTLP gRPC port and the admin port must differ; both are {grpc_port}"
-        )));
+    let named_ports = [
+        ("OTLP gRPC", ports.grpc),
+        ("OTLP HTTP", ports.http),
+        ("admin", ports.admin),
+    ];
+    for (i, (name, port)) in named_ports.iter().enumerate() {
+        if let Some((other, _)) = named_ports[..i].iter().find(|(_, p)| p == port && *p != 0) {
+            return Err(otlp_error(format!(
+                "the {other} port and the {name} port must differ; both are {port}"
+            )));
+        }
     }
+    let grpc_addr = parse(ports.grpc)?;
+    let http_addr = parse(ports.http)?;
+    let admin_addr = parse(ports.admin)?;
 
     let (exports, requests) = mpsc::channel(CHANNEL_CAPACITY);
     let state = Arc::new(AppState::new(exports));
-    let router = OtlpReceiver::new(state.clone())
+    let receiver = OtlpReceiver::new(state.clone());
+    let router = receiver
         .grpc_router()
+        .merge(receiver.http_router())
         .merge(admin::router(state.clone()));
 
     let bind = |addr: SocketAddr| -> Result<std::net::TcpListener, Error> {
@@ -305,8 +351,10 @@ pub fn listen_otlp_requests(
         Ok(listener)
     };
     let grpc = bind(grpc_addr)?;
+    let http = bind(http_addr)?;
     let admin = bind(admin_addr)?;
     let grpc_addr = grpc.local_addr().map_err(otlp_error)?;
+    let http_addr = http.local_addr().map_err(otlp_error)?;
     let admin_addr = admin.local_addr().map_err(otlp_error)?;
 
     // Built here so a failure is an error, not a panic on the thread.
@@ -319,7 +367,7 @@ pub fn listen_otlp_requests(
         .name("otlp-listener".to_owned())
         .spawn(move || {
             runtime.block_on(serve_all(
-                grpc,
+                [grpc, http],
                 admin,
                 router,
                 thread_state,
@@ -331,32 +379,38 @@ pub fn listen_otlp_requests(
     Ok(OtlpListener {
         requests: SyncReceiver { receiver: requests },
         grpc_addr,
+        http_addr,
         admin_addr,
         handle: ListenerHandle {
             state,
             thread: Some(thread),
-            addrs: [grpc_addr, admin_addr],
+            addrs: [grpc_addr, http_addr, admin_addr],
         },
     })
 }
 
-/// Serves the router on both listeners until shutdown is requested.
+/// Serves the router on every listener until shutdown is requested.
 ///
 /// The admin listener shuts down gracefully, so the `/shutdown` response
 /// completes. There is no deadline: the client asked for the exit and owns
-/// anything else it left in flight. The gRPC listener just stops. After a
-/// stop it has nothing to deliver, and SDKs keep idle HTTP/2 connections
+/// anything else it left in flight. The OTLP listeners just stop. After a
+/// stop they have nothing to deliver, and SDKs keep idle connections
 /// open, which a graceful shutdown would wait for.
 async fn serve_all(
-    grpc: std::net::TcpListener,
+    otlp: [std::net::TcpListener; 2],
     admin: std::net::TcpListener,
     router: Router,
     state: Arc<AppState>,
     inactivity_timeout: Duration,
 ) {
-    let (grpc, admin) = match (TcpListener::from_std(grpc), TcpListener::from_std(admin)) {
-        (Ok(grpc), Ok(admin)) => (grpc, admin),
-        (Err(e), _) | (_, Err(e)) => {
+    let listeners = otlp
+        .into_iter()
+        .map(TcpListener::from_std)
+        .collect::<Result<Vec<_>, _>>()
+        .and_then(|otlp| Ok((otlp, TcpListener::from_std(admin)?)));
+    let (otlp, admin) = match listeners {
+        Ok(listeners) => listeners,
+        Err(e) => {
             report_error(&state, format!("The OTLP listener failed to start: {e}")).await;
             return;
         }
@@ -369,15 +423,17 @@ async fn serve_all(
     }
 
     let mut servers = JoinSet::new();
-    let grpc_state = state.clone();
-    let grpc_router = router.clone();
-    let _ = servers.spawn(async move {
-        // Stop accepting at once. Open connections end with the runtime.
-        tokio::select! {
-            result = axum::serve(grpc, grpc_router).into_future() => result,
-            _ = grpc_state.shutting_down() => Ok(()),
-        }
-    });
+    for listener in otlp {
+        let otlp_state = state.clone();
+        let otlp_router = router.clone();
+        let _ = servers.spawn(async move {
+            // Stop accepting at once. Open connections end with the runtime.
+            tokio::select! {
+                result = axum::serve(listener, otlp_router).into_future() => result,
+                _ = otlp_state.shutting_down() => Ok(()),
+            }
+        });
+    }
     let admin_state = state.clone();
     let _ = servers.spawn(
         axum::serve(admin, router)
@@ -488,13 +544,21 @@ mod tests {
     use crate::registry::otlp::grpc_stubs::proto::collector::logs::v1::logs_service_client::LogsServiceClient;
     use crate::registry::otlp::grpc_stubs::proto::collector::metrics::v1::metrics_service_client::MetricsServiceClient;
     use crate::registry::otlp::grpc_stubs::proto::collector::trace::v1::trace_service_client::TraceServiceClient;
+    use crate::registry::otlp::grpc_stubs::proto::collector::trace::v1::ExportTraceServiceResponse;
     use axum::body::Bytes;
+    use prost::Message;
     use std::thread;
     use std::time::Instant;
 
-    /// Both ports `0`: two free ports, reported on the listener.
+    const EPHEMERAL: ListenerPorts = ListenerPorts {
+        grpc: 0,
+        http: 0,
+        admin: 0,
+    };
+
+    /// Every port `0`: free ports, reported on the listener.
     fn listen_ephemeral(inactivity_timeout: Duration) -> OtlpListener {
-        listen_otlp_requests("127.0.0.1", 0, 0, inactivity_timeout).expect("listen")
+        listen_otlp_requests("127.0.0.1", EPHEMERAL, inactivity_timeout).expect("listen")
     }
 
     fn client_runtime() -> tokio::runtime::Runtime {
@@ -573,12 +637,151 @@ mod tests {
         listener.handle.finish();
     }
 
+    /// POSTs `body` to an OTLP/HTTP path as binary protobuf.
+    fn post_protobuf(
+        addr: SocketAddr,
+        path: &str,
+        body: &[u8],
+    ) -> Result<ureq::http::Response<ureq::Body>, ureq::Error> {
+        ureq::post(format!("http://{addr}{path}"))
+            .header("Content-Type", "application/x-protobuf")
+            .send(body)
+    }
+
+    #[test]
+    fn http_exports_reach_the_checker() {
+        let listener = listen_ephemeral(Duration::from_secs(1));
+        let addr = listener.http_addr;
+        assert_ne!(addr.port(), 0, "the bound port is reported");
+
+        let traces = ExportTraceServiceRequest {
+            resource_spans: vec![Default::default(), Default::default()],
+        };
+        let response =
+            post_protobuf(addr, "/v1/traces", &traces.encode_to_vec()).expect("POST /v1/traces");
+        assert_eq!(response.status(), 200);
+        assert_eq!(
+            response
+                .headers()
+                .get("content-type")
+                .expect("a content type"),
+            "application/x-protobuf"
+        );
+        let body = response
+            .into_body()
+            .read_to_vec()
+            .expect("read the response");
+        let _ = ExportTraceServiceResponse::decode(body.as_slice()).expect("an export response");
+
+        for (path, body) in [
+            (
+                "/v1/metrics",
+                ExportMetricsServiceRequest::default().encode_to_vec(),
+            ),
+            (
+                "/v1/logs",
+                ExportLogsServiceRequest::default().encode_to_vec(),
+            ),
+            (
+                "/v1development/profiles",
+                ExportProfilesServiceRequest::default().encode_to_vec(),
+            ),
+        ] {
+            let response = post_protobuf(addr, path, &body).expect("POST an export");
+            assert_eq!(response.status(), 200, "{path}");
+        }
+
+        let mut received = Vec::new();
+        for request in listener.requests {
+            received.push(match request {
+                OtlpRequest::Traces(traces) => format!("traces:{}", traces.resource_spans.len()),
+                OtlpRequest::Metrics(_) => "metrics".to_owned(),
+                OtlpRequest::Logs(_) => "logs".to_owned(),
+                OtlpRequest::Profiles(_) => "profiles".to_owned(),
+                OtlpRequest::Stop(StopSignal::Inactivity) => break,
+                other => panic!("unexpected request: {other:?}"),
+            });
+        }
+        assert_eq!(received, ["traces:2", "metrics", "logs", "profiles"]);
+        listener.handle.finish();
+    }
+
+    #[test]
+    fn http_exports_that_are_not_plain_protobuf_are_rejected() {
+        let listener = listen_ephemeral(Duration::ZERO);
+        let url = format!("http://{}/v1/traces", listener.http_addr);
+
+        let json = ureq::post(&url)
+            .header("Content-Type", "application/json")
+            .send("{}")
+            .expect_err("JSON is refused");
+        assert!(matches!(json, ureq::Error::StatusCode(415)), "{json}");
+
+        let gzip = ureq::post(&url)
+            .header("Content-Type", "application/x-protobuf")
+            .header("Content-Encoding", "gzip")
+            .send(&[0x1f_u8, 0x8b][..])
+            .expect_err("gzip is refused");
+        assert!(matches!(gzip, ureq::Error::StatusCode(415)), "{gzip}");
+
+        let garbage = post_protobuf(listener.http_addr, "/v1/traces", &[0xff, 0xff, 0xff])
+            .expect_err("an invalid body is refused");
+        assert!(matches!(garbage, ureq::Error::StatusCode(400)), "{garbage}");
+
+        listener.handle.finish();
+    }
+
+    #[test]
+    fn an_http_export_after_the_stop_is_refused() {
+        let listener = listen_ephemeral(Duration::from_millis(200));
+        let OtlpListener {
+            mut requests,
+            http_addr,
+            handle,
+            ..
+        } = listener;
+
+        // Reading the stop closes the channel.
+        assert!(matches!(
+            read_until_stop(&mut requests),
+            StopSignal::Inactivity
+        ));
+
+        let refused = post_protobuf(
+            http_addr,
+            "/v1/logs",
+            &ExportLogsServiceRequest::default().encode_to_vec(),
+        )
+        .expect_err("the export is refused");
+        assert!(matches!(refused, ureq::Error::StatusCode(503)), "{refused}");
+
+        handle.finish();
+    }
+
     #[test]
     fn equal_ports_are_rejected() {
-        let error = listen_otlp_requests("127.0.0.1", 4317, 4317, Duration::ZERO)
-            .err()
-            .expect("equal ports are refused");
-        assert!(error.to_string().contains("must differ"), "{error}");
+        for ports in [
+            ListenerPorts {
+                grpc: 4317,
+                http: 0,
+                admin: 4317,
+            },
+            ListenerPorts {
+                grpc: 4317,
+                http: 4317,
+                admin: 0,
+            },
+            ListenerPorts {
+                grpc: 0,
+                http: 4318,
+                admin: 4318,
+            },
+        ] {
+            let error = listen_otlp_requests("127.0.0.1", ports, Duration::ZERO)
+                .err()
+                .expect("equal ports are refused");
+            assert!(error.to_string().contains("must differ"), "{error}");
+        }
     }
 
     #[test]
