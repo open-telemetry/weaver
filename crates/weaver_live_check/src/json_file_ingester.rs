@@ -3,10 +3,27 @@
 //! An ingester that reads JSON samples from a file.
 
 use std::path::Path;
+use std::rc::Rc;
 use std::{fs, path::PathBuf};
 
+use crate::sample_resource::SampleResource;
 use crate::Sample;
 use crate::{Error, Ingester};
+
+/// Attaches each resource sample to the metrics, logs and spans that follow it.
+pub(crate) fn attach_resources(samples: Vec<Sample>) -> impl Iterator<Item = Sample> {
+    let mut current_resource: Option<Rc<SampleResource>> = None;
+    samples.into_iter().map(move |mut sample| {
+        match &mut sample {
+            Sample::Resource(r) => current_resource = Some(Rc::new(r.clone())),
+            Sample::Metric(m) => m.resource = current_resource.clone(),
+            Sample::Log(l) => l.resource = current_resource.clone(),
+            Sample::Span(s) => s.resource = current_resource.clone(),
+            _ => {}
+        }
+        sample
+    })
+}
 
 /// An ingester that reads samples from a JSON file.
 pub struct JsonFileIngester {
@@ -40,7 +57,7 @@ impl Ingester for JsonFileIngester {
                 ),
             })?;
 
-        Ok(Box::new(attributes.into_iter()))
+        Ok(Box::new(attach_resources(attributes)))
     }
 }
 
@@ -60,6 +77,38 @@ mod tests {
             Sample::Attribute(attr) => Some(attr),
             _ => None,
         }
+    }
+
+    #[test]
+    fn test_resources_attach_to_the_signals_that_follow() {
+        let samples: Vec<Sample> = serde_json::from_value(serde_json::json!([
+            {"span": {"name": "before", "kind": "internal"}},
+            {"resource": {"attributes": [{"name": "service.name", "value": "cart"}]}},
+            {"span": {"name": "first", "kind": "internal"}},
+            {"log": {"event_name": "second"}},
+            {"resource": {"attributes": [{"name": "service.name", "value": "checkout"}]}},
+            {"span": {"name": "third", "kind": "internal"}}
+        ]))
+        .expect("Failed to parse samples");
+
+        let services: Vec<_> = attach_resources(samples)
+            .filter(|sample| !matches!(sample, Sample::Resource(_)))
+            .map(|sample| {
+                sample
+                    .resource()
+                    .and_then(|resource| resource.attributes[0].value.clone())
+            })
+            .collect();
+
+        assert_eq!(
+            services,
+            [
+                None,
+                Some(Value::from("cart")),
+                Some(Value::from("cart")),
+                Some(Value::from("checkout"))
+            ]
+        );
     }
 
     #[test]

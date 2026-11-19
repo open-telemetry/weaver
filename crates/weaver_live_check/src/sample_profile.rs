@@ -80,7 +80,7 @@ impl Matchable for SampleProfile {
         SampleType::Profile
     }
 
-    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+    fn bind(&self, context: &mut Context<'_, '_>) -> Result<(), SerializationError> {
         context.add_variable("attributes", attribute_map(self.attributes.iter()))?;
         bind_signal_context(
             self.resource.as_deref(),
@@ -161,7 +161,7 @@ when = 'true'
 "#,
             ))
             .expect("the matchers compile");
-        let mut stats = LiveCheckStatistics::Disabled(DisabledStatistics);
+        let mut stats = LiveCheckStatistics::Disabled(DisabledStatistics::default());
         let parent = Sample::Profile(make_profile());
         profile
             .run_live_check(&mut live_checker, &mut stats, None, &parent)
@@ -178,7 +178,7 @@ when = 'true'
     fn test_run_live_check_no_advisors() {
         let mut profile = make_profile();
         let mut live_checker = LiveChecker::new(empty_registry(), vec![]);
-        let mut stats = LiveCheckStatistics::Disabled(DisabledStatistics);
+        let mut stats = LiveCheckStatistics::Disabled(DisabledStatistics::default());
         let parent = Sample::Profile(make_profile());
         let result = profile.run_live_check(&mut live_checker, &mut stats, None, &parent);
         assert!(result.is_ok());

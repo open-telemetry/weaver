@@ -1,0 +1,6 @@
+file_format: definition_manifest/2.0
+name: live_check_coverage
+description: >
+  Self-contained v2 registry for the `weaver registry live-check` coverage
+  tests.
+schema_url: https://example.com/live-check-coverage/1.0.0

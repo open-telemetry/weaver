@@ -190,6 +190,7 @@ impl ResolvedTelemetrySchema {
     }
 
     /// Get the catalog of the resolved telemetry schema.
+    #[must_use]
     pub fn catalog(&self) -> &Catalog {
         &self.catalog
     }
@@ -476,7 +477,7 @@ impl ResolvedTelemetrySchema {
             }
         }
 
-        for (signal_name, _) in baseline_signals.iter() {
+        for signal_name in baseline_signals.keys() {
             if !latest_signals.contains_key(signal_name) {
                 changes.add_change(
                     schema_item_type,

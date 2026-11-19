@@ -72,7 +72,7 @@ impl Matchable for SampleResource {
         SampleType::Resource
     }
 
-    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+    fn bind(&self, context: &mut Context<'_, '_>) -> Result<(), SerializationError> {
         context.add_variable("attributes", attribute_map(self.attributes.iter()))
     }
 }

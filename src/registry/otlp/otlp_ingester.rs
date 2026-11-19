@@ -19,15 +19,17 @@ use super::{
         sample_attribute_from_key_value, span_id_hex, span_kind_from_otlp_kind,
         status_from_otlp_status, trace_id_hex,
     },
-    listen_otlp_requests, ListenerHandle, OtlpRequest,
+    listen_otlp_requests, ListenerHandle, ListenerPorts, OtlpRequest,
 };
 
 /// An ingester for OTLP data
 pub struct OtlpIngester {
-    /// The address of the OTLP gRPC server
+    /// The address of the OTLP listeners and the admin server
     pub otlp_grpc_address: String,
     /// The port of the OTLP gRPC server. `0` picks a free port.
     pub otlp_grpc_port: u16,
+    /// The port of the OTLP HTTP server. `0` picks a free port.
+    pub otlp_http_port: u16,
     /// The port of the admin server
     pub admin_port: u16,
     /// Seconds without an export before the listener stops. `0` never stops.
@@ -275,12 +277,8 @@ impl Iterator for OtlpIterator {
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.buffer.is_empty() {
-            match self.otlp_requests.next() {
-                Some(request) => {
-                    let _bufsize = self.fill_buffer_from_request(request)?;
-                }
-                None => return None,
-            }
+            let request = self.otlp_requests.next()?;
+            let _bufsize = self.fill_buffer_from_request(request)?;
         }
 
         Some(self.buffer.remove(0))
@@ -293,8 +291,11 @@ impl OtlpIngester {
     pub fn ingest_otlp(&self) -> Result<(Box<dyn Iterator<Item = Sample>>, ListenerHandle), Error> {
         let listener = listen_otlp_requests(
             self.otlp_grpc_address.as_str(),
-            self.otlp_grpc_port,
-            self.admin_port,
+            ListenerPorts {
+                grpc: self.otlp_grpc_port,
+                http: self.otlp_http_port,
+                admin: self.admin_port,
+            },
             Duration::from_secs(self.inactivity_timeout),
         )
         .map_err(|e| Error::IngestError {
@@ -304,6 +305,10 @@ impl OtlpIngester {
         log_info(format!(
             "OTLP gRPC listener started on {}",
             listener.grpc_addr
+        ));
+        log_info(format!(
+            "OTLP HTTP listener started on {}",
+            listener.http_addr
         ));
         info!("To stop the OTLP receiver:");
         info!("  - press CTRL+C,");
@@ -377,6 +382,37 @@ mod tests {
 
     fn collect(requests: Vec<OtlpRequest>) -> Vec<Sample> {
         OtlpIterator::new(Box::new(requests.into_iter())).collect()
+    }
+
+    #[test]
+    fn spans_without_a_resource_do_not_take_an_earlier_one() {
+        let spans = |resource: Option<Resource>| ResourceSpans {
+            resource,
+            scope_spans: vec![ScopeSpans {
+                spans: vec![Span::default()],
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let request = OtlpRequest::Traces(ExportTraceServiceRequest {
+            resource_spans: vec![
+                spans(Some(Resource {
+                    attributes: vec![string_attribute("service.name", "cart")],
+                    ..Default::default()
+                })),
+                spans(None),
+            ],
+        });
+
+        let has_resource: Vec<_> = collect(vec![request])
+            .into_iter()
+            .filter_map(|sample| match sample {
+                Sample::Span(span) => Some(span.resource.is_some()),
+                _ => None,
+            })
+            .collect();
+
+        assert_eq!(has_resource, [true, false]);
     }
 
     #[test]
@@ -715,7 +751,7 @@ mod tests {
 
         let report = LiveCheckReport {
             samples: collect(vec![request]),
-            statistics: LiveCheckStatistics::Disabled(DisabledStatistics),
+            statistics: LiveCheckStatistics::Disabled(DisabledStatistics::default()),
         };
         let json = serde_json::to_value(report).expect("report serializes");
         let samples = json["samples"].as_array().expect("samples array");

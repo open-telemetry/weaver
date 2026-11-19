@@ -4,13 +4,52 @@
 //!
 //! This module provides two modes of operation:
 //! - `Cumulative`: Full statistics accumulation for reporting
-//! - `Disabled`: No-op mode for long-running sessions to prevent memory growth
+//! - `Disabled`: Tracks only the highest finding level, for long-running sessions to prevent memory growth
 
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 use std::collections::HashMap;
 
-use crate::{matcher::Matchers, FindingLevel, LiveCheckResult, PolicyFinding, VersionedRegistry};
+use crate::live_checker::LiveChecker;
+use crate::{Error, FindingLevel, LiveCheckResult, PolicyFinding, VersionedRegistry};
+use weaver_checker::NameMatcher;
+use weaver_config::LiveCheckCoverageConfig;
 use weaver_semconv::v1::group::GroupType;
+
+/// The registry names that count toward `registry_coverage`.
+#[derive(Debug, Default)]
+pub struct CoverageScope {
+    /// `None` includes every name.
+    include: Option<NameMatcher>,
+    exclude: Option<NameMatcher>,
+}
+
+impl CoverageScope {
+    fn contains(&self, name: &str) -> bool {
+        self.include
+            .as_ref()
+            .is_none_or(|include| include.is_match(name))
+            && !self
+                .exclude
+                .as_ref()
+                .is_some_and(|exclude| exclude.is_match(name))
+    }
+}
+
+impl TryFrom<&LiveCheckCoverageConfig> for CoverageScope {
+    type Error = Error;
+
+    fn try_from(config: &LiveCheckCoverageConfig) -> Result<Self, Self::Error> {
+        let compile = |patterns: &[String]| {
+            NameMatcher::compile(patterns).map_err(|error| Error::ConfigError {
+                error: error.to_string(),
+            })
+        };
+        Ok(Self {
+            include: compile(&config.include)?,
+            exclude: compile(&config.exclude)?,
+        })
+    }
+}
 
 /// Cumulative statistics that track all telemetry data
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -43,7 +82,11 @@ pub struct CumulativeStatistics {
     pub(crate) seen_registry_events: HashMap<String, usize>,
     /// The number of each non-registry event seen
     pub(crate) seen_non_registry_events: HashMap<String, usize>,
-    /// Fraction of the registry covered by the attributes, metrics, and events
+    /// The number of samples matched to each span in a v2 registry
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub(crate) seen_registry_spans: HashMap<String, usize>,
+    /// Fraction of the registry attributes, metrics, events and spans that
+    /// were seen
     pub(crate) registry_coverage: f32,
     /// What each configured matcher did, in declaration order
     pub(crate) matchers: Vec<MatcherStatistics>,
@@ -66,9 +109,7 @@ impl CumulativeStatistics {
     /// Create a new CumulativeStatistics initialized with registry structure
     #[must_use]
     pub fn new(registry: &VersionedRegistry) -> Self {
-        let (seen_attributes, seen_metrics, seen_events) = Self::extract_registry_items(registry);
-
-        CumulativeStatistics {
+        let mut stats = CumulativeStatistics {
             total_entities: 0,
             total_entities_by_type: HashMap::new(),
             total_advisories: 0,
@@ -77,45 +118,42 @@ impl CumulativeStatistics {
             no_advice_count: 0,
             advice_type_counts: HashMap::new(),
             advice_message_counts: HashMap::new(),
-            seen_registry_attributes: seen_attributes,
+            seen_registry_attributes: HashMap::new(),
             seen_non_registry_attributes: HashMap::new(),
-            seen_registry_metrics: seen_metrics,
+            seen_registry_metrics: HashMap::new(),
             seen_non_registry_metrics: HashMap::new(),
-            seen_registry_events: seen_events,
+            seen_registry_events: HashMap::new(),
             seen_non_registry_events: HashMap::new(),
+            seen_registry_spans: HashMap::new(),
             registry_coverage: 0.0,
             matchers: Vec::new(),
-        }
+        };
+        stats.track_registry_names(registry);
+        stats
     }
 
-    /// Extract registry items for tracking
-    fn extract_registry_items(
-        registry: &VersionedRegistry,
-    ) -> (
-        HashMap<String, usize>,
-        HashMap<String, usize>,
-        HashMap<String, usize>,
-    ) {
-        let mut seen_attributes = HashMap::new();
-        let mut seen_metrics = HashMap::new();
-        let mut seen_events = HashMap::new();
-
+    /// Start a zero count for each name the registry declares that is not
+    /// deprecated. Spans are counted for a v2 registry only.
+    fn track_registry_names(&mut self, registry: &VersionedRegistry) {
+        fn track(seen: &mut HashMap<String, usize>, name: String) {
+            let _ = seen.insert(name, 0);
+        }
         match registry {
             VersionedRegistry::V1(reg) => {
                 for group in &reg.groups {
                     for attribute in &group.attributes {
                         if attribute.deprecated.is_none() {
-                            let _ = seen_attributes.insert(attribute.name.clone(), 0);
+                            track(&mut self.seen_registry_attributes, attribute.name.clone());
                         }
                     }
                     if group.r#type == GroupType::Metric && group.deprecated.is_none() {
                         if let Some(metric_name) = &group.metric_name {
-                            let _ = seen_metrics.insert(metric_name.clone(), 0);
+                            track(&mut self.seen_registry_metrics, metric_name.clone());
                         }
                     }
                     if group.r#type == GroupType::Event && group.deprecated.is_none() {
                         if let Some(event_name) = &group.name {
-                            let _ = seen_events.insert(event_name.clone(), 0);
+                            track(&mut self.seen_registry_events, event_name.clone());
                         }
                     }
                 }
@@ -123,23 +161,26 @@ impl CumulativeStatistics {
             VersionedRegistry::V2(reg) => {
                 for attribute in &reg.registry.attributes {
                     if attribute.common.deprecated.is_none() {
-                        let _ = seen_attributes.insert(attribute.key.clone(), 0);
+                        track(&mut self.seen_registry_attributes, attribute.key.clone());
                     }
                 }
                 for metric in &reg.registry.metrics {
                     if metric.common.deprecated.is_none() {
-                        let _ = seen_metrics.insert(metric.name.to_string(), 0);
+                        track(&mut self.seen_registry_metrics, metric.name.to_string());
                     }
                 }
                 for event in &reg.registry.events {
                     if event.common.deprecated.is_none() {
-                        let _ = seen_events.insert(event.name.to_string(), 0);
+                        track(&mut self.seen_registry_events, event.name.to_string());
+                    }
+                }
+                for span in &reg.registry.spans {
+                    if span.common.deprecated.is_none() {
+                        track(&mut self.seen_registry_spans, span.r#type.to_string());
                     }
                 }
             }
         }
-
-        (seen_attributes, seen_metrics, seen_events)
     }
 
     /// Increment the total number of entities by type
@@ -221,6 +262,13 @@ impl CumulativeStatistics {
         }
     }
 
+    /// Count a sample matched to a registry span.
+    pub(crate) fn add_span_type_to_coverage(&mut self, span_type: &str) {
+        if let Some(count) = self.seen_registry_spans.get_mut(span_type) {
+            *count += 1;
+        }
+    }
+
     /// Returns the most severe level currently recorded, or `None` if no
     /// findings have been accumulated. Severity ordering is defined by
     /// [`FindingLevel`]'s derived `Ord`: Information < Improvement < Violation.
@@ -233,10 +281,38 @@ impl CumulativeStatistics {
         self.max_level().is_some_and(|level| level >= threshold)
     }
 
+    /// The registry attributes, metrics, events and spans in `scope`, with
+    /// the number of times each was seen.
+    fn in_scope<'a>(
+        &'a self,
+        scope: &'a CoverageScope,
+    ) -> impl Iterator<Item = (&'a String, usize)> {
+        self.seen_registry_attributes
+            .iter()
+            .chain(&self.seen_registry_metrics)
+            .chain(&self.seen_registry_events)
+            .chain(&self.seen_registry_spans)
+            .filter(|(name, _)| scope.contains(name))
+            .map(|(name, &count)| (name, count))
+    }
+
+    /// The names in `scope` that no sample used, sorted.
+    fn unseen<'a>(&'a self, scope: &'a CoverageScope) -> Vec<&'a str> {
+        let mut names: Vec<&str> = self
+            .in_scope(scope)
+            .filter(|&(_, count)| count == 0)
+            .map(|(name, _)| name.as_str())
+            .collect();
+        names.sort_unstable();
+        names.dedup();
+        names
+    }
+
     /// Finalize the statistics: calculate registry coverage and collect what
     /// each matcher did
-    pub(crate) fn finalize(&mut self, matchers: &Matchers) {
-        self.matchers = matchers
+    pub(crate) fn finalize(&mut self, live_checker: &LiveChecker) {
+        self.matchers = live_checker
+            .matchers()
             .iter()
             .map(|matcher| {
                 let (errors, first_error) = match matcher.errors() {
@@ -252,45 +328,41 @@ impl CumulativeStatistics {
             })
             .collect();
 
-        // Calculate the registry coverage
-        // (non-zero attributes + non-zero metrics + non-zero events) / (total attributes + total metrics + total events)
-        let non_zero_attributes = self
-            .seen_registry_attributes
-            .values()
-            .filter(|&&count| count > 0)
-            .count();
-        let total_registry_attributes = self.seen_registry_attributes.len();
+        self.registry_coverage = self.coverage(live_checker.coverage_scope());
+    }
 
-        let non_zero_metrics = self
-            .seen_registry_metrics
-            .values()
-            .filter(|&&count| count > 0)
-            .count();
-        let total_registry_metrics = self.seen_registry_metrics.len();
-
-        let non_zero_events = self
-            .seen_registry_events
-            .values()
-            .filter(|&&count| count > 0)
-            .count();
-        let total_registry_events = self.seen_registry_events.len();
-
-        let total_registry_items =
-            total_registry_attributes + total_registry_metrics + total_registry_events;
-
-        if total_registry_items > 0 {
-            self.registry_coverage = ((non_zero_attributes + non_zero_metrics + non_zero_events)
-                as f32)
-                / (total_registry_items as f32);
+    /// The fraction of the names in `scope` that were seen.
+    fn coverage(&self, scope: &CoverageScope) -> f32 {
+        let (seen, total) = self
+            .in_scope(scope)
+            .fold((0_usize, 0_usize), |(seen, total), (_, count)| {
+                (seen + usize::from(count > 0), total + 1)
+            });
+        if total > 0 {
+            seen as f32 / total as f32
         } else {
-            self.registry_coverage = 0.0;
+            0.0
         }
+    }
+
+    /// Whether `scope` holds any registry name.
+    pub(crate) fn has_names_in(&self, scope: &CoverageScope) -> bool {
+        self.in_scope(scope).next().is_some()
     }
 }
 
-/// Disabled statistics that perform no accumulation (for long-running sessions)
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct DisabledStatistics;
+/// Disabled statistics (for long-running sessions). Tracks only the highest finding level.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DisabledStatistics {
+    max_level: Option<FindingLevel>,
+}
+
+impl Serialize for DisabledStatistics {
+    /// Serializes as a unit struct (`null` in JSON).
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_unit_struct("DisabledStatistics")
+    }
+}
 
 /// The statistics for a live check report
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -299,31 +371,37 @@ pub struct DisabledStatistics;
 pub enum LiveCheckStatistics {
     /// Cumulative statistics mode - tracks all telemetry data
     Cumulative(CumulativeStatistics),
-    /// Disabled statistics mode - no accumulation (for long-running sessions)
+    /// Disabled statistics mode - only the highest finding level is tracked (for long-running sessions)
     Disabled(DisabledStatistics),
 }
 
 impl LiveCheckStatistics {
     /// Add a live check result to the stats
     pub fn maybe_add_live_check_result(&mut self, live_check_result: Option<&LiveCheckResult>) {
-        if let Self::Cumulative(stats) = self {
-            if let Some(result) = live_check_result {
-                for advice in &result.all_advice {
-                    // Count of total advisories
-                    stats.add_advice(advice);
-                }
-                // Count of samples with the highest advice level
-                if let Some(highest_advice_level) = &result.highest_advice_level {
-                    stats.add_highest_advice_level(highest_advice_level);
-                }
+        match self {
+            Self::Cumulative(stats) => {
+                if let Some(result) = live_check_result {
+                    for advice in &result.all_advice {
+                        // Count of total advisories
+                        stats.add_advice(advice);
+                    }
+                    // Count of samples with the highest advice level
+                    if let Some(highest_advice_level) = &result.highest_advice_level {
+                        stats.add_highest_advice_level(highest_advice_level);
+                    }
 
-                // Count of samples with no advice
-                if result.all_advice.is_empty() {
+                    // Count of samples with no advice
+                    if result.all_advice.is_empty() {
+                        stats.inc_no_advice_count();
+                    }
+                } else {
+                    // Count of samples with no advice
                     stats.inc_no_advice_count();
                 }
-            } else {
-                // Count of samples with no advice
-                stats.inc_no_advice_count();
+            }
+            Self::Disabled(stats) => {
+                let level = live_check_result.and_then(|result| result.highest_advice_level);
+                stats.max_level = stats.max_level.max(level);
             }
         }
     }
@@ -356,22 +434,45 @@ impl LiveCheckStatistics {
         }
     }
 
+    /// Count a sample matched to a registry span.
+    pub fn add_span_type_to_coverage(&mut self, span_type: &str) {
+        if let Self::Cumulative(stats) = self {
+            stats.add_span_type_to_coverage(span_type);
+        }
+    }
+
     /// Returns true if any recorded finding is at or above `threshold`.
-    /// Always returns `false` for [`LiveCheckStatistics::Disabled`]; the
-    /// caller is responsible for warning about `--no-stats` + a
-    /// stats-dependent gate at startup.
     #[must_use]
     pub fn should_fail(&self, threshold: FindingLevel) -> bool {
         match self {
             Self::Cumulative(stats) => stats.should_fail(threshold),
-            Self::Disabled(_) => false,
+            Self::Disabled(stats) => stats.max_level.is_some_and(|level| level >= threshold),
         }
     }
 
     /// Finalize the statistics
-    pub fn finalize(&mut self, matchers: &Matchers) {
+    pub fn finalize(&mut self, live_checker: &LiveChecker) {
         if let Self::Cumulative(stats) = self {
-            stats.finalize(matchers);
+            stats.finalize(live_checker);
+        }
+    }
+
+    /// The fraction of the in-scope registry names that were seen. `None`
+    /// when statistics are disabled.
+    #[must_use]
+    pub fn registry_coverage(&self) -> Option<f32> {
+        match self {
+            Self::Cumulative(stats) => Some(stats.registry_coverage),
+            Self::Disabled(_) => None,
+        }
+    }
+
+    /// The registry names in `scope` that no sample used, sorted.
+    #[must_use]
+    pub fn unseen<'a>(&'a self, scope: &'a CoverageScope) -> Vec<&'a str> {
+        match self {
+            Self::Cumulative(stats) => stats.unseen(scope),
+            Self::Disabled(_) => Vec::new(),
         }
     }
 }
@@ -389,7 +490,7 @@ mod tests {
         };
         let versioned_registry = VersionedRegistry::V1(Box::new(registry));
 
-        let mut disabled_stats = LiveCheckStatistics::Disabled(DisabledStatistics);
+        let mut disabled_stats = LiveCheckStatistics::Disabled(DisabledStatistics::default());
         let mut normal_stats =
             LiveCheckStatistics::Cumulative(CumulativeStatistics::new(&versioned_registry));
 
@@ -405,8 +506,6 @@ mod tests {
         normal_stats.add_event_name_to_coverage("test.event".to_owned());
 
         // Verify disabled stats don't accumulate (all operations are no-ops)
-        // Note: In practice, disabled stats are never serialized due to the
-        // `!args.no_stats && !no_output` guard in live_check.rs:332
         assert!(matches!(disabled_stats, LiveCheckStatistics::Disabled(_)));
         assert!(matches!(normal_stats, LiveCheckStatistics::Cumulative(_)));
 
@@ -483,11 +582,135 @@ mod tests {
         assert!(stats.should_fail(FindingLevel::Information));
     }
 
+    fn result_with_level(level: FindingLevel) -> LiveCheckResult {
+        LiveCheckResult {
+            highest_advice_level: Some(level),
+            ..LiveCheckResult::new()
+        }
+    }
+
     #[test]
-    fn test_disabled_should_fail_always_false() {
-        let disabled = LiveCheckStatistics::Disabled(DisabledStatistics);
+    fn test_disabled_should_fail_without_findings() {
+        let mut disabled = LiveCheckStatistics::Disabled(DisabledStatistics::default());
+        disabled.maybe_add_live_check_result(None);
+        disabled.maybe_add_live_check_result(Some(&LiveCheckResult::new()));
         assert!(!disabled.should_fail(FindingLevel::Information));
         assert!(!disabled.should_fail(FindingLevel::Improvement));
         assert!(!disabled.should_fail(FindingLevel::Violation));
+    }
+
+    fn scope(include: &[&str], exclude: &[&str]) -> CoverageScope {
+        let patterns = |names: &[&str]| names.iter().map(|&name| name.to_owned()).collect();
+        CoverageScope::try_from(&LiveCheckCoverageConfig {
+            include: patterns(include),
+            exclude: patterns(exclude),
+            fail_below: None,
+        })
+        .expect("valid patterns")
+    }
+
+    /// Four attributes, a metric and an event, with `http.request.method`,
+    /// `url.path` and the event seen.
+    fn partly_seen() -> CumulativeStatistics {
+        let mut stats = empty_cumulative();
+        for name in [
+            "http.request.method",
+            "http.response.status_code",
+            "url.path",
+            "db.name",
+        ] {
+            let _ = stats.seen_registry_attributes.insert(name.to_owned(), 0);
+        }
+        let _ = stats
+            .seen_registry_metrics
+            .insert("http.server.duration".to_owned(), 0);
+        let _ = stats.seen_registry_events.insert("db.query".to_owned(), 0);
+        stats.add_attribute_name_to_coverage("http.request.method".to_owned());
+        stats.add_attribute_name_to_coverage("url.path".to_owned());
+        stats.add_event_name_to_coverage("db.query".to_owned());
+        stats
+    }
+
+    #[test]
+    fn coverage_counts_every_name_without_a_scope() {
+        let stats = partly_seen();
+        let everything = CoverageScope::default();
+        assert_eq!(stats.coverage(&everything), 0.5);
+        assert_eq!(
+            stats.unseen(&everything),
+            [
+                "db.name",
+                "http.response.status_code",
+                "http.server.duration"
+            ]
+        );
+    }
+
+    #[test]
+    fn coverage_counts_only_the_included_names() {
+        let stats = partly_seen();
+        let http = scope(&["http.*"], &[]);
+        assert_eq!(stats.coverage(&http), 1.0 / 3.0);
+        assert_eq!(
+            stats.unseen(&http),
+            ["http.response.status_code", "http.server.duration"]
+        );
+        assert_eq!(stats.coverage(&scope(&["url.*", "db.query"], &[])), 1.0);
+    }
+
+    #[test]
+    fn excluded_names_are_removed_from_the_included_ones() {
+        let stats = partly_seen();
+        let scope = scope(&["http.*", "url.*"], &["http.response.*", "http.server.*"]);
+        assert_eq!(stats.coverage(&scope), 1.0);
+        assert!(stats.unseen(&scope).is_empty());
+    }
+
+    #[test]
+    fn spans_count_toward_coverage() {
+        let mut stats = empty_cumulative();
+        for name in ["myapp.checkout", "myapp.refund"] {
+            let _ = stats.seen_registry_spans.insert(name.to_owned(), 0);
+        }
+        stats.add_span_type_to_coverage("myapp.checkout");
+        stats.add_span_type_to_coverage("not.in.the.registry");
+
+        let everything = CoverageScope::default();
+        assert_eq!(stats.coverage(&everything), 0.5);
+        assert_eq!(stats.unseen(&everything), ["myapp.refund"]);
+        assert_eq!(stats.coverage(&scope(&["myapp.*"], &["myapp.refund"])), 1.0);
+        assert!(!stats
+            .seen_registry_spans
+            .contains_key("not.in.the.registry"));
+    }
+
+    #[test]
+    fn a_scope_that_matches_no_name_has_no_coverage() {
+        let stats = partly_seen();
+        let scope = scope(&["absent.*"], &[]);
+        assert!(!stats.has_names_in(&scope));
+        assert_eq!(stats.coverage(&scope), 0.0);
+    }
+
+    #[test]
+    fn test_disabled_should_fail_tracks_highest_level() {
+        let mut disabled = LiveCheckStatistics::Disabled(DisabledStatistics::default());
+        disabled.maybe_add_live_check_result(Some(&result_with_level(FindingLevel::Improvement)));
+        disabled.maybe_add_live_check_result(Some(&result_with_level(FindingLevel::Information)));
+        disabled.maybe_add_live_check_result(None);
+        assert!(disabled.should_fail(FindingLevel::Information));
+        assert!(disabled.should_fail(FindingLevel::Improvement));
+        assert!(!disabled.should_fail(FindingLevel::Violation));
+
+        disabled.maybe_add_live_check_result(Some(&result_with_level(FindingLevel::Violation)));
+        assert!(disabled.should_fail(FindingLevel::Violation));
+    }
+
+    #[test]
+    fn test_disabled_serializes_as_null() {
+        let mut disabled = LiveCheckStatistics::Disabled(DisabledStatistics::default());
+        disabled.maybe_add_live_check_result(Some(&result_with_level(FindingLevel::Violation)));
+        let json = serde_json::to_string(&disabled).expect("failed to serialize");
+        assert_eq!(json, "null");
     }
 }

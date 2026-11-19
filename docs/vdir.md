@@ -177,7 +177,7 @@ weaver registry check -r "https://github.com/my-org/private-semconv.git@main[mod
 | `--baseline-registry <BASELINE_REGISTRY>` | `check`, `diff` | Baseline semantic convention registry to compare against. |
 | `-p`, `--policy <POLICIES>` | `check`, `generate`, `resolve`, `emit`, `live-check`, `package` | Rego policy directory, archive, Git repo, or `.rego` file (can be specified multiple times). |
 | `-t`, `--templates <TEMPLATES>` | `generate`, `update-markdown` | Template directory, archive, or Git repo containing target subdirectories. |
-| `--advice-policies <ADVICE_POLICIES>` | `live-check`, `mcp` | Rego advice policies directory, archive, Git repo, or `.rego` file. |
+| `--advice-policies <ADVICE_POLICIES>` | `live-check`, `mcp` | Rego advice policies directory, archive, Git repo, or `.rego` file (can be specified multiple times). |
 | `--advice-data <ADVICE_DATA>` | `live-check`, `mcp` | Supplemental jq/JSON/YAML advice data directory, archive, Git repo, or file. |
 
 ### 2. Project Configuration (`.weaver.toml`)
@@ -191,9 +191,9 @@ See [`crates/weaver_config/README.md`](/crates/weaver_config/README.md) for full
 | `[resolve.schema_url_overrides]` | Map of `<schema_url> = "<vdir>"` | Redirects a dependency's `schema_url` to a local or remote `vdir` location during resolution. |
 | `[generate].templates` | `vdir` string | Default templates location for `weaver registry generate`. |
 | `[update-markdown].templates` | `vdir` string | Default templates location for `weaver registry update-markdown`. |
-| `[live-check].advice_policies` | `vdir` string | Default advice policies location for `weaver registry live-check`. |
+| `[live-check].advice_policies` | Array of `vdir` strings | Default advice policies locations for `weaver registry live-check`. |
 | `[live-check].advice_data` | `vdir` string | Default advice data location for `weaver registry live-check`. |
-| `[mcp].advice_policies` | `vdir` string | Default advice policies location for `weaver registry mcp`. |
+| `[mcp].advice_policies` | Array of `vdir` strings | Default advice policies locations for `weaver registry mcp`. |
 | `[mcp].advice_data` | `vdir` string | Default advice data location for `weaver registry mcp`. |
 
 ### 3. Registry Manifests (`manifest.yaml` / `registry_manifest.yaml`)

@@ -82,7 +82,7 @@ impl Matchable for SampleInstrumentationScope {
         SampleType::InstrumentationScope
     }
 
-    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+    fn bind(&self, context: &mut Context<'_, '_>) -> Result<(), SerializationError> {
         context.add_variable("name", &self.name)?;
         context.add_variable("version", &self.version)?;
         context.add_variable("schema_url", &self.schema_url)?;

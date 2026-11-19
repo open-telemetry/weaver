@@ -18,7 +18,7 @@ use crate::{
     sample_instrumentation_scope::SampleInstrumentationScope,
     sample_resource::SampleResource,
     Advisable, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, Sample, SampleRef,
-    SampleType,
+    SampleType, VersionedSignal,
 };
 
 /// The status code of the span
@@ -132,6 +132,9 @@ impl LiveCheckRunner for SampleSpan {
         );
         self.live_check_result = Some(result);
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
+        if let Some(VersionedSignal::Span(span)) = sample_match.signal.as_deref() {
+            stats.add_span_type_to_coverage(&span.r#type);
+        }
         self.attributes.run_live_check(
             live_checker,
             stats,
@@ -291,7 +294,7 @@ impl Matchable for SampleSpan {
         SampleType::Span
     }
 
-    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+    fn bind(&self, context: &mut Context<'_, '_>) -> Result<(), SerializationError> {
         context.add_variable("name", &self.name)?;
         context.add_variable("kind", &self.kind)?;
         // OTLP treats a missing status as unset.
@@ -310,7 +313,7 @@ impl Matchable for SampleSpanEvent {
         SampleType::SpanEvent
     }
 
-    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+    fn bind(&self, context: &mut Context<'_, '_>) -> Result<(), SerializationError> {
         context.add_variable("name", &self.name)?;
         context.add_variable("attributes", attribute_map(self.attributes.iter()))?;
         bind_signal_context(
@@ -326,7 +329,7 @@ impl Matchable for SampleSpanLink {
         SampleType::SpanLink
     }
 
-    fn bind(&self, context: &mut Context<'_>) -> Result<(), SerializationError> {
+    fn bind(&self, context: &mut Context<'_, '_>) -> Result<(), SerializationError> {
         context.add_variable("attributes", attribute_map(self.attributes.iter()))?;
         bind_signal_context(
             self.resource.as_deref(),

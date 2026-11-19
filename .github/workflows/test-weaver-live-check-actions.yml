@@ -44,11 +44,11 @@ jobs:
             opentelemetry-exporter-otlp-proto-grpc==1.42.1
 
       - name: Setup weaver
-        uses: ./.github/actions/setup-weaver
+        uses: $/.github/actions/setup-weaver
 
       - name: Start weaver live-check
         id: live-check
-        uses: ./.github/actions/weaver-live-check-start
+        uses: $/.github/actions/weaver-live-check-start
         with:
           registry: 'https://github.com/open-telemetry/semantic-conventions.git[model]'
 
@@ -78,7 +78,7 @@ jobs:
 
       - name: Stop weaver live-check (fail-on=none, must succeed regardless)
         id: stop-none
-        uses: ./.github/actions/weaver-live-check-stop
+        uses: $/.github/actions/weaver-live-check-stop
         with:
           fail-on: none
 

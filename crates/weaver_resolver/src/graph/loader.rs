@@ -803,10 +803,10 @@ fn load_definition_repository(
     /// Returns `true` if `entry` has a dot-prefixed file name.
     fn is_hidden(entry: &DirEntry) -> bool {
         entry
+            .path()
             .file_name()
-            .to_str()
-            .map(|s| s.starts_with('.'))
-            .unwrap_or(false)
+            .and_then(|s| s.to_str())
+            .is_some_and(|s| s.starts_with('.'))
     }
     let local_path = registry_repo.path().to_path_buf();
     let registry_path_repr = registry_repo.registry_path_repr();
@@ -923,6 +923,41 @@ mod tests {
             }
         } else {
             panic!("Failed to load unresolved registry")
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_load_registry_from_relative_paths() -> Result<(), Error> {
+        let registry = "data/registry-test-1-single-attr-ref/registry";
+        for (path, dir) in [
+            (format!("./{registry}/."), format!("./{registry}/./")),
+            (
+                format!("./{registry}/../registry"),
+                format!("./{registry}/../registry/"),
+            ),
+            (format!("{registry}/"), format!("{registry}/")),
+        ] {
+            let registry_repo = RegistryRepo::try_new(
+                None,
+                &VirtualDirectoryPath::LocalFolder { path },
+                &mut vec![],
+            )?;
+            let loaded = load_semconv_repository(
+                registry_repo,
+                false,
+                &weaver_common::http_auth::HttpAuthResolver::empty(),
+            )
+            .into_result_failing_non_fatal()?;
+            let LoadedSemconvRegistry::Unresolved { specs, .. } = loaded else {
+                panic!("Failed to load unresolved registry")
+            };
+            let mut files: Vec<_> = specs.into_iter().map(|s| s.provenance.path).collect();
+            files.sort_unstable();
+            assert_eq!(
+                files,
+                ["metrics-messaging.yaml", "registry-messaging.yaml"].map(|f| format!("{dir}{f}"))
+            );
         }
         Ok(())
     }
