@@ -6648,7 +6648,6 @@ dependencies = [
 name = "weaver_live_check"
 version = "0.28.0"
 dependencies = [
- "assert_cmd",
  "cel",
  "globset",
  "log",
