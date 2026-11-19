@@ -2,7 +2,9 @@
 
 //! Dependency lookup types and traits for the V1 resolution algorithm.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
+#[cfg(test)]
+use std::collections::HashMap;
 use std::sync::Arc;
 use weaver_resolved_schema::v1::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::v1::registry::Group;
@@ -16,6 +18,7 @@ use weaver_semconv::v1::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::v1::stability::Stability;
 use weaver_semconv::YamlValue;
 
+#[cfg(test)]
 use crate::graph::chosen_versions::collect_chosen_versions;
 pub(crate) use crate::graph::entity_lookup::{EntityLocation, EntityLookup};
 use crate::WeaverResolvedSchema;
@@ -135,6 +138,7 @@ impl ResolvedDependency {
     }
 
     /// Records the latest compatible `SchemaUrl` per registry name from this dependency and its transitive dependencies.
+    #[cfg(test)]
     pub(crate) fn collect_chosen_versions(&self, chosen: &mut HashMap<String, SchemaUrl>) {
         match self {
             ResolvedDependency::V1(s) => {

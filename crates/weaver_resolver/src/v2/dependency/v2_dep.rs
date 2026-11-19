@@ -5,12 +5,13 @@
 use std::collections::{BTreeMap, HashMap};
 use std::ops::Deref;
 use std::sync::Arc;
-use weaver_resolved_schema::v2::attribute::AttributeRef;
+use weaver_resolved_schema::v2::attribute::{Attribute, AttributeRef};
 use weaver_resolved_schema::v2::catalog::AttributeCatalog;
 use weaver_resolved_schema::v2::entity::EntityAssociation;
 use weaver_resolved_schema::v2::provenance::DependencyRef;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_semconv::schema_url::SchemaUrl;
+use weaver_semconv::v2::attribute::RequirementLevel;
 
 use super::{
     DepAttribute, DepImportedAttributeGroup, DepImportedEntity, DepImportedEvent,
@@ -94,27 +95,18 @@ impl V2Dependency {
         }
     }
 
-    /// The schema URL of this dependency.
-    #[must_use]
-    #[allow(dead_code)]
-    pub fn schema_url(&self) -> &SchemaUrl {
-        &self.schema.schema_url
-    }
-
     /// Looks up an attribute definition by key.
     pub fn lookup_attribute(&self, key: &str) -> Result<Option<DepAttribute>, Error> {
         let Some(&idx) = self.exported_attrs.get(key) else {
             return Ok(None);
         };
-        let Some(attr) = self.schema.attribute_catalog.attribute(&AttributeRef(idx)) else {
+        let Some((attribute, origin)) = self.resolve_catalog_attr(&AttributeRef(idx)) else {
             return Ok(None);
         };
-
-        let origin = self.source_url(attr.provenance.source);
-        let excluded = is_excluded(&attr.common.annotations);
+        let excluded = is_excluded(&attribute.common.annotations);
 
         Ok(Some(DepAttribute {
-            attribute: attr.clone(),
+            attribute,
             origin,
             excluded,
         }))
@@ -137,10 +129,9 @@ impl V2Dependency {
                     .attributes
                     .iter()
                     .filter_map(|aref| {
-                        let attr = self.schema.attribute_catalog.attribute(&aref.base)?;
-                        let origin = self.source_url(attr.provenance.source);
+                        let (attr, origin) = self.resolve_catalog_attr(&aref.base)?;
                         Some((
-                            attr.clone(),
+                            attr,
                             aref.requirement_level.clone(),
                             aref.sampling_relevant,
                             origin,
@@ -175,15 +166,12 @@ impl V2Dependency {
                     .map(|r| &r.metric)
                     .or_else(|| self.schema.registry.metrics.iter().find(|m| &*m.name == id))?;
 
-                let attributes = metric
-                    .attributes
-                    .iter()
-                    .filter_map(|aref| {
-                        let attr = self.schema.attribute_catalog.attribute(&aref.base)?;
-                        let origin = self.source_url(attr.provenance.source);
-                        Some((attr.clone(), aref.requirement_level.clone(), origin))
-                    })
-                    .collect();
+                let attributes = self.resolve_signal_attrs(
+                    metric
+                        .attributes
+                        .iter()
+                        .map(|a| (&a.base, &a.requirement_level)),
+                );
 
                 Some(DepSignal {
                     payload: DepSignalPayload::Metric {
@@ -212,15 +200,12 @@ impl V2Dependency {
                     .map(|r| &r.event)
                     .or_else(|| self.schema.registry.events.iter().find(|e| &*e.name == id))?;
 
-                let attributes = event
-                    .attributes
-                    .iter()
-                    .filter_map(|aref| {
-                        let attr = self.schema.attribute_catalog.attribute(&aref.base)?;
-                        let origin = self.source_url(attr.provenance.source);
-                        Some((attr.clone(), aref.requirement_level.clone(), origin))
-                    })
-                    .collect();
+                let attributes = self.resolve_signal_attrs(
+                    event
+                        .attributes
+                        .iter()
+                        .map(|a| (&a.base, &a.requirement_level)),
+                );
 
                 Some(DepSignal {
                     payload: DepSignalPayload::Event {
@@ -256,22 +241,14 @@ impl V2Dependency {
                 let identity = entity
                     .identity
                     .iter()
-                    .filter_map(|aref| {
-                        let attr = self.schema.attribute_catalog.attribute(aref)?;
-                        let origin = self.source_url(attr.provenance.source);
-                        Some((attr.clone(), origin))
-                    })
+                    .filter_map(|aref| self.resolve_catalog_attr(aref))
                     .collect();
-
-                let description = entity
-                    .description
-                    .iter()
-                    .filter_map(|aref| {
-                        let attr = self.schema.attribute_catalog.attribute(&aref.base)?;
-                        let origin = self.source_url(attr.provenance.source);
-                        Some((attr.clone(), aref.requirement_level.clone(), origin))
-                    })
-                    .collect();
+                let description = self.resolve_signal_attrs(
+                    entity
+                        .description
+                        .iter()
+                        .map(|a| (&a.base, &a.requirement_level)),
+                );
 
                 Some(DepSignal {
                     payload: DepSignalPayload::Entity {
@@ -307,36 +284,21 @@ impl V2Dependency {
             .registry
             .metrics
             .iter()
-            .map(|m| {
-                let attributes = m
-                    .attributes
-                    .iter()
-                    .filter_map(|aref| {
-                        let attr = self.schema.attribute_catalog.attribute(&aref.base)?;
-                        let origin = self.source_url(attr.provenance.source);
-                        Some((attr.clone(), aref.requirement_level.clone(), origin, false))
-                    })
-                    .collect();
-                let origin = self.source_url(m.provenance.source);
-                let excluded = is_excluded(&m.common.annotations);
-                let match_keys = vec![m.name.to_string()];
-                let association_origins = self.association_origins(&m.entity_associations);
-                DepImportedMetric {
-                    name: m.name.clone(),
-                    instrument: m.instrument,
-                    unit: m.unit.clone(),
-                    requirement_level: m.requirement_level.clone(),
-                    attributes,
-                    entity_associations: EntityAssociations::Resolved(
-                        m.entity_associations.clone(),
-                    ),
-                    association_origins,
-                    common: m.common.clone(),
-                    provenance: m.provenance.clone(),
-                    origin,
-                    excluded,
-                    match_keys,
-                }
+            .map(|m| DepImportedMetric {
+                name: m.name.clone(),
+                instrument: m.instrument,
+                unit: m.unit.clone(),
+                requirement_level: m.requirement_level.clone(),
+                attributes: self.resolve_import_attrs(
+                    m.attributes.iter().map(|a| (&a.base, &a.requirement_level)),
+                ),
+                entity_associations: EntityAssociations::Resolved(m.entity_associations.clone()),
+                association_origins: self.association_origins(&m.entity_associations),
+                common: m.common.clone(),
+                provenance: m.provenance.clone(),
+                origin: self.source_url(m.provenance.source),
+                excluded: is_excluded(&m.common.annotations),
+                match_keys: vec![m.name.to_string()],
             })
             .collect()
     }
@@ -352,10 +314,9 @@ impl V2Dependency {
                     .attributes
                     .iter()
                     .filter_map(|aref| {
-                        let attr = self.schema.attribute_catalog.attribute(&aref.base)?;
-                        let origin = self.source_url(attr.provenance.source);
+                        let (attr, origin) = self.resolve_catalog_attr(&aref.base)?;
                         Some((
-                            attr.clone(),
+                            attr,
                             aref.requirement_level.clone(),
                             aref.sampling_relevant,
                             origin,
@@ -363,10 +324,6 @@ impl V2Dependency {
                         ))
                     })
                     .collect();
-                let origin = self.source_url(s.provenance.source);
-                let excluded = is_excluded(&s.common.annotations);
-                let match_keys = vec![s.r#type.to_string()];
-                let association_origins = self.association_origins(&s.entity_associations);
                 DepImportedSpan {
                     r#type: s.r#type.clone(),
                     kind: s.kind,
@@ -376,12 +333,12 @@ impl V2Dependency {
                     entity_associations: EntityAssociations::Resolved(
                         s.entity_associations.clone(),
                     ),
-                    association_origins,
+                    association_origins: self.association_origins(&s.entity_associations),
                     common: s.common.clone(),
                     provenance: s.provenance.clone(),
-                    origin,
-                    excluded,
-                    match_keys,
+                    origin: self.source_url(s.provenance.source),
+                    excluded: is_excluded(&s.common.annotations),
+                    match_keys: vec![s.r#type.to_string()],
                 }
             })
             .collect()
@@ -393,34 +350,19 @@ impl V2Dependency {
             .registry
             .events
             .iter()
-            .map(|e| {
-                let attributes = e
-                    .attributes
-                    .iter()
-                    .filter_map(|aref| {
-                        let attr = self.schema.attribute_catalog.attribute(&aref.base)?;
-                        let origin = self.source_url(attr.provenance.source);
-                        Some((attr.clone(), aref.requirement_level.clone(), origin, false))
-                    })
-                    .collect();
-                let origin = self.source_url(e.provenance.source);
-                let excluded = is_excluded(&e.common.annotations);
-                let match_keys = vec![e.name.to_string()];
-                let association_origins = self.association_origins(&e.entity_associations);
-                DepImportedEvent {
-                    name: e.name.clone(),
-                    requirement_level: e.requirement_level.clone(),
-                    attributes,
-                    entity_associations: EntityAssociations::Resolved(
-                        e.entity_associations.clone(),
-                    ),
-                    association_origins,
-                    common: e.common.clone(),
-                    provenance: e.provenance.clone(),
-                    origin,
-                    excluded,
-                    match_keys,
-                }
+            .map(|e| DepImportedEvent {
+                name: e.name.clone(),
+                requirement_level: e.requirement_level.clone(),
+                attributes: self.resolve_import_attrs(
+                    e.attributes.iter().map(|a| (&a.base, &a.requirement_level)),
+                ),
+                entity_associations: EntityAssociations::Resolved(e.entity_associations.clone()),
+                association_origins: self.association_origins(&e.entity_associations),
+                common: e.common.clone(),
+                provenance: e.provenance.clone(),
+                origin: self.source_url(e.provenance.source),
+                excluded: is_excluded(&e.common.annotations),
+                match_keys: vec![e.name.to_string()],
             })
             .collect()
     }
@@ -436,33 +378,24 @@ impl V2Dependency {
                     .identity
                     .iter()
                     .filter_map(|aref| {
-                        let attr = self.schema.attribute_catalog.attribute(aref)?;
-                        let origin = self.source_url(attr.provenance.source);
-                        Some((attr.clone(), origin, false))
+                        let (attr, origin) = self.resolve_catalog_attr(aref)?;
+                        Some((attr, origin, false))
                     })
                     .collect();
-                let description = en
-                    .description
-                    .iter()
-                    .filter_map(|aref| {
-                        let attr = self.schema.attribute_catalog.attribute(&aref.base)?;
-                        let origin = self.source_url(attr.provenance.source);
-                        Some((attr.clone(), aref.requirement_level.clone(), origin, false))
-                    })
-                    .collect();
-                let origin = self.source_url(en.provenance.source);
-                let excluded = is_excluded(&en.common.annotations);
-                let match_keys = vec![en.r#type.to_string()];
                 DepImportedEntity {
                     r#type: en.r#type.clone(),
                     requirement_level: en.requirement_level.clone(),
                     identity,
-                    description,
+                    description: self.resolve_import_attrs(
+                        en.description
+                            .iter()
+                            .map(|a| (&a.base, &a.requirement_level)),
+                    ),
                     common: en.common.clone(),
                     provenance: en.provenance.clone(),
-                    origin,
-                    excluded,
-                    match_keys,
+                    origin: self.source_url(en.provenance.source),
+                    excluded: is_excluded(&en.common.annotations),
+                    match_keys: vec![en.r#type.to_string()],
                 }
             })
             .collect()
@@ -474,29 +407,52 @@ impl V2Dependency {
             .registry
             .attribute_groups
             .iter()
-            .map(|ag| {
-                let attributes = ag
-                    .attributes
-                    .iter()
-                    .filter_map(|aref| {
-                        let attr = self.schema.attribute_catalog.attribute(&aref.base)?;
-                        let origin = self.source_url(attr.provenance.source);
-                        Some((attr.clone(), aref.requirement_level.clone(), origin, false))
-                    })
-                    .collect();
-                let origin = self.source_url(ag.provenance.source);
-                let excluded = is_excluded(&ag.common.annotations);
-                let match_keys = vec![ag.id.to_string()];
-                DepImportedAttributeGroup {
-                    id: ag.id.clone(),
-                    attributes,
-                    common: ag.common.clone(),
-                    provenance: ag.provenance.clone(),
-                    origin,
-                    excluded,
-                    is_public: true,
-                    match_keys,
-                }
+            .map(|ag| DepImportedAttributeGroup {
+                id: ag.id.clone(),
+                attributes: self.resolve_import_attrs(
+                    ag.attributes
+                        .iter()
+                        .map(|a| (&a.base, &a.requirement_level)),
+                ),
+                common: ag.common.clone(),
+                provenance: ag.provenance.clone(),
+                origin: self.source_url(ag.provenance.source),
+                excluded: is_excluded(&ag.common.annotations),
+                is_public: true,
+                match_keys: vec![ag.id.to_string()],
+            })
+            .collect()
+    }
+
+    /// Resolves a catalog `AttributeRef` into its cloned `Attribute` and defining `SchemaUrl`.
+    fn resolve_catalog_attr(&self, aref: &AttributeRef) -> Option<(Attribute, SchemaUrl)> {
+        let attr = self.schema.attribute_catalog.attribute(aref)?;
+        let origin = self.source_url(attr.provenance.source);
+        Some((attr.clone(), origin))
+    }
+
+    /// Resolves `(AttributeRef, RequirementLevel)` pairs for signal refinement lookup.
+    fn resolve_signal_attrs<'a>(
+        &self,
+        items: impl Iterator<Item = (&'a AttributeRef, &'a RequirementLevel)>,
+    ) -> Vec<(Attribute, RequirementLevel, SchemaUrl)> {
+        items
+            .filter_map(|(aref, req)| {
+                let (attr, origin) = self.resolve_catalog_attr(aref)?;
+                Some((attr, req.clone(), origin))
+            })
+            .collect()
+    }
+
+    /// Resolves `(AttributeRef, RequirementLevel)` pairs for importable items (`is_v1_def = false`).
+    fn resolve_import_attrs<'a>(
+        &self,
+        items: impl Iterator<Item = (&'a AttributeRef, &'a RequirementLevel)>,
+    ) -> Vec<(Attribute, RequirementLevel, SchemaUrl, bool)> {
+        items
+            .filter_map(|(aref, req)| {
+                let (attr, origin) = self.resolve_catalog_attr(aref)?;
+                Some((attr, req.clone(), origin, false))
             })
             .collect()
     }

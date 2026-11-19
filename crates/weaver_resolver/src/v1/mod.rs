@@ -2,8 +2,6 @@
 
 //! Legacy V1 resolution algorithm.
 
-use std::collections::{BTreeSet, HashMap};
-use std::sync::Arc;
 use weaver_common::result::WResult;
 use weaver_resolved_schema::v1::ResolvedTelemetrySchema;
 use weaver_semconv::registry_repo::RegistryRepo;
@@ -17,7 +15,7 @@ use crate::graph::loader::LoadedSemconvRegistry;
 use crate::v1::attribute::AttributeCatalog;
 use crate::v1::dependency::ResolvedDependency;
 use crate::v1::registry::resolve_registry_with_dependencies;
-use crate::{WeaverResolvedSchema, WeaverResolver};
+use crate::WeaverResolver;
 
 pub(crate) mod attribute;
 pub(crate) mod dependency;
@@ -94,24 +92,6 @@ pub(crate) fn resolve_registry_internal(
         });
     }
 
-    let mut opt_resolved_dependencies: Vec<WResult<Arc<WeaverResolvedSchema>, Error>> = vec![];
-    for d in dependencies {
-        opt_resolved_dependencies.push(resolver.resolve_dependency(d));
-    }
-
-    let mut resolved_dependencies = vec![];
-    let mut non_fatal_errors = vec![];
-    for r in opt_resolved_dependencies {
-        match r {
-            WResult::Ok(d) => resolved_dependencies.push(ResolvedDependency::from_arc(&d)),
-            WResult::OkWithNFEs(d, nfes) => {
-                resolved_dependencies.push(ResolvedDependency::from_arc(&d));
-                non_fatal_errors.extend(nfes);
-            }
-            WResult::FatalErr(e) => return WResult::FatalErr(e),
-        }
-    }
-
     let manifest = repo.v1_manifest();
     let schema_url = if let Some(m) = manifest.as_ref() {
         m.schema_url().clone()
@@ -121,70 +101,22 @@ pub(crate) fn resolve_registry_internal(
             Err(_) => return WResult::FatalErr(Error::FailToResolveSchemaUrl {}),
         }
     };
-    let mut attr_catalog = AttributeCatalog::default();
 
-    let direct: Vec<SchemaUrl> = resolved_dependencies
+    let dep_graph = match resolver.resolve_dependency_graph(&schema_url, dependencies, |_| false) {
+        WResult::Ok(graph) | WResult::OkWithNFEs(graph, _) => graph,
+        WResult::FatalErr(e) => return WResult::FatalErr(e),
+    };
+
+    let resolved_dependencies: Vec<ResolvedDependency> = dep_graph
+        .dependencies
         .iter()
-        .filter_map(|d| match d {
-            ResolvedDependency::V1(schema) => SchemaUrl::try_from(schema.schema_url.as_str()).ok(),
-            ResolvedDependency::V2(schema) => Some(schema.schema_url.clone()),
-        })
+        .map(ResolvedDependency::from_arc)
         .collect();
-    resolver.record_direct_dependencies_internal(&schema_url, direct);
-
-    let mut chosen_versions = HashMap::new();
-    for d in &resolved_dependencies {
-        d.collect_chosen_versions(&mut chosen_versions);
-    }
-
-    let dependencies: BTreeSet<SchemaUrl> = chosen_versions.values().cloned().collect();
-
-    let mut pinned_schemas = resolver.active_graph_schemas_snapshot();
-    for chosen_url in chosen_versions.values() {
-        if !pinned_schemas.contains_key(chosen_url) {
-            if let Some(cached) = resolver.active_or_cached_schema(chosen_url) {
-                _ = pinned_schemas.insert(chosen_url.clone(), cached);
-            }
-        }
-    }
-
-    // Pre-resolve uncached chosen versions that supersede a version used in this graph.
-    for (reg_name, chosen_url) in &chosen_versions {
-        let supersedes_loaded = resolved_dependencies.iter().any(|d| match d {
-            ResolvedDependency::V1(s) => {
-                let self_url = SchemaUrl::try_from(s.schema_url.as_str()).ok();
-                self_url
-                    .as_ref()
-                    .is_some_and(|u| u.name() == reg_name && u != chosen_url)
-                    || s.dependencies
-                        .iter()
-                        .any(|sub| sub.name() == reg_name && sub != chosen_url)
-            }
-            ResolvedDependency::V2(s) => {
-                (s.schema_url.name() == reg_name && &s.schema_url != chosen_url)
-                    || s.dependencies
-                        .iter()
-                        .any(|sub| sub.name() == reg_name && sub != chosen_url)
-            }
-        });
-        if supersedes_loaded && !pinned_schemas.contains_key(chosen_url) {
-            match resolver.resolve_dependency_schema(chosen_url) {
-                WResult::Ok(resolved) => {
-                    _ = pinned_schemas.insert(chosen_url.clone(), resolved);
-                }
-                WResult::OkWithNFEs(resolved, nfes) => {
-                    _ = pinned_schemas.insert(chosen_url.clone(), resolved);
-                    non_fatal_errors.extend(nfes);
-                }
-                WResult::FatalErr(e) => return WResult::FatalErr(e),
-            }
-        }
-    }
-
+    let mut attr_catalog = AttributeCatalog::default();
     let lookup_ctx = SchemaLookupContext {
-        chosen_versions,
+        chosen_versions: dep_graph.chosen_versions,
         cache: resolver.cache_ref(),
-        pinned_schemas,
+        pinned_schemas: dep_graph.pinned_schemas,
     };
 
     let include_unreferenced = resolver.include_unreferenced();
@@ -205,7 +137,7 @@ pub(crate) fn resolve_registry_internal(
         catalog: attr_catalog.into(),
         resource: None,
         instrumentation_library: None,
-        dependencies,
+        dependencies: dep_graph.dependency_urls,
         versions: None,
         registry_manifest: manifest,
     })

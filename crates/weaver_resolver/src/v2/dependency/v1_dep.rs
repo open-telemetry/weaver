@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 use std::cell::Cell;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, HashMap};
 use std::ops::Deref;
 use std::sync::Arc;
 use weaver_resolved_schema::convert::v2_namespace_id;
@@ -23,6 +23,7 @@ use weaver_semconv::convert::{
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v1::entity_association::EntityAssociation as V1EntityAssociation;
 use weaver_semconv::v1::group::{AttributeGroupVisibilitySpec, GroupType};
+use weaver_semconv::v2::attribute::RequirementLevel;
 use weaver_semconv::v2::metric::InstrumentSpec;
 use weaver_semconv::v2::signal_id::SignalId;
 use weaver_semconv::v2::span::{SpanKindSpec, SpanName};
@@ -95,6 +96,25 @@ impl Drop for DisallowV1AdapterScope {
     }
 }
 
+/// Converted V1 group metadata shared across `lookup_signal` and `importable_*` methods.
+struct GroupMeta {
+    common: CommonFields,
+    origin: SchemaUrl,
+    excluded: bool,
+    provenance: Provenance,
+    match_keys: Vec<String>,
+}
+
+/// Converted attribute entry extracted from a V1 group's catalog references.
+struct ConvertedGroupAttr {
+    attr: V2Attribute,
+    req: RequirementLevel,
+    sampling_relevant: Option<bool>,
+    role: Option<AttributeRole>,
+    origin: SchemaUrl,
+    is_v1_def: bool,
+}
+
 /// Adapter over a resolved V1 schema dependency.
 #[derive(Debug, Clone)]
 pub(crate) struct V1Dependency {
@@ -156,21 +176,83 @@ impl V1Dependency {
         }
     }
 
-    /// The schema URL of this dependency.
+    /// Returns the parsed schema URL of this dependency, falling back to `SchemaUrl::new_unknown`.
     #[must_use]
-    #[allow(dead_code)]
-    pub fn schema_url(&self) -> SchemaUrl {
+    fn schema_url(&self) -> SchemaUrl {
         self.my_schema_url
             .clone()
             .unwrap_or_else(SchemaUrl::new_unknown)
     }
 
-    /// Collects direct and transitive dependencies declared by this schema.
-    #[allow(dead_code)]
-    pub fn collect_dependencies(&self, out: &mut BTreeSet<SchemaUrl>) {
-        for dep in &self.schema.dependencies {
-            _ = out.insert(dep.clone());
+    /// Extracts common V2 fields, origin, exclusion flag, provenance, and wildcard keys from `g`.
+    fn group_meta(&self, g: &Group, default_url: &SchemaUrl) -> GroupMeta {
+        let (stability, deprecated) =
+            v1_stability_and_deprecated_to_v2(g.stability.clone(), g.deprecated.clone());
+        let common = CommonFields {
+            brief: g.brief.clone(),
+            note: g.note.clone(),
+            stability: stability.unwrap_or_default(),
+            deprecated,
+            annotations: g.annotations.clone().unwrap_or_default(),
+        };
+        let origin = g
+            .provenance()
+            .map(|p| p.schema_url.clone())
+            .unwrap_or_else(|| default_url.clone());
+        let excluded = g.annotations.as_ref().is_some_and(is_excluded);
+        let provenance = Provenance {
+            source: None,
+            path: g.provenance().map(|p| p.path.clone()).unwrap_or_default(),
+        };
+        GroupMeta {
+            common,
+            origin,
+            excluded,
+            provenance,
+            match_keys: Self::v1_match_keys(g),
         }
+    }
+
+    /// Converts a V1 group's `entity_associations` and collects their resolved origin URLs.
+    fn group_associations(&self, g: &Group) -> (EntityAssociations, BTreeMap<String, SchemaUrl>) {
+        let assocs = EntityAssociations::Resolved(
+            g.entity_associations
+                .iter()
+                .map(Self::convert_entity_association)
+                .collect(),
+        );
+        (assocs, self.association_origins(g))
+    }
+
+    /// Converts all catalog attributes referenced by `g` with their origin URLs and V1 definition flags.
+    fn convert_group_attrs(&self, g: &Group, default_url: &SchemaUrl) -> Vec<ConvertedGroupAttr> {
+        g.attributes
+            .iter()
+            .filter_map(|attr_ref| {
+                let a = self.schema.catalog.attribute(attr_ref)?;
+                let (attr, _) = Self::convert_v1_attribute(a);
+                let origin = if let Some((_, src)) =
+                    self.schema.catalog.root_attribute_definition(&a.name)
+                {
+                    self.find_attribute_origin(src, default_url)
+                } else {
+                    self.find_attribute_origin(&g.id, default_url)
+                };
+                let is_v1_def = g
+                    .lineage
+                    .as_ref()
+                    .and_then(|l| l.attribute(&a.name))
+                    .is_none();
+                Some(ConvertedGroupAttr {
+                    attr,
+                    req: v1_requirement_level_to_v2(a.requirement_level.clone()),
+                    sampling_relevant: a.sampling_relevant,
+                    role: a.role.clone(),
+                    origin,
+                    is_v1_def,
+                })
+            })
+            .collect()
     }
 
     /// Looks up an attribute definition by key.
@@ -193,7 +275,7 @@ impl V1Dependency {
             }));
         }
 
-        // Fallback for deserialized schemas without root attributes:
+        // Fallback for deserialized schemas without root attributes.
         for group in &self.schema.registry.groups {
             for attr_ref in &group.attributes {
                 if let Some(a) = self.schema.catalog.attribute(attr_ref) {
@@ -228,173 +310,82 @@ impl V1Dependency {
         };
 
         let group = self.schema.registry.groups.iter().find(|g| {
-            if g.r#type != expected_group_type {
-                return false;
-            }
-            v2_namespace_id(g)
-                .map(|sig_id| &*sig_id == id)
-                .unwrap_or(false)
+            g.r#type == expected_group_type
+                && v2_namespace_id(g).is_some_and(|sig_id| &*sig_id == id)
         })?;
 
-        let (stability, deprecated) =
-            v1_stability_and_deprecated_to_v2(group.stability.clone(), group.deprecated.clone());
-
-        let common = CommonFields {
-            brief: group.brief.clone(),
-            note: group.note.clone(),
-            stability: stability.unwrap_or_default(),
-            deprecated,
-            annotations: group.annotations.clone().unwrap_or_default(),
-        };
-
-        let origin = group
-            .provenance()
-            .map(|p| p.schema_url)
-            .unwrap_or(my_schema_url.clone());
-
-        let excluded = group.annotations.as_ref().is_some_and(is_excluded);
+        let meta = self.group_meta(group, my_schema_url);
+        let attrs = self.convert_group_attrs(group, my_schema_url);
+        let requirement_level = group.requirement_level.clone().map(Into::into);
 
         let payload = match expected_group_type {
-            GroupType::Metric => {
-                let instrument = group
-                    .instrument
-                    .clone()
-                    .map(v1_instrument_to_v2)
-                    .unwrap_or(InstrumentSpec::UpDownCounter);
-                let unit = group.unit.clone().unwrap_or_default();
-                let metric_name = group
+            GroupType::Metric => DepSignalPayload::Metric {
+                name: group
                     .metric_name
                     .clone()
                     .map(SignalId::from)
-                    .unwrap_or_else(|| SignalId::from(id));
-                let requirement_level = group.requirement_level.clone().map(Into::into);
-
-                let mut attributes = Vec::with_capacity(group.attributes.len());
-                for attr_ref in &group.attributes {
-                    if let Some(a) = self.schema.catalog.attribute(attr_ref) {
-                        let (v2_attr, _) = Self::convert_v1_attribute(a);
-                        let attr_origin = if let Some((_, src)) =
-                            self.schema.catalog.root_attribute_definition(&a.name)
-                        {
-                            self.find_attribute_origin(src, my_schema_url)
-                        } else {
-                            self.find_attribute_origin(&group.id, my_schema_url)
-                        };
-                        let req = v1_requirement_level_to_v2(a.requirement_level.clone());
-                        attributes.push((v2_attr, req, attr_origin));
-                    }
-                }
-
-                DepSignalPayload::Metric {
-                    name: metric_name,
-                    instrument,
-                    unit,
-                    requirement_level,
-                    attributes,
-                }
-            }
-            GroupType::Span => {
-                let kind = group
+                    .unwrap_or_else(|| SignalId::from(id)),
+                instrument: group
+                    .instrument
+                    .clone()
+                    .map(v1_instrument_to_v2)
+                    .unwrap_or(InstrumentSpec::UpDownCounter),
+                unit: group.unit.clone().unwrap_or_default(),
+                requirement_level,
+                attributes: attrs
+                    .into_iter()
+                    .map(|a| (a.attr, a.req, a.origin))
+                    .collect(),
+            },
+            GroupType::Span => DepSignalPayload::Span {
+                r#type: SignalId::from(id),
+                kind: group
                     .span_kind
                     .clone()
                     .map(v1_span_kind_to_v2)
-                    .unwrap_or(SpanKindSpec::Internal);
-                let span_name = group
+                    .unwrap_or(SpanKindSpec::Internal),
+                name: group
                     .span_name
                     .clone()
                     .map(v1_span_name_to_v2)
                     .unwrap_or_else(|| SpanName {
                         templates: vec![],
                         note: group.name.clone(),
-                    });
-                let requirement_level = group.requirement_level.clone().map(Into::into);
-
-                let mut attributes = Vec::with_capacity(group.attributes.len());
-                for attr_ref in &group.attributes {
-                    if let Some(a) = self.schema.catalog.attribute(attr_ref) {
-                        let (v2_attr, _) = Self::convert_v1_attribute(a);
-                        let attr_origin = if let Some((_, src)) =
-                            self.schema.catalog.root_attribute_definition(&a.name)
-                        {
-                            self.find_attribute_origin(src, my_schema_url)
-                        } else {
-                            self.find_attribute_origin(&group.id, my_schema_url)
-                        };
-                        let req = v1_requirement_level_to_v2(a.requirement_level.clone());
-                        attributes.push((v2_attr, req, a.sampling_relevant, attr_origin));
-                    }
-                }
-
-                DepSignalPayload::Span {
-                    r#type: SignalId::from(id),
-                    kind,
-                    name: span_name,
-                    requirement_level,
-                    attributes,
-                }
-            }
-            GroupType::Event => {
-                let name = group
+                    }),
+                requirement_level,
+                attributes: attrs
+                    .into_iter()
+                    .map(|a| (a.attr, a.req, a.sampling_relevant, a.origin))
+                    .collect(),
+            },
+            GroupType::Event => DepSignalPayload::Event {
+                name: group
                     .name
                     .clone()
                     .map(SignalId::from)
-                    .unwrap_or_else(|| SignalId::from(id));
-                let requirement_level = group.requirement_level.clone().map(Into::into);
-
-                let mut attributes = Vec::with_capacity(group.attributes.len());
-                for attr_ref in &group.attributes {
-                    if let Some(a) = self.schema.catalog.attribute(attr_ref) {
-                        let (v2_attr, _) = Self::convert_v1_attribute(a);
-                        let attr_origin = if let Some((_, src)) =
-                            self.schema.catalog.root_attribute_definition(&a.name)
-                        {
-                            self.find_attribute_origin(src, my_schema_url)
-                        } else {
-                            self.find_attribute_origin(&group.id, my_schema_url)
-                        };
-                        let req = v1_requirement_level_to_v2(a.requirement_level.clone());
-                        attributes.push((v2_attr, req, attr_origin));
-                    }
-                }
-
-                DepSignalPayload::Event {
-                    name,
-                    requirement_level,
-                    attributes,
-                }
-            }
+                    .unwrap_or_else(|| SignalId::from(id)),
+                requirement_level,
+                attributes: attrs
+                    .into_iter()
+                    .map(|a| (a.attr, a.req, a.origin))
+                    .collect(),
+            },
             GroupType::Entity => {
-                let r#type = group
-                    .name
-                    .clone()
-                    .map(SignalId::from)
-                    .unwrap_or_else(|| SignalId::from(id));
-                let requirement_level = group.requirement_level.clone().map(Into::into);
-
                 let mut identity = Vec::new();
                 let mut description = Vec::new();
-
-                for attr_ref in &group.attributes {
-                    if let Some(a) = self.schema.catalog.attribute(attr_ref) {
-                        let (v2_attr, _) = Self::convert_v1_attribute(a);
-                        let attr_origin = if let Some((_, src)) =
-                            self.schema.catalog.root_attribute_definition(&a.name)
-                        {
-                            self.find_attribute_origin(src, my_schema_url)
-                        } else {
-                            self.find_attribute_origin(&group.id, my_schema_url)
-                        };
-                        if a.role == Some(AttributeRole::Identifying) {
-                            identity.push((v2_attr, attr_origin));
-                        } else {
-                            let req = v1_requirement_level_to_v2(a.requirement_level.clone());
-                            description.push((v2_attr, req, attr_origin));
-                        }
+                for a in attrs {
+                    if a.role == Some(AttributeRole::Identifying) {
+                        identity.push((a.attr, a.origin));
+                    } else {
+                        description.push((a.attr, a.req, a.origin));
                     }
                 }
-
                 DepSignalPayload::Entity {
-                    r#type,
+                    r#type: group
+                        .name
+                        .clone()
+                        .map(SignalId::from)
+                        .unwrap_or_else(|| SignalId::from(id)),
                     requirement_level,
                     identity,
                     description,
@@ -404,24 +395,17 @@ impl V1Dependency {
         };
 
         let (entity_associations, association_origins) = match group.r#type {
-            GroupType::Metric | GroupType::Span | GroupType::Event => (
-                EntityAssociations::Resolved(
-                    group
-                        .entity_associations
-                        .iter()
-                        .map(Self::convert_entity_association)
-                        .collect(),
-                ),
-                self.association_origins(group),
-            ),
+            GroupType::Metric | GroupType::Span | GroupType::Event => {
+                self.group_associations(group)
+            }
             _ => (EntityAssociations::Raw(vec![]), BTreeMap::new()),
         };
 
         Some(DepSignal {
             payload,
-            common,
-            origin,
-            excluded,
+            common: meta.common,
+            origin: meta.origin,
+            excluded: meta.excluded,
             entity_associations,
             association_origins,
         })
@@ -484,81 +468,35 @@ impl V1Dependency {
             .iter()
             .filter(|g| g.r#type == GroupType::Metric || g.r#type == GroupType::MetricGroup)
             .map(|g| {
-                let (stability, deprecated) =
-                    v1_stability_and_deprecated_to_v2(g.stability.clone(), g.deprecated.clone());
-                let common = CommonFields {
-                    brief: g.brief.clone(),
-                    note: g.note.clone(),
-                    stability: stability.unwrap_or_default(),
-                    deprecated,
-                    annotations: g.annotations.clone().unwrap_or_default(),
-                };
-                let origin = g
-                    .provenance()
-                    .map(|p| p.schema_url.clone())
-                    .unwrap_or_else(|| my_schema_url.clone());
-                let excluded = g.annotations.as_ref().is_some_and(is_excluded);
-                let instrument = g
-                    .instrument
-                    .clone()
-                    .map(v1_instrument_to_v2)
-                    .unwrap_or(InstrumentSpec::UpDownCounter);
-                let unit = g.unit.clone().unwrap_or_default();
-                let metric_name = g
-                    .metric_name
-                    .clone()
-                    .map(SignalId::from)
-                    .or_else(|| v2_namespace_id(g))
-                    .unwrap_or_else(|| SignalId::from(g.id.as_str()));
-                let requirement_level = g.requirement_level.clone().map(Into::into);
-
-                let mut attributes = Vec::new();
-                for attr_ref in &g.attributes {
-                    if let Some(a) = self.schema.catalog.attribute(attr_ref) {
-                        let (v2_attr, _) = Self::convert_v1_attribute(a);
-                        let attr_origin = if let Some((_, src)) =
-                            self.schema.catalog.root_attribute_definition(&a.name)
-                        {
-                            self.find_attribute_origin(src, &my_schema_url)
-                        } else {
-                            self.find_attribute_origin(&g.id, &my_schema_url)
-                        };
-                        let is_v1_def = g
-                            .lineage
-                            .as_ref()
-                            .and_then(|l| l.attribute(&a.name))
-                            .is_none();
-                        let req = v1_requirement_level_to_v2(a.requirement_level.clone());
-                        attributes.push((v2_attr, req, attr_origin, is_v1_def));
-                    }
-                }
-
-                let entity_associations = EntityAssociations::Resolved(
-                    g.entity_associations
-                        .iter()
-                        .map(Self::convert_entity_association)
-                        .collect(),
-                );
-                let association_origins = self.association_origins(g);
-                let match_keys = Self::v1_match_keys(g);
-                let provenance = Provenance {
-                    source: None,
-                    path: g.provenance().map(|p| p.path.clone()).unwrap_or_default(),
-                };
-
+                let meta = self.group_meta(g, &my_schema_url);
+                let (entity_associations, association_origins) = self.group_associations(g);
+                let attributes = self
+                    .convert_group_attrs(g, &my_schema_url)
+                    .into_iter()
+                    .map(|a| (a.attr, a.req, a.origin, a.is_v1_def))
+                    .collect();
                 DepImportedMetric {
-                    name: metric_name,
-                    instrument,
-                    unit,
-                    requirement_level,
+                    name: g
+                        .metric_name
+                        .clone()
+                        .map(SignalId::from)
+                        .or_else(|| v2_namespace_id(g))
+                        .unwrap_or_else(|| SignalId::from(g.id.as_str())),
+                    instrument: g
+                        .instrument
+                        .clone()
+                        .map(v1_instrument_to_v2)
+                        .unwrap_or(InstrumentSpec::UpDownCounter),
+                    unit: g.unit.clone().unwrap_or_default(),
+                    requirement_level: g.requirement_level.clone().map(Into::into),
                     attributes,
                     entity_associations,
                     association_origins,
-                    common,
-                    provenance,
-                    origin,
-                    excluded,
-                    match_keys,
+                    common: meta.common,
+                    provenance: meta.provenance,
+                    origin: meta.origin,
+                    excluded: meta.excluded,
+                    match_keys: meta.match_keys,
                 }
             })
             .collect()
@@ -573,89 +511,37 @@ impl V1Dependency {
             .iter()
             .filter(|g| g.r#type == GroupType::Span)
             .map(|g| {
-                let (stability, deprecated) =
-                    v1_stability_and_deprecated_to_v2(g.stability.clone(), g.deprecated.clone());
-                let common = CommonFields {
-                    brief: g.brief.clone(),
-                    note: g.note.clone(),
-                    stability: stability.unwrap_or_default(),
-                    deprecated,
-                    annotations: g.annotations.clone().unwrap_or_default(),
-                };
-                let origin = g
-                    .provenance()
-                    .map(|p| p.schema_url.clone())
-                    .unwrap_or_else(|| my_schema_url.clone());
-                let excluded = g.annotations.as_ref().is_some_and(is_excluded);
-                let type_id = v2_namespace_id(g).unwrap_or_else(|| SignalId::from(g.id.as_str()));
-                let kind = g
-                    .span_kind
-                    .clone()
-                    .map(v1_span_kind_to_v2)
-                    .unwrap_or(SpanKindSpec::Internal);
-                let span_name = g
-                    .span_name
-                    .clone()
-                    .map(v1_span_name_to_v2)
-                    .unwrap_or_else(|| SpanName {
-                        templates: vec![],
-                        note: g.name.clone(),
-                    });
-                let requirement_level = g.requirement_level.clone().map(Into::into);
-
-                let mut attributes = Vec::new();
-                for attr_ref in &g.attributes {
-                    if let Some(a) = self.schema.catalog.attribute(attr_ref) {
-                        let (v2_attr, _) = Self::convert_v1_attribute(a);
-                        let attr_origin = if let Some((_, src)) =
-                            self.schema.catalog.root_attribute_definition(&a.name)
-                        {
-                            self.find_attribute_origin(src, &my_schema_url)
-                        } else {
-                            self.find_attribute_origin(&g.id, &my_schema_url)
-                        };
-                        let is_v1_def = g
-                            .lineage
-                            .as_ref()
-                            .and_then(|l| l.attribute(&a.name))
-                            .is_none();
-                        let req = v1_requirement_level_to_v2(a.requirement_level.clone());
-                        attributes.push((
-                            v2_attr,
-                            req,
-                            a.sampling_relevant,
-                            attr_origin,
-                            is_v1_def,
-                        ));
-                    }
-                }
-
-                let entity_associations = EntityAssociations::Resolved(
-                    g.entity_associations
-                        .iter()
-                        .map(Self::convert_entity_association)
-                        .collect(),
-                );
-                let association_origins = self.association_origins(g);
-                let match_keys = Self::v1_match_keys(g);
-                let provenance = Provenance {
-                    source: None,
-                    path: g.provenance().map(|p| p.path.clone()).unwrap_or_default(),
-                };
-
+                let meta = self.group_meta(g, &my_schema_url);
+                let (entity_associations, association_origins) = self.group_associations(g);
+                let attributes = self
+                    .convert_group_attrs(g, &my_schema_url)
+                    .into_iter()
+                    .map(|a| (a.attr, a.req, a.sampling_relevant, a.origin, a.is_v1_def))
+                    .collect();
                 DepImportedSpan {
-                    r#type: type_id,
-                    kind,
-                    name: span_name,
-                    requirement_level,
+                    r#type: v2_namespace_id(g).unwrap_or_else(|| SignalId::from(g.id.as_str())),
+                    kind: g
+                        .span_kind
+                        .clone()
+                        .map(v1_span_kind_to_v2)
+                        .unwrap_or(SpanKindSpec::Internal),
+                    name: g
+                        .span_name
+                        .clone()
+                        .map(v1_span_name_to_v2)
+                        .unwrap_or_else(|| SpanName {
+                            templates: vec![],
+                            note: g.name.clone(),
+                        }),
+                    requirement_level: g.requirement_level.clone().map(Into::into),
                     attributes,
                     entity_associations,
                     association_origins,
-                    common,
-                    provenance,
-                    origin,
-                    excluded,
-                    match_keys,
+                    common: meta.common,
+                    provenance: meta.provenance,
+                    origin: meta.origin,
+                    excluded: meta.excluded,
+                    match_keys: meta.match_keys,
                 }
             })
             .collect()
@@ -670,73 +556,29 @@ impl V1Dependency {
             .iter()
             .filter(|g| g.r#type == GroupType::Event)
             .map(|g| {
-                let (stability, deprecated) =
-                    v1_stability_and_deprecated_to_v2(g.stability.clone(), g.deprecated.clone());
-                let common = CommonFields {
-                    brief: g.brief.clone(),
-                    note: g.note.clone(),
-                    stability: stability.unwrap_or_default(),
-                    deprecated,
-                    annotations: g.annotations.clone().unwrap_or_default(),
-                };
-                let origin = g
-                    .provenance()
-                    .map(|p| p.schema_url.clone())
-                    .unwrap_or_else(|| my_schema_url.clone());
-                let excluded = g.annotations.as_ref().is_some_and(is_excluded);
-                let name = g
-                    .name
-                    .clone()
-                    .map(SignalId::from)
-                    .or_else(|| v2_namespace_id(g))
-                    .unwrap_or_else(|| SignalId::from(g.id.as_str()));
-                let requirement_level = g.requirement_level.clone().map(Into::into);
-
-                let mut attributes = Vec::new();
-                for attr_ref in &g.attributes {
-                    if let Some(a) = self.schema.catalog.attribute(attr_ref) {
-                        let (v2_attr, _) = Self::convert_v1_attribute(a);
-                        let attr_origin = if let Some((_, src)) =
-                            self.schema.catalog.root_attribute_definition(&a.name)
-                        {
-                            self.find_attribute_origin(src, &my_schema_url)
-                        } else {
-                            self.find_attribute_origin(&g.id, &my_schema_url)
-                        };
-                        let is_v1_def = g
-                            .lineage
-                            .as_ref()
-                            .and_then(|l| l.attribute(&a.name))
-                            .is_none();
-                        let req = v1_requirement_level_to_v2(a.requirement_level.clone());
-                        attributes.push((v2_attr, req, attr_origin, is_v1_def));
-                    }
-                }
-
-                let entity_associations = EntityAssociations::Resolved(
-                    g.entity_associations
-                        .iter()
-                        .map(Self::convert_entity_association)
-                        .collect(),
-                );
-                let association_origins = self.association_origins(g);
-                let match_keys = Self::v1_match_keys(g);
-                let provenance = Provenance {
-                    source: None,
-                    path: g.provenance().map(|p| p.path.clone()).unwrap_or_default(),
-                };
-
+                let meta = self.group_meta(g, &my_schema_url);
+                let (entity_associations, association_origins) = self.group_associations(g);
+                let attributes = self
+                    .convert_group_attrs(g, &my_schema_url)
+                    .into_iter()
+                    .map(|a| (a.attr, a.req, a.origin, a.is_v1_def))
+                    .collect();
                 DepImportedEvent {
-                    name,
-                    requirement_level,
+                    name: g
+                        .name
+                        .clone()
+                        .map(SignalId::from)
+                        .or_else(|| v2_namespace_id(g))
+                        .unwrap_or_else(|| SignalId::from(g.id.as_str())),
+                    requirement_level: g.requirement_level.clone().map(Into::into),
                     attributes,
                     entity_associations,
                     association_origins,
-                    common,
-                    provenance,
-                    origin,
-                    excluded,
-                    match_keys,
+                    common: meta.common,
+                    provenance: meta.provenance,
+                    origin: meta.origin,
+                    excluded: meta.excluded,
+                    match_keys: meta.match_keys,
                 }
             })
             .collect()
@@ -751,68 +593,28 @@ impl V1Dependency {
             .iter()
             .filter(|g| g.r#type == GroupType::Entity)
             .map(|g| {
-                let (stability, deprecated) =
-                    v1_stability_and_deprecated_to_v2(g.stability.clone(), g.deprecated.clone());
-                let common = CommonFields {
-                    brief: g.brief.clone(),
-                    note: g.note.clone(),
-                    stability: stability.unwrap_or_default(),
-                    deprecated,
-                    annotations: g.annotations.clone().unwrap_or_default(),
-                };
-                let origin = g
-                    .provenance()
-                    .map(|p| p.schema_url.clone())
-                    .unwrap_or_else(|| my_schema_url.clone());
-                let excluded = g.annotations.as_ref().is_some_and(is_excluded);
-                let type_id = v2_namespace_id(g)
-                    .or_else(|| g.name.clone().map(SignalId::from))
-                    .unwrap_or_else(|| SignalId::from(g.id.as_str()));
-                let requirement_level = g.requirement_level.clone().map(Into::into);
-
+                let meta = self.group_meta(g, &my_schema_url);
                 let mut identity = Vec::new();
                 let mut description = Vec::new();
-
-                for attr_ref in &g.attributes {
-                    if let Some(a) = self.schema.catalog.attribute(attr_ref) {
-                        let (v2_attr, _) = Self::convert_v1_attribute(a);
-                        let attr_origin = if let Some((_, src)) =
-                            self.schema.catalog.root_attribute_definition(&a.name)
-                        {
-                            self.find_attribute_origin(src, &my_schema_url)
-                        } else {
-                            self.find_attribute_origin(&g.id, &my_schema_url)
-                        };
-                        let is_v1_def = g
-                            .lineage
-                            .as_ref()
-                            .and_then(|l| l.attribute(&a.name))
-                            .is_none();
-                        if a.role == Some(AttributeRole::Identifying) {
-                            identity.push((v2_attr, attr_origin, is_v1_def));
-                        } else {
-                            let req = v1_requirement_level_to_v2(a.requirement_level.clone());
-                            description.push((v2_attr, req, attr_origin, is_v1_def));
-                        }
+                for a in self.convert_group_attrs(g, &my_schema_url) {
+                    if a.role == Some(AttributeRole::Identifying) {
+                        identity.push((a.attr, a.origin, a.is_v1_def));
+                    } else {
+                        description.push((a.attr, a.req, a.origin, a.is_v1_def));
                     }
                 }
-
-                let match_keys = Self::v1_match_keys(g);
-                let provenance = Provenance {
-                    source: None,
-                    path: g.provenance().map(|p| p.path.clone()).unwrap_or_default(),
-                };
-
                 DepImportedEntity {
-                    r#type: type_id,
-                    requirement_level,
+                    r#type: v2_namespace_id(g)
+                        .or_else(|| g.name.clone().map(SignalId::from))
+                        .unwrap_or_else(|| SignalId::from(g.id.as_str())),
+                    requirement_level: g.requirement_level.clone().map(Into::into),
                     identity,
                     description,
-                    common,
-                    provenance,
-                    origin,
-                    excluded,
-                    match_keys,
+                    common: meta.common,
+                    provenance: meta.provenance,
+                    origin: meta.origin,
+                    excluded: meta.excluded,
+                    match_keys: meta.match_keys,
                 }
             })
             .collect()
@@ -827,60 +629,21 @@ impl V1Dependency {
             .iter()
             .filter(|g| g.r#type == GroupType::AttributeGroup)
             .map(|g| {
-                let (stability, deprecated) =
-                    v1_stability_and_deprecated_to_v2(g.stability.clone(), g.deprecated.clone());
-                let common = CommonFields {
-                    brief: g.brief.clone(),
-                    note: g.note.clone(),
-                    stability: stability.unwrap_or_default(),
-                    deprecated,
-                    annotations: g.annotations.clone().unwrap_or_default(),
-                };
-                let origin = g
-                    .provenance()
-                    .map(|p| p.schema_url.clone())
-                    .unwrap_or_else(|| my_schema_url.clone());
-                let excluded = g.annotations.as_ref().is_some_and(is_excluded);
-                let id = SignalId::from(Self::fix_group_id("attribute_group.", &g.id));
-                let is_public = g.visibility == Some(AttributeGroupVisibilitySpec::Public);
-
-                let mut attributes = Vec::new();
-
-                for attr_ref in &g.attributes {
-                    if let Some(a) = self.schema.catalog.attribute(attr_ref) {
-                        let (v2_attr, _) = Self::convert_v1_attribute(a);
-                        let attr_origin = if let Some((_, src)) =
-                            self.schema.catalog.root_attribute_definition(&a.name)
-                        {
-                            self.find_attribute_origin(src, &my_schema_url)
-                        } else {
-                            self.find_attribute_origin(&g.id, &my_schema_url)
-                        };
-                        let is_v1_def = g
-                            .lineage
-                            .as_ref()
-                            .and_then(|l| l.attribute(&a.name))
-                            .is_none();
-                        let req = v1_requirement_level_to_v2(a.requirement_level.clone());
-                        attributes.push((v2_attr, req, attr_origin, is_v1_def));
-                    }
-                }
-
-                let match_keys = Self::v1_match_keys(g);
-                let provenance = Provenance {
-                    source: None,
-                    path: g.provenance().map(|p| p.path.clone()).unwrap_or_default(),
-                };
-
+                let meta = self.group_meta(g, &my_schema_url);
+                let attributes = self
+                    .convert_group_attrs(g, &my_schema_url)
+                    .into_iter()
+                    .map(|a| (a.attr, a.req, a.origin, a.is_v1_def))
+                    .collect();
                 DepImportedAttributeGroup {
-                    id,
+                    id: SignalId::from(Self::fix_group_id("attribute_group.", &g.id)),
                     attributes,
-                    common,
-                    provenance,
-                    origin,
-                    excluded,
-                    is_public,
-                    match_keys,
+                    common: meta.common,
+                    provenance: meta.provenance,
+                    origin: meta.origin,
+                    excluded: meta.excluded,
+                    is_public: g.visibility == Some(AttributeGroupVisibilitySpec::Public),
+                    match_keys: meta.match_keys,
                 }
             })
             .collect()
@@ -1008,7 +771,7 @@ impl EntityLookup for V1Dependency {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
+    use std::collections::{BTreeSet, HashMap};
 
     fn sample_v1_schema() -> V1Schema {
         let attr = V1Attribute {

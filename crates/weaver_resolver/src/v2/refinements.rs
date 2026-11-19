@@ -16,12 +16,9 @@ use weaver_semconv::v2::attribute::{
 use weaver_semconv::v2::entity::{EntityAttributeRefinement, EntityRefinement};
 use weaver_semconv::v2::entity_association::EntityAssociation as SemconvEntityAssociation;
 use weaver_semconv::v2::event::EventRefinement;
-use weaver_semconv::v2::metric::{InstrumentSpec, MetricRefinement};
+use weaver_semconv::v2::metric::MetricRefinement;
 use weaver_semconv::v2::signal_id::SignalId;
-use weaver_semconv::v2::signal_requirement_level::SignalRequirementLevel;
-use weaver_semconv::v2::span::{
-    SpanKindSpec, SpanName, SpanRefinement, SpanRefinementAttributeOrGroupRef,
-};
+use weaver_semconv::v2::span::{SpanRefinement, SpanRefinementAttributeOrGroupRef};
 use weaver_semconv::v2::stability::Stability;
 use weaver_semconv::v2::CommonFields;
 use weaver_semconv::YamlValue;
@@ -452,6 +449,12 @@ fn inherit_entity_associations(
     }
 }
 
+/// Resolved parent signal paired with its dependency-resolution exclusion flag.
+struct ParentSnapshot<T> {
+    signal: T,
+    excluded: bool,
+}
+
 /// Per-signal-kind specification driving `resolve_kind_refinements`.
 trait RefinementKindSpec {
     /// Lowercase signal kind prefix (`metric`, `span`, `event`, or `entity`).
@@ -460,10 +463,8 @@ trait RefinementKindSpec {
     const KIND_TITLE: &'static str;
     /// Authored refinement AST type in `Index`.
     type Raw;
-    /// Snapshot of inherited parent fields prior to applying refinement overrides.
-    type Parent;
-    /// Resolved output type emitted for this refinement.
-    type Resolved;
+    /// Resolved signal type used for both inherited parent snapshots and refinement outputs.
+    type Resolved: Clone;
 
     /// Returns the local symbol table of refinements for this kind.
     fn indexed_map(index: &Index) -> &BTreeMap<SignalId, Indexed<Self::Raw>>;
@@ -472,20 +473,18 @@ trait RefinementKindSpec {
     /// Returns the authored annotations map on `raw`.
     fn annotations(raw: &Self::Raw) -> &BTreeMap<String, YamlValue>;
     /// Looks up a matching parent in local `base_signals`.
-    fn find_local_base(
-        base_signals: &ResolvedSignals,
+    fn find_local_base<'a>(
+        base_signals: &'a ResolvedSignals,
         parent_ref: &SignalId,
         stripped_ref: &SignalId,
-    ) -> Option<Self::Parent>;
-    /// Captures a `Parent` snapshot from an already-resolved local refinement or base signal.
-    fn parent_from_resolved(resolved: &Self::Resolved) -> Self::Parent;
-    /// Extracts a `Parent` snapshot from a dependency `DepSignal`, returning `None` on kind mismatch.
+    ) -> Option<&'a Self::Resolved>;
+    /// Returns `true` if `resolved` carries `dependency_resolution.exclude: true`.
+    fn is_resolved_excluded(resolved: &Self::Resolved) -> bool;
+    /// Extracts a `ParentSnapshot` from a dependency `DepSignal`, returning `None` on kind mismatch.
     fn parent_from_dep<C: SchemaCacheLookup>(
         dep_signal: DepSignal,
         catalog: &mut Catalog<'_, C>,
-    ) -> Result<Option<Self::Parent>, Error>;
-    /// Returns `true` if `parent` is excluded from dependency resolution.
-    fn is_parent_excluded(parent: &Self::Parent) -> bool;
+    ) -> Result<Option<ParentSnapshot<Self::Resolved>>, Error>;
 
     /// Validates and merges `raw` onto `parent` to produce the resolved refinement.
     #[allow(clippy::too_many_arguments)]
@@ -493,7 +492,7 @@ trait RefinementKindSpec {
         raw_id: &SignalId,
         refinement_id: &SignalId,
         raw: &Self::Raw,
-        parent: Self::Parent,
+        parent: Self::Resolved,
         is_ref_excluded: bool,
         provenance: &SemconvProvenance,
         schema_provenance: SchemaProvenance,
@@ -532,15 +531,21 @@ fn resolve_kind_refinements<'a, S: RefinementKindSpec, C: SchemaCacheLookup>(
             let parent_ref = S::parent_ref(raw);
             let stripped_parent_ref = rules::normalize_refinement_id(S::KIND_LOWER, parent_ref);
 
-            let parent = if let Some(base_parent) =
+            let parent = if let Some(base) =
                 S::find_local_base(base_signals, parent_ref, &stripped_parent_ref)
             {
-                base_parent
+                ParentSnapshot {
+                    excluded: S::is_resolved_excluded(base),
+                    signal: base.clone(),
+                }
             } else if let Some((_, prev)) = resolved_list
                 .iter()
                 .find(|(id, _)| id == parent_ref || *id == stripped_parent_ref)
             {
-                S::parent_from_resolved(prev)
+                ParentSnapshot {
+                    excluded: S::is_resolved_excluded(prev),
+                    signal: prev.clone(),
+                }
             } else {
                 let is_parent_unresolved = unresolved.iter().any(|(other_id, _)| {
                     if *other_id == *raw_id {
@@ -590,7 +595,7 @@ fn resolve_kind_refinements<'a, S: RefinementKindSpec, C: SchemaCacheLookup>(
                 }
             };
 
-            if S::is_parent_excluded(&parent) && !is_ref_excluded {
+            if parent.excluded && !is_ref_excluded {
                 fatal_errors.push(Error::ExcludedFromDependencyResolution {
                     id: parent_ref.to_string(),
                     r#type: S::KIND_LOWER.to_owned(),
@@ -604,7 +609,7 @@ fn resolve_kind_refinements<'a, S: RefinementKindSpec, C: SchemaCacheLookup>(
                 raw_id,
                 &refinement_id,
                 raw,
-                parent,
+                parent.signal,
                 is_ref_excluded,
                 &indexed.provenance,
                 schema_provenance,
@@ -641,19 +646,6 @@ fn resolve_kind_refinements<'a, S: RefinementKindSpec, C: SchemaCacheLookup>(
     Ok(resolved_list)
 }
 
-/// Snapshot of a parent metric resolved for refinement inheritance.
-struct MetricParent {
-    name: SignalId,
-    instrument: InstrumentSpec,
-    unit: String,
-    attributes: Vec<(Attribute, RequirementLevel)>,
-    entity_associations: EntityAssociations,
-    association_origins: BTreeMap<String, SchemaUrl>,
-    requirement_level: Option<SignalRequirementLevel>,
-    common: CommonFields,
-    excluded: bool,
-}
-
 /// Metric refinement resolution rules.
 struct MetricRefinementSpec;
 
@@ -661,7 +653,6 @@ impl RefinementKindSpec for MetricRefinementSpec {
     const KIND_LOWER: &'static str = "metric";
     const KIND_TITLE: &'static str = "Metric";
     type Raw = MetricRefinement;
-    type Parent = MetricParent;
     type Resolved = ResolvedMetric;
 
     fn indexed_map(index: &Index) -> &BTreeMap<SignalId, Indexed<Self::Raw>> {
@@ -676,36 +667,25 @@ impl RefinementKindSpec for MetricRefinementSpec {
         &raw.annotations
     }
 
-    fn find_local_base(
-        base_signals: &ResolvedSignals,
+    fn find_local_base<'a>(
+        base_signals: &'a ResolvedSignals,
         parent_ref: &SignalId,
         stripped_ref: &SignalId,
-    ) -> Option<Self::Parent> {
+    ) -> Option<&'a Self::Resolved> {
         base_signals
             .metrics
             .iter()
             .find(|m| m.name == *parent_ref || m.name == *stripped_ref)
-            .map(Self::parent_from_resolved)
     }
 
-    fn parent_from_resolved(m: &Self::Resolved) -> Self::Parent {
-        MetricParent {
-            name: m.name.clone(),
-            instrument: m.instrument,
-            unit: m.unit.clone(),
-            attributes: m.attributes.clone(),
-            entity_associations: m.entity_associations.clone(),
-            association_origins: m.association_origins.clone(),
-            requirement_level: m.requirement_level.clone(),
-            common: m.common.clone(),
-            excluded: is_excluded(&m.common.annotations),
-        }
+    fn is_resolved_excluded(m: &Self::Resolved) -> bool {
+        is_excluded(&m.common.annotations)
     }
 
     fn parent_from_dep<C: SchemaCacheLookup>(
         dep_signal: DepSignal,
         catalog: &mut Catalog<'_, C>,
-    ) -> Result<Option<Self::Parent>, Error> {
+    ) -> Result<Option<ParentSnapshot<Self::Resolved>>, Error> {
         let DepSignalPayload::Metric {
             name,
             instrument,
@@ -721,28 +701,27 @@ impl RefinementKindSpec for MetricRefinementSpec {
             let mapped_attr = catalog.register_inherited_dep_attribute(attr, &origin)?;
             resolved_attrs.push((mapped_attr, req));
         }
-        Ok(Some(MetricParent {
-            name,
-            instrument,
-            unit,
-            attributes: resolved_attrs,
-            entity_associations: dep_signal.entity_associations,
-            association_origins: dep_signal.association_origins,
-            requirement_level,
-            common: dep_signal.common,
+        Ok(Some(ParentSnapshot {
+            signal: ResolvedMetric {
+                name,
+                instrument,
+                unit,
+                attributes: resolved_attrs,
+                entity_associations: dep_signal.entity_associations,
+                association_origins: dep_signal.association_origins,
+                requirement_level,
+                common: dep_signal.common,
+                provenance: SchemaProvenance::default(),
+            },
             excluded: dep_signal.excluded,
         }))
-    }
-
-    fn is_parent_excluded(parent: &Self::Parent) -> bool {
-        parent.excluded
     }
 
     fn apply_refinement<C: SchemaCacheLookup>(
         _raw_id: &SignalId,
         refinement_id: &SignalId,
         m_ref: &Self::Raw,
-        parent: Self::Parent,
+        parent: Self::Resolved,
         is_ref_excluded: bool,
         provenance: &SemconvProvenance,
         schema_provenance: SchemaProvenance,
@@ -792,19 +771,6 @@ impl RefinementKindSpec for MetricRefinementSpec {
     }
 }
 
-/// Snapshot of a parent span resolved for refinement inheritance.
-struct SpanParent {
-    r#type: SignalId,
-    kind: SpanKindSpec,
-    name: SpanName,
-    attributes: Vec<(Attribute, RequirementLevel, Option<bool>)>,
-    entity_associations: EntityAssociations,
-    association_origins: BTreeMap<String, SchemaUrl>,
-    requirement_level: Option<SignalRequirementLevel>,
-    common: CommonFields,
-    excluded: bool,
-}
-
 /// Span refinement resolution rules.
 struct SpanRefinementSpec;
 
@@ -812,7 +778,6 @@ impl RefinementKindSpec for SpanRefinementSpec {
     const KIND_LOWER: &'static str = "span";
     const KIND_TITLE: &'static str = "Span";
     type Raw = SpanRefinement;
-    type Parent = SpanParent;
     type Resolved = ResolvedSpan;
 
     fn indexed_map(index: &Index) -> &BTreeMap<SignalId, Indexed<Self::Raw>> {
@@ -827,36 +792,25 @@ impl RefinementKindSpec for SpanRefinementSpec {
         &raw.annotations
     }
 
-    fn find_local_base(
-        base_signals: &ResolvedSignals,
+    fn find_local_base<'a>(
+        base_signals: &'a ResolvedSignals,
         parent_ref: &SignalId,
         stripped_ref: &SignalId,
-    ) -> Option<Self::Parent> {
+    ) -> Option<&'a Self::Resolved> {
         base_signals
             .spans
             .iter()
             .find(|s| s.r#type == *parent_ref || s.r#type == *stripped_ref)
-            .map(Self::parent_from_resolved)
     }
 
-    fn parent_from_resolved(s: &Self::Resolved) -> Self::Parent {
-        SpanParent {
-            r#type: s.r#type.clone(),
-            kind: s.kind,
-            name: s.name.clone(),
-            attributes: s.attributes.clone(),
-            entity_associations: s.entity_associations.clone(),
-            association_origins: s.association_origins.clone(),
-            requirement_level: s.requirement_level.clone(),
-            common: s.common.clone(),
-            excluded: is_excluded(&s.common.annotations),
-        }
+    fn is_resolved_excluded(s: &Self::Resolved) -> bool {
+        is_excluded(&s.common.annotations)
     }
 
     fn parent_from_dep<C: SchemaCacheLookup>(
         dep_signal: DepSignal,
         catalog: &mut Catalog<'_, C>,
-    ) -> Result<Option<Self::Parent>, Error> {
+    ) -> Result<Option<ParentSnapshot<Self::Resolved>>, Error> {
         let DepSignalPayload::Span {
             r#type,
             kind,
@@ -872,28 +826,27 @@ impl RefinementKindSpec for SpanRefinementSpec {
             let mapped_attr = catalog.register_inherited_dep_attribute(attr, &origin)?;
             resolved_attrs.push((mapped_attr, req, samp));
         }
-        Ok(Some(SpanParent {
-            r#type,
-            kind,
-            name,
-            attributes: resolved_attrs,
-            entity_associations: dep_signal.entity_associations,
-            association_origins: dep_signal.association_origins,
-            requirement_level,
-            common: dep_signal.common,
+        Ok(Some(ParentSnapshot {
+            signal: ResolvedSpan {
+                r#type,
+                kind,
+                name,
+                attributes: resolved_attrs,
+                entity_associations: dep_signal.entity_associations,
+                association_origins: dep_signal.association_origins,
+                requirement_level,
+                common: dep_signal.common,
+                provenance: SchemaProvenance::default(),
+            },
             excluded: dep_signal.excluded,
         }))
-    }
-
-    fn is_parent_excluded(parent: &Self::Parent) -> bool {
-        parent.excluded
     }
 
     fn apply_refinement<C: SchemaCacheLookup>(
         raw_id: &SignalId,
         refinement_id: &SignalId,
         s_ref: &Self::Raw,
-        parent: Self::Parent,
+        parent: Self::Resolved,
         is_ref_excluded: bool,
         provenance: &SemconvProvenance,
         schema_provenance: SchemaProvenance,
@@ -959,17 +912,6 @@ impl RefinementKindSpec for SpanRefinementSpec {
     }
 }
 
-/// Snapshot of a parent event resolved for refinement inheritance.
-struct EventParent {
-    name: SignalId,
-    attributes: Vec<(Attribute, RequirementLevel)>,
-    entity_associations: EntityAssociations,
-    association_origins: BTreeMap<String, SchemaUrl>,
-    requirement_level: Option<SignalRequirementLevel>,
-    common: CommonFields,
-    excluded: bool,
-}
-
 /// Event refinement resolution rules.
 struct EventRefinementSpec;
 
@@ -977,7 +919,6 @@ impl RefinementKindSpec for EventRefinementSpec {
     const KIND_LOWER: &'static str = "event";
     const KIND_TITLE: &'static str = "Event";
     type Raw = EventRefinement;
-    type Parent = EventParent;
     type Resolved = ResolvedEvent;
 
     fn indexed_map(index: &Index) -> &BTreeMap<SignalId, Indexed<Self::Raw>> {
@@ -992,34 +933,25 @@ impl RefinementKindSpec for EventRefinementSpec {
         &raw.annotations
     }
 
-    fn find_local_base(
-        base_signals: &ResolvedSignals,
+    fn find_local_base<'a>(
+        base_signals: &'a ResolvedSignals,
         parent_ref: &SignalId,
         stripped_ref: &SignalId,
-    ) -> Option<Self::Parent> {
+    ) -> Option<&'a Self::Resolved> {
         base_signals
             .events
             .iter()
             .find(|e| e.name == *parent_ref || e.name == *stripped_ref)
-            .map(Self::parent_from_resolved)
     }
 
-    fn parent_from_resolved(e: &Self::Resolved) -> Self::Parent {
-        EventParent {
-            name: e.name.clone(),
-            attributes: e.attributes.clone(),
-            entity_associations: e.entity_associations.clone(),
-            association_origins: e.association_origins.clone(),
-            requirement_level: e.requirement_level.clone(),
-            common: e.common.clone(),
-            excluded: is_excluded(&e.common.annotations),
-        }
+    fn is_resolved_excluded(e: &Self::Resolved) -> bool {
+        is_excluded(&e.common.annotations)
     }
 
     fn parent_from_dep<C: SchemaCacheLookup>(
         dep_signal: DepSignal,
         catalog: &mut Catalog<'_, C>,
-    ) -> Result<Option<Self::Parent>, Error> {
+    ) -> Result<Option<ParentSnapshot<Self::Resolved>>, Error> {
         let DepSignalPayload::Event {
             name,
             requirement_level,
@@ -1033,26 +965,25 @@ impl RefinementKindSpec for EventRefinementSpec {
             let mapped_attr = catalog.register_inherited_dep_attribute(attr, &origin)?;
             resolved_attrs.push((mapped_attr, req));
         }
-        Ok(Some(EventParent {
-            name,
-            attributes: resolved_attrs,
-            entity_associations: dep_signal.entity_associations,
-            association_origins: dep_signal.association_origins,
-            requirement_level,
-            common: dep_signal.common,
+        Ok(Some(ParentSnapshot {
+            signal: ResolvedEvent {
+                name,
+                attributes: resolved_attrs,
+                entity_associations: dep_signal.entity_associations,
+                association_origins: dep_signal.association_origins,
+                requirement_level,
+                common: dep_signal.common,
+                provenance: SchemaProvenance::default(),
+            },
             excluded: dep_signal.excluded,
         }))
-    }
-
-    fn is_parent_excluded(parent: &Self::Parent) -> bool {
-        parent.excluded
     }
 
     fn apply_refinement<C: SchemaCacheLookup>(
         _raw_id: &SignalId,
         refinement_id: &SignalId,
         e_ref: &Self::Raw,
-        parent: Self::Parent,
+        parent: Self::Resolved,
         is_ref_excluded: bool,
         provenance: &SemconvProvenance,
         schema_provenance: SchemaProvenance,
@@ -1100,16 +1031,6 @@ impl RefinementKindSpec for EventRefinementSpec {
     }
 }
 
-/// Snapshot of a parent entity resolved for refinement inheritance.
-struct EntityParent {
-    r#type: SignalId,
-    identity: Vec<Attribute>,
-    description: Vec<(Attribute, RequirementLevel)>,
-    requirement_level: Option<SignalRequirementLevel>,
-    common: CommonFields,
-    excluded: bool,
-}
-
 /// Entity refinement resolution rules, enforcing identity attribute preservation.
 struct EntityRefinementSpec;
 
@@ -1117,7 +1038,6 @@ impl RefinementKindSpec for EntityRefinementSpec {
     const KIND_LOWER: &'static str = "entity";
     const KIND_TITLE: &'static str = "Entity";
     type Raw = EntityRefinement;
-    type Parent = EntityParent;
     type Resolved = ResolvedEntity;
 
     fn indexed_map(index: &Index) -> &BTreeMap<SignalId, Indexed<Self::Raw>> {
@@ -1132,33 +1052,25 @@ impl RefinementKindSpec for EntityRefinementSpec {
         &raw.annotations
     }
 
-    fn find_local_base(
-        base_signals: &ResolvedSignals,
+    fn find_local_base<'a>(
+        base_signals: &'a ResolvedSignals,
         parent_ref: &SignalId,
         stripped_ref: &SignalId,
-    ) -> Option<Self::Parent> {
+    ) -> Option<&'a Self::Resolved> {
         base_signals
             .entities
             .iter()
             .find(|en| en.r#type == *parent_ref || en.r#type == *stripped_ref)
-            .map(Self::parent_from_resolved)
     }
 
-    fn parent_from_resolved(en: &Self::Resolved) -> Self::Parent {
-        EntityParent {
-            r#type: en.r#type.clone(),
-            identity: en.identity.clone(),
-            description: en.description.clone(),
-            requirement_level: en.requirement_level.clone(),
-            common: en.common.clone(),
-            excluded: is_excluded(&en.common.annotations),
-        }
+    fn is_resolved_excluded(en: &Self::Resolved) -> bool {
+        is_excluded(&en.common.annotations)
     }
 
     fn parent_from_dep<C: SchemaCacheLookup>(
         dep_signal: DepSignal,
         catalog: &mut Catalog<'_, C>,
-    ) -> Result<Option<Self::Parent>, Error> {
+    ) -> Result<Option<ParentSnapshot<Self::Resolved>>, Error> {
         let DepSignalPayload::Entity {
             r#type,
             identity,
@@ -1178,25 +1090,24 @@ impl RefinementKindSpec for EntityRefinementSpec {
             let mapped_attr = catalog.register_inherited_dep_attribute(attr, &origin)?;
             resolved_desc.push((mapped_attr, req));
         }
-        Ok(Some(EntityParent {
-            r#type,
-            identity: resolved_ident,
-            description: resolved_desc,
-            requirement_level,
-            common: dep_signal.common,
+        Ok(Some(ParentSnapshot {
+            signal: ResolvedEntity {
+                r#type,
+                identity: resolved_ident,
+                description: resolved_desc,
+                requirement_level,
+                common: dep_signal.common,
+                provenance: SchemaProvenance::default(),
+            },
             excluded: dep_signal.excluded,
         }))
-    }
-
-    fn is_parent_excluded(parent: &Self::Parent) -> bool {
-        parent.excluded
     }
 
     fn apply_refinement<C: SchemaCacheLookup>(
         _raw_id: &SignalId,
         refinement_id: &SignalId,
         en_ref: &Self::Raw,
-        parent: Self::Parent,
+        parent: Self::Resolved,
         is_ref_excluded: bool,
         provenance: &SemconvProvenance,
         schema_provenance: SchemaProvenance,

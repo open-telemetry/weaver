@@ -2,8 +2,6 @@
 
 //! Resolves pure V2 semantic convention definitions directly into V2 schemas.
 
-use std::collections::{BTreeSet, HashMap};
-
 use globset::Glob;
 use weaver_common::result::WResult;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
@@ -14,7 +12,7 @@ use weaver_semconv::v2::{GroupWildcard, Imports};
 
 use crate::engine::WeaverResolver;
 use crate::error::Error;
-use crate::graph::chosen_versions::{collect_chosen_versions, SchemaLookupContext};
+use crate::graph::chosen_versions::SchemaLookupContext;
 use crate::graph::loader::LoadedSemconvRegistry;
 
 pub(crate) mod attributes;
@@ -74,70 +72,6 @@ pub(crate) fn resolve(
         });
     }
 
-    let mut resolved_dependencies = Vec::new();
-
-    for d in dependencies {
-        match resolver.resolve_dependency(d) {
-            WResult::Ok(schema) => resolved_dependencies.push(schema),
-            WResult::OkWithNFEs(schema, nfes) => {
-                resolved_dependencies.push(schema);
-                non_fatal_errors.extend(nfes.into_iter().filter(is_forwarded_dependency_nfe));
-            }
-            WResult::FatalErr(e) => return WResult::FatalErr(e),
-        }
-    }
-
-    let mut chosen_versions = HashMap::new();
-    for d in &resolved_dependencies {
-        collect_chosen_versions(
-            SchemaUrl::try_from(d.schema_url_str()).ok().as_ref(),
-            d.dependencies(),
-            &mut chosen_versions,
-        );
-    }
-
-    let dep_urls: BTreeSet<SchemaUrl> = chosen_versions.values().cloned().collect();
-
-    let mut pinned_schemas = resolver.active_graph_schemas_snapshot();
-    for chosen_url in chosen_versions.values() {
-        if !pinned_schemas.contains_key(chosen_url) {
-            if let Some(cached) = resolver.active_or_cached_schema(chosen_url) {
-                _ = pinned_schemas.insert(chosen_url.clone(), cached);
-            }
-        }
-    }
-
-    // Pre-resolve superseded dependency versions not yet in `pinned_schemas`.
-    for (reg_name, chosen_url) in &chosen_versions {
-        let supersedes_loaded = resolved_dependencies.iter().any(|d| {
-            let self_url = SchemaUrl::try_from(d.schema_url_str()).ok();
-            self_url
-                .as_ref()
-                .is_some_and(|u| u.name() == reg_name && u != chosen_url)
-                || d.dependencies()
-                    .iter()
-                    .any(|sub| sub.name() == reg_name && sub != chosen_url)
-        });
-        if supersedes_loaded && !pinned_schemas.contains_key(chosen_url) {
-            match resolver.resolve_dependency_schema(chosen_url) {
-                WResult::Ok(resolved) => {
-                    _ = pinned_schemas.insert(chosen_url.clone(), resolved);
-                }
-                WResult::OkWithNFEs(resolved, nfes) => {
-                    _ = pinned_schemas.insert(chosen_url.clone(), resolved);
-                    non_fatal_errors.extend(nfes.into_iter().filter(is_forwarded_dependency_nfe));
-                }
-                WResult::FatalErr(e) => return WResult::FatalErr(e),
-            }
-        }
-    }
-
-    let mut adapters = Vec::new();
-    for d in &resolved_dependencies {
-        adapters.push(DependencyAdapter::from_resolved_schema(d));
-    }
-    let v2_deps = V2Dependencies::new(adapters, dep_urls.clone());
-
     let schema_url = match repo.to_v2_manifest() {
         Ok(m) => m.schema_url().clone(),
         Err(_) => match SchemaUrl::try_from_name_version(repo.name(), repo.version()) {
@@ -146,16 +80,30 @@ pub(crate) fn resolve(
         },
     };
 
-    let direct: Vec<SchemaUrl> = resolved_dependencies
+    let dep_graph = match resolver.resolve_dependency_graph(
+        &schema_url,
+        dependencies,
+        is_forwarded_dependency_nfe,
+    ) {
+        WResult::Ok(graph) => graph,
+        WResult::OkWithNFEs(graph, nfes) => {
+            non_fatal_errors.extend(nfes);
+            graph
+        }
+        WResult::FatalErr(e) => return WResult::FatalErr(e),
+    };
+
+    let adapters = dep_graph
+        .dependencies
         .iter()
-        .filter_map(|d| SchemaUrl::try_from(d.schema_url_str()).ok())
+        .map(DependencyAdapter::from_resolved_schema)
         .collect();
-    resolver.record_direct_dependencies_internal(&schema_url, direct);
+    let v2_deps = V2Dependencies::new(adapters, dep_graph.dependency_urls);
 
     let lookup_ctx = SchemaLookupContext {
-        chosen_versions,
+        chosen_versions: dep_graph.chosen_versions,
         cache: resolver.cache_ref(),
-        pinned_schemas,
+        pinned_schemas: dep_graph.pinned_schemas,
     };
 
     let mut catalog = Catalog::new(&v2_deps, &lookup_ctx);

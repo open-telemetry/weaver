@@ -18,6 +18,7 @@ use weaver_semconv::v2::manifest::Dependency;
 
 use crate::error::Error;
 use crate::graph;
+use crate::graph::chosen_versions::collect_chosen_versions;
 use crate::graph::loader::{LoadedSemconvRegistry, SourceFormat};
 use crate::{v1, v2};
 
@@ -200,6 +201,14 @@ pub struct DefaultSchemaVisitor;
 
 impl SchemaLoadingVisitor for DefaultSchemaVisitor {}
 
+/// Resolved direct dependencies and chosen-version metadata for a registry resolution pass.
+pub(crate) struct ResolvedDependencyGraph {
+    pub dependencies: Vec<Arc<WeaverResolvedSchema>>,
+    pub chosen_versions: HashMap<String, SchemaUrl>,
+    pub dependency_urls: BTreeSet<SchemaUrl>,
+    pub pinned_schemas: HashMap<SchemaUrl, Arc<WeaverResolvedSchema>>,
+}
+
 /// Loads and resolves telemetry schemas with an internal LRU dependency cache.
 pub struct WeaverResolver {
     cache: LruCache<SchemaUrl, Arc<WeaverResolvedSchema>>,
@@ -257,15 +266,6 @@ impl WeaverResolver {
         let _ = self.direct_dependencies.insert(schema_url.clone(), direct);
     }
 
-    /// Overwrites the recorded direct dependencies for `schema_url`.
-    pub(crate) fn record_direct_dependencies_internal(
-        &mut self,
-        schema_url: &SchemaUrl,
-        direct: Vec<SchemaUrl>,
-    ) {
-        let _ = self.direct_dependencies.insert(schema_url.clone(), direct);
-    }
-
     /// Returns a shared reference to the resolved schema LRU cache.
     pub(crate) fn cache_ref(&self) -> &LruCache<SchemaUrl, Arc<WeaverResolvedSchema>> {
         &self.cache
@@ -283,11 +283,101 @@ impl WeaverResolver {
             .or_else(|| self.cache.peek(url).cloned())
     }
 
-    /// Returns a clone of the schemas resolved in the active resolution graph.
-    pub(crate) fn active_graph_schemas_snapshot(
+    /// Resolves direct dependencies, records dependency edges, arbitrates chosen versions,
+    /// and pre-resolves superseded versions into `pinned_schemas`.
+    pub(crate) fn resolve_dependency_graph(
+        &mut self,
+        schema_url: &SchemaUrl,
+        dependencies: Vec<LoadedSemconvRegistry>,
+        keep_nfe: impl Fn(&Error) -> bool,
+    ) -> WResult<ResolvedDependencyGraph, Error> {
+        let mut resolved_dependencies = Vec::with_capacity(dependencies.len());
+        let mut non_fatal_errors = Vec::new();
+        for d in dependencies {
+            match self.resolve_dependency(d) {
+                WResult::Ok(schema) => resolved_dependencies.push(schema),
+                WResult::OkWithNFEs(schema, nfes) => {
+                    resolved_dependencies.push(schema);
+                    non_fatal_errors.extend(nfes.into_iter().filter(&keep_nfe));
+                }
+                WResult::FatalErr(e) => return WResult::FatalErr(e),
+            }
+        }
+
+        let direct: Vec<SchemaUrl> = resolved_dependencies
+            .iter()
+            .filter_map(|d| SchemaUrl::try_from(d.schema_url_str()).ok())
+            .collect();
+        let _ = self.direct_dependencies.insert(schema_url.clone(), direct);
+
+        let mut chosen_versions = HashMap::new();
+        for d in &resolved_dependencies {
+            collect_chosen_versions(
+                SchemaUrl::try_from(d.schema_url_str()).ok().as_ref(),
+                d.dependencies(),
+                &mut chosen_versions,
+            );
+        }
+        let dependency_urls: BTreeSet<SchemaUrl> = chosen_versions.values().cloned().collect();
+
+        let mut pinned_schemas = self.active_graph_schemas.clone();
+        for chosen_url in chosen_versions.values() {
+            if !pinned_schemas.contains_key(chosen_url) {
+                if let Some(cached) = self.active_or_cached_schema(chosen_url) {
+                    _ = pinned_schemas.insert(chosen_url.clone(), cached);
+                }
+            }
+        }
+
+        // Pre-resolve uncached chosen versions that supersede a version used in this graph.
+        for (reg_name, chosen_url) in &chosen_versions {
+            let supersedes_loaded = resolved_dependencies.iter().any(|d| {
+                let self_url = SchemaUrl::try_from(d.schema_url_str()).ok();
+                self_url
+                    .as_ref()
+                    .is_some_and(|u| u.name() == reg_name && u != chosen_url)
+                    || d.dependencies()
+                        .iter()
+                        .any(|sub| sub.name() == reg_name && sub != chosen_url)
+            });
+            if supersedes_loaded && !pinned_schemas.contains_key(chosen_url) {
+                match self.resolve_dependency_schema(chosen_url) {
+                    WResult::Ok(resolved) => {
+                        _ = pinned_schemas.insert(chosen_url.clone(), resolved);
+                    }
+                    WResult::OkWithNFEs(resolved, nfes) => {
+                        _ = pinned_schemas.insert(chosen_url.clone(), resolved);
+                        non_fatal_errors.extend(nfes.into_iter().filter(&keep_nfe));
+                    }
+                    WResult::FatalErr(e) => return WResult::FatalErr(e),
+                }
+            }
+        }
+
+        WResult::with_non_fatal_errors(
+            ResolvedDependencyGraph {
+                dependencies: resolved_dependencies,
+                chosen_versions,
+                dependency_urls,
+                pinned_schemas,
+            },
+            non_fatal_errors,
+        )
+    }
+
+    /// Converts a V1 schema into V2 when resolving a root registry under [`ResolutionTarget::V2`].
+    fn finalize_v1_bundle(
         &self,
-    ) -> HashMap<SchemaUrl, Arc<WeaverResolvedSchema>> {
-        self.active_graph_schemas.clone()
+        schema: ResolvedTelemetrySchema,
+        is_root: bool,
+    ) -> Result<WeaverResolvedSchema, Error> {
+        if is_root && self.config.target == ResolutionTarget::V2 {
+            WeaverResolvedSchema::V1(schema)
+                .into_v2()
+                .map(WeaverResolvedSchema::V2)
+        } else {
+            Ok(WeaverResolvedSchema::V1(schema))
+        }
     }
 
     /// Inserts `arc` into both the active graph map and the LRU cache under `url`.
@@ -469,30 +559,21 @@ impl WeaverResolver {
                     };
                 }
 
-                let res = match v1::resolve_registry_internal(self, repo, specs, dependencies) {
-                    WResult::Ok(resolved) => WResult::Ok((resolved, vec![])),
-                    WResult::OkWithNFEs(resolved, nfes) => WResult::Ok((resolved, nfes)),
-                    WResult::FatalErr(e) => WResult::FatalErr(e),
-                };
-                let (resolved, nfes) = match res {
-                    WResult::Ok(pair) => pair,
-                    WResult::OkWithNFEs(pair, _) => pair,
-                    WResult::FatalErr(e) => return WResult::FatalErr(e),
-                };
+                let (resolved, mut all_nfes) =
+                    match v1::resolve_registry_internal(self, repo, specs, dependencies) {
+                        WResult::Ok(resolved) => (resolved, Vec::new()),
+                        WResult::OkWithNFEs(resolved, nfes) => (resolved, nfes),
+                        WResult::FatalErr(e) => return WResult::FatalErr(e),
+                    };
 
-                let bundle = if is_root && self.config.target == ResolutionTarget::V2 {
-                    match WeaverResolvedSchema::V1(resolved).into_v2() {
-                        Ok(v2) => WeaverResolvedSchema::V2(v2),
-                        Err(e) => return WResult::FatalErr(e),
-                    }
-                } else {
-                    WeaverResolvedSchema::V1(resolved)
+                let bundle = match self.finalize_v1_bundle(resolved, is_root) {
+                    Ok(b) => b,
+                    Err(e) => return WResult::FatalErr(e),
                 };
                 let arc = Arc::new(bundle);
                 if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
                     self.record_cached_schema(url, arc.clone());
                 }
-                let mut all_nfes = nfes;
                 all_nfes.extend(v2_warnings);
                 WResult::with_non_fatal_errors(arc, all_nfes)
             }
@@ -500,13 +581,9 @@ impl WeaverResolver {
                 schema,
                 direct_dependencies,
             } => {
-                let bundle = if is_root && self.config.target == ResolutionTarget::V2 {
-                    match WeaverResolvedSchema::V1(schema).into_v2() {
-                        Ok(v2) => WeaverResolvedSchema::V2(v2),
-                        Err(e) => return WResult::FatalErr(e),
-                    }
-                } else {
-                    WeaverResolvedSchema::V1(schema)
+                let bundle = match self.finalize_v1_bundle(schema, is_root) {
+                    Ok(b) => b,
+                    Err(e) => return WResult::FatalErr(e),
                 };
                 let arc = Arc::new(bundle);
                 if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
@@ -600,19 +677,17 @@ impl WeaverResolver {
         } else if let Some(cached) = self.active_graph_schemas.get(schema_url).cloned() {
             return WResult::Ok(cached);
         }
-        if let Some(cached) = self.cache.get(schema_url) {
-            let arc = if is_root && self.config.target == ResolutionTarget::V2 {
-                match &**cached {
-                    WeaverResolvedSchema::V2(_) => cached.clone(),
-                    WeaverResolvedSchema::V1(v1) => {
-                        match WeaverResolvedSchema::V1(v1.clone()).into_v2() {
-                            Ok(v2) => Arc::new(WeaverResolvedSchema::V2(v2)),
-                            Err(e) => return WResult::FatalErr(e),
-                        }
+        if let Some(cached) = self.cache.get(schema_url).cloned() {
+            let arc = match &*cached {
+                WeaverResolvedSchema::V1(v1)
+                    if is_root && self.config.target == ResolutionTarget::V2 =>
+                {
+                    match self.finalize_v1_bundle(v1.clone(), true) {
+                        Ok(bundle) => Arc::new(bundle),
+                        Err(e) => return WResult::FatalErr(e),
                     }
                 }
-            } else {
-                cached.clone()
+                _ => cached,
             };
             self.record_cached_schema(schema_url.clone(), arc.clone());
             return WResult::Ok(arc);

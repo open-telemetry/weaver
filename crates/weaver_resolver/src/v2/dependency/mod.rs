@@ -345,33 +345,7 @@ impl V2Dependencies {
             }
         }
 
-        let winning =
-            matches
-                .into_iter()
-                .try_fold(None, |acc: Option<DepAttribute>, m| match acc {
-                    None => Ok::<Option<DepAttribute>, Error>(Some(m)),
-                    Some(existing) => {
-                        let winning_url = UseLatestMajorVersion
-                            .resolve_conflict(&m.origin, &existing.origin)
-                            .map_err(|e| match e {
-                                Error::IncompatibleDependencyVersions { .. } => {
-                                    Error::AmbiguousReference {
-                                        r#ref: key.to_owned(),
-                                        schema_url1: m.origin.to_string(),
-                                        schema_url2: existing.origin.to_string(),
-                                    }
-                                }
-                                other => other,
-                            })?;
-                        if winning_url == existing.origin {
-                            Ok(Some(existing))
-                        } else {
-                            Ok(Some(m))
-                        }
-                    }
-                })?;
-
-        let Some(mut winning) = winning else {
+        let Some(mut winning) = pick_winning_by_origin(matches, key, |a| &a.origin)? else {
             return Ok(None);
         };
 
@@ -388,23 +362,22 @@ impl V2Dependencies {
         if let Some(chosen_url) = chosen_version_if_superseded(&winning.origin, cache_lookup)? {
             let chosen_schema = lookup_chosen_schema(&chosen_url, cache_lookup)?;
             let chosen_adapter = self.adapter_for(&chosen_url, &chosen_schema);
-            if let Some(upgraded) = chosen_adapter.lookup_attribute(key)? {
-                if upgraded.excluded {
-                    return Err(Error::AttributeNotFoundInUpgradedSchema {
-                        attribute_name: key.to_owned(),
-                        original_url: winning.origin.to_string(),
-                        upgraded_url: chosen_url.to_string(),
-                    });
-                }
-                winning = upgraded;
-                winning.origin = chosen_url;
-            } else {
+            let Some(upgraded) = chosen_adapter.lookup_attribute(key)? else {
+                return Err(Error::AttributeNotFoundInUpgradedSchema {
+                    attribute_name: key.to_owned(),
+                    original_url: winning.origin.to_string(),
+                    upgraded_url: chosen_url.to_string(),
+                });
+            };
+            if upgraded.excluded {
                 return Err(Error::AttributeNotFoundInUpgradedSchema {
                     attribute_name: key.to_owned(),
                     original_url: winning.origin.to_string(),
                     upgraded_url: chosen_url.to_string(),
                 });
             }
+            winning = upgraded;
+            winning.origin = chosen_url;
         }
 
         Ok(Some(winning))
@@ -448,74 +421,62 @@ impl V2Dependencies {
             });
         }
 
-        let winning =
-            all_matches
-                .into_iter()
-                .try_fold(None, |acc: Option<DepSignal>, m| match acc {
-                    None => Ok::<Option<DepSignal>, Error>(Some(m)),
-                    Some(existing) => {
-                        let winning_url = UseLatestMajorVersion
-                            .resolve_conflict(&m.origin, &existing.origin)
-                            .map_err(|e| match e {
-                                Error::IncompatibleDependencyVersions { .. } => {
-                                    Error::AmbiguousReference {
-                                        r#ref: id.to_owned(),
-                                        schema_url1: m.origin.to_string(),
-                                        schema_url2: existing.origin.to_string(),
-                                    }
-                                }
-                                other => other,
-                            })?;
-                        if winning_url == existing.origin {
-                            Ok(Some(existing))
-                        } else {
-                            Ok(Some(m))
-                        }
-                    }
-                })?;
-
-        let mut winning = winning.expect("all_matches is not empty");
+        let mut winning = pick_winning_by_origin(all_matches, id, |s| &s.origin)?
+            .expect("all_matches is not empty");
 
         if let Some(chosen_url) = chosen_version_if_superseded(&winning.origin, cache_lookup)? {
             let chosen_schema = lookup_chosen_schema(&chosen_url, cache_lookup)?;
             let chosen_adapter = self.adapter_for(&chosen_url, &chosen_schema);
-            match chosen_adapter.lookup_signal(kind, id) {
-                Some(upgraded_signal) => {
-                    if upgraded_signal.excluded {
-                        return Err(Error::GroupNotFoundInUpgradedSchema {
-                            group_id: id.to_owned(),
-                            original_url: winning.origin.to_string(),
-                            upgraded_url: chosen_url.to_string(),
-                        });
-                    }
-                    winning = upgraded_signal;
-                    winning.origin = chosen_url;
-                }
-                None => {
-                    return Err(Error::GroupNotFoundInUpgradedSchema {
-                        group_id: id.to_owned(),
-                        original_url: winning.origin.to_string(),
-                        upgraded_url: chosen_url.to_string(),
-                    });
-                }
+            let Some(upgraded_signal) = chosen_adapter.lookup_signal(kind, id) else {
+                return Err(Error::GroupNotFoundInUpgradedSchema {
+                    group_id: id.to_owned(),
+                    original_url: winning.origin.to_string(),
+                    upgraded_url: chosen_url.to_string(),
+                });
+            };
+            if upgraded_signal.excluded {
+                return Err(Error::GroupNotFoundInUpgradedSchema {
+                    group_id: id.to_owned(),
+                    original_url: winning.origin.to_string(),
+                    upgraded_url: chosen_url.to_string(),
+                });
             }
+            winning = upgraded_signal;
+            winning.origin = chosen_url;
         }
 
         Ok(winning)
     }
+}
 
-    /// Looks up a signal by id across all kinds in any dependency.
-    #[allow(dead_code)]
-    pub fn lookup_signal_any_kind(&self, id: &str) -> Option<(&'static str, DepSignal)> {
-        for d in &self.deps {
-            if let Some((other_kind, sig)) = d.lookup_signal_any_kind(id) {
-                if !sig.excluded {
-                    return Some((other_kind, sig));
+/// Arbitrates competing dependency matches using `UseLatestMajorVersion`, reporting incompatible conflicts as `AmbiguousReference`.
+fn pick_winning_by_origin<T>(
+    matches: Vec<T>,
+    reference: &str,
+    origin_of: impl Fn(&T) -> &SchemaUrl,
+) -> Result<Option<T>, Error> {
+    matches
+        .into_iter()
+        .try_fold(None, |acc: Option<T>, m| match acc {
+            None => Ok(Some(m)),
+            Some(existing) => {
+                let winning_url = UseLatestMajorVersion
+                    .resolve_conflict(origin_of(&m), origin_of(&existing))
+                    .map_err(|e| match e {
+                        Error::IncompatibleDependencyVersions { .. } => Error::AmbiguousReference {
+                            r#ref: reference.to_owned(),
+                            schema_url1: origin_of(&m).to_string(),
+                            schema_url2: origin_of(&existing).to_string(),
+                        },
+                        other => other,
+                    })?;
+                if winning_url == *origin_of(&existing) {
+                    Ok(Some(existing))
+                } else {
+                    Ok(Some(m))
                 }
             }
-        }
-        None
-    }
+        })
 }
 
 /// Formats a lowercase signal kind identifier in title case for diagnostic messages.
