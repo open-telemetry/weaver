@@ -3261,3 +3261,86 @@ fn test_inherited_ref_negative_fixtures_v1_and_v2() {
         }
     }
 }
+
+#[test]
+fn test_parity_attribute_group_named_like_signal_does_not_collide() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let reg_dir = dir.path().join("registry");
+    std::fs::create_dir_all(&reg_dir).expect("create_dir");
+
+    let yaml = r#"file_format: definition/2
+attributes:
+  - {key: attr.group_metric, type: string, brief: gm, stability: stable}
+  - {key: attr.metric_own, type: string, brief: mo, stability: stable}
+  - {key: attr.group_span, type: string, brief: gs, stability: stable}
+  - {key: attr.span_own, type: string, brief: so, stability: stable}
+  - {key: attr.group_event, type: string, brief: ge, stability: stable}
+  - {key: attr.event_own, type: string, brief: eo, stability: stable}
+attribute_groups:
+  - id: metric.foo
+    visibility: public
+    brief: Group named like metric
+    stability: stable
+    attributes:
+      - ref: attr.group_metric
+  - id: span.bar
+    visibility: public
+    brief: Group named like span
+    stability: stable
+    attributes:
+      - ref: attr.group_span
+  - id: event.baz
+    visibility: public
+    brief: Group named like event
+    stability: stable
+    attributes:
+      - ref: attr.group_event
+metrics:
+  - name: foo
+    instrument: counter
+    unit: "1"
+    brief: Metric foo
+    stability: stable
+    requirement_level: recommended
+    attributes:
+      - ref: attr.metric_own
+spans:
+  - type: bar
+    kind: internal
+    brief: Span bar
+    stability: stable
+    requirement_level: recommended
+    name:
+      note: bar span
+    attributes:
+      - ref: attr.span_own
+events:
+  - name: baz
+    brief: Event baz
+    stability: stable
+    requirement_level: recommended
+    attributes:
+      - ref: attr.event_own
+"#;
+    std::fs::write(reg_dir.join("schema.yaml"), yaml).expect("write schema");
+
+    let legacy = resolve_fixture(dir.path().to_str().unwrap(), ResolutionTarget::V1)
+        .expect("V1 resolution succeeded");
+    let native = resolve_fixture(dir.path().to_str().unwrap(), ResolutionTarget::V2)
+        .expect("V2 resolution succeeded");
+
+    assert_v2_schema_eq(&native, &legacy);
+
+    let metric_attr_idx = native.registry.metrics[0].attributes[0].base.0 as usize;
+    assert_eq!(
+        native.attribute_catalog[metric_attr_idx].key,
+        "attr.metric_own"
+    );
+    let span_attr_idx = native.registry.spans[0].attributes[0].base.0 as usize;
+    assert_eq!(native.attribute_catalog[span_attr_idx].key, "attr.span_own");
+    let event_attr_idx = native.registry.events[0].attributes[0].base.0 as usize;
+    assert_eq!(
+        native.attribute_catalog[event_attr_idx].key,
+        "attr.event_own"
+    );
+}

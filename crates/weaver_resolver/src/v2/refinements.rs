@@ -279,7 +279,6 @@ fn apply_attribute_overrides<'a, C: SchemaCacheLookup>(
             let resolved = catalog.resolve_attribute_ref(
                 &item.aref,
                 consumer_id,
-                false,
                 is_consumer_excluded,
                 provenance,
             )?;
@@ -317,7 +316,6 @@ fn apply_span_attribute_overrides<'a, C: SchemaCacheLookup>(
             let resolved = catalog.resolve_attribute_ref(
                 &item.aref,
                 consumer_id,
-                false,
                 is_consumer_excluded,
                 provenance,
             )?;

@@ -17,7 +17,7 @@ use weaver_semconv::v2::span::{SpanKindSpec, SpanName};
 use weaver_semconv::v2::CommonFields;
 
 use super::attributes::Catalog;
-use super::groups::{self, ExpandedGroups};
+use super::groups::{ExpandKey, ExpandedGroups};
 use super::index::Index;
 use super::rules;
 use crate::error::Error;
@@ -126,21 +126,13 @@ pub(crate) fn resolve_bases<'a, C: SchemaCacheLookup>(
         let m_excluded = is_excluded(&m.common.annotations);
 
         let used_in = format!("metric.{name}");
-        let expanded_items = groups::expand_signal_attributes(
-            &m.attributes,
-            groups,
-            name,
-            "metric",
-            m_excluded,
-            &indexed_m.provenance,
-        )?;
+        let expanded_items = groups.items_for(&ExpandKey::Metric(name.clone()));
 
         let mut attributes = Vec::with_capacity(expanded_items.len());
         for item in expanded_items {
             let resolved_attr = catalog.resolve_attribute_ref(
                 &item.aref,
                 &used_in,
-                false,
                 m_excluded,
                 Some(&indexed_m.provenance),
             )?;
@@ -173,13 +165,7 @@ pub(crate) fn resolve_bases<'a, C: SchemaCacheLookup>(
         let s_excluded = is_excluded(&s.common.annotations);
         let used_in = format!("span.{type_id}");
 
-        let expanded_items = groups::expand_span_attributes(
-            &s.attributes,
-            groups,
-            type_id,
-            s_excluded,
-            &indexed_s.provenance,
-        )?;
+        let expanded_items = groups.items_for(&ExpandKey::Span(type_id.clone()));
 
         let mut attributes = Vec::with_capacity(expanded_items.len());
         let mut span_attr_keys = HashSet::with_capacity(expanded_items.len());
@@ -188,7 +174,6 @@ pub(crate) fn resolve_bases<'a, C: SchemaCacheLookup>(
             let resolved_attr = catalog.resolve_attribute_ref(
                 &item.aref,
                 &used_in,
-                false,
                 s_excluded,
                 Some(&indexed_s.provenance),
             )?;
@@ -234,21 +219,13 @@ pub(crate) fn resolve_bases<'a, C: SchemaCacheLookup>(
         let e_excluded = is_excluded(&e.common.annotations);
         let used_in = format!("event.{name}");
 
-        let expanded_items = groups::expand_signal_attributes(
-            &e.attributes,
-            groups,
-            name,
-            "event",
-            e_excluded,
-            &indexed_e.provenance,
-        )?;
+        let expanded_items = groups.items_for(&ExpandKey::Event(name.clone()));
 
         let mut attributes = Vec::with_capacity(expanded_items.len());
         for item in expanded_items {
             let resolved_attr = catalog.resolve_attribute_ref(
                 &item.aref,
                 &used_in,
-                false,
                 e_excluded,
                 Some(&indexed_e.provenance),
             )?;
@@ -299,7 +276,6 @@ pub(crate) fn resolve_bases<'a, C: SchemaCacheLookup>(
             let resolved_attr = catalog.resolve_attribute_ref(
                 &fake_aref,
                 &used_in,
-                false,
                 en_excluded,
                 Some(&indexed_en.provenance),
             )?;
@@ -312,7 +288,6 @@ pub(crate) fn resolve_bases<'a, C: SchemaCacheLookup>(
             let resolved_attr = catalog.resolve_attribute_ref(
                 desc_ref,
                 &used_in,
-                false,
                 en_excluded,
                 Some(&indexed_en.provenance),
             )?;

@@ -80,14 +80,13 @@ impl<'a, C: SchemaCacheLookup> Catalog<'a, C> {
         &mut self,
         aref: &AttributeRef,
         consumer_id: &str,
-        consumer_is_internal_group: bool,
         consumer_excluded: bool,
         provenance: Option<&SemconvProvenance>,
     ) -> Result<Attribute, Error> {
         let key = &aref.r#ref;
 
         if let Some(local_def) = self.local_defs.get(key) {
-            if local_def.excluded && !consumer_is_internal_group && !consumer_excluded {
+            if local_def.excluded && !consumer_excluded {
                 return Err(Error::ExcludedFromDependencyResolution {
                     id: key.clone(),
                     r#type: "Attribute".to_owned(),
