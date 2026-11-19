@@ -2,14 +2,29 @@
 
 //! Semantic convention specification loading and version detection.
 
+use crate::convert::v2_to_v1_spec;
 use crate::json_schema::JsonSchemaValidator;
 use crate::provenance::Provenance;
+use crate::schema_url::SchemaUrl;
+use crate::v1::group::GroupSpec;
+use crate::v1::semconv::Imports as V1Imports;
 pub use crate::v1::semconv::{SemConvSpecV1, SemConvSpecV1WithProvenance};
-use crate::v2::SemConvSpecV2;
+use crate::v2::{
+    attribute::AttributeDef,
+    attribute_group::AttributeGroup,
+    entity::{Entity, EntityRefinement},
+    event::{Event, EventRefinement},
+    metric::{Metric, MetricRefinement},
+    span::{Span, SpanRefinement},
+    Imports as V2Imports, SemConvSpecV2,
+};
 use crate::Error;
 use schemars::JsonSchema;
-use serde::Serialize;
-use std::path::Path;
+use serde::de::IgnoredAny;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::fs;
+use std::path::{Component, Path};
 use std::sync::OnceLock;
 use weaver_common::result::WResult;
 
@@ -44,33 +59,33 @@ pub struct SemConvSpecWithProvenance {
 impl Versioned {
     /// Converts this versioned spec into the file_format 1 specification.
     ///
-    /// name: A unique identifier to use for synthetic group ids in this semconv, if needed.
+    /// `file_name`: A unique identifier to use for synthetic group ids in this semconv, if needed.
     #[must_use]
     pub fn into_v1(self, file_name: &str) -> SemConvSpecV1 {
         match self {
             Versioned::V1(v1) => v1,
-            Versioned::V2(v2) => crate::convert::v2_to_v1_spec(v2, file_name),
+            Versioned::V2(v2) => v2_to_v1_spec(v2, file_name),
         }
     }
 
     /// Validates invariants on the model.
     pub fn validate(self, provenance: &str) -> WResult<Self, Error> {
+        let provenance = provenance.replace('\\', "/");
         match self {
-            Versioned::V1(v1) => v1.validate(provenance).map(Versioned::V1),
-            Versioned::V2(v2) => v2.validate(provenance).map(Versioned::V2),
+            Versioned::V1(v1) => v1.validate(&provenance).map(Versioned::V1),
+            Versioned::V2(v2) => v2.validate(&provenance).map(Versioned::V2),
         }
     }
 }
 
-// This is a helper method to pull "normal" parts of a file path
-// to give a relatively unique name to the attribute group registry
-// when converting from V1 to V2.
+/// Converts normal path components of `path` (stripping file extensions) into a dot-separated identifier.
 fn provenance_path_to_name(path: &str) -> String {
-    let mut result = String::with_capacity(path.len());
+    let normalized = path.replace('\\', "/");
+    let mut result = String::with_capacity(normalized.len());
     let mut need_dot = false;
-    let p = Path::new(path);
+    let p = Path::new(&normalized);
     for component in p.components() {
-        if let std::path::Component::Normal(part) = component {
+        if let Component::Normal(part) = component {
             if let Some(safe_name) = Path::new(part)
                 .file_stem()
                 .and_then(|stem| stem.to_str())
@@ -104,7 +119,7 @@ impl FileFormat {
     /// and produces warnings for deprecated or unstable formats.
     /// Returns an error if the file format is invalid.
     fn detect(
-        yaml_value: &serde_json::Value,
+        yaml_value: &Value,
         provenance: &str,
         warnings: &mut Vec<Error>,
     ) -> Result<Self, Error> {
@@ -169,13 +184,8 @@ impl FileFormat {
     }
 }
 
-/// Auxiliary function to clean the YAML mapping by removing version fields
-fn clean_yaml_mapping(
-    yaml_value: serde_json::Value,
-    provenance: &str,
-) -> Result<serde_json::Value, Error> {
-    use serde_json::Value;
-
+/// Removes top-level `file_format` and `version` keys from a parsed YAML root mapping.
+fn clean_yaml_mapping(yaml_value: Value, provenance: &str) -> Result<Value, Error> {
     let mut mapping = match yaml_value {
         Value::Object(m) => m,
         o => {
@@ -191,9 +201,10 @@ fn clean_yaml_mapping(
     Ok(Value::Object(mapping))
 }
 
-/// Converts a serde deserialization failure into the best available error.
+/// Runs JSON Schema validation to produce a span-annotated error when serde deserialization fails.
 fn better_error(
-    value: &serde_json::Value,
+    value: &Value,
+    raw_yaml: &str,
     provenance: &str,
     validator: &JsonSchemaValidator,
     e: serde_saphyr::Error,
@@ -202,24 +213,25 @@ fn better_error(
         path_or_url: provenance.to_owned(),
         error: e.to_string(),
     };
-    match validator.validate_yaml(value, provenance) {
+    match validator.validate_yaml_str(value, raw_yaml, provenance) {
         Ok(()) => fallback,
         Err(better_err) => better_err,
     }
 }
 
-#[derive(serde::Deserialize)]
+/// Deserialization target for V1 semantic convention files that accepts and ignores version header fields.
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RawSemConvSpecV1 {
     #[serde(default)]
     #[allow(dead_code)]
-    file_format: Option<serde::de::IgnoredAny>,
+    file_format: Option<IgnoredAny>,
     #[serde(default)]
     #[allow(dead_code)]
-    version: Option<serde::de::IgnoredAny>,
+    version: Option<IgnoredAny>,
     #[serde(default)]
-    groups: Vec<crate::v1::group::GroupSpec>,
-    imports: Option<crate::v1::semconv::Imports>,
+    groups: Vec<GroupSpec>,
+    imports: Option<V1Imports>,
 }
 
 impl From<RawSemConvSpecV1> for SemConvSpecV1 {
@@ -231,36 +243,37 @@ impl From<RawSemConvSpecV1> for SemConvSpecV1 {
     }
 }
 
-#[derive(serde::Deserialize)]
+/// Deserialization target for V2 semantic convention files that accepts and ignores version header fields.
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RawSemConvSpecV2 {
     #[serde(default)]
     #[allow(dead_code)]
-    file_format: Option<serde::de::IgnoredAny>,
+    file_format: Option<IgnoredAny>,
     #[serde(default)]
     #[allow(dead_code)]
-    version: Option<serde::de::IgnoredAny>,
+    version: Option<IgnoredAny>,
     #[serde(default)]
-    attributes: Vec<crate::v2::attribute::AttributeDef>,
+    attributes: Vec<AttributeDef>,
     #[serde(default)]
-    entities: Vec<crate::v2::entity::Entity>,
+    entities: Vec<Entity>,
     #[serde(default)]
-    events: Vec<crate::v2::event::Event>,
+    events: Vec<Event>,
     #[serde(default)]
-    metrics: Vec<crate::v2::metric::Metric>,
+    metrics: Vec<Metric>,
     #[serde(default)]
-    spans: Vec<crate::v2::span::Span>,
+    spans: Vec<Span>,
     #[serde(default)]
-    attribute_groups: Vec<crate::v2::attribute_group::AttributeGroup>,
+    attribute_groups: Vec<AttributeGroup>,
     #[serde(default)]
-    entity_refinements: Vec<crate::v2::entity::EntityRefinement>,
+    entity_refinements: Vec<EntityRefinement>,
     #[serde(default)]
-    event_refinements: Vec<crate::v2::event::EventRefinement>,
+    event_refinements: Vec<EventRefinement>,
     #[serde(default)]
-    metric_refinements: Vec<crate::v2::metric::MetricRefinement>,
+    metric_refinements: Vec<MetricRefinement>,
     #[serde(default)]
-    span_refinements: Vec<crate::v2::span::SpanRefinement>,
-    imports: Option<crate::v2::Imports>,
+    span_refinements: Vec<SpanRefinement>,
+    imports: Option<V2Imports>,
 }
 
 impl From<RawSemConvSpecV2> for SemConvSpecV2 {
@@ -281,13 +294,15 @@ impl From<RawSemConvSpecV2> for SemConvSpecV2 {
     }
 }
 
-/// Converts a yaml string into a versioned semantic convention spec.
+/// Parses a YAML string into a [`Versioned`] semantic convention spec, recording format warnings.
 fn from_yaml_str(
     raw_yaml: &str,
     provenance: &str,
     warnings: &mut Vec<Error>,
 ) -> Result<Versioned, Error> {
-    let yaml_value: serde_json::Value = serde_saphyr::from_str_with_options(
+    let normalized_provenance = provenance.replace('\\', "/");
+    let provenance = normalized_provenance.as_str();
+    let yaml_value: Value = serde_saphyr::from_str_with_options(
         raw_yaml,
         serde_saphyr::options! { strict_booleans: true },
     )
@@ -304,12 +319,12 @@ fn from_yaml_str(
         FileFormat::V2 => serde_saphyr::from_str_with_options::<RawSemConvSpecV2>(raw_yaml, opts)
             .map(SemConvSpecV2::from)
             .map(Versioned::V2)
-            .map_err(|e| better_error(&cleaned, provenance, validator, e)),
+            .map_err(|e| better_error(&cleaned, raw_yaml, provenance, validator, e)),
         FileFormat::V1 | FileFormat::Unversioned => {
             serde_saphyr::from_str_with_options::<RawSemConvSpecV1>(raw_yaml, opts)
                 .map(SemConvSpecV1::from)
                 .map(Versioned::V1)
-                .map_err(|e| better_error(&cleaned, provenance, validator, e))
+                .map_err(|e| better_error(&cleaned, raw_yaml, provenance, validator, e))
         }
     }
 }
@@ -320,8 +335,7 @@ impl SemConvSpecWithProvenance {
     pub fn into_v1(self) -> SemConvSpecV1WithProvenance {
         let file_name = provenance_path_to_name(&self.provenance.path);
         log::debug!(
-            "Translating v2 spec into v1 spec for {}, {}",
-            file_name,
+            "Translating v2 spec into v1 spec for {file_name}, {}",
             self.provenance.path
         );
         SemConvSpecV1WithProvenance {
@@ -332,7 +346,7 @@ impl SemConvSpecWithProvenance {
 
     /// Creates a semantic convention spec with provenance from a file.
     pub fn from_file<P: AsRef<Path>>(
-        schema_url: crate::schema_url::SchemaUrl,
+        schema_url: SchemaUrl,
         path: P,
     ) -> WResult<SemConvSpecWithProvenance, Error> {
         Self::from_file_with_mapped_path(schema_url, path, |path| path)
@@ -340,7 +354,7 @@ impl SemConvSpecWithProvenance {
 
     /// Creates a semantic convention spec with provenance from a file with a mapped path.
     pub fn from_file_with_mapped_path<P, F>(
-        schema_url: crate::schema_url::SchemaUrl,
+        schema_url: SchemaUrl,
         path: P,
         path_fixer: F,
     ) -> WResult<SemConvSpecWithProvenance, Error>
@@ -349,20 +363,20 @@ impl SemConvSpecWithProvenance {
         F: Fn(String) -> String,
     {
         let path_str = path.as_ref().display().to_string();
-        let provenance = Provenance::new(schema_url, &path_fixer(path_str.clone()));
-        let raw_yaml = match std::fs::read_to_string(path.as_ref()) {
+        let provenance = Provenance::new(schema_url, &path_fixer(path_str));
+        let raw_yaml = match fs::read_to_string(path.as_ref()) {
             Ok(content) => content,
             Err(e) => {
                 return WResult::FatalErr(Error::RegistryNotFound {
-                    path_or_url: path_str,
+                    path_or_url: provenance.path,
                     error: e.to_string(),
                 })
             }
         };
         let mut warnings = Vec::new();
 
-        let raw_spec = match from_yaml_str(&raw_yaml, &path_str, &mut warnings) {
-            Ok(semconv_spec) => semconv_spec.validate(&path_str),
+        let raw_spec = match from_yaml_str(&raw_yaml, &provenance.path, &mut warnings) {
+            Ok(semconv_spec) => semconv_spec.validate(&provenance.path),
             Err(e) => WResult::FatalErr(e),
         };
         let result = raw_spec.map(|spec| SemConvSpecWithProvenance {
@@ -372,14 +386,7 @@ impl SemConvSpecWithProvenance {
         if warnings.is_empty() {
             result
         } else {
-            match result {
-                WResult::Ok(spec) => WResult::OkWithNFEs(spec, warnings),
-                WResult::OkWithNFEs(spec, mut errs) => {
-                    errs.extend(warnings);
-                    WResult::OkWithNFEs(spec, errs)
-                }
-                WResult::FatalErr(err) => WResult::FatalErr(err),
-            }
+            result.extend_non_fatal_errors(warnings)
         }
     }
 }
@@ -401,32 +408,26 @@ mod tests {
 
     fn semconv_from_file(spec: &str) -> WResult<SemConvSpecWithProvenance, Error> {
         let temp_file = make_temp_file(spec);
-        SemConvSpecWithProvenance::from_file(
-            crate::schema_url::SchemaUrl::new_unknown(),
-            temp_file.path(),
-        )
+        SemConvSpecWithProvenance::from_file(SchemaUrl::new_unknown(), temp_file.path())
     }
 
     #[test]
     fn test_semconv_spec_from_file() {
         let path = PathBuf::from("data/database.yaml");
-        let semconv_spec =
-            SemConvSpecWithProvenance::from_file(crate::schema_url::SchemaUrl::new_unknown(), path)
-                .into_result_failing_non_fatal()
-                .unwrap();
+        let semconv_spec = SemConvSpecWithProvenance::from_file(SchemaUrl::new_unknown(), path)
+            .into_result_failing_non_fatal()
+            .unwrap();
         assert_eq!(semconv_spec.spec.into_v1("test").groups.len(), 10);
 
         let path = PathBuf::from("data/non-existing.yaml");
-        let semconv_spec =
-            SemConvSpecWithProvenance::from_file(crate::schema_url::SchemaUrl::new_unknown(), path)
-                .into_result_failing_non_fatal();
+        let semconv_spec = SemConvSpecWithProvenance::from_file(SchemaUrl::new_unknown(), path)
+            .into_result_failing_non_fatal();
         assert!(semconv_spec.is_err());
         assert!(matches!(semconv_spec.unwrap_err(), RegistryNotFound { .. }));
 
         let path = PathBuf::from("data/invalid/invalid-semconv.yaml");
-        let semconv_spec =
-            SemConvSpecWithProvenance::from_file(crate::schema_url::SchemaUrl::new_unknown(), path)
-                .into_result_failing_non_fatal();
+        let semconv_spec = SemConvSpecWithProvenance::from_file(SchemaUrl::new_unknown(), path)
+            .into_result_failing_non_fatal();
         assert!(semconv_spec.is_err());
         assert!(matches!(
             semconv_spec.unwrap_err(),
@@ -545,6 +546,86 @@ mod tests {
             provenance_path_to_name("a/b/c/file.semconv.yaml"),
             "a.b.c.file.semconv"
         );
+        assert_eq!(
+            provenance_path_to_name(r"a\b\c\file.semconv.yaml"),
+            "a.b.c.file.semconv"
+        );
+    }
+
+    #[test]
+    fn test_from_file_with_mapped_windows_path_normalizes_provenance() {
+        let valid_with_warnings = r#"
+        file_format: 'definition/2'
+        metrics:
+          - name: test.metric
+            instrument: counter
+            unit: "1"
+            brief: Test metric
+            stability: development
+        "#;
+        let temp_file = make_temp_file(valid_with_warnings);
+        let (spec, nfes) = SemConvSpecWithProvenance::from_file_with_mapped_path(
+            SchemaUrl::new_unknown(),
+            temp_file.path(),
+            |_| r"data\sub\metrics.yaml".to_owned(),
+        )
+        .into_result_with_non_fatal()
+        .unwrap();
+
+        assert_eq!(spec.provenance.path, "data/sub/metrics.yaml");
+        assert!(nfes.iter().any(|e| matches!(
+            e,
+            Error::UnstableFileFormat { provenance, .. } if provenance == "data/sub/metrics.yaml"
+        )));
+        assert!(nfes.iter().any(|e| matches!(
+            e,
+            Error::MissingRequirementLevelWarning { path_or_url, .. }
+                if path_or_url == "data/sub/metrics.yaml"
+        )));
+
+        let duplicate_ref_spec = r#"
+        file_format: 'definition/2'
+        metrics:
+          - name: test.metric
+            instrument: counter
+            unit: "1"
+            brief: Test metric
+            stability: development
+            requirement_level: recommended
+            attributes:
+              - ref: dup.attr
+              - ref: dup.attr
+        "#;
+        let dup_temp = make_temp_file(duplicate_ref_spec);
+        let err = SemConvSpecWithProvenance::from_file_with_mapped_path(
+            SchemaUrl::new_unknown(),
+            dup_temp.path(),
+            |_| r"data\sub\dup.yaml".to_owned(),
+        )
+        .into_result_failing_non_fatal()
+        .unwrap_err();
+        assert!(matches!(
+            err,
+            Error::CompoundError(ref errs)
+                if errs.iter().any(|e| matches!(
+                    e,
+                    Error::DuplicateAttributeRef { provenance: Some(p), .. }
+                        if p == "data/sub/dup.yaml"
+                ))
+        ));
+
+        let missing_err = SemConvSpecWithProvenance::from_file_with_mapped_path(
+            SchemaUrl::new_unknown(),
+            PathBuf::from(r"data\sub\non-existing.yaml"),
+            |p| p,
+        )
+        .into_result_failing_non_fatal()
+        .unwrap_err();
+        assert!(matches!(
+            missing_err,
+            RegistryNotFound { ref path_or_url, .. }
+                if path_or_url == "data/sub/non-existing.yaml"
+        ));
     }
 
     #[test]

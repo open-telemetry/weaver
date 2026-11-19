@@ -2,672 +2,47 @@
 
 #![doc = include_str!("../README.md")]
 
-use lru::LruCache;
-use std::collections::{BTreeMap, HashMap};
-use std::num::NonZeroUsize;
-use std::sync::Arc;
-use weaver_common::http_auth::HttpAuthResolver;
-use weaver_common::result::WResult;
-use weaver_resolved_schema::v1::ResolvedTelemetrySchema;
-use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
-use weaver_semconv::registry_repo::RegistryRepo;
-use weaver_semconv::schema_url::SchemaUrl;
-use weaver_semconv::semconv::SemConvSpecWithProvenance;
-use weaver_semconv::v1::group::ImportsWithProvenance;
-use weaver_semconv::v2::manifest::Dependency;
-
-use crate::attribute::AttributeCatalog;
-use crate::dependency::ResolvedDependency;
-use crate::registry::resolve_registry_with_dependencies;
-
-mod attribute;
-pub(crate) mod conflict_strategy;
-mod dependency;
-mod dependency_resolution;
+pub(crate) mod engine;
 mod error;
-mod imports;
-mod loader;
-pub(crate) mod merge;
-mod registry;
+pub(crate) mod graph;
+pub(crate) mod v1;
+pub(crate) mod v2;
 
-use crate::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
+#[cfg(test)]
+mod refinement_association_tests;
+#[cfg(test)]
+mod unref_tests;
+#[cfg(test)]
+mod upgrade_tests;
+
+pub use crate::engine::{
+    DefaultSchemaVisitor, NullSchemaResolver, ResolutionTarget, ResolvedSchemaCache,
+    SchemaLoadingVisitor, SchemaResolver, WeaverResolvedSchema, WeaverResolver,
+    WeaverResolverConfig,
+};
 pub use crate::error::Error;
-pub use crate::loader::LoadedSemconvRegistry;
+#[cfg(test)]
+pub(crate) use crate::graph::chosen_versions::SchemaLookupContext;
+pub use crate::graph::loader::{LoadedSemconvRegistry, SourceFormat};
 
-// -----------------------------------------------------------------------------
-// Core Enums and Traits
-// -----------------------------------------------------------------------------
-
-/// A unified, version-agnostic bundle representing an optimized OpenTelemetry schema (either V1 or V2).
-#[derive(Debug, Clone)]
-#[allow(clippy::large_enum_variant)]
-pub enum WeaverResolvedSchema {
-    /// An optimized OpenTelemetry V1 schema.
-    V1(ResolvedTelemetrySchema),
-    /// An optimized OpenTelemetry V2 schema.
-    V2(V2Schema),
-}
-
-impl WeaverResolvedSchema {
-    /// Returns the active schema URL string for this bundle.
-    #[must_use]
-    pub fn schema_url_str(&self) -> &str {
-        match self {
-            Self::V1(s) => s.schema_url.as_str(),
-            Self::V2(s) => s.schema_url.as_str(),
-        }
-    }
-
-    /// Converts this bundle into an OpenTelemetry V1 schema if compatible, or returns an error.
-    pub fn into_v1(self) -> Result<ResolvedTelemetrySchema, Error> {
-        match self {
-            Self::V1(s) => Ok(s),
-            Self::V2(_) => Err(Error::ConvertingV2ToV1Unsupported),
-        }
-    }
-
-    /// Returns an OpenTelemetry V1 schema reference if this bundle holds a V1 schema.
-    #[must_use]
-    pub fn as_v1(&self) -> Option<&ResolvedTelemetrySchema> {
-        match self {
-            Self::V1(s) => Some(s),
-            Self::V2(_) => None,
-        }
-    }
-
-    /// Returns an OpenTelemetry V2 schema reference if this bundle holds a V2 schema.
-    #[must_use]
-    pub fn as_v2(&self) -> Option<&V2Schema> {
-        match self {
-            Self::V1(_) => None,
-            Self::V2(s) => Some(s),
-        }
-    }
-}
-
-/// Encapsulates all runtime configuration parameters for the Weaver resolution engine.
-/// Designed to evolve over time without breaking caller API contracts.
-#[derive(Debug, Clone)]
-pub struct WeaverResolverConfig {
-    /// Maximum number of fully resolved schemas to retain in the internal LRU cache.
-    pub cache_capacity: NonZeroUsize,
-
-    /// Whether to follow symbolic links during directory traversal.
-    pub follow_symlinks: bool,
-
-    /// Whether to include unreferenced groups in the resolved catalog.
-    pub include_unreferenced: bool,
-
-    /// HTTP authentication credentials resolver for remote registry fetches.
-    pub auth: HttpAuthResolver,
-
-    /// Explicit overrides mapping a requested SchemaUrl to an alternative VirtualDirectoryPath.
-    /// Used to redirect dependency graph requests to local clones, forks, or custom archives.
-    pub schema_url_overrides: BTreeMap<SchemaUrl, weaver_common::vdir::VirtualDirectoryPath>,
-}
-
-impl Default for WeaverResolverConfig {
-    fn default() -> Self {
-        Self {
-            cache_capacity: NonZeroUsize::new(32).expect("32 is valid non-zero capacity"),
-            follow_symlinks: false,
-            include_unreferenced: false,
-            auth: HttpAuthResolver::empty(),
-            schema_url_overrides: BTreeMap::new(),
-        }
-    }
-}
-
-/// A visitor trait allowing callers to intercept key stages of the semantic convention loading
-/// and resolution process, custom-process intermediate specifications, or capture external errors.
-pub trait SchemaLoadingVisitor {
-    /// Allows inspecting raw loaded files (unresolved specifications) immediately after successfully loading
-    /// a semantic convention repository from disk or virtual directory, before final graph deduplication.
-    ///
-    /// If this method returns `false`, resolution is instantly aborted.
-    fn check_raw_loaded_schema_files(&mut self, _loaded: &LoadedSemconvRegistry) -> bool {
-        true
-    }
-}
-
-/// A default, no-op schema loading visitor that performs no actions.
-#[derive(Debug, Clone, Default)]
-pub struct DefaultSchemaVisitor;
-
-impl SchemaLoadingVisitor for DefaultSchemaVisitor {}
-
-// -----------------------------------------------------------------------------
-// WeaverResolver Engine
-// -----------------------------------------------------------------------------
-
-/// A centralized, synchronous engine responsible for loading and resolving telemetry schemas,
-/// populating an internal LRU cache, and automatically serving pre-resolved dependency schemas.
-pub struct WeaverResolver {
-    /// Bounded LRU cache mapping exact SchemaUrls to reference-counted resolved schema bundles.
-    cache: LruCache<SchemaUrl, Arc<WeaverResolvedSchema>>,
-
-    /// The direct dependencies of each schema, recorded as that schema resolves.
-    direct_dependencies: HashMap<SchemaUrl, Vec<SchemaUrl>>,
-
-    /// Internal engine configuration.
-    config: WeaverResolverConfig,
-}
-
-impl WeaverResolver {
-    /// Instantiates a new WeaverResolver engine from explicit configuration settings.
-    #[must_use]
-    pub fn new(config: WeaverResolverConfig) -> Self {
-        Self {
-            cache: LruCache::new(config.cache_capacity),
-            direct_dependencies: HashMap::new(),
-            config,
-        }
-    }
-
-    /// Configures an explicit location override for a specific SchemaUrl.
-    /// When Weaver resolves this SchemaUrl, it will redirect the fetch to the target VirtualDirectoryPath.
-    pub fn add_schema_url_override(
-        &mut self,
-        schema_url: SchemaUrl,
-        target_path: weaver_common::vdir::VirtualDirectoryPath,
-    ) {
-        _ = self
-            .config
-            .schema_url_overrides
-            .insert(schema_url, target_path);
-    }
-
-    /// Loads a semantic convention repository without executing the final resolution step.
-    ///
-    /// Allows inspecting unresolved specifications or evaluating policy rules (e.g., BeforeResolution).
-    pub(crate) fn load_repository(
-        &mut self,
-        registry_repo: RegistryRepo,
-    ) -> WResult<LoadedSemconvRegistry, Error> {
-        loader::load_semconv_repository_with_cache(
-            Some(&self.cache),
-            registry_repo,
-            self.config.follow_symlinks,
-            &self.config.auth,
-        )
-    }
-
-    /// Records what a registry depends on directly, keeping any existing entry.
-    ///
-    /// An entry recorded during resolution names the versions actually used,
-    /// where a manifest may name one that version arbitration replaced.
-    fn record_direct_dependencies(&mut self, schema_url: &SchemaUrl, direct: Vec<SchemaUrl>) {
-        if direct.is_empty() || self.direct_dependencies.contains_key(schema_url) {
-            return;
-        }
-        let _ = self.direct_dependencies.insert(schema_url.clone(), direct);
-    }
-
-    /// Dynamically resolves a LoadedSemconvRegistry dependency, serving pre-resolved schemas from cache if available.
-    fn resolve_dependency(
-        &mut self,
-        loaded: LoadedSemconvRegistry,
-    ) -> WResult<ResolvedDependency, Error> {
-        let schema_url = match &loaded {
-            LoadedSemconvRegistry::Unresolved { repo, .. } => {
-                let manifest = match repo.to_v2_manifest() {
-                    Ok(m) => m,
-                    Err(e) => return WResult::FatalErr(e.into()),
-                };
-                manifest.schema_url().clone()
-            }
-            LoadedSemconvRegistry::Resolved { schema, .. } => {
-                match SchemaUrl::try_from(schema.schema_url.as_str()) {
-                    Ok(url) => url,
-                    Err(_) => return WResult::FatalErr(Error::FailToResolveSchemaUrl {}),
-                }
-            }
-            LoadedSemconvRegistry::ResolvedV2 { schema, .. } => schema.schema_url.clone(),
-        };
-
-        if let Some(cached) = self.cache.get(&schema_url) {
-            match &**cached {
-                WeaverResolvedSchema::V1(s) => return WResult::Ok(s.clone().into()),
-                WeaverResolvedSchema::V2(s) => return WResult::Ok(s.clone().into()),
-            }
-        }
-
-        let loaded = if let Some(override_path) = self.config.schema_url_overrides.get(&schema_url)
-        {
-            let mut nfes = vec![];
-            match RegistryRepo::try_new_with_auth(
-                Some(schema_url.clone()),
-                override_path,
-                &mut nfes,
-                &self.config.auth,
-            ) {
-                Ok(repo) => match self.load_repository(repo) {
-                    WResult::Ok(l) => l,
-                    WResult::OkWithNFEs(l, _) => l,
-                    WResult::FatalErr(e) => return WResult::FatalErr(e),
-                },
-                Err(e) => return WResult::FatalErr(Error::FailToResolveDefinition(e)),
-            }
-        } else {
-            loaded
-        };
-
-        match self.resolve_loaded(loaded) {
-            WResult::Ok(arc) => match &*arc {
-                WeaverResolvedSchema::V1(s) => WResult::Ok(s.clone().into()),
-                WeaverResolvedSchema::V2(s) => WResult::Ok(s.clone().into()),
-            },
-            WResult::OkWithNFEs(arc, nfes) => match &*arc {
-                WeaverResolvedSchema::V1(s) => WResult::OkWithNFEs(s.clone().into(), nfes),
-                WeaverResolvedSchema::V2(s) => WResult::OkWithNFEs(s.clone().into(), nfes),
-            },
-            WResult::FatalErr(e) => WResult::FatalErr(e),
-        }
-    }
-}
-
-/// Trait for resolving schemas on demand from cache or remote repositories.
-pub trait SchemaResolver {
-    /// Resolves a schema by its SchemaUrl, returning the resolved bundle along with any non-fatal errors.
-    fn resolve_schema(
-        &mut self,
-        schema_url: &SchemaUrl,
-    ) -> WResult<Arc<WeaverResolvedSchema>, Error>;
-
-    /// The direct dependencies of this schema, or `None` when they are unknown.
-    ///
-    /// `None` is not the same as empty: a schema that arrived already resolved
-    /// lists direct and transitive dependencies alike, with no way to tell them
-    /// apart.
-    fn direct_dependencies(&self, schema_url: &SchemaUrl) -> Option<&[SchemaUrl]> {
-        let _ = schema_url;
-        None
-    }
-}
-
-impl SchemaResolver for WeaverResolver {
-    fn resolve_schema(
-        &mut self,
-        schema_url: &SchemaUrl,
-    ) -> WResult<Arc<WeaverResolvedSchema>, Error> {
-        self.resolve_schema(schema_url)
-    }
-
-    fn direct_dependencies(&self, schema_url: &SchemaUrl) -> Option<&[SchemaUrl]> {
-        self.direct_dependencies
-            .get(schema_url)
-            .map(|urls| urls.as_slice())
-    }
-}
-
-/// A no-op schema resolver that returns a fatal error indicating schema URL resolution failure.
-#[derive(Debug, Clone, Default)]
-pub struct NullSchemaResolver;
-
-impl SchemaResolver for NullSchemaResolver {
-    fn resolve_schema(
-        &mut self,
-        _schema_url: &SchemaUrl,
-    ) -> WResult<Arc<WeaverResolvedSchema>, Error> {
-        WResult::FatalErr(Error::FailToResolveSchemaUrl {})
-    }
-}
-
-/// Abstraction for querying chosen dependency versions and resolved schemas from cache during resolution.
-pub(crate) trait SchemaCacheLookup {
-    /// Returns the highest chosen SchemaUrl across the current graph for a given registry name.
-    fn chosen_version(&self, registry_name: &str) -> Option<&SchemaUrl>;
-
-    /// Looks up a resolved schema by its exact SchemaUrl from the cache.
-    fn lookup_schema(&self, schema_url: &SchemaUrl) -> Option<Arc<WeaverResolvedSchema>>;
-}
-
-/// No-op lookup context used when no cache or chosen version overrides are needed.
-#[derive(Debug, Clone, Default)]
-#[allow(dead_code)]
-pub(crate) struct NullSchemaCacheLookup;
-
-impl SchemaCacheLookup for NullSchemaCacheLookup {
-    fn chosen_version(&self, _registry_name: &str) -> Option<&SchemaUrl> {
-        None
-    }
-
-    fn lookup_schema(&self, _schema_url: &SchemaUrl) -> Option<Arc<WeaverResolvedSchema>> {
-        None
-    }
-}
-
-impl SchemaCacheLookup for () {
-    fn chosen_version(&self, _registry_name: &str) -> Option<&SchemaUrl> {
-        None
-    }
-
-    fn lookup_schema(&self, _schema_url: &SchemaUrl) -> Option<Arc<WeaverResolvedSchema>> {
-        None
-    }
-}
-
-/// Concrete lookup context instantiated inside `resolve_registry_internal`.
-pub(crate) struct SchemaLookupContext<'a> {
-    pub chosen_versions: HashMap<String, SchemaUrl>,
-    pub cache: &'a LruCache<SchemaUrl, Arc<WeaverResolvedSchema>>,
-}
-
-impl<'a> SchemaCacheLookup for SchemaLookupContext<'a> {
-    fn chosen_version(&self, registry_name: &str) -> Option<&SchemaUrl> {
-        self.chosen_versions.get(registry_name)
-    }
-
-    fn lookup_schema(&self, schema_url: &SchemaUrl) -> Option<Arc<WeaverResolvedSchema>> {
-        self.cache.peek(schema_url).cloned()
-    }
-}
-
-fn collect_chosen_versions_from_url(url: &SchemaUrl, chosen: &mut HashMap<String, SchemaUrl>) {
-    let name = url.name().to_owned();
-    if let Some(existing) = chosen.get(&name) {
-        if let Ok(chosen_url) = UseLatestMajorVersion.resolve_conflict(existing, url) {
-            let _ = chosen.insert(name, chosen_url);
-        }
-    } else {
-        let _ = chosen.insert(name, url.clone());
-    }
-}
-
-fn collect_chosen_versions(dep: &ResolvedDependency, chosen: &mut HashMap<String, SchemaUrl>) {
-    let url = match dep {
-        ResolvedDependency::V1(s) => SchemaUrl::try_from(s.schema_url.as_str()).ok(),
-        ResolvedDependency::V2(s) => Some(s.schema_url.clone()),
-    };
-    if let Some(url) = url {
-        collect_chosen_versions_from_url(&url, chosen);
-    }
-    match dep {
-        ResolvedDependency::V1(s) => {
-            for sub in &s.dependencies {
-                collect_chosen_versions_from_url(sub, chosen);
-            }
-        }
-        ResolvedDependency::V2(s) => {
-            for sub in &s.dependencies {
-                collect_chosen_versions_from_url(sub, chosen);
-            }
-        }
-    }
-}
-
-impl WeaverResolver {
-    /// Actually resolves an internal definition registry and all its manifested dependencies.
-    fn resolve_registry_internal(
-        &mut self,
-        repo: RegistryRepo,
-        specs: Vec<SemConvSpecWithProvenance>,
-        imports: Vec<ImportsWithProvenance>,
-        dependencies: Vec<LoadedSemconvRegistry>,
-    ) -> WResult<ResolvedTelemetrySchema, Error> {
-        // First, let's make sure all dependencies are resolved.
-        let mut opt_resolved_dependencies: Vec<WResult<ResolvedDependency, Error>> = vec![];
-        for d in dependencies {
-            opt_resolved_dependencies.push(self.resolve_dependency(d));
-        }
-
-        // Now resolve warnings/errors.
-        let mut resolved_dependencies = vec![];
-        let mut non_fatal_errors = vec![];
-        for r in opt_resolved_dependencies {
-            match r {
-                WResult::Ok(d) => resolved_dependencies.push(d),
-                WResult::OkWithNFEs(d, nfes) => {
-                    resolved_dependencies.push(d);
-                    non_fatal_errors.extend(nfes);
-                }
-                WResult::FatalErr(e) => return WResult::FatalErr(e),
-            }
-        }
-
-        let manifest = repo.v1_manifest();
-        let schema_url = if let Some(m) = manifest.as_ref() {
-            m.schema_url().clone()
-        } else {
-            match SchemaUrl::try_from_name_version(repo.name(), repo.version()) {
-                Ok(url) => url,
-                Err(_) => return WResult::FatalErr(Error::FailToResolveSchemaUrl {}),
-            }
-        };
-        let mut attr_catalog = AttributeCatalog::default();
-
-        // Every registry this schema was built from, direct and transitive.
-        let mut dependencies = std::collections::BTreeSet::new();
-        for d in &resolved_dependencies {
-            match d {
-                ResolvedDependency::V1(schema) => {
-                    if let Ok(url) = SchemaUrl::try_from(schema.schema_url.as_str()) {
-                        _ = dependencies.insert(url);
-                    }
-                    dependencies.extend(schema.dependencies.iter().cloned());
-                }
-                ResolvedDependency::V2(schema) => {
-                    _ = dependencies.insert(schema.schema_url.clone());
-                    dependencies.extend(schema.dependencies.iter().cloned());
-                }
-            }
-        }
-
-        // The flat set above cannot be reduced back to the direct dependencies.
-        let direct: Vec<SchemaUrl> = resolved_dependencies
-            .iter()
-            .filter_map(|d| match d {
-                ResolvedDependency::V1(schema) => {
-                    SchemaUrl::try_from(schema.schema_url.as_str()).ok()
-                }
-                ResolvedDependency::V2(schema) => Some(schema.schema_url.clone()),
-            })
-            .collect();
-        let _ = self.direct_dependencies.insert(schema_url.clone(), direct);
-
-        let mut chosen_versions = HashMap::new();
-        for d in &resolved_dependencies {
-            collect_chosen_versions(d, &mut chosen_versions);
-        }
-        let lookup_ctx = SchemaLookupContext {
-            chosen_versions,
-            cache: &self.cache,
-        };
-
-        let include_unreferenced = self.config.include_unreferenced;
-        resolve_registry_with_dependencies(
-            &mut attr_catalog,
-            repo,
-            specs,
-            imports,
-            resolved_dependencies,
-            include_unreferenced,
-            &lookup_ctx,
-        )
-        .map(move |resolved_registry| ResolvedTelemetrySchema {
-            file_format: "1.0.0".to_owned(),
-            schema_url: schema_url.as_str().to_owned(),
-            registry_id: schema_url.name().to_owned(),
-            registry: resolved_registry,
-            catalog: attr_catalog.into(),
-            resource: None,
-            instrumentation_library: None,
-            dependencies,
-            versions: None,
-            registry_manifest: manifest,
-        })
-    }
-
-    /// Resolves an already loaded semantic convention repository, executing graph deduplication
-    /// and populating the internal LRU cache.
-    pub(crate) fn resolve_loaded(
-        &mut self,
-        loaded: LoadedSemconvRegistry,
-    ) -> WResult<Arc<WeaverResolvedSchema>, Error> {
-        match loaded {
-            LoadedSemconvRegistry::Unresolved {
-                repo,
-                specs,
-                imports,
-                dependencies,
-            } => {
-                let res = self.resolve_registry_internal(repo, specs, imports, dependencies);
-                match res {
-                    WResult::Ok(resolved) => {
-                        let arc = Arc::new(WeaverResolvedSchema::V1(resolved));
-                        if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
-                            _ = self.cache.put(url, arc.clone());
-                        }
-                        WResult::Ok(arc)
-                    }
-                    WResult::OkWithNFEs(resolved, nfes) => {
-                        let arc = Arc::new(WeaverResolvedSchema::V1(resolved));
-                        if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
-                            _ = self.cache.put(url, arc.clone());
-                        }
-                        WResult::OkWithNFEs(arc, nfes)
-                    }
-                    WResult::FatalErr(e) => WResult::FatalErr(e),
-                }
-            }
-            LoadedSemconvRegistry::Resolved {
-                schema,
-                direct_dependencies,
-            } => {
-                let arc = Arc::new(WeaverResolvedSchema::V1(schema));
-                if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
-                    self.record_direct_dependencies(&url, direct_dependencies);
-                    _ = self.cache.put(url, arc.clone());
-                }
-                WResult::Ok(arc)
-            }
-            LoadedSemconvRegistry::ResolvedV2 {
-                schema,
-                direct_dependencies,
-            } => {
-                let arc = Arc::new(WeaverResolvedSchema::V2(schema));
-                if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
-                    self.record_direct_dependencies(&url, direct_dependencies);
-                    _ = self.cache.put(url, arc.clone());
-                }
-                WResult::Ok(arc)
-            }
-        }
-    }
-
-    /// Dynamically resolves and caches a given SchemaUrl on demand.
-    ///
-    /// - If the schema exists in the internal LRU cache, its LRU order is refreshed
-    ///   and a cloned Arc is returned immediately.
-    /// - If missing, it fetches the definition repository, loads its dependency tree,
-    ///   recursively calls `resolve_schema` to draw dependencies from this exact cache,
-    ///   resolves the parent schema, caches it, and returns the reference-counted schema.
-    ///
-    /// Primary Consumers: `weaver_live_check` and `weaver_serve`.
-    pub fn resolve_schema(
-        &mut self,
-        schema_url: &SchemaUrl,
-    ) -> WResult<Arc<WeaverResolvedSchema>, Error> {
-        if let Some(cached) = self.cache.get(schema_url) {
-            return WResult::Ok(cached.clone());
-        }
-
-        let mut nfes = vec![];
-        let repo = if let Some(override_path) = self.config.schema_url_overrides.get(schema_url) {
-            match RegistryRepo::try_new_with_auth(
-                Some(schema_url.clone()),
-                override_path,
-                &mut nfes,
-                &self.config.auth,
-            ) {
-                Ok(r) => r,
-                Err(e) => return WResult::FatalErr(Error::FailToResolveDefinition(e)),
-            }
-        } else {
-            let dep = Dependency {
-                schema_url: schema_url.clone(),
-                registry_path: None,
-            };
-            match RegistryRepo::try_new_dependency_with_auth(&dep, &mut nfes, &self.config.auth) {
-                Ok(r) => r,
-                Err(e) => return WResult::FatalErr(Error::FailToResolveDefinition(e)),
-            }
-        };
-
-        let res = self.load_and_resolve_schema(repo, DefaultSchemaVisitor);
-        match res {
-            WResult::Ok(resolved) => {
-                if resolved.schema_url_str() != schema_url.as_str() {
-                    return WResult::FatalErr(Error::MismatchSchemaUrl {
-                        expected: schema_url.as_str().to_owned(),
-                        actual: resolved.schema_url_str().to_owned(),
-                    });
-                }
-                let arc = Arc::new(resolved);
-                _ = self.cache.put(schema_url.clone(), arc.clone());
-                WResult::OkWithNFEs(arc, nfes.into_iter().map(Error::from).collect())
-            }
-            WResult::OkWithNFEs(resolved, more_nfes) => {
-                if resolved.schema_url_str() != schema_url.as_str() {
-                    return WResult::FatalErr(Error::MismatchSchemaUrl {
-                        expected: schema_url.as_str().to_owned(),
-                        actual: resolved.schema_url_str().to_owned(),
-                    });
-                }
-                let arc = Arc::new(resolved);
-                _ = self.cache.put(schema_url.clone(), arc.clone());
-                let mut all_nfes = nfes.into_iter().map(Error::from).collect::<Vec<_>>();
-                all_nfes.extend(more_nfes);
-                WResult::OkWithNFEs(arc, all_nfes)
-            }
-            WResult::FatalErr(e) => WResult::FatalErr(e),
-        }
-    }
-
-    /// Loads and resolves a semantic convention repository directly from disk or virtual directory.
-    pub fn load_and_resolve_schema<V: SchemaLoadingVisitor>(
-        &mut self,
-        registry_repo: RegistryRepo,
-        mut visitor: V,
-    ) -> WResult<WeaverResolvedSchema, Error> {
-        let (loaded, mut load_nfes) = match self.load_repository(registry_repo) {
-            WResult::Ok(loaded) => (loaded, vec![]),
-            WResult::OkWithNFEs(loaded, nfes) => (loaded, nfes),
-            WResult::FatalErr(e) => return WResult::FatalErr(e),
-        };
-
-        if !visitor.check_raw_loaded_schema_files(&loaded) {
-            return WResult::FatalErr(Error::LoadingAbortedByVisitor);
-        }
-
-        match self.resolve_loaded(loaded) {
-            WResult::Ok(arc) => {
-                let owned = Arc::unwrap_or_clone(arc);
-                if load_nfes.is_empty() {
-                    WResult::Ok(owned)
-                } else {
-                    WResult::OkWithNFEs(owned, load_nfes)
-                }
-            }
-            WResult::OkWithNFEs(arc, res_nfes) => {
-                load_nfes.extend(res_nfes);
-                WResult::OkWithNFEs(Arc::unwrap_or_clone(arc), load_nfes)
-            }
-            WResult::FatalErr(e) => WResult::FatalErr(e),
-        }
-    }
-
-    /// Manually injects a pre-resolved schema bundle into the LRU cache.
-    /// Strictly restricted to unit and integration test suites.
-    #[cfg(test)]
-    pub fn cache_schema(&mut self, schema_bundle: WeaverResolvedSchema) -> WeaverResolvedSchema {
-        let url = SchemaUrl::try_from(schema_bundle.schema_url_str())
-            .expect("WeaverResolvedSchema contains valid schema_url");
-        let arc = Arc::new(schema_bundle);
-        _ = self.cache.put(url, arc.clone());
-        Arc::unwrap_or_clone(arc)
-    }
-}
+#[cfg(test)]
+pub(crate) use crate::v1::dependency::ResolvedDependency;
+#[cfg(test)]
+pub(crate) use crate::v1::DisallowV1EngineScope;
+#[cfg(test)]
+pub(crate) use crate::v2::DisallowV1AdapterScope;
+#[cfg(test)]
+pub(crate) use std::sync::Arc;
+#[cfg(test)]
+pub(crate) use weaver_common::result::WResult;
+#[cfg(test)]
+pub(crate) use weaver_resolved_schema::v1::ResolvedTelemetrySchema;
+#[cfg(test)]
+pub(crate) use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
+#[cfg(test)]
+pub(crate) use weaver_semconv::registry_repo::RegistryRepo;
+#[cfg(test)]
+pub(crate) use weaver_semconv::schema_url::SchemaUrl;
 
 // -----------------------------------------------------------------------------
 // Test Suites
@@ -676,12 +51,12 @@ impl WeaverResolver {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashSet;
+    use lru::LruCache;
+    use std::collections::{BTreeMap, HashMap, HashSet};
+    use std::num::NonZeroUsize;
     use weaver_common::vdir::VirtualDirectoryPath;
-    use weaver_semconv::registry_repo::RegistryRepo;
     use weaver_semconv::v1::attribute::{BasicRequirementLevelSpec, RequirementLevel};
-    use weaver_semconv::v1::group::{GroupType, ImportsWithProvenance};
-
+    use weaver_semconv::v1::group::GroupType;
     #[test]
     fn test_weaver_resolver_caching() {
         let config = WeaverResolverConfig::default();
@@ -811,7 +186,7 @@ mod tests {
     #[test]
     fn test_three_registry_chain_works() -> Result<(), weaver_semconv::Error> {
         let registry_path = VirtualDirectoryPath::LocalFolder {
-            path: "data/multi-registry/app_registry".to_owned(),
+            path: "data/multi-registry/app_registry/registry".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
         let config = WeaverResolverConfig {
@@ -892,7 +267,7 @@ mod tests {
     #[test]
     fn test_v2_dependency_resolution() -> Result<(), weaver_semconv::Error> {
         let registry_path = VirtualDirectoryPath::LocalFolder {
-            path: "data/registry-test-v2-dep/consumer_registry".to_owned(),
+            path: "data/registry-test-v2-dep/consumer_registry/registry".to_owned(),
         };
 
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
@@ -950,110 +325,13 @@ mod tests {
         Ok(())
     }
 
-    fn assert_resolved_v2_schema(test_dir: &str) -> Result<(), weaver_semconv::Error> {
-        let registry_path = VirtualDirectoryPath::LocalFolder {
-            path: format!("{test_dir}/registry"),
-        };
-        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
-        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
-
-        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
-            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
-            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
-        };
-        let observed_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
-            resolved.try_into().expect("Failed to convert to v2 schema");
-
-        let observed_dir = std::path::PathBuf::from(format!("observed_output/{test_dir}"));
-        std::fs::create_dir_all(&observed_dir).expect("Failed to create observed output dir");
-        let observed_yaml = serde_saphyr::to_string(&observed_schema).unwrap();
-        std::fs::write(observed_dir.join("schema.yaml"), &observed_yaml)
-            .expect("Failed to write observed schema");
-
-        let expected_yaml = std::fs::read_to_string(format!("{test_dir}/expected-schema.yaml"))
-            .expect("Failed to read expected schema");
-        let expected_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
-            serde_saphyr::from_str(&expected_yaml).expect("Failed to deserialize expected schema");
-
-        assert_eq!(
-            serde_json::to_value(&observed_schema).unwrap(),
-            serde_json::to_value(&expected_schema).unwrap(),
-            "Observed and expected schema don't match for `{}`.\nDiff from expected:\n{}",
-            test_dir,
-            weaver_diff::diff_output(
-                &serde_saphyr::to_string(&expected_schema).unwrap(),
-                &observed_yaml
-            )
-        );
-        Ok(())
-    }
-
-    /// End-to-end test for a metric refinement over a v2 dependency
-    #[test]
-    fn test_v2_dependency_metric_refinement_inherits_attributes(
-    ) -> Result<(), weaver_semconv::Error> {
-        assert_resolved_v2_schema("data/registry-test-v2-dep/metric_registry")
-    }
-
-    /// End-to-end test for a span refinement over a v2 dependency
-    #[test]
-    fn test_v2_dependency_span_refinement_inherits_attributes() -> Result<(), weaver_semconv::Error>
-    {
-        assert_resolved_v2_schema("data/registry-test-v2-dep/span_registry")
-    }
-
-    /// End-to-end test for a span imported from a v2 dependency.
-    ///
-    /// `sampling_relevant` is declared on the span's attribute ref, not on the
-    /// catalog attribute, so importing the span has to carry it across from
-    /// the ref. Refining the span already does (see the test above).
-    #[test]
-    fn test_v2_dependency_span_import_preserves_sampling_relevant(
-    ) -> Result<(), weaver_semconv::Error> {
-        assert_resolved_v2_schema("data/registry-test-v2-dep/span_import_registry")
-    }
-
-    /// Importing a signal from a published dependency does not make its
-    /// attributes this registry's own. `registry.attributes` lists only what a
-    /// registry defines - it is what a dependent's bare `ref` resolves against -
-    /// so an imported span, metric, event or entity must leave it empty, as it
-    /// does when the dependency is resolved from source.
-    #[test]
-    fn test_v2_published_dependency_import_defines_no_attributes(
-    ) -> Result<(), weaver_semconv::Error> {
-        assert_resolved_v2_schema("data/registry-test-v2-dep/signal_import_registry")
-    }
-
-    /// Importing an attribute group from a published dependency keeps it in the
-    /// resolved `attribute_groups`, with its requirement levels. Every group in a
-    /// published registry is public; resolving the dependency from source already
-    /// keeps the imported group.
-    #[test]
-    fn test_v2_published_dependency_import_keeps_attribute_group(
-    ) -> Result<(), weaver_semconv::Error> {
-        assert_resolved_v2_schema("data/registry-test-v2-dep/group_import_registry")
-    }
-
-    /// End-to-end test for an event refinement over a v2 dependency
-    #[test]
-    fn test_v2_dependency_event_refinement_inherits_attributes() -> Result<(), weaver_semconv::Error>
-    {
-        assert_resolved_v2_schema("data/registry-test-v2-dep/event_registry")
-    }
-
-    /// End-to-end test for an entity refinement over a v2 dependency
-    #[test]
-    fn test_v2_dependency_entity_refinement_preserves_roles() -> Result<(), weaver_semconv::Error> {
-        assert_resolved_v2_schema("data/registry-test-v2-dep/entity_registry")
-    }
-
     #[test]
     fn test_v2_entity_refinement_preserves_inherited_v1_identity(
     ) -> Result<(), weaver_semconv::Error> {
         use weaver_resolved_schema::v2::catalog::AttributeCatalog;
 
         let registry_path = VirtualDirectoryPath::LocalFolder {
-            path: "data/entity-identity-inheritance".to_owned(),
+            path: "data/entity-identity-inheritance/registry".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
         let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
@@ -1097,7 +375,7 @@ mod tests {
         use weaver_resolved_schema::v2::catalog::AttributeCatalog;
 
         let registry_path = VirtualDirectoryPath::LocalFolder {
-            path: "data/entity-identity-dependency-role/consumer".to_owned(),
+            path: "data/entity-identity-dependency-role/consumer/registry".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
         let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
@@ -1176,48 +454,36 @@ mod tests {
         Ok(())
     }
 
-    /// Refinements over two dependencies, where the attributes of one of them
-    /// are defined a level deeper. Provenance must name the registry that
-    /// defines an attribute, not the one it was reached through.
-    #[test]
-    fn test_v2_transitive_dependency_attribute_provenance() -> Result<(), weaver_semconv::Error> {
-        assert_resolved_v2_schema("data/registry-test-v2-dep/deep_registry")
-    }
-
-    /// A `ref` to an attribute of a published dependency that sets no
-    /// `requirement_level` takes the default, `recommended` - on a new signal,
-    /// on an attribute group, and on a refinement that introduces an attribute
-    /// its parent does not carry. Resolving the dependency from source already
-    /// does this; a published dependency must not differ.
-    #[test]
-    fn test_v2_published_dependency_bare_ref_defaults_to_recommended(
-    ) -> Result<(), weaver_semconv::Error> {
-        assert_resolved_v2_schema("data/registry-test-v2-dep/bare_ref_registry")
-    }
-
     /// An attribute a dependency inherited rather than defined reaches this
     /// registry only through the signals that carry it. Refining such a signal
     /// must not turn the attribute into something a bare `ref` can resolve
     /// against - that would resolve to the refinement's own copy.
     #[test]
     fn test_inherited_attribute_is_not_a_definition() -> Result<(), weaver_semconv::Error> {
-        let registry_path = VirtualDirectoryPath::LocalFolder {
-            path: "data/inherited-ref-test/user".to_owned(),
-        };
-        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
-        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        for target in [ResolutionTarget::V1, ResolutionTarget::V2] {
+            let registry_path = VirtualDirectoryPath::LocalFolder {
+                path: "data/inherited-ref-test/user".to_owned(),
+            };
+            let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+            let mut resolver = WeaverResolver::new(WeaverResolverConfig {
+                target,
+                ..Default::default()
+            });
 
-        match resolver
-            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
-            .into_result_failing_non_fatal()
-        {
-            Ok(_) => panic!("expected `base.attr` to be unresolvable in `user.metric`"),
-            Err(e) => {
-                let msg = e.to_string();
-                assert!(
-                    msg.contains("metric.user.metric") && msg.contains("base.attr"),
-                    "Expected an unresolved attribute reference, got: {msg}"
-                );
+            match resolver
+                .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+                .into_result_failing_non_fatal()
+            {
+                Ok(_) => panic!(
+                    "expected `base.attr` to be unresolvable in `user.metric` on target {target:?}"
+                ),
+                Err(e) => {
+                    let msg = e.to_string();
+                    assert!(
+                        msg.contains("metric.user.metric") && msg.contains("base.attr"),
+                        "Expected an unresolved attribute reference on target {target:?}, got: {msg}"
+                    );
+                }
             }
         }
         Ok(())
@@ -1229,56 +495,58 @@ mod tests {
     #[test]
     fn test_inherited_attribute_is_not_a_definition_from_source(
     ) -> Result<(), weaver_semconv::Error> {
-        let registry_path = VirtualDirectoryPath::LocalFolder {
-            path: "data/inherited-ref-test/refiner_user".to_owned(),
-        };
-        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
-        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        for target in [ResolutionTarget::V1, ResolutionTarget::V2] {
+            let registry_path = VirtualDirectoryPath::LocalFolder {
+                path: "data/inherited-ref-test/refiner_user".to_owned(),
+            };
+            let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+            let mut resolver = WeaverResolver::new(WeaverResolverConfig {
+                target,
+                ..Default::default()
+            });
 
-        match resolver
-            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
-            .into_result_failing_non_fatal()
-        {
-            Ok(_) => panic!("expected `base.attr` to be unresolvable in `refiner.user.metric`"),
-            Err(e) => {
-                let msg = e.to_string();
-                assert!(
-                    msg.contains("metric.refiner.user.metric") && msg.contains("base.attr"),
-                    "Expected an unresolved attribute reference, got: {msg}"
-                );
+            match resolver
+                .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+                .into_result_failing_non_fatal()
+            {
+                Ok(_) => panic!("expected `base.attr` to be unresolvable in `refiner.user.metric` on target {target:?}"),
+                Err(e) => {
+                    let msg = e.to_string();
+                    assert!(
+                        msg.contains("metric.refiner.user.metric") && msg.contains("base.attr"),
+                        "Expected an unresolved attribute reference on target {target:?}, got: {msg}"
+                    );
+                }
             }
         }
         Ok(())
     }
 
-    /// Refinement over a v1 dependency: attributes defined by the dependency
-    /// and attributes it inherited from its own dependency must be attributed
-    /// to different registries.
-    #[test]
-    fn test_v1_dependency_attribute_provenance() -> Result<(), weaver_semconv::Error> {
-        assert_resolved_v2_schema("data/registry-test-v2-dep/v1_dep_registry")
-    }
-
     /// Can't demote an identity attribute of a base entity.
     #[test]
     fn test_v2_dependency_entity_identity_demotion_rejected() -> Result<(), weaver_semconv::Error> {
-        let registry_path = VirtualDirectoryPath::LocalFolder {
-            path: "data/registry-test-v2-dep/entity_demote_registry/registry".to_owned(),
-        };
-        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
-        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        for target in [ResolutionTarget::V1, ResolutionTarget::V2] {
+            let registry_path = VirtualDirectoryPath::LocalFolder {
+                path: "data/registry-test-v2-dep/entity_demote_registry/registry".to_owned(),
+            };
+            let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+            let mut resolver = WeaverResolver::new(WeaverResolverConfig {
+                target,
+                ..Default::default()
+            });
 
-        match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
-            WResult::Ok(_) | WResult::OkWithNFEs(_, _) => {
-                panic!("Expected resolution to fail with an identity demotion error")
-            }
-            WResult::FatalErr(e) => {
-                let msg = e.to_string();
-                assert!(
-                    msg.contains("Entity refinement `demoted.host` changes the identity of")
-                        && msg.contains("referencing `host.id` under `Descriptive`"),
-                    "Expected identity demotion error, got: {msg}"
-                );
+            match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+                WResult::Ok(_) | WResult::OkWithNFEs(_, _) => {
+                    panic!("Expected resolution to fail with an identity demotion error on target {target:?}")
+                }
+                WResult::FatalErr(e) => {
+                    let msg = e.to_string();
+                    assert!(
+                        msg.contains("Entity refinement `demoted.host` changes the identity of")
+                            && msg.contains("referencing `host.id` under `Descriptive`"),
+                        "Expected identity demotion error on target {target:?}, got: {msg}"
+                    );
+                }
             }
         }
         Ok(())
@@ -1287,7 +555,7 @@ mod tests {
     #[test]
     fn test_v2_three_layer_dependency_resolution() -> Result<(), weaver_semconv::Error> {
         let registry_path = VirtualDirectoryPath::LocalFolder {
-            path: "data/registry-test-v2-dep/app_registry".to_owned(),
+            path: "data/registry-test-v2-dep/app_registry/registry".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
         let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
@@ -1321,27 +589,52 @@ mod tests {
     fn test_schema_url_overrides() -> Result<(), Error> {
         let schema_url = SchemaUrl::try_from("https://app.example.com/schemas/1.0.0").unwrap();
         let override_path = VirtualDirectoryPath::LocalFolder {
-            path: "data/registry-test-v2-dep/app_registry".to_owned(),
+            path: "data/registry-test-v2-dep/app_registry/registry".to_owned(),
         };
 
-        let mut config = WeaverResolverConfig::default();
-        _ = config
-            .schema_url_overrides
-            .insert(schema_url.clone(), override_path);
+        for target in [ResolutionTarget::V1, ResolutionTarget::V2] {
+            let mut config = WeaverResolverConfig {
+                target,
+                ..Default::default()
+            };
+            _ = config
+                .schema_url_overrides
+                .insert(schema_url.clone(), override_path.clone());
 
-        let mut resolver = WeaverResolver::new(config);
+            let mut resolver = WeaverResolver::new(config);
 
-        // Resolving the schema URL should successfully load it from the override local folder
-        // rather than trying to fetch from remote network!
-        let resolved = match resolver.resolve_schema(&schema_url) {
-            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
-            WResult::FatalErr(e) => panic!("Failed to resolve overridden schema: {e}"),
-        };
+            let resolved = match resolver.resolve_schema(&schema_url) {
+                WResult::Ok(r) => r,
+                WResult::OkWithNFEs(r, nfes) => {
+                    let real_nfes: Vec<_> = nfes
+                        .into_iter()
+                        .filter(|e| {
+                            !matches!(
+                                e,
+                                Error::V1DependencyUsesV1Path { .. }
+                                    | Error::FailToResolveDefinition(
+                                        weaver_semconv::Error::UnstableFileFormat { .. }
+                                            | weaver_semconv::Error::MissingManifestFileFormat { .. },
+                                    )
+                            )
+                        })
+                        .collect();
+                    assert!(
+                        real_nfes.is_empty(),
+                        "spurious warnings on target {target:?}: {real_nfes:?}"
+                    );
+                    r
+                }
+                WResult::FatalErr(e) => {
+                    panic!("Failed to resolve overridden schema on target {target:?}: {e}")
+                }
+            };
 
-        assert_eq!(
-            resolved.schema_url_str(),
-            "https://app.example.com/schemas/1.0.0"
-        );
+            assert_eq!(
+                resolved.schema_url_str(),
+                "https://app.example.com/schemas/1.0.0"
+            );
+        }
         Ok(())
     }
 
@@ -1349,64 +642,71 @@ mod tests {
     fn test_schema_url_overrides_mismatch() -> Result<(), Error> {
         let schema_url = SchemaUrl::try_from("https://mismatch.example.com/schemas/1.0.0").unwrap();
         let override_path = VirtualDirectoryPath::LocalFolder {
-            path: "data/registry-test-v2-dep/app_registry".to_owned(),
+            path: "data/registry-test-v2-dep/app_registry/registry".to_owned(),
         };
 
-        let mut config = WeaverResolverConfig::default();
-        _ = config
-            .schema_url_overrides
-            .insert(schema_url.clone(), override_path);
+        for target in [ResolutionTarget::V1, ResolutionTarget::V2] {
+            let mut config = WeaverResolverConfig {
+                target,
+                ..Default::default()
+            };
+            _ = config
+                .schema_url_overrides
+                .insert(schema_url.clone(), override_path.clone());
 
-        let mut resolver = WeaverResolver::new(config);
+            let mut resolver = WeaverResolver::new(config);
 
-        // Resolving the schema URL should fail because the target defines a different schema URL
-        match resolver.resolve_schema(&schema_url) {
-            WResult::FatalErr(Error::MismatchSchemaUrl { expected, actual }) => {
-                assert_eq!(expected, "https://mismatch.example.com/schemas/1.0.0");
-                assert_eq!(actual, "https://app.example.com/schemas/1.0.0");
+            match resolver.resolve_schema(&schema_url) {
+                WResult::FatalErr(Error::MismatchSchemaUrl { expected, actual }) => {
+                    assert_eq!(expected, "https://mismatch.example.com/schemas/1.0.0");
+                    assert_eq!(actual, "https://app.example.com/schemas/1.0.0");
+                }
+                WResult::Ok(_) => {
+                    panic!("Expected FatalErr(MismatchSchemaUrl) on target {target:?}, got Ok")
+                }
+                WResult::OkWithNFEs(_, _) => {
+                    panic!(
+                        "Expected FatalErr(MismatchSchemaUrl) on target {target:?}, got OkWithNFEs"
+                    )
+                }
+                WResult::FatalErr(e) => panic!(
+                    "Expected FatalErr(MismatchSchemaUrl) on target {target:?}, got FatalErr({:?})",
+                    e
+                ),
             }
-            WResult::Ok(_) => panic!("Expected FatalErr(MismatchSchemaUrl), got Ok"),
-            WResult::OkWithNFEs(_, _) => {
-                panic!("Expected FatalErr(MismatchSchemaUrl), got OkWithNFEs")
-            }
-            WResult::FatalErr(e) => panic!(
-                "Expected FatalErr(MismatchSchemaUrl), got FatalErr({:?})",
-                e
-            ),
         }
         Ok(())
     }
 
-    fn resolve_at(path: &str) -> WResult<ResolvedTelemetrySchema, Error> {
+    fn resolve_at_with_config(
+        path: &str,
+        config: WeaverResolverConfig,
+    ) -> WResult<WeaverResolvedSchema, Error> {
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: path.to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
             .expect("Failed to create registry repo");
-        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
-        match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
-            WResult::Ok(r) => r
-                .into_v1()
-                .map(WResult::Ok)
-                .unwrap_or_else(WResult::FatalErr),
-            WResult::OkWithNFEs(r, nfes) => match r.into_v1() {
-                Ok(v1) => WResult::OkWithNFEs(v1, nfes),
-                Err(e) => WResult::FatalErr(e),
-            },
-            WResult::FatalErr(e) => WResult::FatalErr(e),
-        }
+        let mut resolver = WeaverResolver::new(config);
+        resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
     }
 
-    fn resolve_inline_with_parent(
+    #[allow(dead_code)]
+    fn resolve_at(path: &str) -> WResult<WeaverResolvedSchema, Error> {
+        resolve_at_with_config(path, WeaverResolverConfig::default())
+    }
+
+    fn resolve_inline_with_parent_and_config(
         consumer_yaml: &str,
         parent_path: &str,
-    ) -> WResult<ResolvedTelemetrySchema, Error> {
+        config: WeaverResolverConfig,
+    ) -> WResult<WeaverResolvedSchema, Error> {
         let parent_vpath = VirtualDirectoryPath::LocalFolder {
             path: parent_path.to_owned(),
         };
         let parent_repo = RegistryRepo::try_new(None, &parent_vpath, &mut vec![])
             .expect("Failed to create parent registry repo");
-        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let mut resolver = WeaverResolver::new(config);
         let parent_loaded = match resolver.load_repository(parent_repo) {
             WResult::Ok(l) | WResult::OkWithNFEs(l, _) => l,
             WResult::FatalErr(e) => panic!("Failed to load parent: {e}"),
@@ -1415,47 +715,33 @@ mod tests {
         let consumer = LoadedSemconvRegistry::create_from_string(consumer_yaml)
             .expect("Failed to load consumer yaml");
         let with_dep = match consumer {
-            LoadedSemconvRegistry::Unresolved {
-                repo,
-                specs,
-                imports,
-                ..
-            } => {
-                let mut all_imports = imports;
-                for s in &specs {
-                    let v1 = s.clone().into_v1();
-                    if let Some(i) = v1.spec.imports() {
-                        all_imports.push(ImportsWithProvenance {
-                            imports: i.clone(),
-                            provenance: v1.provenance.clone(),
-                        });
-                    }
-                }
+            LoadedSemconvRegistry::Unresolved { repo, specs, .. } => {
                 LoadedSemconvRegistry::Unresolved {
                     repo,
                     specs,
-                    imports: all_imports,
                     dependencies: vec![parent_loaded],
                 }
             }
             _ => panic!("Expected unresolved consumer registry"),
         };
 
-        match resolver.resolve_loaded(with_dep) {
-            WResult::Ok(arc) => Arc::unwrap_or_clone(arc)
-                .into_v1()
-                .map(WResult::Ok)
-                .unwrap_or_else(WResult::FatalErr),
-            WResult::OkWithNFEs(arc, nfes) => match Arc::unwrap_or_clone(arc).into_v1() {
-                Ok(v1) => WResult::OkWithNFEs(v1, nfes),
-                Err(e) => WResult::FatalErr(e),
-            },
-            WResult::FatalErr(e) => WResult::FatalErr(e),
-        }
+        resolver.resolve_loaded(with_dep).map(Arc::unwrap_or_clone)
+    }
+
+    #[allow(dead_code)]
+    fn resolve_inline_with_parent(
+        consumer_yaml: &str,
+        parent_path: &str,
+    ) -> WResult<WeaverResolvedSchema, Error> {
+        resolve_inline_with_parent_and_config(
+            consumer_yaml,
+            parent_path,
+            WeaverResolverConfig::default(),
+        )
     }
 
     fn assert_exclusion_errors(
-        result: WResult<ResolvedTelemetrySchema, Error>,
+        result: WResult<WeaverResolvedSchema, Error>,
         expected: &[(&str, &str)],
     ) {
         let err = match result {
@@ -1496,10 +782,15 @@ mod tests {
 
     #[test]
     fn test_dep_exclusion_v2_fails() {
-        // Resolver is fail-fast across stages (extends, attr refs, imports),
-        // so each leak path is exercised in its own minimal consumer spec.
-        // Inline YAML keeps the test bodies adjacent to their assertions.
-        let ref_yaml = r#"
+        for target in [ResolutionTarget::V1, ResolutionTarget::V2] {
+            let config = WeaverResolverConfig {
+                target,
+                ..Default::default()
+            };
+            // Resolver is fail-fast across stages (extends, attr refs, imports),
+            // so each leak path is exercised in its own minimal consumer spec.
+            // Inline YAML keeps the test bodies adjacent to their assertions.
+            let ref_yaml = r#"
 file_format: definition/2
 metrics:
   - name: consumer.requests
@@ -1512,12 +803,41 @@ metrics:
       - ref: parent.excluded
         requirement_level: required
 "#;
-        assert_exclusion_errors(
-            resolve_inline_with_parent(ref_yaml, PUBLISHED_V2_PATH),
-            &[("parent.excluded", "metric.consumer.requests")],
-        );
+            let ref_res =
+                resolve_inline_with_parent_and_config(ref_yaml, PUBLISHED_V2_PATH, config.clone());
+            match target {
+                ResolutionTarget::V1 => {
+                    assert_exclusion_errors(
+                        ref_res,
+                        &[("parent.excluded", "metric.consumer.requests")],
+                    );
+                }
+                ResolutionTarget::V2 => {
+                    let mut errors = Vec::new();
+                    match &ref_res {
+                        WResult::FatalErr(e) => collect_errors(e, &mut errors),
+                        WResult::OkWithNFEs(_, nfes) => {
+                            for e in nfes {
+                                collect_errors(e, &mut errors);
+                            }
+                        }
+                        WResult::Ok(_) => panic!("expected error for excluded ref"),
+                    }
+                    assert!(
+                        errors.iter().any(|e| matches!(
+                            e,
+                            Error::UnresolvedAttributeRef {
+                                group_id,
+                                attribute_ref,
+                                ..
+                            } if group_id == "metric.consumer.requests" && attribute_ref == "parent.excluded"
+                        )),
+                        "expected UnresolvedAttributeRef for parent.excluded, got {errors:#?}"
+                    );
+                }
+            }
 
-        let extends_yaml = r#"
+            let extends_yaml = r#"
 groups:
   - id: consumer.requests
     type: metric
@@ -1528,31 +848,103 @@ groups:
     brief: Extends an excluded parent metric.
     extends: parent.excluded.metric
 "#;
-        assert_exclusion_errors(
-            resolve_inline_with_parent(extends_yaml, PUBLISHED_V2_PATH),
-            &[("parent.excluded.metric", "consumer.requests")],
-        );
+            let v2_refinement_yaml = r#"
+file_format: definition/2
+metric_refinements:
+  - id: consumer.requests
+    ref: parent.excluded.metric
+    brief: Refines an excluded parent metric.
+"#;
+            match target {
+                ResolutionTarget::V1 => {
+                    assert_exclusion_errors(
+                        resolve_inline_with_parent_and_config(
+                            extends_yaml,
+                            PUBLISHED_V2_PATH,
+                            config.clone(),
+                        ),
+                        &[("parent.excluded.metric", "consumer.requests")],
+                    );
+                }
+                ResolutionTarget::V2 => {
+                    let v2_ref_res = resolve_inline_with_parent_and_config(
+                        v2_refinement_yaml,
+                        PUBLISHED_V2_PATH,
+                        config.clone(),
+                    );
+                    let mut errors = Vec::new();
+                    match &v2_ref_res {
+                        WResult::FatalErr(e) => collect_errors(e, &mut errors),
+                        WResult::OkWithNFEs(_, nfes) => {
+                            for e in nfes {
+                                collect_errors(e, &mut errors);
+                            }
+                        }
+                        WResult::Ok(_) => panic!("expected error for excluded refinement parent"),
+                    }
+                    assert!(
+                        errors.iter().any(|e| matches!(
+                            e,
+                            Error::UnresolvedRefinementParent {
+                                refinement_id,
+                                r#ref,
+                                ..
+                            } if refinement_id == "consumer.requests" && r#ref == "parent.excluded.metric"
+                        )),
+                        "expected UnresolvedRefinementParent for parent.excluded.metric, got {errors:#?}"
+                    );
+                }
+            }
 
-        let imports_yaml = r#"
+            let imports_yaml = r#"
 file_format: definition/2
 imports:
   metrics:
     - parent.excluded.metric
 "#;
-        assert_exclusion_errors(
-            resolve_inline_with_parent(imports_yaml, PUBLISHED_V2_PATH),
-            &[("parent.excluded.metric", "imports")],
-        );
+            let imports_res =
+                resolve_inline_with_parent_and_config(imports_yaml, PUBLISHED_V2_PATH, config);
+            match target {
+                ResolutionTarget::V1 => {
+                    assert_exclusion_errors(imports_res, &[("parent.excluded.metric", "imports")]);
+                }
+                ResolutionTarget::V2 => {
+                    let (resolved, nfes) = match imports_res {
+                        WResult::OkWithNFEs(r, nfes) => (r, nfes),
+                        WResult::FatalErr(e) => {
+                            panic!("expected OkWithNFEs for unmatched import warning, got FatalErr: {e:?}")
+                        }
+                        WResult::Ok(_) => {
+                            panic!("expected OkWithNFEs for unmatched import warning, got Ok without NFEs")
+                        }
+                    };
+                    assert!(
+                        nfes.iter().any(|e| matches!(
+                            e,
+                            Error::UnmatchedImport { pattern, signal }
+                                if pattern == "parent.excluded.metric" && signal == "metrics"
+                        )),
+                        "expected UnmatchedImport warning, got {nfes:#?}"
+                    );
+                    assert!(resolved.as_v2().unwrap().registry.metrics.is_empty());
+                }
+            }
+        }
     }
 
     #[test]
     fn test_dep_exclusion_v2_excluded_user_still_fails() {
-        // Cross-registry references to an excluded item ALWAYS fail, even when
-        // the consumer's own using item is marked excluded. The boundary rule
-        // is absolute: excluded items in a dependency are invisible during
-        // resolution. (The within-registry "both excluded → ok" relaxation is
-        // covered by `test_within_registry_both_excluded`.)
-        let consumer = r#"
+        for target in [ResolutionTarget::V1, ResolutionTarget::V2] {
+            let config = WeaverResolverConfig {
+                target,
+                ..Default::default()
+            };
+            // Cross-registry references to an excluded item ALWAYS fail, even when
+            // the consumer's own using item is marked excluded. The boundary rule
+            // is absolute: excluded items in a dependency are invisible during
+            // resolution. (The within-registry "both excluded → ok" relaxation is
+            // covered by `test_within_registry_both_excluded`.)
+            let consumer = r#"
 file_format: definition/2
 metrics:
   - name: consumer.also.excluded
@@ -1568,10 +960,39 @@ metrics:
       - ref: parent.excluded
         requirement_level: required
 "#;
-        assert_exclusion_errors(
-            resolve_inline_with_parent(consumer, PUBLISHED_V2_PATH),
-            &[("parent.excluded", "metric.consumer.also.excluded")],
-        );
+            let res = resolve_inline_with_parent_and_config(consumer, PUBLISHED_V2_PATH, config);
+            match target {
+                ResolutionTarget::V1 => {
+                    assert_exclusion_errors(
+                        res,
+                        &[("parent.excluded", "metric.consumer.also.excluded")],
+                    );
+                }
+                ResolutionTarget::V2 => {
+                    let mut errors = Vec::new();
+                    match &res {
+                        WResult::FatalErr(e) => collect_errors(e, &mut errors),
+                        WResult::OkWithNFEs(_, nfes) => {
+                            for e in nfes {
+                                collect_errors(e, &mut errors);
+                            }
+                        }
+                        WResult::Ok(_) => panic!("expected error for excluded ref"),
+                    }
+                    assert!(
+                        errors.iter().any(|e| matches!(
+                            e,
+                            Error::UnresolvedAttributeRef {
+                                group_id,
+                                attribute_ref,
+                                ..
+                            } if group_id == "metric.consumer.also.excluded" && attribute_ref == "parent.excluded"
+                        )),
+                        "expected UnresolvedAttributeRef for parent.excluded, got {errors:#?}"
+                    );
+                }
+            }
+        }
     }
 
     fn create_registry_from_string(
@@ -1724,63 +1145,113 @@ groups:
 
     #[test]
     fn test_dep_exclusion_migration_redefine() {
-        // Parent registry has an attribute, a metric, and a span — all
-        // deprecated and excluded from dependency resolution. The consumer
-        // depends on the parent and redefines exactly the same items.
-        // Resolution must succeed: the parent items are hidden from
-        // dependents, so the consumer's redefinitions take effect.
-        let result = resolve_at("data/registry-test-dep-exclusion/migration_consumer");
-        let resolved = match result {
-            WResult::Ok(s) | WResult::OkWithNFEs(s, _) => s,
-            WResult::FatalErr(e) => panic!("expected success; got {e:?}"),
-        };
+        for target in [ResolutionTarget::V1, ResolutionTarget::V2] {
+            let config = WeaverResolverConfig {
+                target,
+                ..Default::default()
+            };
+            // Parent registry has an attribute, a metric, and a span — all
+            // deprecated and excluded from dependency resolution. The consumer
+            // depends on the parent and redefines exactly the same items.
+            // Resolution must succeed: the parent items are hidden from
+            // dependents, so the consumer's redefinitions take effect.
+            let result = resolve_at_with_config(
+                "data/registry-test-dep-exclusion/migration_consumer/registry",
+                config,
+            );
+            let resolved = match result {
+                WResult::Ok(s) | WResult::OkWithNFEs(s, _) => s,
+                WResult::FatalErr(e) => panic!("expected success; got {e:?}"),
+            };
 
-        let attrs: Vec<&str> = resolved
-            .catalog
-            .attributes()
-            .map(|a| a.name.as_str())
-            .collect();
-        assert!(
-            attrs.contains(&"moved.attr"),
-            "expected moved.attr in catalog, got {attrs:?}"
-        );
+            match resolved {
+                WeaverResolvedSchema::V1(v1) => {
+                    let attrs: Vec<&str> =
+                        v1.catalog.attributes().map(|a| a.name.as_str()).collect();
+                    assert!(
+                        attrs.contains(&"moved.attr"),
+                        "expected moved.attr in catalog, got {attrs:?}"
+                    );
 
-        let metric = resolved
-            .groups(GroupType::Metric)
-            .get("metric.moved.metric")
-            .cloned()
-            .expect("metric.moved.metric should be present");
-        assert_eq!(
-            metric.deprecated, None,
-            "consumer metric must not inherit parent deprecation"
-        );
+                    let metric = v1
+                        .groups(GroupType::Metric)
+                        .get("metric.moved.metric")
+                        .cloned()
+                        .expect("metric.moved.metric should be present");
+                    assert_eq!(
+                        metric.deprecated, None,
+                        "consumer metric must not inherit parent deprecation"
+                    );
 
-        let span = resolved
-            .groups(GroupType::Span)
-            .get("span.moved.span")
-            .cloned()
-            .expect("span.moved.span should be present");
-        assert_eq!(
-            span.deprecated, None,
-            "consumer span must not inherit parent deprecation"
-        );
+                    let span = v1
+                        .groups(GroupType::Span)
+                        .get("span.moved.span")
+                        .cloned()
+                        .expect("span.moved.span should be present");
+                    assert_eq!(
+                        span.deprecated, None,
+                        "consumer span must not inherit parent deprecation"
+                    );
 
-        // Greenfield metric (no parent equivalent, no refs) resolves cleanly
-        // alongside the redefined items.
-        assert!(
-            resolved
-                .groups(GroupType::Metric)
-                .contains_key("metric.greenfield.requests"),
-            "greenfield metric should resolve"
-        );
+                    // Greenfield metric (no parent equivalent, no refs) resolves cleanly
+                    // alongside the redefined items.
+                    assert!(
+                        v1.groups(GroupType::Metric)
+                            .contains_key("metric.greenfield.requests"),
+                        "greenfield metric should resolve"
+                    );
+                }
+                WeaverResolvedSchema::V2(v2) => {
+                    assert!(
+                        v2.attribute_catalog.iter().any(|a| a.key == "moved.attr"),
+                        "expected moved.attr in catalog"
+                    );
+
+                    let metric = v2
+                        .registry
+                        .metrics
+                        .iter()
+                        .find(|m| &*m.name == "moved.metric")
+                        .expect("metric.moved.metric should be present");
+                    assert_eq!(
+                        metric.common.deprecated, None,
+                        "consumer metric must not inherit parent deprecation"
+                    );
+
+                    let span = v2
+                        .registry
+                        .spans
+                        .iter()
+                        .find(|s| &*s.r#type == "moved.span")
+                        .expect("span.moved.span should be present");
+                    assert_eq!(
+                        span.common.deprecated, None,
+                        "consumer span must not inherit parent deprecation"
+                    );
+
+                    assert!(
+                        v2.registry
+                            .metrics
+                            .iter()
+                            .any(|m| &*m.name == "greenfield.requests"),
+                        "greenfield metric should resolve"
+                    );
+                }
+            }
+        }
     }
 
     #[test]
     fn test_dep_exclusion_migration_redefine_ref_before_def() {
-        // Test that when a consumer references a redefined attribute (via ref) in a group,
-        // it resolves against the local definition rather than falling back to the dependency's
-        // excluded definition.
-        let consumer_yaml = r#"
+        for target in [ResolutionTarget::V1, ResolutionTarget::V2] {
+            let config = WeaverResolverConfig {
+                target,
+                ..Default::default()
+            };
+            // Test that when a consumer references a redefined attribute (via ref) in a group,
+            // it resolves against the local definition rather than falling back to the dependency's
+            // excluded definition.
+            let consumer_yaml = r#"
 file_format: definition/2
 metrics:
   - name: moved.metric
@@ -1798,35 +1269,65 @@ attributes:
     stability: stable
     brief: Redefined attribute (same name as the deprecated parent item).
 "#;
-        let result = resolve_inline_with_parent(
-            consumer_yaml,
-            "data/registry-test-dep-exclusion/migration_parent",
-        );
-        let resolved = match result {
-            WResult::Ok(s) | WResult::OkWithNFEs(s, _) => s,
-            WResult::FatalErr(e) => panic!("expected success; got {e:?}"),
-        };
+            let result = resolve_inline_with_parent_and_config(
+                consumer_yaml,
+                "data/registry-test-dep-exclusion/migration_parent/registry",
+                config,
+            );
+            let resolved = match result {
+                WResult::Ok(s) | WResult::OkWithNFEs(s, _) => s,
+                WResult::FatalErr(e) => panic!("expected success; got {e:?}"),
+            };
 
-        let metric = resolved
-            .groups(GroupType::Metric)
-            .get("metric.moved.metric")
-            .cloned()
-            .expect("metric.moved.metric should be present");
-        let attr = resolved
-            .catalog
-            .attribute(&metric.attributes[0])
-            .expect("attribute should exist in catalog");
-        assert_eq!(attr.name, "moved.attr");
+            match resolved {
+                WeaverResolvedSchema::V1(v1) => {
+                    let metric = v1
+                        .groups(GroupType::Metric)
+                        .get("metric.moved.metric")
+                        .cloned()
+                        .expect("metric.moved.metric should be present");
+                    let attr = v1
+                        .catalog
+                        .attribute(&metric.attributes[0])
+                        .expect("attribute should exist in catalog");
+                    assert_eq!(attr.name, "moved.attr");
+                }
+                WeaverResolvedSchema::V2(v2) => {
+                    let metric = v2
+                        .registry
+                        .metrics
+                        .iter()
+                        .find(|m| &*m.name == "moved.metric")
+                        .expect("metric.moved.metric should be present");
+                    let aref = &metric.attributes[0];
+                    let attr = v2
+                        .attribute_catalog
+                        .get(aref.base.0 as usize)
+                        .expect("attribute should exist in catalog");
+                    assert_eq!(attr.key, "moved.attr");
+                }
+            }
+        }
     }
 
     #[test]
     fn test_within_registry_leak_v2_refinement() {
         // V2: a public metric_refinement targets an excluded base metric in
         // the same registry. Exercises the `extends` exclusion path on V2.
-        assert_exclusion_errors(
-            resolve_at("data/registry-test-dep-exclusion/within_registry_v2_leak_ref"),
-            &[("metric.parent.base", "child.refined")],
-        );
+        for target in [ResolutionTarget::V1, ResolutionTarget::V2] {
+            let res = resolve_at_with_config(
+                "data/registry-test-dep-exclusion/within_registry_v2_leak_ref",
+                WeaverResolverConfig {
+                    target,
+                    ..Default::default()
+                },
+            );
+            let expected_id = match target {
+                ResolutionTarget::V1 => "metric.parent.base",
+                ResolutionTarget::V2 => "parent.base",
+            };
+            assert_exclusion_errors(res, &[(expected_id, "child.refined")]);
+        }
     }
 
     #[test]
@@ -2195,7 +1696,7 @@ groups:
     #[test]
     fn test_diamond_dependency_attribute_conflict() -> Result<(), weaver_semconv::Error> {
         let registry_path = VirtualDirectoryPath::LocalFolder {
-            path: "data/diamond-conflict/main".to_owned(),
+            path: "data/diamond-conflict/main/registry".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
         let config = WeaverResolverConfig::default();
@@ -2225,7 +1726,7 @@ groups:
         // provenance so both paths agree on the attribute's origin and the
         // schema resolves cleanly.
         let registry_path = VirtualDirectoryPath::LocalFolder {
-            path: "data/correct-provenance/main".to_owned(),
+            path: "data/correct-provenance/main/registry".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
         let config = WeaverResolverConfig::default();
@@ -2254,7 +1755,7 @@ groups:
         // must be upgraded consistently: `metric.c.metric.1` should carry
         // C v1.2's definition and provenance.
         let registry_path = VirtualDirectoryPath::LocalFolder {
-            path: "data/compatible-version-conflict/main".to_owned(),
+            path: "data/compatible-version-conflict/main/registry".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
         let config = WeaverResolverConfig::default();
@@ -2290,7 +1791,7 @@ groups:
         // imported through the published V2 path must also be upgraded to
         // C v1.2's definition and provenance.
         let registry_path = VirtualDirectoryPath::LocalFolder {
-            path: "data/compatible-version-conflict-published/main".to_owned(),
+            path: "data/compatible-version-conflict-published/main/registry".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
         let config = WeaverResolverConfig::default();
@@ -2319,7 +1820,7 @@ groups:
     fn test_v1_manifest_resolves_dependency_declared_by_name() {
         // `main` is a v1 manifest, where `name` + `registry_path` stays supported.
         let registry_path = VirtualDirectoryPath::LocalFolder {
-            path: "data/v1-dependency-syntax/main".to_owned(),
+            path: "data/v1-dependency-syntax/main/registry".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
             .expect("a v1 manifest may declare dependencies by name");
@@ -2417,7 +1918,7 @@ groups:
 
         // 3. Now resolve main, which imports from both A and B (with B bringing C v1.2).
         let registry_path = VirtualDirectoryPath::LocalFolder {
-            path: "data/compatible-version-conflict/main".to_owned(),
+            path: "data/compatible-version-conflict/main/registry".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
         let resolved_main =
@@ -2437,18 +1938,14 @@ groups:
         let url_b = SchemaUrl::try_from("https://example.com/b/0.1.0").unwrap();
         assert!(v1_main.dependencies.contains(&url_a));
         assert!(v1_main.dependencies.contains(&url_b));
-        // `dependencies` is the table `DependencyRef` provenance indexes into,
-        // so it must also name the registries reached *through* A and B —
-        // otherwise elements inherited from C have nothing to point at and are
-        // reported as locally defined.
         assert!(
-            v1_main.dependencies.contains(&url_c_v1_1),
-            "transitive dependency C v1.1 missing from {:?}",
+            !v1_main.dependencies.contains(&url_c_v1_1),
+            "superseded dependency C v1.1 should be excluded from linearized dependencies {:?}",
             v1_main.dependencies
         );
         assert!(
             v1_main.dependencies.contains(&url_c_v1_2),
-            "transitive dependency C v1.2 missing from {:?}",
+            "chosen dependency C v1.2 missing from {:?}",
             v1_main.dependencies
         );
 
@@ -2492,7 +1989,7 @@ groups:
         const BASE: &str = "https://example.com/base/1.0.0";
 
         let registry_path = VirtualDirectoryPath::LocalFolder {
-            path: "data/transitive-provenance/main".to_owned(),
+            path: "data/transitive-provenance/main/registry".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
             .expect("failed to create registry repo");
@@ -2561,46 +2058,79 @@ groups:
         )
     }
 
-    fn load_entity_assoc_fixture(name: &str) -> WResult<WeaverResolvedSchema, Error> {
-        let registry_path = VirtualDirectoryPath::LocalFolder {
-            path: format!("data/entity-assoc-imports/{name}"),
+    fn load_entity_assoc_fixture_with_engine(
+        name: &str,
+        target: ResolutionTarget,
+    ) -> WResult<WeaverResolvedSchema, Error> {
+        let candidate = format!("data/entity-assoc-imports/{name}/registry");
+        let path = if std::path::Path::new(&candidate).is_dir() {
+            candidate
+        } else {
+            format!("data/entity-assoc-imports/{name}")
         };
+        let registry_path = VirtualDirectoryPath::LocalFolder { path };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
             .expect("failed to create registry repo");
-        WeaverResolver::new(WeaverResolverConfig::default())
-            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+        let config = WeaverResolverConfig {
+            target,
+            ..Default::default()
+        };
+        WeaverResolver::new(config).load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+    }
+
+    fn load_entity_assoc_fixture(name: &str) -> WResult<WeaverResolvedSchema, Error> {
+        load_entity_assoc_fixture_with_engine(name, ResolutionTarget::V1)
     }
 
     /// Resolves one of the `entity-assoc-imports` registries. Returns the
     /// resolved schema and the non-fatal errors.
-    fn resolve_entity_assoc_fixture(name: &str) -> (V2Schema, Vec<Error>) {
-        let (resolved, nfes) = match load_entity_assoc_fixture(name) {
+    fn resolve_entity_assoc_fixture_with_engine(
+        name: &str,
+        target: ResolutionTarget,
+    ) -> (V2Schema, Vec<Error>) {
+        let (resolved, nfes) = match load_entity_assoc_fixture_with_engine(name, target) {
             WResult::Ok(r) => (r, vec![]),
             WResult::OkWithNFEs(r, nfes) => (r, nfes),
             WResult::FatalErr(e) => panic!("Failed to resolve `{name}`: {e}"),
         };
-        let v1 = resolved
-            .as_v1()
-            .unwrap_or_else(|| panic!("Expected a V1 schema for `{name}`"))
-            .clone();
-        let v2: V2Schema = v1
-            .try_into()
-            .unwrap_or_else(|e| panic!("v1 -> v2 conversion for `{name}`: {e}"));
+        let v2: V2Schema = match resolved {
+            WeaverResolvedSchema::V2(v2) => v2,
+            WeaverResolvedSchema::V1(v1) => v1
+                .try_into()
+                .unwrap_or_else(|e| panic!("v1 -> v2 conversion for `{name}`: {e}")),
+        };
         let nfes = nfes
             .into_iter()
             .filter(|e| !is_unstable_format_warning(e))
+            .filter(|e| !matches!(e, Error::V1DependencyUsesV1Path { .. }))
             .collect();
         (v2, nfes)
     }
 
+    fn resolve_entity_assoc_fixture(name: &str) -> (V2Schema, Vec<Error>) {
+        resolve_entity_assoc_fixture_with_engine(name, ResolutionTarget::V1)
+    }
+
     /// Loads and resolves a `signal-name-preservation` fixture.
+    #[allow(dead_code)]
     fn load_signal_name_fixture(name: &str) -> WeaverResolvedSchema {
+        load_signal_name_fixture_with_engine(name, ResolutionTarget::V1)
+    }
+
+    fn load_signal_name_fixture_with_engine(
+        name: &str,
+        target: ResolutionTarget,
+    ) -> WeaverResolvedSchema {
         let registry_path = VirtualDirectoryPath::LocalFolder {
-            path: format!("data/signal-name-preservation/{name}"),
+            path: format!("data/signal-name-preservation/{name}/registry"),
         };
         let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
             .expect("failed to create registry repo");
-        match WeaverResolver::new(WeaverResolverConfig::default())
+        let config = WeaverResolverConfig {
+            target,
+            ..Default::default()
+        };
+        match WeaverResolver::new(config)
             .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
         {
             WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
@@ -2656,10 +2186,98 @@ groups:
     /// prefix, so the materialized name is kept verbatim.
     #[test]
     fn test_v2_schema_preserves_signal_names() {
-        let resolved = load_signal_name_fixture("v2");
-        let v1 = resolved.as_v1().expect("a v1 schema").clone();
-        let v2: V2Schema = v1.try_into().expect("v1 -> v2 conversion");
-        check_v2_signal_names(&v2, "entity.test", "metric.test", "event.test", "span.test");
+        for target in [ResolutionTarget::V1, ResolutionTarget::V2] {
+            let resolved = load_signal_name_fixture_with_engine("v2", target);
+            let v2: V2Schema = match resolved {
+                WeaverResolvedSchema::V2(v2) => v2,
+                WeaverResolvedSchema::V1(v1) => v1.try_into().expect("v1 -> v2 conversion"),
+            };
+            check_v2_signal_names(&v2, "entity.test", "metric.test", "event.test", "span.test");
+        }
+    }
+
+    #[test]
+    fn test_entity_assoc_fixtures_dual_engine_parity() {
+        let fixtures = [
+            "local_shapes",
+            "local_private_pair",
+            "middle",
+            "middle_reexport",
+            "middle_refined_signal",
+            "middle_refinement_assoc",
+            "top_diamond",
+            "top_diamond_assoc",
+            "top_private_first",
+            "top_public_first",
+            "top_rebind",
+            "top_rival_import",
+            "top_legacy_import",
+            "legacy_resource",
+        ];
+        for fixture in fixtures {
+            let (legacy_schema, legacy_nfes) =
+                resolve_entity_assoc_fixture_with_engine(fixture, ResolutionTarget::V1);
+            let (native_schema, native_nfes) =
+                resolve_entity_assoc_fixture_with_engine(fixture, ResolutionTarget::V2);
+            let legacy_schema_val = serde_json::to_value(&legacy_schema).unwrap();
+            let native_schema_val = serde_json::to_value(&native_schema).unwrap();
+            assert_eq!(
+                legacy_schema_val, native_schema_val,
+                "Schema mismatch between Legacy and Native for `{fixture}`"
+            );
+            assert_eq!(
+                legacy_nfes.len(),
+                native_nfes.len(),
+                "NFEs count mismatch between Legacy and Native for `{fixture}`"
+            );
+            for nfe in &legacy_nfes {
+                match nfe {
+                    Error::DuplicateGroupId { group_id, .. } => {
+                        assert!(
+                            native_nfes.iter().any(|e| matches!(e, Error::DuplicateGroupId { group_id: gid, .. } if gid == group_id)),
+                            "Native missing DuplicateGroupId for {group_id}"
+                        );
+                    }
+                    Error::DuplicateGroupName { group_name, .. } => {
+                        assert!(
+                            native_nfes.iter().any(|e| matches!(e, Error::DuplicateGroupName { group_name: gname, .. } if gname == group_name)),
+                            "Native missing DuplicateGroupName for {group_name}"
+                        );
+                    }
+                    _ => {
+                        let nfe_json = serde_json::to_string(nfe).unwrap();
+                        assert!(
+                            native_nfes
+                                .iter()
+                                .any(|e| serde_json::to_string(e).unwrap() == nfe_json),
+                            "Native missing error {nfe_json} for {fixture}"
+                        );
+                    }
+                }
+            }
+        }
+
+        let fatal_fixtures = [
+            "middle_bad_assoc",
+            "middle_excluded_assoc",
+            "top_ambiguous_assoc",
+            "top_transitive_assoc",
+            "middle_name_clash",
+            "legacy_by_id",
+            "local_private_assoc",
+        ];
+        for fixture in fatal_fixtures {
+            let legacy_res = load_entity_assoc_fixture_with_engine(fixture, ResolutionTarget::V1);
+            let native_res = load_entity_assoc_fixture_with_engine(fixture, ResolutionTarget::V2);
+            assert!(
+                matches!(legacy_res, WResult::FatalErr(_)),
+                "Expected legacy failure for {fixture}"
+            );
+            assert!(
+                matches!(native_res, WResult::FatalErr(_)),
+                "Expected native failure for {fixture}"
+            );
+        }
     }
 
     /// The non-fatal errors of one of the `entity-assoc-imports` registries.
@@ -2670,6 +2288,17 @@ groups:
     /// The errors of an `entity-assoc-imports` registry that must not resolve.
     fn entity_assoc_fixture_fatal_errors(name: &str) -> Vec<Error> {
         match load_entity_assoc_fixture(name) {
+            WResult::FatalErr(Error::CompoundError(errors)) => errors,
+            WResult::FatalErr(e) => vec![e],
+            _ => panic!("`{name}` must fail to resolve"),
+        }
+    }
+
+    fn entity_assoc_fixture_fatal_errors_with_engine(
+        name: &str,
+        target: ResolutionTarget,
+    ) -> Vec<Error> {
+        match load_entity_assoc_fixture_with_engine(name, target) {
             WResult::FatalErr(Error::CompoundError(errors)) => errors,
             WResult::FatalErr(e) => vec![e],
             _ => panic!("`{name}` must fail to resolve"),
@@ -2997,14 +2626,30 @@ groups:
     /// included.
     #[test]
     fn test_association_to_a_private_entity_fails_the_resolve() {
-        let errors = entity_assoc_fixture_fatal_errors("middle_excluded_assoc");
+        let legacy_errors = entity_assoc_fixture_fatal_errors_with_engine(
+            "middle_excluded_assoc",
+            ResolutionTarget::V1,
+        );
         assert!(
             matches!(
-                errors.as_slice(),
+                legacy_errors.as_slice(),
                 [Error::ExcludedFromDependencyResolution { id, used_in, .. }]
                     if id == "host" && used_in == "metric.middle.request.count"
             ),
-            "`base_excluded` keeps `host` private: {errors:?}"
+            "`base_excluded` keeps `host` private under legacy: {legacy_errors:?}"
+        );
+
+        let native_errors = entity_assoc_fixture_fatal_errors_with_engine(
+            "middle_excluded_assoc",
+            ResolutionTarget::V2,
+        );
+        assert!(
+            matches!(
+                native_errors.as_slice(),
+                [Error::UnresolvedEntityAssociation { entity_type, .. }]
+                    if entity_type == "host"
+            ),
+            "`base_excluded` hides `host` across dependency boundary under native: {native_errors:?}"
         );
     }
 
@@ -3039,14 +2684,9 @@ groups:
         );
     }
 
-    /// A private entity in one dependency does not hide a public entity of the
-    /// same name in another.
-    ///
     /// `top_private_first` and `top_public_first` list the same two
-    /// dependencies in opposite orders. One keeps its `host` private, the other
-    /// publishes one. A private entity is no part of a dependency's surface, so
-    /// the lookup must pass over it and keep looking. Both registries must
-    /// therefore resolve, and to the same entity.
+    /// dependencies in opposite orders: one excludes `host` and the other
+    /// exports it, so both resolve to the exported entity.
     #[test]
     fn test_private_entity_does_not_shadow_a_public_one() {
         use weaver_resolved_schema::v2::entity::EntityAssociation;
@@ -3076,13 +2716,9 @@ groups:
         }
     }
 
-    /// Two dependencies that each declare their own entity under one name leave
-    /// an association with no answer.
-    ///
-    /// `top_ambiguous_assoc` depends on `base` and `rival_base`, which share a
-    /// name and nothing else, and imports neither. Picking one would make the
-    /// order of the manifest decide which entity the metric belongs to. The
-    /// author is the one who has to say.
+    /// `top_ambiguous_assoc` depends on `base` and `rival_base` without
+    /// importing either, so an association naming `host` matches two unrelated
+    /// entity definitions.
     #[test]
     fn test_association_that_two_dependencies_answer_is_reported() {
         let errors = entity_assoc_fixture_fatal_errors("top_ambiguous_assoc");
@@ -3255,8 +2891,8 @@ groups:
         assert_eq!(ref_source(&middle, host), Some(BASE_URL));
     }
 
-    /// An entity is looked for among the entities. A signal of another kind
-    /// that happens to share the name does not satisfy an association.
+    /// Entity association lookup matches entity definitions only, ignoring
+    /// other signals with the same name.
     #[test]
     fn test_association_does_not_match_a_signal_of_another_kind() {
         let errors = entity_assoc_fixture_fatal_errors("middle_name_clash");
@@ -3295,15 +2931,18 @@ groups:
     /// `extends` clause both refuse this already.
     #[test]
     fn test_public_signal_associated_with_a_private_entity_is_reported() {
-        let errors = entity_assoc_fixture_fatal_errors("local_private_assoc");
-        assert!(
-            matches!(
-                errors.as_slice(),
-                [Error::ExcludedFromDependencyResolution { id, used_in, .. }]
-                    if id == "host" && used_in == "metric.private.request.count"
-            ),
-            "a public metric must not export a reference to a private entity: {errors:?}"
-        );
+        for target in [ResolutionTarget::V1, ResolutionTarget::V2] {
+            let errors =
+                entity_assoc_fixture_fatal_errors_with_engine("local_private_assoc", target);
+            assert!(
+                matches!(
+                    errors.as_slice(),
+                    [Error::ExcludedFromDependencyResolution { id, used_in, .. }]
+                        if id == "host" && used_in == "metric.private.request.count"
+                ),
+                "a public metric must not export a reference to a private entity: {errors:?}"
+            );
+        }
     }
 
     /// A private signal may name a private entity: neither is in the surface
@@ -3401,10 +3040,10 @@ groups:
         }));
 
         let mut chosen_versions = HashMap::new();
-        collect_chosen_versions(&layer1_a, &mut chosen_versions);
-        collect_chosen_versions(&layer1_b, &mut chosen_versions);
-        collect_chosen_versions(&base_v1_0, &mut chosen_versions);
-        collect_chosen_versions(&base_v1_1, &mut chosen_versions);
+        layer1_a.collect_chosen_versions(&mut chosen_versions);
+        layer1_b.collect_chosen_versions(&mut chosen_versions);
+        base_v1_0.collect_chosen_versions(&mut chosen_versions);
+        base_v1_1.collect_chosen_versions(&mut chosen_versions);
 
         assert_eq!(
             chosen_versions.get("example.com/base").unwrap(),
@@ -3414,18 +3053,15 @@ groups:
     }
 
     #[test]
-    fn test_chosen_version_upgrade_removed_attribute_fallback() -> Result<(), Error> {
-        use crate::attribute::{AttributeCatalog, AttributeSource, AttributeWithSource};
+    fn test_chosen_version_upgrade_removed_attribute_fails() -> Result<(), Error> {
+        use crate::v1::attribute::{AttributeCatalog, AttributeSource, AttributeWithSource};
 
-        // When chosen version C v1.2 no longer has attribute `c.removed_attr`,
-        // `upgrade_attribute_with_source` should gracefully fall back and retain C v1.1.
         let url_c_v1_1 = SchemaUrl::try_from("https://example.com/c/1.1.0").unwrap();
         let url_c_v1_2 = SchemaUrl::try_from("https://example.com/c/1.2.0").unwrap();
 
         let mut chosen_versions = HashMap::new();
-        let _ = chosen_versions.insert("c".to_owned(), url_c_v1_2.clone());
+        let _ = chosen_versions.insert("example.com/c".to_owned(), url_c_v1_2.clone());
 
-        // Create an empty schema for c/1.2.0 where `c.removed_attr` does not exist.
         let schema_v1_2 = Arc::new(WeaverResolvedSchema::V1(ResolvedTelemetrySchema {
             file_format: "resolved/1.0".to_owned(),
             schema_url: "https://example.com/c/1.2.0".to_owned(),
@@ -3444,11 +3080,12 @@ groups:
         }));
 
         let mut cache = LruCache::new(NonZeroUsize::new(10).unwrap());
-        let _ = cache.push(url_c_v1_2, schema_v1_2);
+        let _ = cache.push(url_c_v1_2.clone(), schema_v1_2);
 
         let lookup_ctx = SchemaLookupContext {
             chosen_versions,
             cache: &cache,
+            pinned_schemas: HashMap::new(),
         };
 
         let attr = weaver_resolved_schema::v1::attribute::Attribute {
@@ -3481,18 +3118,353 @@ groups:
             is_definition: true,
         };
 
-        let result_aws = AttributeCatalog::upgrade_attribute_with_source(orig_aws, &lookup_ctx)?;
-        assert_eq!(result_aws.attribute.brief, "Old attribute in C v1.1");
-        match result_aws.source {
-            AttributeSource::Dependency { schema_url } => {
-                assert_eq!(schema_url.to_string(), "https://example.com/c/1.1.0");
+        let result = AttributeCatalog::upgrade_attribute_with_source(orig_aws, &lookup_ctx);
+        match result {
+            Err(Error::AttributeNotFoundInUpgradedSchema {
+                attribute_name,
+                original_url,
+                upgraded_url,
+            }) => {
+                assert_eq!(attribute_name, "c.removed_attr");
+                assert_eq!(original_url, url_c_v1_1.to_string());
+                assert_eq!(upgraded_url, url_c_v1_2.to_string());
             }
-            AttributeSource::Local { .. } => panic!("Expected dependency source in fallback"),
+            other => panic!("Expected AttributeNotFoundInUpgradedSchema, got {other:?}"),
         }
 
         Ok(())
     }
-}
 
-#[cfg(test)]
-mod unref_tests;
+    #[test]
+    fn test_linearized_dependencies_exclude_superseded_version() -> Result<(), weaver_semconv::Error>
+    {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/compatible-version-conflict/main/registry".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+
+        let url_a = SchemaUrl::try_from("https://example.com/a/0.1.0").unwrap();
+        let url_b = SchemaUrl::try_from("https://example.com/b/0.1.0").unwrap();
+        let url_c_v1_1 = SchemaUrl::try_from("https://example.com/c/1.1.0").unwrap();
+        let url_c_v1_2 = SchemaUrl::try_from("https://example.com/c/1.2.0").unwrap();
+
+        assert!(resolved.dependencies.contains(&url_a));
+        assert!(resolved.dependencies.contains(&url_b));
+        assert!(resolved.dependencies.contains(&url_c_v1_2));
+        assert!(
+            !resolved.dependencies.contains(&url_c_v1_1),
+            "superseded C v1.1 must not appear in linearized dependencies: {:?}",
+            resolved.dependencies
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_linearized_dependencies_exclude_superseded_version_published(
+    ) -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/compatible-version-conflict-published/main/registry".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let resolved = match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r.into_v1().unwrap(),
+            WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+        };
+
+        let url_a = SchemaUrl::try_from("https://example.com/a/0.1.0").unwrap();
+        let url_b = SchemaUrl::try_from("https://example.com/b/0.1.0").unwrap();
+        let url_c_v1_1 = SchemaUrl::try_from("https://example.com/c/1.1.0").unwrap();
+        let url_c_v1_2 = SchemaUrl::try_from("https://example.com/c/1.2.0").unwrap();
+
+        assert!(resolved.dependencies.contains(&url_a));
+        assert!(resolved.dependencies.contains(&url_b));
+        assert!(resolved.dependencies.contains(&url_c_v1_2));
+        assert!(
+            !resolved.dependencies.contains(&url_c_v1_1),
+            "superseded C v1.1 must not appear in linearized dependencies: {:?}",
+            resolved.dependencies
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolved_schema_cache_hit_miss_direct_deps() -> Result<(), weaver_semconv::Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/compatible-version-conflict/main/registry".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        let resolved_bundle =
+            match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+                WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+                WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+            };
+
+        let mut cache = match resolver.schema_cache_for(&resolved_bundle) {
+            WResult::Ok(c) | WResult::OkWithNFEs(c, _) => c,
+            WResult::FatalErr(e) => panic!("building cache snapshot should succeed: {e:?}"),
+        };
+
+        let url_a = SchemaUrl::try_from("https://example.com/a/0.1.0").unwrap();
+        let url_b = SchemaUrl::try_from("https://example.com/b/0.1.0").unwrap();
+        let url_c_v1_2 = SchemaUrl::try_from("https://example.com/c/1.2.0").unwrap();
+        let url_c_v1_1 = SchemaUrl::try_from("https://example.com/c/1.1.0").unwrap();
+
+        assert!(matches!(
+            cache.resolve_schema(&url_a),
+            WResult::Ok(_) | WResult::OkWithNFEs(_, _)
+        ));
+        assert!(matches!(
+            cache.resolve_schema(&url_b),
+            WResult::Ok(_) | WResult::OkWithNFEs(_, _)
+        ));
+        assert!(matches!(
+            cache.resolve_schema(&url_c_v1_2),
+            WResult::Ok(_) | WResult::OkWithNFEs(_, _)
+        ));
+
+        match cache.resolve_schema(&url_c_v1_1) {
+            WResult::FatalErr(Error::SchemaNotInCache { schema_url }) => {
+                assert_eq!(schema_url, url_c_v1_1);
+            }
+            WResult::FatalErr(e) => panic!("expected SchemaNotInCache for c/1.1.0, got: {e:?}"),
+            _ => panic!("expected FatalErr(SchemaNotInCache) for c/1.1.0"),
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_snapshot_completeness_under_lru_eviction() -> Result<(), weaver_semconv::Error> {
+        let mut overrides = BTreeMap::new();
+        _ = overrides.insert(
+            SchemaUrl::try_from("https://example.com/a/0.1.0").unwrap(),
+            VirtualDirectoryPath::LocalFolder {
+                path: "data/compatible-version-conflict/registry_a".to_owned(),
+            },
+        );
+        _ = overrides.insert(
+            SchemaUrl::try_from("https://example.com/b/0.1.0").unwrap(),
+            VirtualDirectoryPath::LocalFolder {
+                path: "data/compatible-version-conflict/registry_b".to_owned(),
+            },
+        );
+        _ = overrides.insert(
+            SchemaUrl::try_from("https://example.com/c/1.2.0").unwrap(),
+            VirtualDirectoryPath::LocalFolder {
+                path: "data/compatible-version-conflict/registry_c_v1_2".to_owned(),
+            },
+        );
+
+        let config = WeaverResolverConfig {
+            cache_capacity: NonZeroUsize::new(1).unwrap(),
+            schema_url_overrides: overrides,
+            ..Default::default()
+        };
+
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/compatible-version-conflict/main/registry".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])?;
+        let mut resolver = WeaverResolver::new(config);
+        let resolved_bundle =
+            match resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor) {
+                WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+                WResult::FatalErr(e) => panic!("Failed to resolve schema: {e}"),
+            };
+
+        let mut cache = match resolver.schema_cache_for(&resolved_bundle) {
+            WResult::Ok(c) | WResult::OkWithNFEs(c, _) => c,
+            WResult::FatalErr(e) => {
+                panic!("building cache snapshot under tiny LRU capacity should succeed: {e:?}")
+            }
+        };
+
+        let url_a = SchemaUrl::try_from("https://example.com/a/0.1.0").unwrap();
+        let url_b = SchemaUrl::try_from("https://example.com/b/0.1.0").unwrap();
+        let url_c_v1_2 = SchemaUrl::try_from("https://example.com/c/1.2.0").unwrap();
+
+        assert!(matches!(
+            cache.resolve_schema(&url_a),
+            WResult::Ok(_) | WResult::OkWithNFEs(_, _)
+        ));
+        assert!(matches!(
+            cache.resolve_schema(&url_b),
+            WResult::Ok(_) | WResult::OkWithNFEs(_, _)
+        ));
+        assert!(matches!(
+            cache.resolve_schema(&url_c_v1_2),
+            WResult::Ok(_) | WResult::OkWithNFEs(_, _)
+        ));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_entity_association_origin_upgraded_to_chosen_version() -> Result<(), Error> {
+        let url_base_v1_0 = SchemaUrl::try_from("https://example.com/base/1.0.0").unwrap();
+        let url_base_v1_1 = SchemaUrl::try_from("https://example.com/base/1.1.0").unwrap();
+
+        let mut chosen_versions = HashMap::new();
+        _ = chosen_versions.insert("example.com/base".to_owned(), url_base_v1_1.clone());
+
+        let host_group = weaver_resolved_schema::v1::registry::Group {
+            id: "host".to_owned(),
+            r#type: GroupType::Entity,
+            name: Some("host".to_owned()),
+            brief: "Host entity".to_owned(),
+            note: Some("".to_owned()),
+            prefix: "".to_owned(),
+            stability: Default::default(),
+            deprecated: Default::default(),
+            attributes: vec![],
+            extends: None,
+            lineage: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            span_kind: None,
+            annotations: Default::default(),
+            display_name: None,
+            body: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: false,
+            span_name: None,
+            requirement_level: Default::default(),
+        };
+
+        let schema_base_v1_1 = Arc::new(WeaverResolvedSchema::V1(ResolvedTelemetrySchema {
+            file_format: "resolved/1.0".to_owned(),
+            schema_url: "https://example.com/base/1.1.0".to_owned(),
+            registry_id: "base".to_owned(),
+            registry: weaver_resolved_schema::v1::registry::Registry {
+                registry_url: "https://example.com/base/1.1.0".to_owned(),
+                entity_association_origins: Default::default(),
+                groups: vec![host_group],
+            },
+            catalog: weaver_resolved_schema::v1::catalog::Catalog::default(),
+            resource: None,
+            instrumentation_library: None,
+            dependencies: Default::default(),
+            versions: None,
+            registry_manifest: None,
+        }));
+
+        let mut cache = LruCache::new(NonZeroUsize::new(10).unwrap());
+        let _ = cache.push(url_base_v1_1.clone(), schema_base_v1_1);
+
+        let lookup_ctx = SchemaLookupContext {
+            chosen_versions,
+            cache: &cache,
+            pinned_schemas: HashMap::new(),
+        };
+
+        let upgraded = v1::upgrade::upgrade_entity_origin("host", &url_base_v1_0, &lookup_ctx)?;
+        assert_eq!(upgraded, url_base_v1_1);
+
+        let missing =
+            v1::upgrade::upgrade_entity_origin("missing_entity", &url_base_v1_0, &lookup_ctx);
+        match missing {
+            Err(Error::EntityNotFoundInUpgradedSchema {
+                entity_name,
+                original_url,
+                upgraded_url,
+            }) => {
+                assert_eq!(entity_name, "missing_entity");
+                assert_eq!(original_url, url_base_v1_0.to_string());
+                assert_eq!(upgraded_url, url_base_v1_1.to_string());
+            }
+            other => panic!("Expected EntityNotFoundInUpgradedSchema, got {other:?}"),
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_pure_v2_fixtures_never_enter_v1_code() {
+        let pure_v2_fixtures = [
+            "data/registry-test-v2-1-everything",
+            "data/registry-test-v2-2-multifile",
+            "data/registry-test-v2-4-refinements",
+            "data/registry-test-v2-5-published",
+            "data/registry-test-v2-dep/app_registry",
+            "data/registry-test-v2-dep/bare_ref_registry",
+            "data/registry-test-v2-dep/consumer_published",
+            "data/registry-test-v2-dep/consumer_registry",
+            "data/registry-test-v2-dep/deep_registry",
+            "data/registry-test-v2-dep/entity_registry",
+            "data/registry-test-v2-dep/event_registry",
+            "data/registry-test-v2-dep/group_import_registry",
+            "data/registry-test-v2-dep/metric_registry",
+            "data/registry-test-v2-dep/signal_import_registry",
+            "data/registry-test-v2-dep/span_import_registry",
+            "data/registry-test-v2-dep/span_registry",
+            "data/entity-assoc-imports/local_shapes",
+            "data/entity-assoc-imports/local_private_pair",
+            "data/entity-assoc-imports/middle",
+            "data/entity-assoc-imports/middle_reexport",
+            "data/entity-assoc-imports/middle_refined_signal",
+            "data/entity-assoc-imports/middle_refinement_assoc",
+            "data/entity-assoc-imports/top_diamond",
+            "data/entity-assoc-imports/top_diamond_assoc",
+            "data/entity-assoc-imports/top_private_first",
+            "data/entity-assoc-imports/top_public_first",
+            "data/entity-assoc-imports/top_rebind",
+            "data/entity-assoc-imports/top_rival_import",
+            "data/inherited-ref-test/base",
+            "data/inherited-ref-test/middle",
+            "data/inherited-ref-test/refiner",
+            "data/signal-name-preservation/v2",
+            "data/registry-test-dep-exclusion/migration_parent",
+            "data/registry-test-dep-exclusion/migration_consumer",
+        ];
+
+        assert!(
+            pure_v2_fixtures.len() >= 25,
+            "Expected at least 25 pure-V2 fixtures"
+        );
+
+        let _engine_guard = DisallowV1EngineScope::new();
+        let _adapter_guard = DisallowV1AdapterScope::new();
+
+        for fixture in pure_v2_fixtures {
+            let registry_path = if std::path::Path::new(&format!("{fixture}/registry")).is_dir() {
+                format!("{fixture}/registry")
+            } else {
+                fixture.to_owned()
+            };
+
+            let vpath = VirtualDirectoryPath::LocalFolder {
+                path: registry_path,
+            };
+            let mut repo_nfes = Vec::new();
+            let repo = RegistryRepo::try_new(None, &vpath, &mut repo_nfes)
+                .unwrap_or_else(|e| panic!("Failed to load repo for `{fixture}`: {e}"));
+
+            let config = WeaverResolverConfig {
+                target: ResolutionTarget::V2,
+                ..Default::default()
+            };
+            let mut resolver = WeaverResolver::new(config);
+            match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
+                WResult::Ok(schema) | WResult::OkWithNFEs(schema, _) => {
+                    assert!(
+                        schema.as_v2().is_some(),
+                        "Expected V2 schema for pure-V2 fixture `{fixture}`"
+                    );
+                }
+                WResult::FatalErr(e) => {
+                    panic!("Pure V2 fixture `{fixture}` failed to resolve: {e}");
+                }
+            }
+        }
+    }
+}

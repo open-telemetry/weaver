@@ -1,0 +1,72 @@
+file_format: resolved/2.0
+schema_url: https://default/0.1.0
+attribute_catalog:
+- key: attr1
+  type: string
+  examples: eu-central-1
+  brief: Brief
+  note: Note
+  stability: stable
+  annotations:
+    code_generation:
+      exclude: true
+    complex:
+      key1: string
+      key2: 234
+      key3: true
+      key4:
+        key4.1: string
+        key4.2: 234
+      key5:
+      - 12
+      - 45
+      - 67
+      key6: null
+    privacy_sensitivity: PII + PHI
+- key: attr1
+  type: string
+  examples: eu-central-1
+  brief: Brief
+  note: Note
+  stability: stable
+  annotations:
+    code_generation:
+      exclude: true
+    privacy_sensitivity: PII
+- key: attr2
+  type:
+    members:
+    - id: first
+      value: first
+      brief: First
+      stability: stable
+    - id: second
+      value: second
+      brief: Second
+      stability: stable
+      annotations:
+        code_generation:
+          exclude: true
+        privacy_sensitivity: PII + PHI
+  examples: eu-central-1
+  brief: Brief
+  note: Note
+  stability: stable
+  annotations:
+    code_generation:
+      exclude: true
+    privacy_sensitivity: PII
+registry:
+  attributes:
+  - 1
+  - 2
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []
+  entities: []

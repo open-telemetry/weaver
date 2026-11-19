@@ -1,0 +1,82 @@
+file_format: resolved/2.0
+schema_url: https://example.com/top-rival/1.0.0
+attribute_catalog:
+- key: host.id
+  type: string
+  examples:
+  - abc123
+  brief: Unique host ID, defined in base.
+  stability: stable
+  provenance:
+    source: 0
+- key: host.name
+  type: string
+  examples:
+  - myhost
+  brief: Host name, defined in base.
+  stability: stable
+  provenance:
+    source: 0
+- key: rival.host.uid
+  type: string
+  examples:
+  - xyz789
+  brief: Host identifier, defined independently in rival.
+  stability: stable
+  provenance:
+    source: 1
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities:
+  - type: host
+    identity:
+    - 0
+    description:
+    - base: 1
+      requirement_level: recommended
+    requirement_level: recommended
+    brief: A host, defined in base.
+    stability: stable
+    provenance:
+      source: 0
+  - type: host
+    identity:
+    - 2
+    requirement_level: recommended
+    brief: A host, defined independently in rival.
+    stability: stable
+    provenance:
+      source: 1
+refinements:
+  spans: []
+  metrics: []
+  events: []
+  entities:
+  - id: host
+    type: host
+    identity:
+    - 0
+    description:
+    - base: 1
+      requirement_level: recommended
+    requirement_level: recommended
+    brief: A host, defined in base.
+    stability: stable
+    provenance:
+      source: 0
+  - id: host
+    type: host
+    identity:
+    - 2
+    requirement_level: recommended
+    brief: A host, defined independently in rival.
+    stability: stable
+    provenance:
+      source: 1
+dependencies:
+- https://example.com/base/1.0.0
+- https://rival.example.com/rival/1.0.0

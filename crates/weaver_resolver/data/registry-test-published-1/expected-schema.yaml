@@ -1,0 +1,117 @@
+file_format: resolved/2.0
+schema_url: https://acme.com/schemas/0.1.0
+attribute_catalog:
+- key: a
+  type: string
+  brief: test a
+  stability: stable
+  provenance:
+    source: 0
+registry:
+  attributes: []
+  attribute_groups: []
+  spans:
+  - type: my-span
+    kind: client
+    name:
+      note: how to make the name
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    entity_associations:
+    - type: imported.entity.a
+    requirement_level: recommended
+    brief: a fun span
+    note: my fun span
+    stability: beta
+  metrics:
+  - name: imported.metric.a
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 0
+      requirement_level: required
+    entity_associations:
+    - type: imported.entity.a
+    brief: a fun metric
+    note: a metric note
+    stability: stable
+    provenance:
+      source: 0
+  events:
+  - name: imported.event.a
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    entity_associations:
+    - type: imported.entity.a
+    brief: a fun event
+    note: an event note
+    stability: stable
+    provenance:
+      source: 0
+  entities:
+  - type: imported.entity.a
+    identity:
+    - 0
+    brief: a fun entity
+    note: an entity note
+    stability: stable
+    provenance:
+      source: 0
+refinements:
+  spans:
+  - id: my-span
+    type: my-span
+    kind: client
+    name:
+      note: how to make the name
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    entity_associations:
+    - type: imported.entity.a
+    requirement_level: recommended
+    brief: a fun span
+    note: my fun span
+    stability: beta
+  metrics:
+  - id: imported.metric.a
+    name: imported.metric.a
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 0
+      requirement_level: required
+    entity_associations:
+    - type: imported.entity.a
+    brief: a fun metric
+    note: a metric note
+    stability: stable
+    provenance:
+      source: 0
+  events:
+  - id: imported.event.a
+    name: imported.event.a
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    entity_associations:
+    - type: imported.entity.a
+    brief: a fun event
+    note: an event note
+    stability: stable
+    provenance:
+      source: 0
+  entities:
+  - id: imported.entity.a
+    type: imported.entity.a
+    identity:
+    - 0
+    brief: a fun entity
+    note: an entity note
+    stability: stable
+    provenance:
+      source: 0
+dependencies:
+- https://opentelemetry.io/schemas/1.0.0

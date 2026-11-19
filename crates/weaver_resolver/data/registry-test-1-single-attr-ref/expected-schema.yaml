@@ -1,0 +1,26 @@
+file_format: resolved/2.0
+schema_url: https://default/0.1.0
+attribute_catalog:
+- key: messaging.destination.name
+  type: string
+  examples:
+  - MyQueue
+  - MyTopic
+  brief: The message destination name
+  note: |
+    Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If
+    the broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.
+  stability: stable
+registry:
+  attributes:
+  - 0
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []
+  entities: []

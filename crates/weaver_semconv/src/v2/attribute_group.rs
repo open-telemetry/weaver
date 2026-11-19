@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! The new way we want to define attribute groups going forward.
+//! Version 2 attribute group definitions.
+
+use std::fmt::{self, Display, Formatter};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -49,6 +51,26 @@ pub enum AttributeGroup {
     Public(PublicAttributeGroup),
 }
 
+impl AttributeGroup {
+    /// Returns the id of the attribute group.
+    #[must_use]
+    pub fn id(&self) -> &SignalId {
+        match self {
+            AttributeGroup::Internal(i) => &i.id,
+            AttributeGroup::Public(p) => &p.id,
+        }
+    }
+
+    /// Returns the attributes that belong to this group.
+    #[must_use]
+    pub fn attributes(&self) -> &[AttributeOrGroupRef] {
+        match self {
+            AttributeGroup::Internal(i) => &i.attributes,
+            AttributeGroup::Public(p) => &p.attributes,
+        }
+    }
+}
+
 /// The group's visibility.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, JsonSchema, Default)]
 #[serde(rename_all = "snake_case")]
@@ -60,8 +82,8 @@ pub enum AttributeGroupVisibilitySpec {
     Public,
 }
 
-impl std::fmt::Display for AttributeGroupVisibilitySpec {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for AttributeGroupVisibilitySpec {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             AttributeGroupVisibilitySpec::Internal => write!(f, "internal"),
             AttributeGroupVisibilitySpec::Public => write!(f, "public"),

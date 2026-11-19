@@ -7,4 +7,4 @@ schema_url: https://example.com/top/1.0.0
 dependencies:
   - name: middle
     schema_url: https://example.com/middle/1.0.0
-    registry_path: data/entity-assoc-imports/middle_reexport
+    registry_path: data/entity-assoc-imports/middle_reexport/registry

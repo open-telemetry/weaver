@@ -1,0 +1,32 @@
+[
+  {
+    "FailToResolveDefinition": {
+      "InvalidGroupStability": {
+        "path_or_url": "data/multi-registry/custom_registry/custom_registry.yaml",
+        "group_id": "custom.span",
+        "error": "This group does not contain a stability field."
+      }
+    }
+  },
+  {
+    "FailToResolveDefinition": {
+      "InvalidGroupStability": {
+        "path_or_url": "data/multi-registry/otel_registry/otel_registry.yaml",
+        "group_id": "span.server.request",
+        "error": "This group does not contain a stability field."
+      }
+    }
+  },
+  {
+    "UnmatchedImport": {
+      "pattern": "server.request",
+      "signal": "spans"
+    }
+  },
+  {
+    "UnmatchedImport": {
+      "pattern": "server.attributes",
+      "signal": "attribute_groups"
+    }
+  }
+]

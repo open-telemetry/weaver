@@ -1,0 +1,25 @@
+file_format: resolved/2.0
+schema_url: https://example.com/main/0.1.0
+attribute_catalog:
+- key: conflict_attr
+  type: string
+  brief: Attribute from C v1.2
+  stability: stable
+  provenance:
+    source: 2
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+dependencies:
+- https://example.com/a/0.1.0
+- https://example.com/b/0.1.0
+- https://example.com/c/1.2.0

@@ -1,0 +1,18 @@
+[
+  {
+    "FailToResolveDefinition": {
+      "DeprecatedSyntaxInRegistryManifest": {
+        "path": "data/v1-dependency-syntax/main/registry/registry_manifest.yaml",
+        "error": "The 'semconv_version' and 'schema_base_url' fields are deprecated in favor of 'schema_url'."
+      }
+    }
+  },
+  {
+    "FailToResolveDefinition": {
+      "MissingRequirementLevelWarning": {
+        "path_or_url": "data/v1-dependency-syntax/dep/semconv.yaml",
+        "group_id": "metric.dep.uptime"
+      }
+    }
+  }
+]
