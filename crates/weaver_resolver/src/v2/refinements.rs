@@ -6,28 +6,30 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use weaver_common::error::handle_errors;
 use weaver_resolved_schema::v2::attribute::Attribute;
 use weaver_resolved_schema::v2::provenance::Provenance as SchemaProvenance;
+use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::provenance::Provenance as SemconvProvenance;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v2::attribute::{
     AttributeRef, AttributeUnref, BasicRequirementLevelSpec, RefinementAttributeOrGroupRef,
     RequirementLevel,
 };
-use weaver_semconv::v2::entity::EntityAttributeRefinement;
-use weaver_semconv::v2::metric::InstrumentSpec;
+use weaver_semconv::v2::entity::{EntityAttributeRefinement, EntityRefinement};
+use weaver_semconv::v2::entity_association::EntityAssociation as SemconvEntityAssociation;
+use weaver_semconv::v2::event::EventRefinement;
+use weaver_semconv::v2::metric::{InstrumentSpec, MetricRefinement};
 use weaver_semconv::v2::signal_id::SignalId;
 use weaver_semconv::v2::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::v2::span::{
-    SpanAttributeRef, SpanKindSpec, SpanName, SpanRefinementAttributeOrGroupRef,
+    SpanKindSpec, SpanName, SpanRefinement, SpanRefinementAttributeOrGroupRef,
 };
+use weaver_semconv::v2::stability::Stability;
 use weaver_semconv::v2::CommonFields;
+use weaver_semconv::YamlValue;
 
 use super::attributes::Catalog;
-use super::dependency::{DepSignalPayload, V2Dependencies};
+use super::dependency::{DepSignal, DepSignalPayload, V2Dependencies};
 use super::groups::{self, ExpandedGroups, GroupAttributeItem};
-use super::index::{
-    Index, IndexedEntityRefinement, IndexedEventRefinement, IndexedMetricRefinement,
-    IndexedSpanRefinement,
-};
+use super::index::{Index, Indexed};
 use super::rules;
 use super::signals::{
     EntityAssociations, ResolvedEntity, ResolvedEvent, ResolvedMetric, ResolvedSignals,
@@ -121,46 +123,78 @@ fn check_wrong_kind_in_base(
     None
 }
 
-/// Splits metric or event refinement attribute entries into `unref`s, `ref_group` IDs, and inline `AttributeRef`s.
-fn partition_metric_attributes(
-    attrs: &[RefinementAttributeOrGroupRef],
-) -> (Vec<&AttributeUnref>, Vec<SignalId>, Vec<AttributeRef>) {
-    let mut unrefs = Vec::new();
-    let mut ref_groups = Vec::new();
-    let mut inline_refs = Vec::new();
-    for entry in attrs {
-        match entry {
-            RefinementAttributeOrGroupRef::Unref(u) => unrefs.push(u),
-            RefinementAttributeOrGroupRef::Group(g) => ref_groups.push(g.ref_group.clone()),
-            RefinementAttributeOrGroupRef::Attribute(a) => inline_refs.push(a.clone()),
-        }
-    }
-    (unrefs, ref_groups, inline_refs)
+/// Categorized view of a single authored refinement attribute entry.
+enum RefinementAttrBranch<'a> {
+    Unref(&'a AttributeUnref),
+    Group(SignalId),
+    Attribute(&'a AttributeRef, Option<bool>),
 }
 
-/// Splits span refinement attribute entries into `unref`s, `ref_group` IDs, and inline `SpanAttributeRef`s.
-fn partition_span_attributes(
-    attrs: &[SpanRefinementAttributeOrGroupRef],
-) -> (Vec<&AttributeUnref>, Vec<SignalId>, Vec<SpanAttributeRef>) {
+/// Adapts metric/event, span, and entity description refinement attribute entries.
+trait RefinementAttrEntry {
+    /// Classifies this entry as an `unref`, `ref_group`, or inline attribute override.
+    fn branch(&self) -> RefinementAttrBranch<'_>;
+}
+
+impl RefinementAttrEntry for RefinementAttributeOrGroupRef {
+    fn branch(&self) -> RefinementAttrBranch<'_> {
+        match self {
+            Self::Unref(u) => RefinementAttrBranch::Unref(u),
+            Self::Group(g) => RefinementAttrBranch::Group(g.ref_group.clone()),
+            Self::Attribute(a) => RefinementAttrBranch::Attribute(a, None),
+        }
+    }
+}
+
+impl RefinementAttrEntry for SpanRefinementAttributeOrGroupRef {
+    fn branch(&self) -> RefinementAttrBranch<'_> {
+        match self {
+            Self::Unref(u) => RefinementAttrBranch::Unref(u),
+            Self::Group(g) => RefinementAttrBranch::Group(SignalId::from(g.ref_group.clone())),
+            Self::Attribute(s) => RefinementAttrBranch::Attribute(&s.base, s.sampling_relevant),
+        }
+    }
+}
+
+impl RefinementAttrEntry for EntityAttributeRefinement {
+    fn branch(&self) -> RefinementAttrBranch<'_> {
+        match self {
+            Self::Unref(u) => RefinementAttrBranch::Unref(u),
+            Self::Ref(a) => RefinementAttrBranch::Attribute(a, None),
+        }
+    }
+}
+
+/// Partitioned `unref`s, `ref_group` IDs, and inline `(AttributeRef, sampling_relevant)` pairs.
+struct PartitionedAttrs {
+    unrefs: Vec<AttributeUnref>,
+    ref_groups: Vec<SignalId>,
+    inline_refs: Vec<(AttributeRef, Option<bool>)>,
+}
+
+/// Splits refinement attribute entries into `unref`s, `ref_group` IDs, and inline overrides.
+fn partition_attributes<E: RefinementAttrEntry>(entries: &[E]) -> PartitionedAttrs {
     let mut unrefs = Vec::new();
     let mut ref_groups = Vec::new();
     let mut inline_refs = Vec::new();
-    for entry in attrs {
-        match entry {
-            SpanRefinementAttributeOrGroupRef::Unref(u) => unrefs.push(u),
-            SpanRefinementAttributeOrGroupRef::Group(g) => {
-                ref_groups.push(SignalId::from(g.ref_group.clone()));
-            }
-            SpanRefinementAttributeOrGroupRef::Attribute(a) => inline_refs.push(a.clone()),
+    for entry in entries {
+        match entry.branch() {
+            RefinementAttrBranch::Unref(u) => unrefs.push(u.clone()),
+            RefinementAttrBranch::Group(g) => ref_groups.push(g),
+            RefinementAttrBranch::Attribute(a, samp) => inline_refs.push((a.clone(), samp)),
         }
     }
-    (unrefs, ref_groups, inline_refs)
+    PartitionedAttrs {
+        unrefs,
+        ref_groups,
+        inline_refs,
+    }
 }
 
 /// Expands `ref_groups` and merges `inline_refs` on top, returning merged items and group-origin map.
 fn prepare_refinement_attributes(
     ref_groups: &[SignalId],
-    inline_refs: &[AttributeRef],
+    inline_refs: &[(AttributeRef, Option<bool>)],
     expanded_groups: &ExpandedGroups,
     consumer_id: &str,
     is_consumer_excluded: bool,
@@ -187,9 +221,10 @@ fn prepare_refinement_attributes(
         _ = included_group_attrs.insert(item.key.clone(), item.origin_group.to_string());
     }
 
-    for aref in inline_refs {
+    for (aref, sampling_relevant) in inline_refs {
         if let Some(existing) = items_map.get_mut(&aref.r#ref) {
             existing.aref = rules::merge_attribute_refs(&existing.aref, aref);
+            existing.sampling_relevant = (*sampling_relevant).or(existing.sampling_relevant);
             existing.origin_group = SignalId::from(consumer_id);
         } else {
             _ = items_map.insert(
@@ -197,7 +232,7 @@ fn prepare_refinement_attributes(
                 GroupAttributeItem {
                     key: aref.r#ref.clone(),
                     aref: aref.clone(),
-                    sampling_relevant: None,
+                    sampling_relevant: *sampling_relevant,
                     origin_group: SignalId::from(consumer_id),
                 },
             );
@@ -207,60 +242,72 @@ fn prepare_refinement_attributes(
     Ok((items_map, included_group_attrs))
 }
 
-/// Expands `ref_groups` and merges span `inline_refs` on top, preserving `sampling_relevant`.
-fn prepare_span_refinement_attributes(
-    ref_groups: &[SignalId],
-    inline_refs: &[SpanAttributeRef],
-    expanded_groups: &ExpandedGroups,
-    consumer_id: &str,
-    is_consumer_excluded: bool,
-    provenance: Option<&SemconvProvenance>,
-    warnings: &mut Vec<Error>,
-) -> Result<
-    (
-        BTreeMap<String, GroupAttributeItem>,
-        HashMap<String, String>,
-    ),
-    Error,
-> {
-    let mut items_map = groups::collect_refinement_group_items(
-        ref_groups,
-        expanded_groups,
-        consumer_id,
-        is_consumer_excluded,
-        provenance,
-        warnings,
-    )?;
+/// Adapts resolved attribute tuples across non-span (`(Attribute, RequirementLevel)`) and span signals.
+trait RefinedAttrSlot: Sized {
+    /// Returns the resolved `Attribute` in this slot.
+    fn attr(&self) -> &Attribute;
+    /// Returns the `RequirementLevel` in this slot.
+    fn req(&self) -> &RequirementLevel;
+    /// Applies overrides from `item` onto this inherited attribute slot in place.
+    fn apply_override(&mut self, item: &GroupAttributeItem);
+    /// Constructs a new attribute slot from a newly referenced attribute.
+    fn from_new(
+        resolved: Attribute,
+        req: RequirementLevel,
+        sampling_relevant: Option<bool>,
+    ) -> Self;
+}
 
-    let mut included_group_attrs = HashMap::new();
-    for item in items_map.values() {
-        _ = included_group_attrs.insert(item.key.clone(), item.origin_group.to_string());
+impl RefinedAttrSlot for (Attribute, RequirementLevel) {
+    fn attr(&self) -> &Attribute {
+        &self.0
     }
-
-    for sref in inline_refs {
-        if let Some(existing) = items_map.get_mut(&sref.base.r#ref) {
-            existing.aref = rules::merge_attribute_refs(&existing.aref, &sref.base);
-            existing.sampling_relevant = sref.sampling_relevant.or(existing.sampling_relevant);
-            existing.origin_group = SignalId::from(consumer_id);
-        } else {
-            _ = items_map.insert(
-                sref.base.r#ref.clone(),
-                GroupAttributeItem {
-                    key: sref.base.r#ref.clone(),
-                    aref: sref.base.clone(),
-                    sampling_relevant: sref.sampling_relevant,
-                    origin_group: SignalId::from(consumer_id),
-                },
-            );
+    fn req(&self) -> &RequirementLevel {
+        &self.1
+    }
+    fn apply_override(&mut self, item: &GroupAttributeItem) {
+        self.0 = rules::apply_attribute_ref_overrides(&self.0, &item.aref);
+        if item.aref.requirement_level.is_some() {
+            self.1 = rules::resolve_requirement_level(&item.aref);
         }
     }
+    fn from_new(
+        resolved: Attribute,
+        req: RequirementLevel,
+        _sampling_relevant: Option<bool>,
+    ) -> Self {
+        (resolved, req)
+    }
+}
 
-    Ok((items_map, included_group_attrs))
+impl RefinedAttrSlot for (Attribute, RequirementLevel, Option<bool>) {
+    fn attr(&self) -> &Attribute {
+        &self.0
+    }
+    fn req(&self) -> &RequirementLevel {
+        &self.1
+    }
+    fn apply_override(&mut self, item: &GroupAttributeItem) {
+        self.0 = rules::apply_attribute_ref_overrides(&self.0, &item.aref);
+        if item.aref.requirement_level.is_some() {
+            self.1 = rules::resolve_requirement_level(&item.aref);
+        }
+        if item.sampling_relevant.is_some() {
+            self.2 = item.sampling_relevant;
+        }
+    }
+    fn from_new(
+        resolved: Attribute,
+        req: RequirementLevel,
+        sampling_relevant: Option<bool>,
+    ) -> Self {
+        (resolved, req, sampling_relevant)
+    }
 }
 
 /// Applies merged refinement attributes onto `current_attrs` and registers resulting attributes in `catalog`.
-fn apply_attribute_overrides<'a, C: SchemaCacheLookup>(
-    current_attrs: &mut Vec<(Attribute, RequirementLevel)>,
+fn apply_attribute_overrides<'a, A: RefinedAttrSlot, C: SchemaCacheLookup>(
+    current_attrs: &mut Vec<A>,
     merged_items: BTreeMap<String, GroupAttributeItem>,
     consumer_id: &str,
     is_consumer_excluded: bool,
@@ -268,13 +315,8 @@ fn apply_attribute_overrides<'a, C: SchemaCacheLookup>(
     provenance: Option<&SemconvProvenance>,
 ) -> Result<(), Error> {
     for (key, item) in merged_items {
-        if let Some((existing_attr, existing_req)) =
-            current_attrs.iter_mut().find(|(a, _)| a.key == key)
-        {
-            *existing_attr = rules::apply_attribute_ref_overrides(existing_attr, &item.aref);
-            if item.aref.requirement_level.is_some() {
-                *existing_req = rules::resolve_requirement_level(&item.aref);
-            }
+        if let Some(existing) = current_attrs.iter_mut().find(|slot| slot.attr().key == key) {
+            existing.apply_override(&item);
         } else {
             let resolved = catalog.resolve_attribute_ref(
                 &item.aref,
@@ -283,50 +325,320 @@ fn apply_attribute_overrides<'a, C: SchemaCacheLookup>(
                 provenance,
             )?;
             let req = rules::resolve_requirement_level(&item.aref);
-            current_attrs.push((resolved, req));
+            current_attrs.push(A::from_new(resolved, req, item.sampling_relevant));
         }
     }
-    for (attr, _) in current_attrs.iter() {
-        catalog.register_attribute(attr.clone());
+    for slot in current_attrs.iter() {
+        catalog.register_attribute(slot.attr().clone());
     }
     Ok(())
 }
 
-/// Applies merged span refinement attributes onto `current_attrs` and registers resulting attributes in `catalog`.
-fn apply_span_attribute_overrides<'a, C: SchemaCacheLookup>(
-    current_attrs: &mut Vec<(Attribute, RequirementLevel, Option<bool>)>,
-    merged_items: BTreeMap<String, GroupAttributeItem>,
-    consumer_id: &str,
-    is_consumer_excluded: bool,
+/// Validates `unref`s, filters inherited attributes, applies group and inline overrides, and sorts by key.
+#[allow(clippy::too_many_arguments)]
+fn resolve_refined_attributes<'a, E, A, C>(
+    parent_attrs: Vec<A>,
+    entries: &[E],
+    parent_identifying_keys: &HashSet<String>,
+    refinement_id: &SignalId,
+    parent_ref: &SignalId,
+    used_in: &str,
+    is_ref_excluded: bool,
+    provenance: &SemconvProvenance,
+    expanded_groups: &ExpandedGroups,
     catalog: &mut Catalog<'a, C>,
-    provenance: Option<&SemconvProvenance>,
-) -> Result<(), Error> {
-    for (key, item) in merged_items {
-        if let Some((existing_attr, existing_req, existing_samp)) =
-            current_attrs.iter_mut().find(|(a, _, _)| a.key == key)
-        {
-            *existing_attr = rules::apply_attribute_ref_overrides(existing_attr, &item.aref);
-            if item.aref.requirement_level.is_some() {
-                *existing_req = rules::resolve_requirement_level(&item.aref);
+    warnings: &mut Vec<Error>,
+) -> Result<Vec<A>, Vec<Error>>
+where
+    E: RefinementAttrEntry,
+    A: RefinedAttrSlot,
+    C: SchemaCacheLookup,
+{
+    let partitioned = partition_attributes(entries);
+    let (merged_items, included_group_attrs) = prepare_refinement_attributes(
+        &partitioned.ref_groups,
+        &partitioned.inline_refs,
+        expanded_groups,
+        used_in,
+        is_ref_excluded,
+        Some(provenance),
+        warnings,
+    )
+    .map_err(|e| vec![e])?;
+
+    let parent_attr_keys: HashSet<String> =
+        parent_attrs.iter().map(|s| s.attr().key.clone()).collect();
+    let parent_required_keys: HashSet<String> = parent_attrs
+        .iter()
+        .filter(|s| is_required(s.req()))
+        .map(|s| s.attr().key.clone())
+        .collect();
+    let local_attr_keys: HashSet<String> = partitioned
+        .inline_refs
+        .iter()
+        .map(|(a, _)| a.r#ref.clone())
+        .collect();
+
+    let unref_errors = rules::validate_attribute_unrefs(
+        refinement_id.as_ref(),
+        parent_ref.as_ref(),
+        &partitioned.unrefs,
+        &parent_attr_keys,
+        &parent_required_keys,
+        parent_identifying_keys,
+        &local_attr_keys,
+        &included_group_attrs,
+        Some(provenance),
+    );
+    if !unref_errors.is_empty() {
+        return Err(unref_errors);
+    }
+
+    let unref_set: HashSet<&str> = partitioned
+        .unrefs
+        .iter()
+        .map(|u| u.unref.as_str())
+        .collect();
+    let mut current_attrs: Vec<A> = parent_attrs
+        .into_iter()
+        .filter(|slot| !unref_set.contains(slot.attr().key.as_str()))
+        .collect();
+
+    apply_attribute_overrides(
+        &mut current_attrs,
+        merged_items,
+        used_in,
+        is_ref_excluded,
+        catalog,
+        Some(provenance),
+    )
+    .map_err(|e| vec![e])?;
+
+    current_attrs.sort_by(|a, b| a.attr().key.cmp(&b.attr().key));
+    Ok(current_attrs)
+}
+
+/// Inherits `CommonFields` from `parent_common` with refinement overrides applied.
+fn inherit_common_fields(
+    brief: Option<&str>,
+    note: &Option<String>,
+    stability: &Option<Stability>,
+    deprecated: &Option<Deprecated>,
+    annotations: &BTreeMap<String, YamlValue>,
+    parent_common: &CommonFields,
+) -> CommonFields {
+    CommonFields {
+        brief: rules::inherit_brief(brief, &parent_common.brief),
+        note: rules::inherit_note(note, &parent_common.note),
+        stability: rules::inherit_stability(stability, &parent_common.stability),
+        deprecated: rules::inherit_deprecated(deprecated, &parent_common.deprecated),
+        annotations: rules::inherit_annotations(&parent_common.annotations, annotations),
+    }
+}
+
+/// Replaces parent entity associations when `override_assocs` is non-empty, or inherits parent associations.
+fn inherit_entity_associations(
+    override_assocs: &[SemconvEntityAssociation],
+    parent_assocs: EntityAssociations,
+    parent_origins: BTreeMap<String, SchemaUrl>,
+) -> (EntityAssociations, BTreeMap<String, SchemaUrl>) {
+    if override_assocs.is_empty() {
+        (parent_assocs, parent_origins)
+    } else {
+        (
+            EntityAssociations::Raw(override_assocs.to_vec()),
+            BTreeMap::new(),
+        )
+    }
+}
+
+/// Per-signal-kind specification driving `resolve_kind_refinements`.
+trait RefinementKindSpec {
+    /// Lowercase signal kind prefix (`metric`, `span`, `event`, or `entity`).
+    const KIND_LOWER: &'static str;
+    /// Capitalized signal kind label used in `InvalidRefinement` diagnostics.
+    const KIND_TITLE: &'static str;
+    /// Authored refinement AST type in `Index`.
+    type Raw;
+    /// Snapshot of inherited parent fields prior to applying refinement overrides.
+    type Parent;
+    /// Resolved output type emitted for this refinement.
+    type Resolved;
+
+    /// Returns the local symbol table of refinements for this kind.
+    fn indexed_map(index: &Index) -> &BTreeMap<SignalId, Indexed<Self::Raw>>;
+    /// Returns the parent `ref` target declared on `raw`.
+    fn parent_ref(raw: &Self::Raw) -> &SignalId;
+    /// Returns the authored annotations map on `raw`.
+    fn annotations(raw: &Self::Raw) -> &BTreeMap<String, YamlValue>;
+    /// Looks up a matching parent in local `base_signals`.
+    fn find_local_base(
+        base_signals: &ResolvedSignals,
+        parent_ref: &SignalId,
+        stripped_ref: &SignalId,
+    ) -> Option<Self::Parent>;
+    /// Captures a `Parent` snapshot from an already-resolved local refinement or base signal.
+    fn parent_from_resolved(resolved: &Self::Resolved) -> Self::Parent;
+    /// Extracts a `Parent` snapshot from a dependency `DepSignal`, returning `None` on kind mismatch.
+    fn parent_from_dep<C: SchemaCacheLookup>(
+        dep_signal: DepSignal,
+        catalog: &mut Catalog<'_, C>,
+    ) -> Result<Option<Self::Parent>, Error>;
+    /// Returns `true` if `parent` is excluded from dependency resolution.
+    fn is_parent_excluded(parent: &Self::Parent) -> bool;
+
+    /// Validates and merges `raw` onto `parent` to produce the resolved refinement.
+    #[allow(clippy::too_many_arguments)]
+    fn apply_refinement<C: SchemaCacheLookup>(
+        raw_id: &SignalId,
+        refinement_id: &SignalId,
+        raw: &Self::Raw,
+        parent: Self::Parent,
+        is_ref_excluded: bool,
+        provenance: &SemconvProvenance,
+        schema_provenance: SchemaProvenance,
+        expanded_groups: &ExpandedGroups,
+        catalog: &mut Catalog<'_, C>,
+        warnings: &mut Vec<Error>,
+    ) -> Result<Self::Resolved, Vec<Error>>;
+}
+
+/// Iteratively resolves refinements of kind `S` against local bases, sibling refinements, and dependencies.
+fn resolve_kind_refinements<'a, S: RefinementKindSpec, C: SchemaCacheLookup>(
+    index: &Index,
+    deps: &V2Dependencies,
+    base_signals: &ResolvedSignals,
+    expanded_groups: &ExpandedGroups,
+    catalog: &mut Catalog<'a, C>,
+    cache_lookup: &C,
+    warnings: &mut Vec<Error>,
+) -> Result<Vec<(SignalId, S::Resolved)>, Error> {
+    let mut resolved_list: Vec<(SignalId, S::Resolved)> = Vec::new();
+    let mut unresolved: Vec<(&SignalId, &Indexed<S::Raw>)> = S::indexed_map(index).iter().collect();
+    let mut fatal_errors = Vec::new();
+
+    while !unresolved.is_empty() {
+        let mut progress = false;
+        let mut still_unresolved: Vec<(&SignalId, &Indexed<S::Raw>)> = Vec::new();
+
+        for (raw_id, indexed) in &unresolved {
+            let raw = &indexed.item;
+            let refinement_id = rules::normalize_refinement_id(S::KIND_LOWER, raw_id);
+            let schema_provenance = SchemaProvenance {
+                source: None,
+                path: indexed.provenance.path.clone(),
+            };
+            let is_ref_excluded = is_excluded(S::annotations(raw));
+            let parent_ref = S::parent_ref(raw);
+            let stripped_parent_ref = rules::normalize_refinement_id(S::KIND_LOWER, parent_ref);
+
+            let parent = if let Some(base_parent) =
+                S::find_local_base(base_signals, parent_ref, &stripped_parent_ref)
+            {
+                base_parent
+            } else if let Some((_, prev)) = resolved_list
+                .iter()
+                .find(|(id, _)| id == parent_ref || *id == stripped_parent_ref)
+            {
+                S::parent_from_resolved(prev)
+            } else {
+                let is_parent_unresolved = unresolved.iter().any(|(other_id, _)| {
+                    if *other_id == *raw_id {
+                        return false;
+                    }
+                    let nid = rules::normalize_refinement_id(S::KIND_LOWER, other_id);
+                    nid == *parent_ref || nid == stripped_parent_ref || *other_id == parent_ref
+                });
+                if is_parent_unresolved {
+                    still_unresolved.push((*raw_id, *indexed));
+                    continue;
+                }
+
+                if let Some(err) = check_wrong_kind_in_base(
+                    parent_ref,
+                    &stripped_parent_ref,
+                    raw_id,
+                    S::KIND_TITLE,
+                    base_signals,
+                ) {
+                    fatal_errors.push(err);
+                    continue;
+                }
+
+                match deps.lookup_signal(
+                    S::KIND_LOWER,
+                    parent_ref.as_ref(),
+                    raw_id.as_ref(),
+                    Some(&indexed.provenance),
+                    cache_lookup,
+                ) {
+                    Ok(dep_signal) => {
+                        let Some(dep_parent) = S::parent_from_dep(dep_signal, catalog)? else {
+                            fatal_errors.push(Error::UnresolvedRefinementParent {
+                                refinement_id: raw_id.to_string(),
+                                r#ref: parent_ref.to_string(),
+                                provenance: Some(Box::new(indexed.provenance.clone())),
+                            });
+                            continue;
+                        };
+                        dep_parent
+                    }
+                    Err(e) => {
+                        fatal_errors.push(e);
+                        continue;
+                    }
+                }
+            };
+
+            if S::is_parent_excluded(&parent) && !is_ref_excluded {
+                fatal_errors.push(Error::ExcludedFromDependencyResolution {
+                    id: parent_ref.to_string(),
+                    r#type: S::KIND_LOWER.to_owned(),
+                    used_in: raw_id.to_string(),
+                    provenance: Some(Box::new(indexed.provenance.clone())),
+                });
+                continue;
             }
-            if item.sampling_relevant.is_some() {
-                *existing_samp = item.sampling_relevant;
+
+            match S::apply_refinement(
+                raw_id,
+                &refinement_id,
+                raw,
+                parent,
+                is_ref_excluded,
+                &indexed.provenance,
+                schema_provenance,
+                expanded_groups,
+                catalog,
+                warnings,
+            ) {
+                Ok(resolved) => {
+                    resolved_list.push((refinement_id, resolved));
+                    progress = true;
+                }
+                Err(errs) => {
+                    fatal_errors.extend(errs);
+                }
             }
-        } else {
-            let resolved = catalog.resolve_attribute_ref(
-                &item.aref,
-                consumer_id,
-                is_consumer_excluded,
-                provenance,
-            )?;
-            let req = rules::resolve_requirement_level(&item.aref);
-            current_attrs.push((resolved, req, item.sampling_relevant));
         }
+
+        if !progress && !still_unresolved.is_empty() {
+            for (raw_id, indexed) in still_unresolved {
+                fatal_errors.push(Error::UnresolvedRefinementParent {
+                    refinement_id: raw_id.to_string(),
+                    r#ref: S::parent_ref(&indexed.item).to_string(),
+                    provenance: Some(Box::new(indexed.provenance.clone())),
+                });
+            }
+            break;
+        }
+
+        unresolved = still_unresolved;
     }
-    for (attr, _, _) in current_attrs.iter() {
-        catalog.register_attribute(attr.clone());
-    }
-    Ok(())
+
+    handle_errors(fatal_errors)?;
+    resolved_list.sort_by(|(a, _), (b, _)| a.cmp(b));
+    Ok(resolved_list)
 }
 
 /// Snapshot of a parent metric resolved for refinement inheritance.
@@ -342,278 +654,142 @@ struct MetricParent {
     excluded: bool,
 }
 
-/// Iteratively resolves metric refinements against local bases, prior refinements, and dependencies.
-fn resolve_metric_refinements<'a, C: SchemaCacheLookup>(
-    index: &Index,
-    deps: &V2Dependencies,
-    base_signals: &ResolvedSignals,
-    expanded_groups: &ExpandedGroups,
-    catalog: &mut Catalog<'a, C>,
-    cache_lookup: &C,
-    warnings: &mut Vec<Error>,
-) -> Result<Vec<(SignalId, ResolvedMetric)>, Error> {
-    let mut resolved_metrics: Vec<(SignalId, ResolvedMetric)> = Vec::new();
-    let mut unresolved: Vec<(&SignalId, &IndexedMetricRefinement)> =
-        index.metric_refinements().iter().collect();
-    let mut fatal_errors = Vec::new();
+/// Metric refinement resolution rules.
+struct MetricRefinementSpec;
 
-    while !unresolved.is_empty() {
-        let mut progress = false;
-        let mut still_unresolved: Vec<(&SignalId, &IndexedMetricRefinement)> = Vec::new();
+impl RefinementKindSpec for MetricRefinementSpec {
+    const KIND_LOWER: &'static str = "metric";
+    const KIND_TITLE: &'static str = "Metric";
+    type Raw = MetricRefinement;
+    type Parent = MetricParent;
+    type Resolved = ResolvedMetric;
 
-        for (raw_id, indexed_m) in &unresolved {
-            let m_ref = &indexed_m.refinement;
-            let refinement_id = rules::normalize_refinement_id("metric", raw_id);
-            let provenance = SchemaProvenance {
-                source: None,
-                path: indexed_m.provenance.path.clone(),
-            };
-            let is_ref_excluded = is_excluded(&m_ref.annotations);
-            let parent_ref = &m_ref.r#ref;
-            let stripped_parent_ref = rules::normalize_refinement_id("metric", parent_ref);
-
-            let parent: MetricParent = if let Some(base) = base_signals
-                .metrics
-                .iter()
-                .find(|m| m.name == *parent_ref || m.name == stripped_parent_ref)
-            {
-                MetricParent {
-                    name: base.name.clone(),
-                    instrument: base.instrument,
-                    unit: base.unit.clone(),
-                    attributes: base.attributes.clone(),
-                    entity_associations: base.entity_associations.clone(),
-                    association_origins: base.association_origins.clone(),
-                    requirement_level: base.requirement_level.clone(),
-                    common: base.common.clone(),
-                    excluded: is_excluded(&base.common.annotations),
-                }
-            } else if let Some((_, prev)) = resolved_metrics
-                .iter()
-                .find(|(id, _)| id == parent_ref || *id == stripped_parent_ref)
-            {
-                MetricParent {
-                    name: prev.name.clone(),
-                    instrument: prev.instrument,
-                    unit: prev.unit.clone(),
-                    attributes: prev.attributes.clone(),
-                    entity_associations: prev.entity_associations.clone(),
-                    association_origins: prev.association_origins.clone(),
-                    requirement_level: prev.requirement_level.clone(),
-                    common: prev.common.clone(),
-                    excluded: is_excluded(&prev.common.annotations),
-                }
-            } else {
-                let is_parent_unresolved = unresolved.iter().any(|(other_id, _)| {
-                    if *other_id == *raw_id {
-                        return false;
-                    }
-                    let nid = rules::normalize_refinement_id("metric", other_id);
-                    nid == *parent_ref || nid == stripped_parent_ref || *other_id == parent_ref
-                });
-                if is_parent_unresolved {
-                    still_unresolved.push((*raw_id, *indexed_m));
-                    continue;
-                }
-
-                if let Some(err) = check_wrong_kind_in_base(
-                    parent_ref,
-                    &stripped_parent_ref,
-                    raw_id,
-                    "Metric",
-                    base_signals,
-                ) {
-                    fatal_errors.push(err);
-                    continue;
-                }
-
-                match deps.lookup_signal(
-                    "metric",
-                    parent_ref.as_ref(),
-                    raw_id.as_ref(),
-                    Some(&indexed_m.provenance),
-                    cache_lookup,
-                ) {
-                    Ok(dep_signal) => {
-                        if let DepSignalPayload::Metric {
-                            name,
-                            instrument,
-                            unit,
-                            requirement_level,
-                            attributes,
-                        } = dep_signal.payload
-                        {
-                            let mut resolved_attrs = Vec::new();
-                            for (attr, req, origin) in attributes {
-                                let mapped_attr =
-                                    catalog.register_inherited_dep_attribute(attr, &origin)?;
-                                resolved_attrs.push((mapped_attr, req));
-                            }
-                            MetricParent {
-                                name,
-                                instrument,
-                                unit,
-                                attributes: resolved_attrs,
-                                entity_associations: dep_signal.entity_associations,
-                                association_origins: dep_signal.association_origins,
-                                requirement_level,
-                                common: dep_signal.common,
-                                excluded: dep_signal.excluded,
-                            }
-                        } else {
-                            fatal_errors.push(Error::UnresolvedRefinementParent {
-                                refinement_id: raw_id.to_string(),
-                                r#ref: parent_ref.to_string(),
-                                provenance: Some(Box::new(indexed_m.provenance.clone())),
-                            });
-                            continue;
-                        }
-                    }
-                    Err(e) => {
-                        fatal_errors.push(e);
-                        continue;
-                    }
-                }
-            };
-
-            if parent.excluded && !is_ref_excluded {
-                fatal_errors.push(Error::ExcludedFromDependencyResolution {
-                    id: parent_ref.to_string(),
-                    r#type: "metric".to_owned(),
-                    used_in: raw_id.to_string(),
-                    provenance: Some(Box::new(indexed_m.provenance.clone())),
-                });
-                continue;
-            }
-
-            let (unrefs, ref_groups, inline_refs) = partition_metric_attributes(&m_ref.attributes);
-            let used_in = format!("metric.{refinement_id}");
-
-            let (merged_items, included_group_attrs) = match prepare_refinement_attributes(
-                &ref_groups,
-                &inline_refs,
-                expanded_groups,
-                &used_in,
-                is_ref_excluded,
-                Some(&indexed_m.provenance),
-                warnings,
-            ) {
-                Ok(res) => res,
-                Err(e) => {
-                    fatal_errors.push(e);
-                    continue;
-                }
-            };
-
-            let parent_attr_keys: HashSet<String> = parent
-                .attributes
-                .iter()
-                .map(|(a, _)| a.key.clone())
-                .collect();
-            let parent_required_keys: HashSet<String> = parent
-                .attributes
-                .iter()
-                .filter(|(_, req)| is_required(req))
-                .map(|(a, _)| a.key.clone())
-                .collect();
-            let parent_identifying_keys = HashSet::new();
-            let local_attr_keys: HashSet<String> =
-                inline_refs.iter().map(|a| a.r#ref.clone()).collect();
-
-            let unref_errors = rules::validate_attribute_unrefs(
-                refinement_id.as_ref(),
-                parent_ref.as_ref(),
-                &unrefs.iter().map(|u| (*u).clone()).collect::<Vec<_>>(),
-                &parent_attr_keys,
-                &parent_required_keys,
-                &parent_identifying_keys,
-                &local_attr_keys,
-                &included_group_attrs,
-                Some(&indexed_m.provenance),
-            );
-            if !unref_errors.is_empty() {
-                fatal_errors.extend(unref_errors);
-                continue;
-            }
-
-            let unref_set: HashSet<&str> = unrefs.iter().map(|u| u.unref.as_str()).collect();
-            let mut current_attrs: Vec<(Attribute, RequirementLevel)> = parent
-                .attributes
-                .into_iter()
-                .filter(|(a, _)| !unref_set.contains(a.key.as_str()))
-                .collect();
-
-            if let Err(e) = apply_attribute_overrides(
-                &mut current_attrs,
-                merged_items,
-                &used_in,
-                is_ref_excluded,
-                catalog,
-                Some(&indexed_m.provenance),
-            ) {
-                fatal_errors.push(e);
-                continue;
-            }
-
-            current_attrs.sort_by(|(a, _), (b, _)| a.key.cmp(&b.key));
-
-            let brief = rules::inherit_brief(m_ref.brief.as_deref(), &parent.common.brief);
-            let note = rules::inherit_note(&m_ref.note, &parent.common.note);
-            let stability = rules::inherit_stability(&m_ref.stability, &parent.common.stability);
-            let deprecated =
-                rules::inherit_deprecated(&m_ref.deprecated, &parent.common.deprecated);
-            let annotations =
-                rules::inherit_annotations(&parent.common.annotations, &m_ref.annotations);
-            let (entity_associations, association_origins) = if m_ref.entity_associations.is_empty()
-            {
-                (parent.entity_associations, parent.association_origins)
-            } else {
-                (
-                    EntityAssociations::Raw(m_ref.entity_associations.clone()),
-                    BTreeMap::new(),
-                )
-            };
-
-            let resolved = ResolvedMetric {
-                name: parent.name,
-                instrument: parent.instrument,
-                unit: parent.unit,
-                attributes: current_attrs,
-                entity_associations,
-                association_origins,
-                requirement_level: parent.requirement_level,
-                common: CommonFields {
-                    brief,
-                    note,
-                    stability,
-                    deprecated,
-                    annotations,
-                },
-                provenance,
-            };
-
-            resolved_metrics.push((refinement_id, resolved));
-            progress = true;
-        }
-
-        if !progress && !still_unresolved.is_empty() {
-            for (raw_id, indexed_m) in still_unresolved {
-                fatal_errors.push(Error::UnresolvedRefinementParent {
-                    refinement_id: raw_id.to_string(),
-                    r#ref: indexed_m.refinement.r#ref.to_string(),
-                    provenance: Some(Box::new(indexed_m.provenance.clone())),
-                });
-            }
-            break;
-        }
-
-        unresolved = still_unresolved;
+    fn indexed_map(index: &Index) -> &BTreeMap<SignalId, Indexed<Self::Raw>> {
+        index.metric_refinements()
     }
 
-    handle_errors(fatal_errors)?;
+    fn parent_ref(raw: &Self::Raw) -> &SignalId {
+        &raw.r#ref
+    }
 
-    resolved_metrics.sort_by(|(a, _), (b, _)| a.cmp(b));
-    Ok(resolved_metrics)
+    fn annotations(raw: &Self::Raw) -> &BTreeMap<String, YamlValue> {
+        &raw.annotations
+    }
+
+    fn find_local_base(
+        base_signals: &ResolvedSignals,
+        parent_ref: &SignalId,
+        stripped_ref: &SignalId,
+    ) -> Option<Self::Parent> {
+        base_signals
+            .metrics
+            .iter()
+            .find(|m| m.name == *parent_ref || m.name == *stripped_ref)
+            .map(Self::parent_from_resolved)
+    }
+
+    fn parent_from_resolved(m: &Self::Resolved) -> Self::Parent {
+        MetricParent {
+            name: m.name.clone(),
+            instrument: m.instrument,
+            unit: m.unit.clone(),
+            attributes: m.attributes.clone(),
+            entity_associations: m.entity_associations.clone(),
+            association_origins: m.association_origins.clone(),
+            requirement_level: m.requirement_level.clone(),
+            common: m.common.clone(),
+            excluded: is_excluded(&m.common.annotations),
+        }
+    }
+
+    fn parent_from_dep<C: SchemaCacheLookup>(
+        dep_signal: DepSignal,
+        catalog: &mut Catalog<'_, C>,
+    ) -> Result<Option<Self::Parent>, Error> {
+        let DepSignalPayload::Metric {
+            name,
+            instrument,
+            unit,
+            requirement_level,
+            attributes,
+        } = dep_signal.payload
+        else {
+            return Ok(None);
+        };
+        let mut resolved_attrs = Vec::with_capacity(attributes.len());
+        for (attr, req, origin) in attributes {
+            let mapped_attr = catalog.register_inherited_dep_attribute(attr, &origin)?;
+            resolved_attrs.push((mapped_attr, req));
+        }
+        Ok(Some(MetricParent {
+            name,
+            instrument,
+            unit,
+            attributes: resolved_attrs,
+            entity_associations: dep_signal.entity_associations,
+            association_origins: dep_signal.association_origins,
+            requirement_level,
+            common: dep_signal.common,
+            excluded: dep_signal.excluded,
+        }))
+    }
+
+    fn is_parent_excluded(parent: &Self::Parent) -> bool {
+        parent.excluded
+    }
+
+    fn apply_refinement<C: SchemaCacheLookup>(
+        _raw_id: &SignalId,
+        refinement_id: &SignalId,
+        m_ref: &Self::Raw,
+        parent: Self::Parent,
+        is_ref_excluded: bool,
+        provenance: &SemconvProvenance,
+        schema_provenance: SchemaProvenance,
+        expanded_groups: &ExpandedGroups,
+        catalog: &mut Catalog<'_, C>,
+        warnings: &mut Vec<Error>,
+    ) -> Result<Self::Resolved, Vec<Error>> {
+        let used_in = format!("metric.{refinement_id}");
+        let empty_ident = HashSet::new();
+        let attributes = resolve_refined_attributes(
+            parent.attributes,
+            &m_ref.attributes,
+            &empty_ident,
+            refinement_id,
+            &m_ref.r#ref,
+            &used_in,
+            is_ref_excluded,
+            provenance,
+            expanded_groups,
+            catalog,
+            warnings,
+        )?;
+        let (entity_associations, association_origins) = inherit_entity_associations(
+            &m_ref.entity_associations,
+            parent.entity_associations,
+            parent.association_origins,
+        );
+        let common = inherit_common_fields(
+            m_ref.brief.as_deref(),
+            &m_ref.note,
+            &m_ref.stability,
+            &m_ref.deprecated,
+            &m_ref.annotations,
+            &parent.common,
+        );
+        Ok(ResolvedMetric {
+            name: parent.name,
+            instrument: parent.instrument,
+            unit: parent.unit,
+            attributes,
+            entity_associations,
+            association_origins,
+            requirement_level: parent.requirement_level,
+            common,
+            provenance: schema_provenance,
+        })
+    }
 }
 
 /// Snapshot of a parent span resolved for refinement inheritance.
@@ -629,305 +805,158 @@ struct SpanParent {
     excluded: bool,
 }
 
-/// Iteratively resolves span refinements against local bases, prior refinements, and dependencies.
-fn resolve_span_refinements<'a, C: SchemaCacheLookup>(
-    index: &Index,
-    deps: &V2Dependencies,
-    base_signals: &ResolvedSignals,
-    expanded_groups: &ExpandedGroups,
-    catalog: &mut Catalog<'a, C>,
-    cache_lookup: &C,
-    warnings: &mut Vec<Error>,
-) -> Result<Vec<(SignalId, ResolvedSpan)>, Error> {
-    let mut resolved_spans: Vec<(SignalId, ResolvedSpan)> = Vec::new();
-    let mut unresolved: Vec<(&SignalId, &IndexedSpanRefinement)> =
-        index.span_refinements().iter().collect();
-    let mut fatal_errors = Vec::new();
+/// Span refinement resolution rules.
+struct SpanRefinementSpec;
 
-    while !unresolved.is_empty() {
-        let mut progress = false;
-        let mut still_unresolved: Vec<(&SignalId, &IndexedSpanRefinement)> = Vec::new();
+impl RefinementKindSpec for SpanRefinementSpec {
+    const KIND_LOWER: &'static str = "span";
+    const KIND_TITLE: &'static str = "Span";
+    type Raw = SpanRefinement;
+    type Parent = SpanParent;
+    type Resolved = ResolvedSpan;
 
-        for (raw_id, indexed_s) in &unresolved {
-            let s_ref = &indexed_s.refinement;
-            let refinement_id = rules::normalize_refinement_id("span", raw_id);
-            let provenance = SchemaProvenance {
-                source: None,
-                path: indexed_s.provenance.path.clone(),
-            };
-            let is_ref_excluded = is_excluded(&s_ref.annotations);
-            let parent_ref = &s_ref.r#ref;
-            let stripped_parent_ref = rules::normalize_refinement_id("span", parent_ref);
-
-            let parent: SpanParent = if let Some(base) = base_signals
-                .spans
-                .iter()
-                .find(|s| s.r#type == *parent_ref || s.r#type == stripped_parent_ref)
-            {
-                SpanParent {
-                    r#type: base.r#type.clone(),
-                    kind: base.kind,
-                    name: base.name.clone(),
-                    attributes: base.attributes.clone(),
-                    entity_associations: base.entity_associations.clone(),
-                    association_origins: base.association_origins.clone(),
-                    requirement_level: base.requirement_level.clone(),
-                    common: base.common.clone(),
-                    excluded: is_excluded(&base.common.annotations),
-                }
-            } else if let Some((_, prev)) = resolved_spans
-                .iter()
-                .find(|(id, _)| id == parent_ref || *id == stripped_parent_ref)
-            {
-                SpanParent {
-                    r#type: prev.r#type.clone(),
-                    kind: prev.kind,
-                    name: prev.name.clone(),
-                    attributes: prev.attributes.clone(),
-                    entity_associations: prev.entity_associations.clone(),
-                    association_origins: prev.association_origins.clone(),
-                    requirement_level: prev.requirement_level.clone(),
-                    common: prev.common.clone(),
-                    excluded: is_excluded(&prev.common.annotations),
-                }
-            } else {
-                let is_parent_unresolved = unresolved.iter().any(|(other_id, _)| {
-                    if *other_id == *raw_id {
-                        return false;
-                    }
-                    let nid = rules::normalize_refinement_id("span", other_id);
-                    nid == *parent_ref || nid == stripped_parent_ref || *other_id == parent_ref
-                });
-                if is_parent_unresolved {
-                    still_unresolved.push((*raw_id, *indexed_s));
-                    continue;
-                }
-
-                if let Some(err) = check_wrong_kind_in_base(
-                    parent_ref,
-                    &stripped_parent_ref,
-                    raw_id,
-                    "Span",
-                    base_signals,
-                ) {
-                    fatal_errors.push(err);
-                    continue;
-                }
-
-                match deps.lookup_signal(
-                    "span",
-                    parent_ref.as_ref(),
-                    raw_id.as_ref(),
-                    Some(&indexed_s.provenance),
-                    cache_lookup,
-                ) {
-                    Ok(dep_signal) => {
-                        if let DepSignalPayload::Span {
-                            r#type,
-                            kind,
-                            name,
-                            requirement_level,
-                            attributes,
-                        } = dep_signal.payload
-                        {
-                            let mut resolved_attrs = Vec::new();
-                            for (attr, req, samp, origin) in attributes {
-                                let mapped_attr =
-                                    catalog.register_inherited_dep_attribute(attr, &origin)?;
-                                resolved_attrs.push((mapped_attr, req, samp));
-                            }
-                            SpanParent {
-                                r#type,
-                                kind,
-                                name,
-                                attributes: resolved_attrs,
-                                entity_associations: dep_signal.entity_associations,
-                                association_origins: dep_signal.association_origins,
-                                requirement_level,
-                                common: dep_signal.common,
-                                excluded: dep_signal.excluded,
-                            }
-                        } else {
-                            fatal_errors.push(Error::UnresolvedRefinementParent {
-                                refinement_id: raw_id.to_string(),
-                                r#ref: parent_ref.to_string(),
-                                provenance: Some(Box::new(indexed_s.provenance.clone())),
-                            });
-                            continue;
-                        }
-                    }
-                    Err(e) => {
-                        fatal_errors.push(e);
-                        continue;
-                    }
-                }
-            };
-
-            if parent.excluded && !is_ref_excluded {
-                fatal_errors.push(Error::ExcludedFromDependencyResolution {
-                    id: parent_ref.to_string(),
-                    r#type: "span".to_owned(),
-                    used_in: raw_id.to_string(),
-                    provenance: Some(Box::new(indexed_s.provenance.clone())),
-                });
-                continue;
-            }
-
-            let (unrefs, ref_groups, inline_refs) = partition_span_attributes(&s_ref.attributes);
-            let used_in = format!("span.{refinement_id}");
-
-            let (merged_items, included_group_attrs) = match prepare_span_refinement_attributes(
-                &ref_groups,
-                &inline_refs,
-                expanded_groups,
-                &used_in,
-                is_ref_excluded,
-                Some(&indexed_s.provenance),
-                warnings,
-            ) {
-                Ok(res) => res,
-                Err(e) => {
-                    fatal_errors.push(e);
-                    continue;
-                }
-            };
-
-            let parent_attr_keys: HashSet<String> = parent
-                .attributes
-                .iter()
-                .map(|(a, _, _)| a.key.clone())
-                .collect();
-            let parent_required_keys: HashSet<String> = parent
-                .attributes
-                .iter()
-                .filter(|(_, req, _)| is_required(req))
-                .map(|(a, _, _)| a.key.clone())
-                .collect();
-            let parent_identifying_keys = HashSet::new();
-            let local_attr_keys: HashSet<String> =
-                inline_refs.iter().map(|a| a.base.r#ref.clone()).collect();
-
-            let unref_errors = rules::validate_attribute_unrefs(
-                refinement_id.as_ref(),
-                parent_ref.as_ref(),
-                &unrefs.iter().map(|u| (*u).clone()).collect::<Vec<_>>(),
-                &parent_attr_keys,
-                &parent_required_keys,
-                &parent_identifying_keys,
-                &local_attr_keys,
-                &included_group_attrs,
-                Some(&indexed_s.provenance),
-            );
-            if !unref_errors.is_empty() {
-                fatal_errors.extend(unref_errors);
-                continue;
-            }
-
-            let unref_set: HashSet<&str> = unrefs.iter().map(|u| u.unref.as_str()).collect();
-            let mut current_attrs: Vec<(Attribute, RequirementLevel, Option<bool>)> = parent
-                .attributes
-                .into_iter()
-                .filter(|(a, _, _)| !unref_set.contains(a.key.as_str()))
-                .collect();
-
-            if let Err(e) = apply_span_attribute_overrides(
-                &mut current_attrs,
-                merged_items,
-                &used_in,
-                is_ref_excluded,
-                catalog,
-                Some(&indexed_s.provenance),
-            ) {
-                fatal_errors.push(e);
-                continue;
-            }
-
-            current_attrs.sort_by(|(a, _, _), (b, _, _)| a.key.cmp(&b.key));
-
-            let name = rules::inherit_span_name(&s_ref.name, &parent.name);
-
-            let span_attr_keys: HashSet<String> = current_attrs
-                .iter()
-                .map(|(a, _, _)| a.key.clone())
-                .collect();
-            let mut span_name_err = false;
-            for template in &name.templates {
-                for attr_key in &template.attributes {
-                    if !span_attr_keys.contains(attr_key) {
-                        fatal_errors.push(Error::SpanNameAttributeNotOnSpan {
-                            span_id: raw_id.to_string(),
-                            attribute_key: attr_key.clone(),
-                            provenance: Some(Box::new(indexed_s.provenance.clone())),
-                        });
-                        span_name_err = true;
-                        break;
-                    }
-                }
-                if span_name_err {
-                    break;
-                }
-            }
-            if span_name_err {
-                continue;
-            }
-
-            let brief = rules::inherit_brief(s_ref.brief.as_deref(), &parent.common.brief);
-            let note = rules::inherit_note(&s_ref.note, &parent.common.note);
-            let stability = rules::inherit_stability(&s_ref.stability, &parent.common.stability);
-            let deprecated =
-                rules::inherit_deprecated(&s_ref.deprecated, &parent.common.deprecated);
-            let annotations =
-                rules::inherit_annotations(&parent.common.annotations, &s_ref.annotations);
-            let (entity_associations, association_origins) = if s_ref.entity_associations.is_empty()
-            {
-                (parent.entity_associations, parent.association_origins)
-            } else {
-                (
-                    EntityAssociations::Raw(s_ref.entity_associations.clone()),
-                    BTreeMap::new(),
-                )
-            };
-
-            let resolved = ResolvedSpan {
-                r#type: parent.r#type,
-                kind: parent.kind,
-                name,
-                attributes: current_attrs,
-                entity_associations,
-                association_origins,
-                requirement_level: parent.requirement_level,
-                common: CommonFields {
-                    brief,
-                    note,
-                    stability,
-                    deprecated,
-                    annotations,
-                },
-                provenance,
-            };
-
-            resolved_spans.push((refinement_id, resolved));
-            progress = true;
-        }
-
-        if !progress && !still_unresolved.is_empty() {
-            for (raw_id, indexed_s) in still_unresolved {
-                fatal_errors.push(Error::UnresolvedRefinementParent {
-                    refinement_id: raw_id.to_string(),
-                    r#ref: indexed_s.refinement.r#ref.to_string(),
-                    provenance: Some(Box::new(indexed_s.provenance.clone())),
-                });
-            }
-            break;
-        }
-
-        unresolved = still_unresolved;
+    fn indexed_map(index: &Index) -> &BTreeMap<SignalId, Indexed<Self::Raw>> {
+        index.span_refinements()
     }
 
-    handle_errors(fatal_errors)?;
+    fn parent_ref(raw: &Self::Raw) -> &SignalId {
+        &raw.r#ref
+    }
 
-    resolved_spans.sort_by(|(a, _), (b, _)| a.cmp(b));
-    Ok(resolved_spans)
+    fn annotations(raw: &Self::Raw) -> &BTreeMap<String, YamlValue> {
+        &raw.annotations
+    }
+
+    fn find_local_base(
+        base_signals: &ResolvedSignals,
+        parent_ref: &SignalId,
+        stripped_ref: &SignalId,
+    ) -> Option<Self::Parent> {
+        base_signals
+            .spans
+            .iter()
+            .find(|s| s.r#type == *parent_ref || s.r#type == *stripped_ref)
+            .map(Self::parent_from_resolved)
+    }
+
+    fn parent_from_resolved(s: &Self::Resolved) -> Self::Parent {
+        SpanParent {
+            r#type: s.r#type.clone(),
+            kind: s.kind,
+            name: s.name.clone(),
+            attributes: s.attributes.clone(),
+            entity_associations: s.entity_associations.clone(),
+            association_origins: s.association_origins.clone(),
+            requirement_level: s.requirement_level.clone(),
+            common: s.common.clone(),
+            excluded: is_excluded(&s.common.annotations),
+        }
+    }
+
+    fn parent_from_dep<C: SchemaCacheLookup>(
+        dep_signal: DepSignal,
+        catalog: &mut Catalog<'_, C>,
+    ) -> Result<Option<Self::Parent>, Error> {
+        let DepSignalPayload::Span {
+            r#type,
+            kind,
+            name,
+            requirement_level,
+            attributes,
+        } = dep_signal.payload
+        else {
+            return Ok(None);
+        };
+        let mut resolved_attrs = Vec::with_capacity(attributes.len());
+        for (attr, req, samp, origin) in attributes {
+            let mapped_attr = catalog.register_inherited_dep_attribute(attr, &origin)?;
+            resolved_attrs.push((mapped_attr, req, samp));
+        }
+        Ok(Some(SpanParent {
+            r#type,
+            kind,
+            name,
+            attributes: resolved_attrs,
+            entity_associations: dep_signal.entity_associations,
+            association_origins: dep_signal.association_origins,
+            requirement_level,
+            common: dep_signal.common,
+            excluded: dep_signal.excluded,
+        }))
+    }
+
+    fn is_parent_excluded(parent: &Self::Parent) -> bool {
+        parent.excluded
+    }
+
+    fn apply_refinement<C: SchemaCacheLookup>(
+        raw_id: &SignalId,
+        refinement_id: &SignalId,
+        s_ref: &Self::Raw,
+        parent: Self::Parent,
+        is_ref_excluded: bool,
+        provenance: &SemconvProvenance,
+        schema_provenance: SchemaProvenance,
+        expanded_groups: &ExpandedGroups,
+        catalog: &mut Catalog<'_, C>,
+        warnings: &mut Vec<Error>,
+    ) -> Result<Self::Resolved, Vec<Error>> {
+        let used_in = format!("span.{refinement_id}");
+        let empty_ident = HashSet::new();
+        let attributes = resolve_refined_attributes(
+            parent.attributes,
+            &s_ref.attributes,
+            &empty_ident,
+            refinement_id,
+            &s_ref.r#ref,
+            &used_in,
+            is_ref_excluded,
+            provenance,
+            expanded_groups,
+            catalog,
+            warnings,
+        )?;
+
+        let name = rules::inherit_span_name(&s_ref.name, &parent.name);
+        let span_attr_keys: HashSet<&str> =
+            attributes.iter().map(|(a, _, _)| a.key.as_str()).collect();
+        for template in &name.templates {
+            for attr_key in &template.attributes {
+                if !span_attr_keys.contains(attr_key.as_str()) {
+                    return Err(vec![Error::SpanNameAttributeNotOnSpan {
+                        span_id: raw_id.to_string(),
+                        attribute_key: attr_key.clone(),
+                        provenance: Some(Box::new(provenance.clone())),
+                    }]);
+                }
+            }
+        }
+
+        let (entity_associations, association_origins) = inherit_entity_associations(
+            &s_ref.entity_associations,
+            parent.entity_associations,
+            parent.association_origins,
+        );
+        let common = inherit_common_fields(
+            s_ref.brief.as_deref(),
+            &s_ref.note,
+            &s_ref.stability,
+            &s_ref.deprecated,
+            &s_ref.annotations,
+            &parent.common,
+        );
+        Ok(ResolvedSpan {
+            r#type: parent.r#type,
+            kind: parent.kind,
+            name,
+            attributes,
+            entity_associations,
+            association_origins,
+            requirement_level: parent.requirement_level,
+            common,
+            provenance: schema_provenance,
+        })
+    }
 }
 
 /// Snapshot of a parent event resolved for refinement inheritance.
@@ -941,268 +970,134 @@ struct EventParent {
     excluded: bool,
 }
 
-/// Iteratively resolves event refinements against local bases, prior refinements, and dependencies.
-fn resolve_event_refinements<'a, C: SchemaCacheLookup>(
-    index: &Index,
-    deps: &V2Dependencies,
-    base_signals: &ResolvedSignals,
-    expanded_groups: &ExpandedGroups,
-    catalog: &mut Catalog<'a, C>,
-    cache_lookup: &C,
-    warnings: &mut Vec<Error>,
-) -> Result<Vec<(SignalId, ResolvedEvent)>, Error> {
-    let mut resolved_events: Vec<(SignalId, ResolvedEvent)> = Vec::new();
-    let mut unresolved: Vec<(&SignalId, &IndexedEventRefinement)> =
-        index.event_refinements().iter().collect();
-    let mut fatal_errors = Vec::new();
+/// Event refinement resolution rules.
+struct EventRefinementSpec;
 
-    while !unresolved.is_empty() {
-        let mut progress = false;
-        let mut still_unresolved: Vec<(&SignalId, &IndexedEventRefinement)> = Vec::new();
+impl RefinementKindSpec for EventRefinementSpec {
+    const KIND_LOWER: &'static str = "event";
+    const KIND_TITLE: &'static str = "Event";
+    type Raw = EventRefinement;
+    type Parent = EventParent;
+    type Resolved = ResolvedEvent;
 
-        for (raw_id, indexed_e) in &unresolved {
-            let e_ref = &indexed_e.refinement;
-            let refinement_id = rules::normalize_refinement_id("event", raw_id);
-            let provenance = SchemaProvenance {
-                source: None,
-                path: indexed_e.provenance.path.clone(),
-            };
-            let is_ref_excluded = is_excluded(&e_ref.annotations);
-            let parent_ref = &e_ref.r#ref;
-            let stripped_parent_ref = rules::normalize_refinement_id("event", parent_ref);
-
-            let parent: EventParent = if let Some(base) = base_signals
-                .events
-                .iter()
-                .find(|e| e.name == *parent_ref || e.name == stripped_parent_ref)
-            {
-                EventParent {
-                    name: base.name.clone(),
-                    attributes: base.attributes.clone(),
-                    entity_associations: base.entity_associations.clone(),
-                    association_origins: base.association_origins.clone(),
-                    requirement_level: base.requirement_level.clone(),
-                    common: base.common.clone(),
-                    excluded: is_excluded(&base.common.annotations),
-                }
-            } else if let Some((_, prev)) = resolved_events
-                .iter()
-                .find(|(id, _)| id == parent_ref || *id == stripped_parent_ref)
-            {
-                EventParent {
-                    name: prev.name.clone(),
-                    attributes: prev.attributes.clone(),
-                    entity_associations: prev.entity_associations.clone(),
-                    association_origins: prev.association_origins.clone(),
-                    requirement_level: prev.requirement_level.clone(),
-                    common: prev.common.clone(),
-                    excluded: is_excluded(&prev.common.annotations),
-                }
-            } else {
-                let is_parent_unresolved = unresolved.iter().any(|(other_id, _)| {
-                    if *other_id == *raw_id {
-                        return false;
-                    }
-                    let nid = rules::normalize_refinement_id("event", other_id);
-                    nid == *parent_ref || nid == stripped_parent_ref || *other_id == parent_ref
-                });
-                if is_parent_unresolved {
-                    still_unresolved.push((*raw_id, *indexed_e));
-                    continue;
-                }
-
-                if let Some(err) = check_wrong_kind_in_base(
-                    parent_ref,
-                    &stripped_parent_ref,
-                    raw_id,
-                    "Event",
-                    base_signals,
-                ) {
-                    fatal_errors.push(err);
-                    continue;
-                }
-
-                match deps.lookup_signal(
-                    "event",
-                    parent_ref.as_ref(),
-                    raw_id.as_ref(),
-                    Some(&indexed_e.provenance),
-                    cache_lookup,
-                ) {
-                    Ok(dep_signal) => {
-                        if let DepSignalPayload::Event {
-                            name,
-                            requirement_level,
-                            attributes,
-                        } = dep_signal.payload
-                        {
-                            let mut resolved_attrs = Vec::new();
-                            for (attr, req, origin) in attributes {
-                                let mapped_attr =
-                                    catalog.register_inherited_dep_attribute(attr, &origin)?;
-                                resolved_attrs.push((mapped_attr, req));
-                            }
-                            EventParent {
-                                name,
-                                attributes: resolved_attrs,
-                                entity_associations: dep_signal.entity_associations,
-                                association_origins: dep_signal.association_origins,
-                                requirement_level,
-                                common: dep_signal.common,
-                                excluded: dep_signal.excluded,
-                            }
-                        } else {
-                            fatal_errors.push(Error::UnresolvedRefinementParent {
-                                refinement_id: raw_id.to_string(),
-                                r#ref: parent_ref.to_string(),
-                                provenance: Some(Box::new(indexed_e.provenance.clone())),
-                            });
-                            continue;
-                        }
-                    }
-                    Err(e) => {
-                        fatal_errors.push(e);
-                        continue;
-                    }
-                }
-            };
-
-            if parent.excluded && !is_ref_excluded {
-                fatal_errors.push(Error::ExcludedFromDependencyResolution {
-                    id: parent_ref.to_string(),
-                    r#type: "event".to_owned(),
-                    used_in: raw_id.to_string(),
-                    provenance: Some(Box::new(indexed_e.provenance.clone())),
-                });
-                continue;
-            }
-
-            let (unrefs, ref_groups, inline_refs) = partition_metric_attributes(&e_ref.attributes);
-            let used_in = format!("event.{refinement_id}");
-
-            let (merged_items, included_group_attrs) = match prepare_refinement_attributes(
-                &ref_groups,
-                &inline_refs,
-                expanded_groups,
-                &used_in,
-                is_ref_excluded,
-                Some(&indexed_e.provenance),
-                warnings,
-            ) {
-                Ok(res) => res,
-                Err(e) => {
-                    fatal_errors.push(e);
-                    continue;
-                }
-            };
-
-            let parent_attr_keys: HashSet<String> = parent
-                .attributes
-                .iter()
-                .map(|(a, _)| a.key.clone())
-                .collect();
-            let parent_required_keys: HashSet<String> = parent
-                .attributes
-                .iter()
-                .filter(|(_, req)| is_required(req))
-                .map(|(a, _)| a.key.clone())
-                .collect();
-            let parent_identifying_keys = HashSet::new();
-            let local_attr_keys: HashSet<String> =
-                inline_refs.iter().map(|a| a.r#ref.clone()).collect();
-
-            let unref_errors = rules::validate_attribute_unrefs(
-                refinement_id.as_ref(),
-                parent_ref.as_ref(),
-                &unrefs.iter().map(|u| (*u).clone()).collect::<Vec<_>>(),
-                &parent_attr_keys,
-                &parent_required_keys,
-                &parent_identifying_keys,
-                &local_attr_keys,
-                &included_group_attrs,
-                Some(&indexed_e.provenance),
-            );
-            if !unref_errors.is_empty() {
-                fatal_errors.extend(unref_errors);
-                continue;
-            }
-
-            let unref_set: HashSet<&str> = unrefs.iter().map(|u| u.unref.as_str()).collect();
-            let mut current_attrs: Vec<(Attribute, RequirementLevel)> = parent
-                .attributes
-                .into_iter()
-                .filter(|(a, _)| !unref_set.contains(a.key.as_str()))
-                .collect();
-
-            if let Err(e) = apply_attribute_overrides(
-                &mut current_attrs,
-                merged_items,
-                &used_in,
-                is_ref_excluded,
-                catalog,
-                Some(&indexed_e.provenance),
-            ) {
-                fatal_errors.push(e);
-                continue;
-            }
-
-            current_attrs.sort_by(|(a, _), (b, _)| a.key.cmp(&b.key));
-
-            let brief = rules::inherit_brief(e_ref.brief.as_deref(), &parent.common.brief);
-            let note = rules::inherit_note(&e_ref.note, &parent.common.note);
-            let stability = rules::inherit_stability(&e_ref.stability, &parent.common.stability);
-            let deprecated =
-                rules::inherit_deprecated(&e_ref.deprecated, &parent.common.deprecated);
-            let annotations =
-                rules::inherit_annotations(&parent.common.annotations, &e_ref.annotations);
-            let (entity_associations, association_origins) = if e_ref.entity_associations.is_empty()
-            {
-                (parent.entity_associations, parent.association_origins)
-            } else {
-                (
-                    EntityAssociations::Raw(e_ref.entity_associations.clone()),
-                    BTreeMap::new(),
-                )
-            };
-
-            let resolved = ResolvedEvent {
-                name: parent.name,
-                attributes: current_attrs,
-                entity_associations,
-                association_origins,
-                requirement_level: parent.requirement_level,
-                common: CommonFields {
-                    brief,
-                    note,
-                    stability,
-                    deprecated,
-                    annotations,
-                },
-                provenance,
-            };
-
-            resolved_events.push((refinement_id, resolved));
-            progress = true;
-        }
-
-        if !progress && !still_unresolved.is_empty() {
-            for (raw_id, indexed_e) in still_unresolved {
-                fatal_errors.push(Error::UnresolvedRefinementParent {
-                    refinement_id: raw_id.to_string(),
-                    r#ref: indexed_e.refinement.r#ref.to_string(),
-                    provenance: Some(Box::new(indexed_e.provenance.clone())),
-                });
-            }
-            break;
-        }
-
-        unresolved = still_unresolved;
+    fn indexed_map(index: &Index) -> &BTreeMap<SignalId, Indexed<Self::Raw>> {
+        index.event_refinements()
     }
 
-    handle_errors(fatal_errors)?;
+    fn parent_ref(raw: &Self::Raw) -> &SignalId {
+        &raw.r#ref
+    }
 
-    resolved_events.sort_by(|(a, _), (b, _)| a.cmp(b));
-    Ok(resolved_events)
+    fn annotations(raw: &Self::Raw) -> &BTreeMap<String, YamlValue> {
+        &raw.annotations
+    }
+
+    fn find_local_base(
+        base_signals: &ResolvedSignals,
+        parent_ref: &SignalId,
+        stripped_ref: &SignalId,
+    ) -> Option<Self::Parent> {
+        base_signals
+            .events
+            .iter()
+            .find(|e| e.name == *parent_ref || e.name == *stripped_ref)
+            .map(Self::parent_from_resolved)
+    }
+
+    fn parent_from_resolved(e: &Self::Resolved) -> Self::Parent {
+        EventParent {
+            name: e.name.clone(),
+            attributes: e.attributes.clone(),
+            entity_associations: e.entity_associations.clone(),
+            association_origins: e.association_origins.clone(),
+            requirement_level: e.requirement_level.clone(),
+            common: e.common.clone(),
+            excluded: is_excluded(&e.common.annotations),
+        }
+    }
+
+    fn parent_from_dep<C: SchemaCacheLookup>(
+        dep_signal: DepSignal,
+        catalog: &mut Catalog<'_, C>,
+    ) -> Result<Option<Self::Parent>, Error> {
+        let DepSignalPayload::Event {
+            name,
+            requirement_level,
+            attributes,
+        } = dep_signal.payload
+        else {
+            return Ok(None);
+        };
+        let mut resolved_attrs = Vec::with_capacity(attributes.len());
+        for (attr, req, origin) in attributes {
+            let mapped_attr = catalog.register_inherited_dep_attribute(attr, &origin)?;
+            resolved_attrs.push((mapped_attr, req));
+        }
+        Ok(Some(EventParent {
+            name,
+            attributes: resolved_attrs,
+            entity_associations: dep_signal.entity_associations,
+            association_origins: dep_signal.association_origins,
+            requirement_level,
+            common: dep_signal.common,
+            excluded: dep_signal.excluded,
+        }))
+    }
+
+    fn is_parent_excluded(parent: &Self::Parent) -> bool {
+        parent.excluded
+    }
+
+    fn apply_refinement<C: SchemaCacheLookup>(
+        _raw_id: &SignalId,
+        refinement_id: &SignalId,
+        e_ref: &Self::Raw,
+        parent: Self::Parent,
+        is_ref_excluded: bool,
+        provenance: &SemconvProvenance,
+        schema_provenance: SchemaProvenance,
+        expanded_groups: &ExpandedGroups,
+        catalog: &mut Catalog<'_, C>,
+        warnings: &mut Vec<Error>,
+    ) -> Result<Self::Resolved, Vec<Error>> {
+        let used_in = format!("event.{refinement_id}");
+        let empty_ident = HashSet::new();
+        let attributes = resolve_refined_attributes(
+            parent.attributes,
+            &e_ref.attributes,
+            &empty_ident,
+            refinement_id,
+            &e_ref.r#ref,
+            &used_in,
+            is_ref_excluded,
+            provenance,
+            expanded_groups,
+            catalog,
+            warnings,
+        )?;
+        let (entity_associations, association_origins) = inherit_entity_associations(
+            &e_ref.entity_associations,
+            parent.entity_associations,
+            parent.association_origins,
+        );
+        let common = inherit_common_fields(
+            e_ref.brief.as_deref(),
+            &e_ref.note,
+            &e_ref.stability,
+            &e_ref.deprecated,
+            &e_ref.annotations,
+            &parent.common,
+        );
+        Ok(ResolvedEvent {
+            name: parent.name,
+            attributes,
+            entity_associations,
+            association_origins,
+            requirement_level: parent.requirement_level,
+            common,
+            provenance: schema_provenance,
+        })
+    }
 }
 
 /// Snapshot of a parent entity resolved for refinement inheritance.
@@ -1215,311 +1110,177 @@ struct EntityParent {
     excluded: bool,
 }
 
-/// Iteratively resolves entity refinements while enforcing identity preservation rules.
-fn resolve_entity_refinements<'a, C: SchemaCacheLookup>(
-    index: &Index,
-    deps: &V2Dependencies,
-    base_signals: &ResolvedSignals,
-    expanded_groups: &ExpandedGroups,
-    catalog: &mut Catalog<'a, C>,
-    cache_lookup: &C,
-    warnings: &mut Vec<Error>,
-) -> Result<Vec<(SignalId, ResolvedEntity)>, Error> {
-    let mut resolved_entities: Vec<(SignalId, ResolvedEntity)> = Vec::new();
-    let mut unresolved: Vec<(&SignalId, &IndexedEntityRefinement)> =
-        index.entity_refinements().iter().collect();
-    let mut fatal_errors = Vec::new();
+/// Entity refinement resolution rules, enforcing identity attribute preservation.
+struct EntityRefinementSpec;
 
-    while !unresolved.is_empty() {
-        let mut progress = false;
-        let mut still_unresolved: Vec<(&SignalId, &IndexedEntityRefinement)> = Vec::new();
+impl RefinementKindSpec for EntityRefinementSpec {
+    const KIND_LOWER: &'static str = "entity";
+    const KIND_TITLE: &'static str = "Entity";
+    type Raw = EntityRefinement;
+    type Parent = EntityParent;
+    type Resolved = ResolvedEntity;
 
-        for (raw_id, indexed_en) in &unresolved {
-            let en_ref = &indexed_en.refinement;
-            let refinement_id = rules::normalize_refinement_id("entity", raw_id);
-            let provenance = SchemaProvenance {
-                source: None,
-                path: indexed_en.provenance.path.clone(),
-            };
-            let is_ref_excluded = is_excluded(&en_ref.annotations);
-            let parent_ref = &en_ref.r#ref;
-            let stripped_parent_ref = rules::normalize_refinement_id("entity", parent_ref);
-
-            let parent: EntityParent = if let Some(base) = base_signals
-                .entities
-                .iter()
-                .find(|en| en.r#type == *parent_ref || en.r#type == stripped_parent_ref)
-            {
-                EntityParent {
-                    r#type: base.r#type.clone(),
-                    identity: base.identity.clone(),
-                    description: base.description.clone(),
-                    requirement_level: base.requirement_level.clone(),
-                    common: base.common.clone(),
-                    excluded: is_excluded(&base.common.annotations),
-                }
-            } else if let Some((_, prev)) = resolved_entities
-                .iter()
-                .find(|(id, _)| id == parent_ref || *id == stripped_parent_ref)
-            {
-                EntityParent {
-                    r#type: prev.r#type.clone(),
-                    identity: prev.identity.clone(),
-                    description: prev.description.clone(),
-                    requirement_level: prev.requirement_level.clone(),
-                    common: prev.common.clone(),
-                    excluded: is_excluded(&prev.common.annotations),
-                }
-            } else {
-                let is_parent_unresolved = unresolved.iter().any(|(other_id, _)| {
-                    if *other_id == *raw_id {
-                        return false;
-                    }
-                    let nid = rules::normalize_refinement_id("entity", other_id);
-                    nid == *parent_ref || nid == stripped_parent_ref || *other_id == parent_ref
-                });
-                if is_parent_unresolved {
-                    still_unresolved.push((*raw_id, *indexed_en));
-                    continue;
-                }
-
-                if let Some(err) = check_wrong_kind_in_base(
-                    parent_ref,
-                    &stripped_parent_ref,
-                    raw_id,
-                    "Entity",
-                    base_signals,
-                ) {
-                    fatal_errors.push(err);
-                    continue;
-                }
-
-                match deps.lookup_signal(
-                    "entity",
-                    parent_ref.as_ref(),
-                    raw_id.as_ref(),
-                    Some(&indexed_en.provenance),
-                    cache_lookup,
-                ) {
-                    Ok(dep_signal) => {
-                        if let DepSignalPayload::Entity {
-                            r#type,
-                            identity,
-                            description,
-                            requirement_level,
-                        } = dep_signal.payload
-                        {
-                            let mut resolved_ident = Vec::new();
-                            for (attr, origin) in identity {
-                                let mapped_attr =
-                                    catalog.register_inherited_dep_attribute(attr, &origin)?;
-                                resolved_ident.push(mapped_attr);
-                            }
-                            let mut resolved_desc = Vec::new();
-                            for (attr, req, origin) in description {
-                                let mapped_attr =
-                                    catalog.register_inherited_dep_attribute(attr, &origin)?;
-                                resolved_desc.push((mapped_attr, req));
-                            }
-                            EntityParent {
-                                r#type,
-                                identity: resolved_ident,
-                                description: resolved_desc,
-                                requirement_level,
-                                common: dep_signal.common,
-                                excluded: dep_signal.excluded,
-                            }
-                        } else {
-                            fatal_errors.push(Error::UnresolvedRefinementParent {
-                                refinement_id: raw_id.to_string(),
-                                r#ref: parent_ref.to_string(),
-                                provenance: Some(Box::new(indexed_en.provenance.clone())),
-                            });
-                            continue;
-                        }
-                    }
-                    Err(e) => {
-                        fatal_errors.push(e);
-                        continue;
-                    }
-                }
-            };
-
-            if parent.excluded && !is_ref_excluded {
-                fatal_errors.push(Error::ExcludedFromDependencyResolution {
-                    id: parent_ref.to_string(),
-                    r#type: "entity".to_owned(),
-                    used_in: raw_id.to_string(),
-                    provenance: Some(Box::new(indexed_en.provenance.clone())),
-                });
-                continue;
-            }
-
-            let mut identity_ref_keys = Vec::new();
-            let mut identity_arefs = Vec::new();
-            for item in &en_ref.identity {
-                identity_ref_keys.push(item.r#ref.clone());
-                identity_arefs.push(item.clone());
-            }
-
-            let mut desc_unrefs: Vec<&AttributeUnref> = Vec::new();
-            let desc_ref_groups: Vec<SignalId> = Vec::new();
-            let mut desc_inline_refs: Vec<AttributeRef> = Vec::new();
-            for item in &en_ref.description {
-                match item {
-                    EntityAttributeRefinement::Ref(a) => desc_inline_refs.push(a.clone()),
-                    EntityAttributeRefinement::Unref(u) => desc_unrefs.push(u),
-                }
-            }
-
-            let parent_ident_keys: HashSet<String> =
-                parent.identity.iter().map(|a| a.key.clone()).collect();
-            let desc_keys: Vec<String> = desc_inline_refs.iter().map(|a| a.r#ref.clone()).collect();
-            let identity_validation_errors = rules::validate_entity_identity_refinements(
-                refinement_id.as_ref(),
-                parent_ref.as_ref(),
-                &parent_ident_keys,
-                &identity_ref_keys,
-                &desc_keys,
-                Some(&indexed_en.provenance),
-            );
-            if !identity_validation_errors.is_empty() {
-                fatal_errors.extend(identity_validation_errors);
-                continue;
-            }
-
-            let mut identity_attrs = parent.identity.clone();
-            for id_ref in &identity_arefs {
-                let fake_aref = AttributeRef {
-                    r#ref: id_ref.r#ref.clone(),
-                    brief: id_ref.brief.clone(),
-                    examples: id_ref.examples.clone(),
-                    note: id_ref.note.clone(),
-                    requirement_level: None,
-                    annotations: id_ref.annotations.clone(),
-                };
-                if let Some(existing) = identity_attrs.iter_mut().find(|a| a.key == id_ref.r#ref) {
-                    *existing = rules::apply_attribute_ref_overrides(existing, &fake_aref);
-                }
-            }
-            for attr in &identity_attrs {
-                catalog.register_attribute(attr.clone());
-            }
-
-            let used_in = format!("entity.{refinement_id}");
-            let (merged_desc_items, included_group_attrs) = match prepare_refinement_attributes(
-                &desc_ref_groups,
-                &desc_inline_refs,
-                expanded_groups,
-                &used_in,
-                is_ref_excluded,
-                Some(&indexed_en.provenance),
-                warnings,
-            ) {
-                Ok(res) => res,
-                Err(e) => {
-                    fatal_errors.push(e);
-                    continue;
-                }
-            };
-
-            let parent_desc_keys: HashSet<String> = parent
-                .description
-                .iter()
-                .map(|(a, _)| a.key.clone())
-                .collect();
-            let parent_required_keys: HashSet<String> = parent
-                .description
-                .iter()
-                .filter(|(_, req)| is_required(req))
-                .map(|(a, _)| a.key.clone())
-                .collect();
-            let local_attr_keys: HashSet<String> =
-                desc_inline_refs.iter().map(|a| a.r#ref.clone()).collect();
-
-            let unref_errors = rules::validate_attribute_unrefs(
-                refinement_id.as_ref(),
-                parent_ref.as_ref(),
-                &desc_unrefs.iter().map(|u| (*u).clone()).collect::<Vec<_>>(),
-                &parent_desc_keys,
-                &parent_required_keys,
-                &parent_ident_keys,
-                &local_attr_keys,
-                &included_group_attrs,
-                Some(&indexed_en.provenance),
-            );
-            if !unref_errors.is_empty() {
-                fatal_errors.extend(unref_errors);
-                continue;
-            }
-
-            let unref_set: HashSet<&str> = desc_unrefs.iter().map(|u| u.unref.as_str()).collect();
-            let mut current_desc: Vec<(Attribute, RequirementLevel)> = parent
-                .description
-                .into_iter()
-                .filter(|(a, _)| !unref_set.contains(a.key.as_str()))
-                .collect();
-
-            if let Err(e) = apply_attribute_overrides(
-                &mut current_desc,
-                merged_desc_items,
-                &used_in,
-                is_ref_excluded,
-                catalog,
-                Some(&indexed_en.provenance),
-            ) {
-                fatal_errors.push(e);
-                continue;
-            }
-
-            identity_attrs.sort_by(|a, b| a.key.cmp(&b.key));
-            current_desc.sort_by(|(a, _), (b, _)| a.key.cmp(&b.key));
-
-            let brief = rules::inherit_brief(en_ref.brief.as_deref(), &parent.common.brief);
-            let note = rules::inherit_note(&en_ref.note, &parent.common.note);
-            let stability = rules::inherit_stability(&en_ref.stability, &parent.common.stability);
-            let deprecated =
-                rules::inherit_deprecated(&en_ref.deprecated, &parent.common.deprecated);
-            let annotations =
-                rules::inherit_annotations(&parent.common.annotations, &en_ref.annotations);
-
-            let resolved = ResolvedEntity {
-                r#type: parent.r#type,
-                identity: identity_attrs,
-                description: current_desc,
-                requirement_level: parent.requirement_level,
-                common: CommonFields {
-                    brief,
-                    note,
-                    stability,
-                    deprecated,
-                    annotations,
-                },
-                provenance,
-            };
-
-            resolved_entities.push((refinement_id, resolved));
-            progress = true;
-        }
-
-        if !progress && !still_unresolved.is_empty() {
-            for (raw_id, indexed_en) in still_unresolved {
-                fatal_errors.push(Error::UnresolvedRefinementParent {
-                    refinement_id: raw_id.to_string(),
-                    r#ref: indexed_en.refinement.r#ref.to_string(),
-                    provenance: Some(Box::new(indexed_en.provenance.clone())),
-                });
-            }
-            break;
-        }
-
-        unresolved = still_unresolved;
+    fn indexed_map(index: &Index) -> &BTreeMap<SignalId, Indexed<Self::Raw>> {
+        index.entity_refinements()
     }
 
-    handle_errors(fatal_errors)?;
+    fn parent_ref(raw: &Self::Raw) -> &SignalId {
+        &raw.r#ref
+    }
 
-    resolved_entities.sort_by(|(a, _), (b, _)| a.cmp(b));
-    Ok(resolved_entities)
+    fn annotations(raw: &Self::Raw) -> &BTreeMap<String, YamlValue> {
+        &raw.annotations
+    }
+
+    fn find_local_base(
+        base_signals: &ResolvedSignals,
+        parent_ref: &SignalId,
+        stripped_ref: &SignalId,
+    ) -> Option<Self::Parent> {
+        base_signals
+            .entities
+            .iter()
+            .find(|en| en.r#type == *parent_ref || en.r#type == *stripped_ref)
+            .map(Self::parent_from_resolved)
+    }
+
+    fn parent_from_resolved(en: &Self::Resolved) -> Self::Parent {
+        EntityParent {
+            r#type: en.r#type.clone(),
+            identity: en.identity.clone(),
+            description: en.description.clone(),
+            requirement_level: en.requirement_level.clone(),
+            common: en.common.clone(),
+            excluded: is_excluded(&en.common.annotations),
+        }
+    }
+
+    fn parent_from_dep<C: SchemaCacheLookup>(
+        dep_signal: DepSignal,
+        catalog: &mut Catalog<'_, C>,
+    ) -> Result<Option<Self::Parent>, Error> {
+        let DepSignalPayload::Entity {
+            r#type,
+            identity,
+            description,
+            requirement_level,
+        } = dep_signal.payload
+        else {
+            return Ok(None);
+        };
+        let mut resolved_ident = Vec::with_capacity(identity.len());
+        for (attr, origin) in identity {
+            let mapped_attr = catalog.register_inherited_dep_attribute(attr, &origin)?;
+            resolved_ident.push(mapped_attr);
+        }
+        let mut resolved_desc = Vec::with_capacity(description.len());
+        for (attr, req, origin) in description {
+            let mapped_attr = catalog.register_inherited_dep_attribute(attr, &origin)?;
+            resolved_desc.push((mapped_attr, req));
+        }
+        Ok(Some(EntityParent {
+            r#type,
+            identity: resolved_ident,
+            description: resolved_desc,
+            requirement_level,
+            common: dep_signal.common,
+            excluded: dep_signal.excluded,
+        }))
+    }
+
+    fn is_parent_excluded(parent: &Self::Parent) -> bool {
+        parent.excluded
+    }
+
+    fn apply_refinement<C: SchemaCacheLookup>(
+        _raw_id: &SignalId,
+        refinement_id: &SignalId,
+        en_ref: &Self::Raw,
+        parent: Self::Parent,
+        is_ref_excluded: bool,
+        provenance: &SemconvProvenance,
+        schema_provenance: SchemaProvenance,
+        expanded_groups: &ExpandedGroups,
+        catalog: &mut Catalog<'_, C>,
+        warnings: &mut Vec<Error>,
+    ) -> Result<Self::Resolved, Vec<Error>> {
+        let identity_ref_keys: Vec<String> =
+            en_ref.identity.iter().map(|i| i.r#ref.clone()).collect();
+        let desc_keys: Vec<String> = en_ref
+            .description
+            .iter()
+            .filter_map(|item| match item {
+                EntityAttributeRefinement::Ref(a) => Some(a.r#ref.clone()),
+                EntityAttributeRefinement::Unref(_) => None,
+            })
+            .collect();
+
+        let parent_ident_keys: HashSet<String> =
+            parent.identity.iter().map(|a| a.key.clone()).collect();
+        let identity_errors = rules::validate_entity_identity_refinements(
+            refinement_id.as_ref(),
+            en_ref.r#ref.as_ref(),
+            &parent_ident_keys,
+            &identity_ref_keys,
+            &desc_keys,
+            Some(provenance),
+        );
+        if !identity_errors.is_empty() {
+            return Err(identity_errors);
+        }
+
+        let mut identity_attrs = parent.identity;
+        for id_ref in &en_ref.identity {
+            let fake_aref = AttributeRef {
+                r#ref: id_ref.r#ref.clone(),
+                brief: id_ref.brief.clone(),
+                examples: id_ref.examples.clone(),
+                note: id_ref.note.clone(),
+                requirement_level: None,
+                annotations: id_ref.annotations.clone(),
+            };
+            if let Some(existing) = identity_attrs.iter_mut().find(|a| a.key == id_ref.r#ref) {
+                *existing = rules::apply_attribute_ref_overrides(existing, &fake_aref);
+            }
+        }
+        for attr in &identity_attrs {
+            catalog.register_attribute(attr.clone());
+        }
+
+        let used_in = format!("entity.{refinement_id}");
+        let description = resolve_refined_attributes(
+            parent.description,
+            &en_ref.description,
+            &parent_ident_keys,
+            refinement_id,
+            &en_ref.r#ref,
+            &used_in,
+            is_ref_excluded,
+            provenance,
+            expanded_groups,
+            catalog,
+            warnings,
+        )?;
+
+        identity_attrs.sort_by(|a, b| a.key.cmp(&b.key));
+
+        let common = inherit_common_fields(
+            en_ref.brief.as_deref(),
+            &en_ref.note,
+            &en_ref.stability,
+            &en_ref.deprecated,
+            &en_ref.annotations,
+            &parent.common,
+        );
+        Ok(ResolvedEntity {
+            r#type: parent.r#type,
+            identity: identity_attrs,
+            description,
+            requirement_level: parent.requirement_level,
+            common,
+            provenance: schema_provenance,
+        })
+    }
 }
 
 /// Resolves all metric, span, event, and entity refinements in `index`.
@@ -1532,7 +1293,7 @@ pub(crate) fn resolve<'a, C: SchemaCacheLookup>(
     cache_lookup: &C,
     warnings: &mut Vec<Error>,
 ) -> Result<ResolvedRefinements, Error> {
-    let metrics = resolve_metric_refinements(
+    let metrics = resolve_kind_refinements::<MetricRefinementSpec, _>(
         index,
         deps,
         base_signals,
@@ -1541,7 +1302,7 @@ pub(crate) fn resolve<'a, C: SchemaCacheLookup>(
         cache_lookup,
         warnings,
     )?;
-    let spans = resolve_span_refinements(
+    let spans = resolve_kind_refinements::<SpanRefinementSpec, _>(
         index,
         deps,
         base_signals,
@@ -1550,7 +1311,7 @@ pub(crate) fn resolve<'a, C: SchemaCacheLookup>(
         cache_lookup,
         warnings,
     )?;
-    let events = resolve_event_refinements(
+    let events = resolve_kind_refinements::<EventRefinementSpec, _>(
         index,
         deps,
         base_signals,
@@ -1559,7 +1320,7 @@ pub(crate) fn resolve<'a, C: SchemaCacheLookup>(
         cache_lookup,
         warnings,
     )?;
-    let entities = resolve_entity_refinements(
+    let entities = resolve_kind_refinements::<EntityRefinementSpec, _>(
         index,
         deps,
         base_signals,

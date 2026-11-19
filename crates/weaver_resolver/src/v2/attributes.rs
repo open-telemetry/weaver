@@ -51,7 +51,7 @@ impl<'a, C: SchemaCacheLookup> Catalog<'a, C> {
     /// Registers all local attribute definitions from the symbol table.
     pub fn define_local(&mut self, index: &Index) -> Result<(), Error> {
         for (key, indexed_def) in index.attributes() {
-            let def = &indexed_def.def;
+            let def = &indexed_def.item;
             let excluded = is_excluded(&def.common.annotations);
             let attr = Attribute {
                 key: def.key.clone(),

@@ -18,73 +18,10 @@ use weaver_semconv::Error as SemconvError;
 use super::rules::normalize_refinement_id;
 use crate::error::Error;
 
-/// Local attribute definition paired with its source provenance.
+/// Local specification item paired with its source provenance.
 #[derive(Debug, Clone)]
-pub(crate) struct IndexedAttributeDef {
-    pub def: AttributeDef,
-    pub provenance: Provenance,
-}
-
-/// Local attribute group paired with its source provenance.
-#[derive(Debug, Clone)]
-pub(crate) struct IndexedAttributeGroup {
-    pub group: AttributeGroup,
-    pub provenance: Provenance,
-}
-
-/// Local base metric paired with its source provenance.
-#[derive(Debug, Clone)]
-pub(crate) struct IndexedMetric {
-    pub metric: Metric,
-    pub provenance: Provenance,
-}
-
-/// Local base span paired with its source provenance.
-#[derive(Debug, Clone)]
-pub(crate) struct IndexedSpan {
-    pub span: Span,
-    pub provenance: Provenance,
-}
-
-/// Local base event paired with its source provenance.
-#[derive(Debug, Clone)]
-pub(crate) struct IndexedEvent {
-    pub event: Event,
-    pub provenance: Provenance,
-}
-
-/// Local base entity paired with its source provenance.
-#[derive(Debug, Clone)]
-pub(crate) struct IndexedEntity {
-    pub entity: Entity,
-    pub provenance: Provenance,
-}
-
-/// Local metric refinement paired with its source provenance.
-#[derive(Debug, Clone)]
-pub(crate) struct IndexedMetricRefinement {
-    pub refinement: MetricRefinement,
-    pub provenance: Provenance,
-}
-
-/// Local span refinement paired with its source provenance.
-#[derive(Debug, Clone)]
-pub(crate) struct IndexedSpanRefinement {
-    pub refinement: SpanRefinement,
-    pub provenance: Provenance,
-}
-
-/// Local event refinement paired with its source provenance.
-#[derive(Debug, Clone)]
-pub(crate) struct IndexedEventRefinement {
-    pub refinement: EventRefinement,
-    pub provenance: Provenance,
-}
-
-/// Local entity refinement paired with its source provenance.
-#[derive(Debug, Clone)]
-pub(crate) struct IndexedEntityRefinement {
-    pub refinement: EntityRefinement,
+pub(crate) struct Indexed<T> {
+    pub item: T,
     pub provenance: Provenance,
 }
 
@@ -113,77 +50,77 @@ pub(crate) struct IndexedImports {
 /// Per-namespace symbol tables for a local V2 registry.
 #[derive(Debug, Default)]
 pub(crate) struct Index {
-    attributes: BTreeMap<String, IndexedAttributeDef>,
-    attribute_groups: BTreeMap<SignalId, IndexedAttributeGroup>,
-    metrics: BTreeMap<SignalId, IndexedMetric>,
-    spans: BTreeMap<SignalId, IndexedSpan>,
-    events: BTreeMap<SignalId, IndexedEvent>,
-    entities: BTreeMap<SignalId, IndexedEntity>,
-    metric_refinements: BTreeMap<SignalId, IndexedMetricRefinement>,
-    span_refinements: BTreeMap<SignalId, IndexedSpanRefinement>,
-    event_refinements: BTreeMap<SignalId, IndexedEventRefinement>,
-    entity_refinements: BTreeMap<SignalId, IndexedEntityRefinement>,
+    attributes: BTreeMap<String, Indexed<AttributeDef>>,
+    attribute_groups: BTreeMap<SignalId, Indexed<AttributeGroup>>,
+    metrics: BTreeMap<SignalId, Indexed<Metric>>,
+    spans: BTreeMap<SignalId, Indexed<Span>>,
+    events: BTreeMap<SignalId, Indexed<Event>>,
+    entities: BTreeMap<SignalId, Indexed<Entity>>,
+    metric_refinements: BTreeMap<SignalId, Indexed<MetricRefinement>>,
+    span_refinements: BTreeMap<SignalId, Indexed<SpanRefinement>>,
+    event_refinements: BTreeMap<SignalId, Indexed<EventRefinement>>,
+    entity_refinements: BTreeMap<SignalId, Indexed<EntityRefinement>>,
     imports: Vec<IndexedImports>,
 }
 
 impl Index {
     /// Returns the indexed local attribute definitions keyed by attribute name.
     #[must_use]
-    pub fn attributes(&self) -> &BTreeMap<String, IndexedAttributeDef> {
+    pub fn attributes(&self) -> &BTreeMap<String, Indexed<AttributeDef>> {
         &self.attributes
     }
 
     /// Returns the indexed local attribute groups keyed by group ID.
     #[must_use]
-    pub fn attribute_groups(&self) -> &BTreeMap<SignalId, IndexedAttributeGroup> {
+    pub fn attribute_groups(&self) -> &BTreeMap<SignalId, Indexed<AttributeGroup>> {
         &self.attribute_groups
     }
 
     /// Returns the indexed local base metrics keyed by metric name.
     #[must_use]
-    pub fn metrics(&self) -> &BTreeMap<SignalId, IndexedMetric> {
+    pub fn metrics(&self) -> &BTreeMap<SignalId, Indexed<Metric>> {
         &self.metrics
     }
 
     /// Returns the indexed local base spans keyed by span type.
     #[must_use]
-    pub fn spans(&self) -> &BTreeMap<SignalId, IndexedSpan> {
+    pub fn spans(&self) -> &BTreeMap<SignalId, Indexed<Span>> {
         &self.spans
     }
 
     /// Returns the indexed local base events keyed by event name.
     #[must_use]
-    pub fn events(&self) -> &BTreeMap<SignalId, IndexedEvent> {
+    pub fn events(&self) -> &BTreeMap<SignalId, Indexed<Event>> {
         &self.events
     }
 
     /// Returns the indexed local base entities keyed by entity type.
     #[must_use]
-    pub fn entities(&self) -> &BTreeMap<SignalId, IndexedEntity> {
+    pub fn entities(&self) -> &BTreeMap<SignalId, Indexed<Entity>> {
         &self.entities
     }
 
     /// Returns the indexed metric refinements keyed by normalized refinement ID.
     #[must_use]
-    pub fn metric_refinements(&self) -> &BTreeMap<SignalId, IndexedMetricRefinement> {
+    pub fn metric_refinements(&self) -> &BTreeMap<SignalId, Indexed<MetricRefinement>> {
         &self.metric_refinements
     }
 
     /// Returns the indexed span refinements keyed by normalized refinement ID.
     #[must_use]
-    pub fn span_refinements(&self) -> &BTreeMap<SignalId, IndexedSpanRefinement> {
+    pub fn span_refinements(&self) -> &BTreeMap<SignalId, Indexed<SpanRefinement>> {
         &self.span_refinements
     }
 
     /// Returns the indexed event refinements keyed by normalized refinement ID.
     #[must_use]
-    pub fn event_refinements(&self) -> &BTreeMap<SignalId, IndexedEventRefinement> {
+    pub fn event_refinements(&self) -> &BTreeMap<SignalId, Indexed<EventRefinement>> {
         &self.event_refinements
     }
 
     /// Returns the indexed entity refinements keyed by normalized refinement ID.
     #[must_use]
-    pub fn entity_refinements(&self) -> &BTreeMap<SignalId, IndexedEntityRefinement> {
+    pub fn entity_refinements(&self) -> &BTreeMap<SignalId, Indexed<EntityRefinement>> {
         &self.entity_refinements
     }
 
@@ -199,22 +136,76 @@ impl Index {
     }
 }
 
+/// Appends `(item, provenance)` to the candidate list for `key`.
+fn push_raw<K: Ord, T>(
+    map: &mut BTreeMap<K, Vec<(T, Provenance)>>,
+    key: K,
+    item: T,
+    provenance: &Provenance,
+) {
+    map.entry(key).or_default().push((item, provenance.clone()));
+}
+
+/// Keeps the first definition per key and records a duplicate warning when multiple exist.
+fn collect_unique<K: Ord, T>(
+    raw: BTreeMap<K, Vec<(T, Provenance)>>,
+    warnings: &mut Vec<Error>,
+    on_duplicate: impl Fn(&K, Vec<Provenance>) -> Error,
+) -> BTreeMap<K, Indexed<T>> {
+    let mut out = BTreeMap::new();
+    for (key, items) in raw {
+        if items.len() > 1 {
+            let provenances = items.iter().map(|(_, p)| p.clone()).collect();
+            warnings.push(on_duplicate(&key, provenances));
+        }
+        if let Some((item, provenance)) = items.into_iter().next() {
+            _ = out.insert(key, Indexed { item, provenance });
+        }
+    }
+    out
+}
+
+/// Keeps the first refinement per normalized ID and warns on collisions with siblings or `bases`.
+fn collect_unique_refinements<T, B>(
+    raw: BTreeMap<SignalId, Vec<(T, Provenance)>>,
+    bases: &BTreeMap<SignalId, Indexed<B>>,
+    warnings: &mut Vec<Error>,
+) -> BTreeMap<SignalId, Indexed<T>> {
+    let mut out = BTreeMap::new();
+    for (id, items) in raw {
+        if items.len() > 1 {
+            warnings.push(Error::DuplicateGroupId {
+                group_id: id.to_string(),
+                provenances: items.iter().map(|(_, p)| p.clone()).collect(),
+            });
+        }
+        if let Some(base) = bases.get(&id) {
+            let mut provenances = vec![base.provenance.clone()];
+            provenances.extend(items.iter().map(|(_, p)| p.clone()));
+            warnings.push(Error::DuplicateGroupId {
+                group_id: id.to_string(),
+                provenances,
+            });
+        }
+        if let Some((item, provenance)) = items.into_iter().next() {
+            _ = out.insert(id, Indexed { item, provenance });
+        }
+    }
+    out
+}
+
 /// Builds the local symbol tables from specs, detecting duplicates.
 pub(crate) fn build(specs: &[SemConvSpecWithProvenance]) -> Result<(Index, Vec<Error>), Error> {
-    let mut raw_attributes: BTreeMap<String, Vec<(AttributeDef, Provenance)>> = BTreeMap::new();
-    let mut raw_groups: BTreeMap<SignalId, Vec<(AttributeGroup, Provenance)>> = BTreeMap::new();
-    let mut raw_metrics: BTreeMap<SignalId, Vec<(Metric, Provenance)>> = BTreeMap::new();
-    let mut raw_spans: BTreeMap<SignalId, Vec<(Span, Provenance)>> = BTreeMap::new();
-    let mut raw_events: BTreeMap<SignalId, Vec<(Event, Provenance)>> = BTreeMap::new();
-    let mut raw_entities: BTreeMap<SignalId, Vec<(Entity, Provenance)>> = BTreeMap::new();
-    let mut raw_metric_refinements: BTreeMap<SignalId, Vec<(MetricRefinement, Provenance)>> =
-        BTreeMap::new();
-    let mut raw_span_refinements: BTreeMap<SignalId, Vec<(SpanRefinement, Provenance)>> =
-        BTreeMap::new();
-    let mut raw_event_refinements: BTreeMap<SignalId, Vec<(EventRefinement, Provenance)>> =
-        BTreeMap::new();
-    let mut raw_entity_refinements: BTreeMap<SignalId, Vec<(EntityRefinement, Provenance)>> =
-        BTreeMap::new();
+    let mut raw_attributes = BTreeMap::new();
+    let mut raw_groups = BTreeMap::new();
+    let mut raw_metrics = BTreeMap::new();
+    let mut raw_spans = BTreeMap::new();
+    let mut raw_events = BTreeMap::new();
+    let mut raw_entities = BTreeMap::new();
+    let mut raw_metric_refinements = BTreeMap::new();
+    let mut raw_span_refinements = BTreeMap::new();
+    let mut raw_event_refinements = BTreeMap::new();
+    let mut raw_entity_refinements = BTreeMap::new();
     let mut indexed_imports = Vec::new();
 
     for spec_with_prov in specs {
@@ -229,280 +220,105 @@ pub(crate) fn build(specs: &[SemConvSpecWithProvenance]) -> Result<(Index, Vec<E
                 ));
             }
         };
+        let prov = &spec_with_prov.provenance;
 
         if let Some(imports) = v2_spec.imports() {
             indexed_imports.push(IndexedImports {
                 imports: imports.clone(),
-                origin: ImportOrigin::Explicit(spec_with_prov.provenance.clone()),
+                origin: ImportOrigin::Explicit(prov.clone()),
             });
         }
 
         for attr in v2_spec.attributes() {
-            raw_attributes
-                .entry(attr.key.clone())
-                .or_default()
-                .push((attr.clone(), spec_with_prov.provenance.clone()));
+            push_raw(&mut raw_attributes, attr.key.clone(), attr.clone(), prov);
         }
-
         for group in v2_spec.attribute_groups() {
             let id = match group {
                 AttributeGroup::Internal(i) => i.id.clone(),
                 AttributeGroup::Public(p) => p.id.clone(),
             };
-            raw_groups
-                .entry(id)
-                .or_default()
-                .push((group.clone(), spec_with_prov.provenance.clone()));
+            push_raw(&mut raw_groups, id, group.clone(), prov);
         }
-
         for metric in v2_spec.metrics() {
-            raw_metrics
-                .entry(metric.name.clone())
-                .or_default()
-                .push((metric.clone(), spec_with_prov.provenance.clone()));
+            push_raw(&mut raw_metrics, metric.name.clone(), metric.clone(), prov);
         }
-
         for span in v2_spec.spans() {
-            raw_spans
-                .entry(span.r#type.clone())
-                .or_default()
-                .push((span.clone(), spec_with_prov.provenance.clone()));
+            push_raw(&mut raw_spans, span.r#type.clone(), span.clone(), prov);
         }
-
         for event in v2_spec.events() {
-            raw_events
-                .entry(event.name.clone())
-                .or_default()
-                .push((event.clone(), spec_with_prov.provenance.clone()));
+            push_raw(&mut raw_events, event.name.clone(), event.clone(), prov);
         }
-
         for entity in v2_spec.entities() {
-            raw_entities
-                .entry(entity.r#type.clone())
-                .or_default()
-                .push((entity.clone(), spec_with_prov.provenance.clone()));
+            push_raw(
+                &mut raw_entities,
+                entity.r#type.clone(),
+                entity.clone(),
+                prov,
+            );
         }
-
         for metric_ref in v2_spec.metric_refinements() {
             let norm_id = normalize_refinement_id("metric", &metric_ref.id);
-            raw_metric_refinements
-                .entry(norm_id)
-                .or_default()
-                .push((metric_ref.clone(), spec_with_prov.provenance.clone()));
+            push_raw(
+                &mut raw_metric_refinements,
+                norm_id,
+                metric_ref.clone(),
+                prov,
+            );
         }
-
         for span_ref in v2_spec.span_refinements() {
             let norm_id = normalize_refinement_id("span", &span_ref.id);
-            raw_span_refinements
-                .entry(norm_id)
-                .or_default()
-                .push((span_ref.clone(), spec_with_prov.provenance.clone()));
+            push_raw(&mut raw_span_refinements, norm_id, span_ref.clone(), prov);
         }
-
         for event_ref in v2_spec.event_refinements() {
             let norm_id = normalize_refinement_id("event", &event_ref.id);
-            raw_event_refinements
-                .entry(norm_id)
-                .or_default()
-                .push((event_ref.clone(), spec_with_prov.provenance.clone()));
+            push_raw(&mut raw_event_refinements, norm_id, event_ref.clone(), prov);
         }
-
         for entity_ref in v2_spec.entity_refinements() {
             let norm_id = normalize_refinement_id("entity", &entity_ref.id);
-            raw_entity_refinements
-                .entry(norm_id)
-                .or_default()
-                .push((entity_ref.clone(), spec_with_prov.provenance.clone()));
+            push_raw(
+                &mut raw_entity_refinements,
+                norm_id,
+                entity_ref.clone(),
+                prov,
+            );
         }
     }
 
     let mut warnings = Vec::new();
 
-    let mut attributes = BTreeMap::new();
-    for (key, defs) in raw_attributes {
-        if defs.len() > 1 {
-            warnings.push(Error::DuplicateAttributeId {
-                attribute_id: key.clone(),
-                group_ids: defs.iter().map(|(_, p)| p.path.clone()).collect(),
-            });
+    let attributes = collect_unique(raw_attributes, &mut warnings, |key, provenances| {
+        Error::DuplicateAttributeId {
+            attribute_id: key.clone(),
+            group_ids: provenances.into_iter().map(|p| p.path).collect(),
         }
-        if let Some((def, provenance)) = defs.into_iter().next() {
-            _ = attributes.insert(key, IndexedAttributeDef { def, provenance });
+    });
+    let attribute_groups = collect_unique(raw_groups, &mut warnings, |id, provenances| {
+        Error::DuplicateGroupId {
+            group_id: id.to_string(),
+            provenances,
         }
-    }
+    });
+    let metrics = collect_unique(raw_metrics, &mut warnings, |name, provenances| {
+        Error::DuplicateMetricName {
+            metric_name: name.to_string(),
+            provenances,
+        }
+    });
+    let duplicate_group_name = |name: &SignalId, provenances| Error::DuplicateGroupName {
+        group_name: name.to_string(),
+        provenances,
+    };
+    let spans = collect_unique(raw_spans, &mut warnings, duplicate_group_name);
+    let events = collect_unique(raw_events, &mut warnings, duplicate_group_name);
+    let entities = collect_unique(raw_entities, &mut warnings, duplicate_group_name);
 
-    let mut attribute_groups = BTreeMap::new();
-    for (id, groups) in raw_groups {
-        if groups.len() > 1 {
-            warnings.push(Error::DuplicateGroupId {
-                group_id: id.to_string(),
-                provenances: groups.iter().map(|(_, p)| p.clone()).collect(),
-            });
-        }
-        if let Some((group, provenance)) = groups.into_iter().next() {
-            _ = attribute_groups.insert(id, IndexedAttributeGroup { group, provenance });
-        }
-    }
-
-    let mut metrics = BTreeMap::new();
-    for (name, items) in raw_metrics {
-        if items.len() > 1 {
-            warnings.push(Error::DuplicateMetricName {
-                metric_name: name.to_string(),
-                provenances: items.iter().map(|(_, p)| p.clone()).collect(),
-            });
-        }
-        if let Some((metric, provenance)) = items.into_iter().next() {
-            _ = metrics.insert(name, IndexedMetric { metric, provenance });
-        }
-    }
-
-    let mut spans = BTreeMap::new();
-    for (type_id, items) in raw_spans {
-        if items.len() > 1 {
-            warnings.push(Error::DuplicateGroupName {
-                group_name: type_id.to_string(),
-                provenances: items.iter().map(|(_, p)| p.clone()).collect(),
-            });
-        }
-        if let Some((span, provenance)) = items.into_iter().next() {
-            _ = spans.insert(type_id, IndexedSpan { span, provenance });
-        }
-    }
-
-    let mut events = BTreeMap::new();
-    for (name, items) in raw_events {
-        if items.len() > 1 {
-            warnings.push(Error::DuplicateGroupName {
-                group_name: name.to_string(),
-                provenances: items.iter().map(|(_, p)| p.clone()).collect(),
-            });
-        }
-        if let Some((event, provenance)) = items.into_iter().next() {
-            _ = events.insert(name, IndexedEvent { event, provenance });
-        }
-    }
-
-    let mut entities = BTreeMap::new();
-    for (type_id, items) in raw_entities {
-        if items.len() > 1 {
-            warnings.push(Error::DuplicateGroupName {
-                group_name: type_id.to_string(),
-                provenances: items.iter().map(|(_, p)| p.clone()).collect(),
-            });
-        }
-        if let Some((entity, provenance)) = items.into_iter().next() {
-            _ = entities.insert(type_id, IndexedEntity { entity, provenance });
-        }
-    }
-
-    let mut metric_refinements = BTreeMap::new();
-    for (id, items) in raw_metric_refinements {
-        if items.len() > 1 {
-            warnings.push(Error::DuplicateGroupId {
-                group_id: id.to_string(),
-                provenances: items.iter().map(|(_, p)| p.clone()).collect(),
-            });
-        }
-        if let Some(base) = metrics.get(&id) {
-            let mut provenances = vec![base.provenance.clone()];
-            provenances.extend(items.iter().map(|(_, p)| p.clone()));
-            warnings.push(Error::DuplicateGroupId {
-                group_id: id.to_string(),
-                provenances,
-            });
-        }
-        if let Some((refinement, provenance)) = items.into_iter().next() {
-            _ = metric_refinements.insert(
-                id,
-                IndexedMetricRefinement {
-                    refinement,
-                    provenance,
-                },
-            );
-        }
-    }
-
-    let mut span_refinements = BTreeMap::new();
-    for (id, items) in raw_span_refinements {
-        if items.len() > 1 {
-            warnings.push(Error::DuplicateGroupId {
-                group_id: id.to_string(),
-                provenances: items.iter().map(|(_, p)| p.clone()).collect(),
-            });
-        }
-        if let Some(base) = spans.get(&id) {
-            let mut provenances = vec![base.provenance.clone()];
-            provenances.extend(items.iter().map(|(_, p)| p.clone()));
-            warnings.push(Error::DuplicateGroupId {
-                group_id: id.to_string(),
-                provenances,
-            });
-        }
-        if let Some((refinement, provenance)) = items.into_iter().next() {
-            _ = span_refinements.insert(
-                id,
-                IndexedSpanRefinement {
-                    refinement,
-                    provenance,
-                },
-            );
-        }
-    }
-
-    let mut event_refinements = BTreeMap::new();
-    for (id, items) in raw_event_refinements {
-        if items.len() > 1 {
-            warnings.push(Error::DuplicateGroupId {
-                group_id: id.to_string(),
-                provenances: items.iter().map(|(_, p)| p.clone()).collect(),
-            });
-        }
-        if let Some(base) = events.get(&id) {
-            let mut provenances = vec![base.provenance.clone()];
-            provenances.extend(items.iter().map(|(_, p)| p.clone()));
-            warnings.push(Error::DuplicateGroupId {
-                group_id: id.to_string(),
-                provenances,
-            });
-        }
-        if let Some((refinement, provenance)) = items.into_iter().next() {
-            _ = event_refinements.insert(
-                id,
-                IndexedEventRefinement {
-                    refinement,
-                    provenance,
-                },
-            );
-        }
-    }
-
-    let mut entity_refinements = BTreeMap::new();
-    for (id, items) in raw_entity_refinements {
-        if items.len() > 1 {
-            warnings.push(Error::DuplicateGroupId {
-                group_id: id.to_string(),
-                provenances: items.iter().map(|(_, p)| p.clone()).collect(),
-            });
-        }
-        if let Some(base) = entities.get(&id) {
-            let mut provenances = vec![base.provenance.clone()];
-            provenances.extend(items.iter().map(|(_, p)| p.clone()));
-            warnings.push(Error::DuplicateGroupId {
-                group_id: id.to_string(),
-                provenances,
-            });
-        }
-        if let Some((refinement, provenance)) = items.into_iter().next() {
-            _ = entity_refinements.insert(
-                id,
-                IndexedEntityRefinement {
-                    refinement,
-                    provenance,
-                },
-            );
-        }
-    }
+    let metric_refinements =
+        collect_unique_refinements(raw_metric_refinements, &metrics, &mut warnings);
+    let span_refinements = collect_unique_refinements(raw_span_refinements, &spans, &mut warnings);
+    let event_refinements =
+        collect_unique_refinements(raw_event_refinements, &events, &mut warnings);
+    let entity_refinements =
+        collect_unique_refinements(raw_entity_refinements, &entities, &mut warnings);
 
     Ok((
         Index {

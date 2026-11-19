@@ -24,10 +24,245 @@ use crate::graph::chosen_versions::SchemaCacheLookup;
 use crate::graph::entity_lookup::{resolve_entity, upgrade_entity_origin, EntityResolution};
 use crate::graph::exclusion::is_excluded;
 
+/// Maximum nesting depth allowed in `one_of` / `all_of` entity association trees.
+const MAX_ENTITY_ASSOC_DEPTH: usize = 64;
+
 /// Canonical type ID and exclusion status of an entity defined or imported locally.
 struct LocalEntityInfo {
     type_id: SignalId,
     excluded: bool,
+}
+
+/// Uniform view over authored (`SemconvEntityAssociation`) and inherited (`ResolvedEntityAssociation`) nodes.
+enum AssociationBranch<'a, N> {
+    Leaf(&'a str),
+    OneOf(&'a [N]),
+    AllOf(&'a [N]),
+}
+
+/// Adapts raw and pre-resolved association tree nodes to share a single recursive resolver.
+trait AssociationNode: Sized {
+    /// Projects this association node into a leaf entity name or child slice.
+    fn branch(&self) -> AssociationBranch<'_, Self>;
+}
+
+impl AssociationNode for SemconvEntityAssociation {
+    fn branch(&self) -> AssociationBranch<'_, Self> {
+        match self {
+            Self::Ref(id) => AssociationBranch::Leaf(id.as_str()),
+            Self::OneOf { one_of } => AssociationBranch::OneOf(one_of),
+            Self::AllOf { all_of } => AssociationBranch::AllOf(all_of),
+        }
+    }
+}
+
+impl AssociationNode for ResolvedEntityAssociation {
+    fn branch(&self) -> AssociationBranch<'_, Self> {
+        match self {
+            Self::Ref(entity_ref) => AssociationBranch::Leaf(&entity_ref.r#type),
+            Self::OneOf { one_of } => AssociationBranch::OneOf(one_of),
+            Self::AllOf { all_of } => AssociationBranch::AllOf(all_of),
+        }
+    }
+}
+
+/// Shared lookup tables and error accumulator for resolving entity associations across a registry.
+struct AssociationResolver<'a, C: SchemaCacheLookup> {
+    local_entities: &'a HashMap<String, LocalEntityInfo>,
+    imported_entities: &'a [DepImportedEntity],
+    deps: &'a V2Dependencies,
+    cache_lookup: &'a C,
+    errors: Vec<Error>,
+}
+
+impl<'a, C: SchemaCacheLookup> AssociationResolver<'a, C> {
+    /// Resolves `assocs` in place when non-empty.
+    fn resolve_signal(
+        &mut self,
+        assocs: &mut EntityAssociations,
+        association_origins: &BTreeMap<String, SchemaUrl>,
+        kind_prefix: &str,
+        id: &SignalId,
+        origin_url: &SchemaUrl,
+        provenance_path: &str,
+        referencing_is_excluded: bool,
+    ) {
+        if assocs.is_empty() {
+            return;
+        }
+        let signal_id = format!("{kind_prefix}.{id}");
+        let provenance = SemconvProvenance::new(origin_url.clone(), provenance_path);
+        let resolved = match assocs {
+            EntityAssociations::Raw(raw_assocs) => self.resolve_slice(
+                raw_assocs,
+                association_origins,
+                &signal_id,
+                referencing_is_excluded,
+                Some(&provenance),
+                0,
+            ),
+            EntityAssociations::Resolved(resolved_assocs) => self.resolve_slice(
+                resolved_assocs,
+                association_origins,
+                &signal_id,
+                referencing_is_excluded,
+                Some(&provenance),
+                0,
+            ),
+        };
+        *assocs = EntityAssociations::Resolved(resolved);
+    }
+
+    /// Resolves a slice of sibling association nodes at `depth`.
+    fn resolve_slice<N: AssociationNode>(
+        &mut self,
+        nodes: &[N],
+        association_origins: &BTreeMap<String, SchemaUrl>,
+        referencing_signal_id: &str,
+        referencing_is_excluded: bool,
+        provenance: Option<&SemconvProvenance>,
+        depth: usize,
+    ) -> Vec<ResolvedEntityAssociation> {
+        nodes
+            .iter()
+            .filter_map(|node| {
+                self.resolve_node(
+                    node,
+                    association_origins,
+                    referencing_signal_id,
+                    referencing_is_excluded,
+                    provenance,
+                    depth,
+                )
+            })
+            .collect()
+    }
+
+    /// Recursively resolves an association tree node up to `MAX_ENTITY_ASSOC_DEPTH`.
+    fn resolve_node<N: AssociationNode>(
+        &mut self,
+        node: &N,
+        association_origins: &BTreeMap<String, SchemaUrl>,
+        referencing_signal_id: &str,
+        referencing_is_excluded: bool,
+        provenance: Option<&SemconvProvenance>,
+        depth: usize,
+    ) -> Option<ResolvedEntityAssociation> {
+        if depth >= MAX_ENTITY_ASSOC_DEPTH {
+            self.errors.push(Error::ConversionError {
+                message: format!(
+                    "maximum entity association depth of {MAX_ENTITY_ASSOC_DEPTH} exceeded for {referencing_signal_id}"
+                ),
+            });
+            return None;
+        }
+
+        match node.branch() {
+            AssociationBranch::Leaf(entity_name) => match self.resolve_leaf(
+                entity_name,
+                association_origins,
+                referencing_signal_id,
+                referencing_is_excluded,
+                provenance,
+            ) {
+                Ok(entity_ref) => Some(ResolvedEntityAssociation::Ref(entity_ref)),
+                Err(e) => {
+                    self.errors.push(e);
+                    None
+                }
+            },
+            AssociationBranch::OneOf(children) => {
+                let one_of = self.resolve_slice(
+                    children,
+                    association_origins,
+                    referencing_signal_id,
+                    referencing_is_excluded,
+                    provenance,
+                    depth + 1,
+                );
+                Some(ResolvedEntityAssociation::OneOf { one_of })
+            }
+            AssociationBranch::AllOf(children) => {
+                let all_of = self.resolve_slice(
+                    children,
+                    association_origins,
+                    referencing_signal_id,
+                    referencing_is_excluded,
+                    provenance,
+                    depth + 1,
+                );
+                Some(ResolvedEntityAssociation::AllOf { all_of })
+            }
+        }
+    }
+
+    /// Resolves a single entity name to a local or dependency-indexed `EntityRef`.
+    fn resolve_leaf(
+        &self,
+        entity_name: &str,
+        association_origins: &BTreeMap<String, SchemaUrl>,
+        referencing_signal_id: &str,
+        referencing_is_excluded: bool,
+        provenance: Option<&SemconvProvenance>,
+    ) -> Result<EntityRef, Error> {
+        if let Some(origin) = association_origins.get(entity_name) {
+            let upgraded_origin = upgrade_entity_origin(entity_name, origin, self.cache_lookup)?;
+            if self
+                .imported_entities
+                .iter()
+                .any(|en| &*en.r#type == entity_name && en.origin == upgraded_origin)
+            {
+                return Ok(EntityRef::local(SignalId::from(entity_name)));
+            }
+            let source_idx = self.deps.dependency_ref(&upgraded_origin);
+            return Ok(EntityRef {
+                r#type: SignalId::from(entity_name),
+                provenance: SchemaProvenance {
+                    source: source_idx,
+                    path: String::new(),
+                },
+            });
+        }
+
+        if let Some(local_info) = self.local_entities.get(entity_name) {
+            if local_info.excluded && !referencing_is_excluded {
+                return Err(Error::ExcludedFromDependencyResolution {
+                    id: entity_name.to_owned(),
+                    r#type: "entity".to_owned(),
+                    used_in: referencing_signal_id.to_owned(),
+                    provenance: provenance.map(|p| Box::new(p.clone())),
+                });
+            }
+            return Ok(EntityRef::local(local_info.type_id.clone()));
+        }
+
+        match resolve_entity(self.deps.adapters(), entity_name) {
+            EntityResolution::Found(origin) => {
+                let upgraded_origin =
+                    upgrade_entity_origin(entity_name, &origin, self.cache_lookup)?;
+                let source_idx = self.deps.dependency_ref(&upgraded_origin);
+                Ok(EntityRef {
+                    r#type: SignalId::from(entity_name),
+                    provenance: SchemaProvenance {
+                        source: source_idx,
+                        path: String::new(),
+                    },
+                })
+            }
+            EntityResolution::Private | EntityResolution::Unknown => {
+                Err(Error::UnresolvedEntityAssociation {
+                    group_id: referencing_signal_id.to_owned(),
+                    entity_type: entity_name.to_owned(),
+                    provenance: provenance.cloned().map(Box::new),
+                })
+            }
+            EntityResolution::Ambiguous(registries) => Err(Error::AmbiguousEntityAssociation {
+                group_id: referencing_signal_id.to_owned(),
+                entity_type: entity_name.to_owned(),
+                registries: registries.iter().map(ToString::to_string).collect(),
+            }),
+        }
+    }
 }
 
 /// Resolves entity associations across all local, refined, and imported signals.
@@ -55,7 +290,7 @@ pub(crate) fn resolve_associations<C: SchemaCacheLookup>(
 
     for (id, indexed_en) in index.entity_refinements() {
         let norm_id = rules::normalize_refinement_id("entity", id);
-        let excluded = is_excluded(&indexed_en.refinement.annotations);
+        let excluded = is_excluded(&indexed_en.item.annotations);
         _ = local_entities.insert(
             norm_id.to_string(),
             LocalEntityInfo {
@@ -78,510 +313,116 @@ pub(crate) fn resolve_associations<C: SchemaCacheLookup>(
         _ = local_entities.insert(type_id.to_string(), LocalEntityInfo { type_id, excluded });
     }
 
-    let mut errors = Vec::new();
+    let mut resolver = AssociationResolver {
+        local_entities: &local_entities,
+        imported_entities: &imported.entities,
+        deps,
+        cache_lookup,
+        errors: Vec::new(),
+    };
 
     for m in &mut signals.metrics {
-        if !m.entity_associations.is_empty() {
-            let signal_id = format!("metric.{}", m.name);
-            let referencing_is_excluded = is_excluded(&m.common.annotations);
-            let provenance = SemconvProvenance::new(schema_url.clone(), &m.provenance.path);
-            let resolved = resolve_tree(
-                &m.entity_associations,
-                &m.association_origins,
-                &local_entities,
-                &imported.entities,
-                deps,
-                &signal_id,
-                referencing_is_excluded,
-                Some(&provenance),
-                cache_lookup,
-                &mut errors,
-            );
-            m.entity_associations = EntityAssociations::Resolved(resolved);
-        }
+        resolver.resolve_signal(
+            &mut m.entity_associations,
+            &m.association_origins,
+            "metric",
+            &m.name,
+            schema_url,
+            &m.provenance.path,
+            is_excluded(&m.common.annotations),
+        );
     }
-
     for s in &mut signals.spans {
-        if !s.entity_associations.is_empty() {
-            let signal_id = format!("span.{}", s.r#type);
-            let referencing_is_excluded = is_excluded(&s.common.annotations);
-            let provenance = SemconvProvenance::new(schema_url.clone(), &s.provenance.path);
-            let resolved = resolve_tree(
-                &s.entity_associations,
-                &s.association_origins,
-                &local_entities,
-                &imported.entities,
-                deps,
-                &signal_id,
-                referencing_is_excluded,
-                Some(&provenance),
-                cache_lookup,
-                &mut errors,
-            );
-            s.entity_associations = EntityAssociations::Resolved(resolved);
-        }
+        resolver.resolve_signal(
+            &mut s.entity_associations,
+            &s.association_origins,
+            "span",
+            &s.r#type,
+            schema_url,
+            &s.provenance.path,
+            is_excluded(&s.common.annotations),
+        );
     }
-
     for e in &mut signals.events {
-        if !e.entity_associations.is_empty() {
-            let signal_id = format!("event.{}", e.name);
-            let referencing_is_excluded = is_excluded(&e.common.annotations);
-            let provenance = SemconvProvenance::new(schema_url.clone(), &e.provenance.path);
-            let resolved = resolve_tree(
-                &e.entity_associations,
-                &e.association_origins,
-                &local_entities,
-                &imported.entities,
-                deps,
-                &signal_id,
-                referencing_is_excluded,
-                Some(&provenance),
-                cache_lookup,
-                &mut errors,
-            );
-            e.entity_associations = EntityAssociations::Resolved(resolved);
-        }
+        resolver.resolve_signal(
+            &mut e.entity_associations,
+            &e.association_origins,
+            "event",
+            &e.name,
+            schema_url,
+            &e.provenance.path,
+            is_excluded(&e.common.annotations),
+        );
     }
 
     for (ref_id, m) in &mut refinements.metrics {
-        if !m.entity_associations.is_empty() {
-            let signal_id = format!("metric.{ref_id}");
-            let referencing_is_excluded = is_excluded(&m.common.annotations);
-            let provenance = SemconvProvenance::new(schema_url.clone(), &m.provenance.path);
-            let resolved = resolve_tree(
-                &m.entity_associations,
-                &m.association_origins,
-                &local_entities,
-                &imported.entities,
-                deps,
-                &signal_id,
-                referencing_is_excluded,
-                Some(&provenance),
-                cache_lookup,
-                &mut errors,
-            );
-            m.entity_associations = EntityAssociations::Resolved(resolved);
-        }
+        resolver.resolve_signal(
+            &mut m.entity_associations,
+            &m.association_origins,
+            "metric",
+            ref_id,
+            schema_url,
+            &m.provenance.path,
+            is_excluded(&m.common.annotations),
+        );
     }
-
     for (ref_id, s) in &mut refinements.spans {
-        if !s.entity_associations.is_empty() {
-            let signal_id = format!("span.{ref_id}");
-            let referencing_is_excluded = is_excluded(&s.common.annotations);
-            let provenance = SemconvProvenance::new(schema_url.clone(), &s.provenance.path);
-            let resolved = resolve_tree(
-                &s.entity_associations,
-                &s.association_origins,
-                &local_entities,
-                &imported.entities,
-                deps,
-                &signal_id,
-                referencing_is_excluded,
-                Some(&provenance),
-                cache_lookup,
-                &mut errors,
-            );
-            s.entity_associations = EntityAssociations::Resolved(resolved);
-        }
+        resolver.resolve_signal(
+            &mut s.entity_associations,
+            &s.association_origins,
+            "span",
+            ref_id,
+            schema_url,
+            &s.provenance.path,
+            is_excluded(&s.common.annotations),
+        );
     }
-
     for (ref_id, e) in &mut refinements.events {
-        if !e.entity_associations.is_empty() {
-            let signal_id = format!("event.{ref_id}");
-            let referencing_is_excluded = is_excluded(&e.common.annotations);
-            let provenance = SemconvProvenance::new(schema_url.clone(), &e.provenance.path);
-            let resolved = resolve_tree(
-                &e.entity_associations,
-                &e.association_origins,
-                &local_entities,
-                &imported.entities,
-                deps,
-                &signal_id,
-                referencing_is_excluded,
-                Some(&provenance),
-                cache_lookup,
-                &mut errors,
-            );
-            e.entity_associations = EntityAssociations::Resolved(resolved);
-        }
+        resolver.resolve_signal(
+            &mut e.entity_associations,
+            &e.association_origins,
+            "event",
+            ref_id,
+            schema_url,
+            &e.provenance.path,
+            is_excluded(&e.common.annotations),
+        );
     }
 
     for m in &mut imported.metrics {
-        if !m.entity_associations.is_empty() {
-            let signal_id = format!("metric.{}", m.name);
-            let referencing_is_excluded = m.excluded;
-            let provenance = SemconvProvenance::new(m.origin.clone(), &m.provenance.path);
-            let resolved = resolve_tree(
-                &m.entity_associations,
-                &m.association_origins,
-                &local_entities,
-                &imported.entities,
-                deps,
-                &signal_id,
-                referencing_is_excluded,
-                Some(&provenance),
-                cache_lookup,
-                &mut errors,
-            );
-            m.entity_associations = EntityAssociations::Resolved(resolved);
-        }
+        resolver.resolve_signal(
+            &mut m.entity_associations,
+            &m.association_origins,
+            "metric",
+            &m.name,
+            &m.origin,
+            &m.provenance.path,
+            m.excluded,
+        );
     }
-
     for s in &mut imported.spans {
-        if !s.entity_associations.is_empty() {
-            let signal_id = format!("span.{}", s.r#type);
-            let referencing_is_excluded = s.excluded;
-            let provenance = SemconvProvenance::new(s.origin.clone(), &s.provenance.path);
-            let resolved = resolve_tree(
-                &s.entity_associations,
-                &s.association_origins,
-                &local_entities,
-                &imported.entities,
-                deps,
-                &signal_id,
-                referencing_is_excluded,
-                Some(&provenance),
-                cache_lookup,
-                &mut errors,
-            );
-            s.entity_associations = EntityAssociations::Resolved(resolved);
-        }
+        resolver.resolve_signal(
+            &mut s.entity_associations,
+            &s.association_origins,
+            "span",
+            &s.r#type,
+            &s.origin,
+            &s.provenance.path,
+            s.excluded,
+        );
     }
-
     for e in &mut imported.events {
-        if !e.entity_associations.is_empty() {
-            let signal_id = format!("event.{}", e.name);
-            let referencing_is_excluded = e.excluded;
-            let provenance = SemconvProvenance::new(e.origin.clone(), &e.provenance.path);
-            let resolved = resolve_tree(
-                &e.entity_associations,
-                &e.association_origins,
-                &local_entities,
-                &imported.entities,
-                deps,
-                &signal_id,
-                referencing_is_excluded,
-                Some(&provenance),
-                cache_lookup,
-                &mut errors,
-            );
-            e.entity_associations = EntityAssociations::Resolved(resolved);
-        }
+        resolver.resolve_signal(
+            &mut e.entity_associations,
+            &e.association_origins,
+            "event",
+            &e.name,
+            &e.origin,
+            &e.provenance.path,
+            e.excluded,
+        );
     }
 
-    handle_errors(errors)?;
-
+    handle_errors(resolver.errors)?;
     Ok(())
-}
-
-/// Maximum nesting depth allowed in `one_of` / `all_of` entity association trees.
-const MAX_ENTITY_ASSOC_DEPTH: usize = 64;
-
-/// Resolves a signal's raw or inherited entity associations into `ResolvedEntityAssociation` trees.
-fn resolve_tree<C: SchemaCacheLookup>(
-    assocs: &EntityAssociations,
-    association_origins: &BTreeMap<String, SchemaUrl>,
-    local_entities: &HashMap<String, LocalEntityInfo>,
-    imported_entities: &[DepImportedEntity],
-    deps: &V2Dependencies,
-    referencing_signal_id: &str,
-    referencing_is_excluded: bool,
-    provenance: Option<&SemconvProvenance>,
-    cache_lookup: &C,
-    errors: &mut Vec<Error>,
-) -> Vec<ResolvedEntityAssociation> {
-    match assocs {
-        EntityAssociations::Raw(raw_assocs) => raw_assocs
-            .iter()
-            .filter_map(|assoc| {
-                resolve_semconv_node(
-                    assoc,
-                    association_origins,
-                    local_entities,
-                    imported_entities,
-                    deps,
-                    referencing_signal_id,
-                    referencing_is_excluded,
-                    provenance,
-                    cache_lookup,
-                    errors,
-                    0,
-                )
-            })
-            .collect(),
-        EntityAssociations::Resolved(resolved_assocs) => resolved_assocs
-            .iter()
-            .filter_map(|assoc| {
-                resolve_resolved_node(
-                    assoc,
-                    association_origins,
-                    local_entities,
-                    imported_entities,
-                    deps,
-                    referencing_signal_id,
-                    referencing_is_excluded,
-                    provenance,
-                    cache_lookup,
-                    errors,
-                    0,
-                )
-            })
-            .collect(),
-    }
-}
-
-/// Recursively resolves an authored `SemconvEntityAssociation` node up to `MAX_ENTITY_ASSOC_DEPTH`.
-fn resolve_semconv_node<C: SchemaCacheLookup>(
-    node: &SemconvEntityAssociation,
-    association_origins: &BTreeMap<String, SchemaUrl>,
-    local_entities: &HashMap<String, LocalEntityInfo>,
-    imported_entities: &[DepImportedEntity],
-    deps: &V2Dependencies,
-    referencing_signal_id: &str,
-    referencing_is_excluded: bool,
-    provenance: Option<&SemconvProvenance>,
-    cache_lookup: &C,
-    errors: &mut Vec<Error>,
-    depth: usize,
-) -> Option<ResolvedEntityAssociation> {
-    if depth >= MAX_ENTITY_ASSOC_DEPTH {
-        errors.push(Error::ConversionError {
-            message: format!(
-                "maximum entity association depth of {MAX_ENTITY_ASSOC_DEPTH} exceeded for {referencing_signal_id}"
-            ),
-        });
-        return None;
-    }
-
-    match node {
-        SemconvEntityAssociation::Ref(id) => {
-            match resolve_leaf(
-                id.as_str(),
-                association_origins,
-                local_entities,
-                imported_entities,
-                deps,
-                referencing_signal_id,
-                referencing_is_excluded,
-                provenance,
-                cache_lookup,
-            ) {
-                Ok(entity_ref) => Some(ResolvedEntityAssociation::Ref(entity_ref)),
-                Err(e) => {
-                    errors.push(e);
-                    None
-                }
-            }
-        }
-        SemconvEntityAssociation::OneOf { one_of } => {
-            let resolved_children: Vec<_> = one_of
-                .iter()
-                .filter_map(|child| {
-                    resolve_semconv_node(
-                        child,
-                        association_origins,
-                        local_entities,
-                        imported_entities,
-                        deps,
-                        referencing_signal_id,
-                        referencing_is_excluded,
-                        provenance,
-                        cache_lookup,
-                        errors,
-                        depth + 1,
-                    )
-                })
-                .collect();
-            Some(ResolvedEntityAssociation::OneOf {
-                one_of: resolved_children,
-            })
-        }
-        SemconvEntityAssociation::AllOf { all_of } => {
-            let resolved_children: Vec<_> = all_of
-                .iter()
-                .filter_map(|child| {
-                    resolve_semconv_node(
-                        child,
-                        association_origins,
-                        local_entities,
-                        imported_entities,
-                        deps,
-                        referencing_signal_id,
-                        referencing_is_excluded,
-                        provenance,
-                        cache_lookup,
-                        errors,
-                        depth + 1,
-                    )
-                })
-                .collect();
-            Some(ResolvedEntityAssociation::AllOf {
-                all_of: resolved_children,
-            })
-        }
-    }
-}
-
-/// Re-resolves an inherited `ResolvedEntityAssociation` node against upgraded and local entities.
-fn resolve_resolved_node<C: SchemaCacheLookup>(
-    node: &ResolvedEntityAssociation,
-    association_origins: &BTreeMap<String, SchemaUrl>,
-    local_entities: &HashMap<String, LocalEntityInfo>,
-    imported_entities: &[DepImportedEntity],
-    deps: &V2Dependencies,
-    referencing_signal_id: &str,
-    referencing_is_excluded: bool,
-    provenance: Option<&SemconvProvenance>,
-    cache_lookup: &C,
-    errors: &mut Vec<Error>,
-    depth: usize,
-) -> Option<ResolvedEntityAssociation> {
-    if depth >= MAX_ENTITY_ASSOC_DEPTH {
-        errors.push(Error::ConversionError {
-            message: format!(
-                "maximum entity association depth of {MAX_ENTITY_ASSOC_DEPTH} exceeded for {referencing_signal_id}"
-            ),
-        });
-        return None;
-    }
-
-    match node {
-        ResolvedEntityAssociation::Ref(entity_ref) => {
-            match resolve_leaf(
-                &entity_ref.r#type,
-                association_origins,
-                local_entities,
-                imported_entities,
-                deps,
-                referencing_signal_id,
-                referencing_is_excluded,
-                provenance,
-                cache_lookup,
-            ) {
-                Ok(resolved_ref) => Some(ResolvedEntityAssociation::Ref(resolved_ref)),
-                Err(e) => {
-                    errors.push(e);
-                    None
-                }
-            }
-        }
-        ResolvedEntityAssociation::OneOf { one_of } => {
-            let resolved_children: Vec<_> = one_of
-                .iter()
-                .filter_map(|child| {
-                    resolve_resolved_node(
-                        child,
-                        association_origins,
-                        local_entities,
-                        imported_entities,
-                        deps,
-                        referencing_signal_id,
-                        referencing_is_excluded,
-                        provenance,
-                        cache_lookup,
-                        errors,
-                        depth + 1,
-                    )
-                })
-                .collect();
-            Some(ResolvedEntityAssociation::OneOf {
-                one_of: resolved_children,
-            })
-        }
-        ResolvedEntityAssociation::AllOf { all_of } => {
-            let resolved_children: Vec<_> = all_of
-                .iter()
-                .filter_map(|child| {
-                    resolve_resolved_node(
-                        child,
-                        association_origins,
-                        local_entities,
-                        imported_entities,
-                        deps,
-                        referencing_signal_id,
-                        referencing_is_excluded,
-                        provenance,
-                        cache_lookup,
-                        errors,
-                        depth + 1,
-                    )
-                })
-                .collect();
-            Some(ResolvedEntityAssociation::AllOf {
-                all_of: resolved_children,
-            })
-        }
-    }
-}
-
-/// Resolves a single entity name to a local or dependency-indexed `EntityRef`.
-fn resolve_leaf<C: SchemaCacheLookup>(
-    entity_name: &str,
-    association_origins: &BTreeMap<String, SchemaUrl>,
-    local_entities: &HashMap<String, LocalEntityInfo>,
-    imported_entities: &[DepImportedEntity],
-    deps: &V2Dependencies,
-    referencing_signal_id: &str,
-    referencing_is_excluded: bool,
-    provenance: Option<&SemconvProvenance>,
-    cache_lookup: &C,
-) -> Result<EntityRef, Error> {
-    if let Some(origin) = association_origins.get(entity_name) {
-        let upgraded_origin = upgrade_entity_origin(entity_name, origin, cache_lookup)?;
-        if imported_entities
-            .iter()
-            .any(|en| &*en.r#type == entity_name && en.origin == upgraded_origin)
-        {
-            return Ok(EntityRef::local(SignalId::from(entity_name)));
-        }
-        let source_idx = deps.dependency_ref(&upgraded_origin);
-        return Ok(EntityRef {
-            r#type: SignalId::from(entity_name),
-            provenance: SchemaProvenance {
-                source: source_idx,
-                path: String::new(),
-            },
-        });
-    }
-
-    if let Some(local_info) = local_entities.get(entity_name) {
-        if local_info.excluded && !referencing_is_excluded {
-            return Err(Error::ExcludedFromDependencyResolution {
-                id: entity_name.to_owned(),
-                r#type: "entity".to_owned(),
-                used_in: referencing_signal_id.to_owned(),
-                provenance: provenance.map(|p| Box::new(p.clone())),
-            });
-        }
-        return Ok(EntityRef::local(local_info.type_id.clone()));
-    }
-
-    match resolve_entity(deps.adapters(), entity_name) {
-        EntityResolution::Found(origin) => {
-            let upgraded_origin = upgrade_entity_origin(entity_name, &origin, cache_lookup)?;
-            let source_idx = deps.dependency_ref(&upgraded_origin);
-            Ok(EntityRef {
-                r#type: SignalId::from(entity_name),
-                provenance: SchemaProvenance {
-                    source: source_idx,
-                    path: String::new(),
-                },
-            })
-        }
-        EntityResolution::Private => Err(Error::UnresolvedEntityAssociation {
-            group_id: referencing_signal_id.to_owned(),
-            entity_type: entity_name.to_owned(),
-            provenance: provenance.cloned().map(Box::new),
-        }),
-        EntityResolution::Ambiguous(registries) => Err(Error::AmbiguousEntityAssociation {
-            group_id: referencing_signal_id.to_owned(),
-            entity_type: entity_name.to_owned(),
-            registries: registries.iter().map(|u| u.to_string()).collect(),
-        }),
-        EntityResolution::Unknown => Err(Error::UnresolvedEntityAssociation {
-            group_id: referencing_signal_id.to_owned(),
-            entity_type: entity_name.to_owned(),
-            provenance: provenance.cloned().map(Box::new),
-        }),
-    }
 }

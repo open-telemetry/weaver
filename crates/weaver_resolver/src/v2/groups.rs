@@ -9,12 +9,14 @@ use weaver_resolved_schema::v2::provenance::Provenance as SchemaProvenance;
 use weaver_semconv::provenance::Provenance as SemconvProvenance;
 use weaver_semconv::v2::attribute::{AttributeOrGroupRef, AttributeRef, RequirementLevel};
 use weaver_semconv::v2::attribute_group::AttributeGroup;
+use weaver_semconv::v2::event::Event;
+use weaver_semconv::v2::metric::Metric;
 use weaver_semconv::v2::signal_id::SignalId;
-use weaver_semconv::v2::span::SpanAttributeOrGroupRef;
+use weaver_semconv::v2::span::{Span, SpanAttributeOrGroupRef};
 use weaver_semconv::v2::CommonFields;
 
 use super::attributes::Catalog;
-use super::index::{Index, IndexedAttributeGroup, IndexedEvent, IndexedMetric, IndexedSpan};
+use super::index::{Index, Indexed};
 use super::rules;
 use crate::error::Error;
 use crate::graph::chosen_versions::SchemaCacheLookup;
@@ -118,10 +120,10 @@ impl ExpandedGroups {
 
 /// An index entry that can be targeted by `ref_group` expansion.
 enum TargetKind<'a> {
-    AttributeGroup(&'a IndexedAttributeGroup),
-    Span(&'a IndexedSpan),
-    Metric(&'a IndexedMetric),
-    Event(&'a IndexedEvent),
+    AttributeGroup(&'a Indexed<AttributeGroup>),
+    Span(&'a Indexed<Span>),
+    Metric(&'a Indexed<Metric>),
+    Event(&'a Indexed<Event>),
 }
 
 impl<'a> TargetKind<'a> {
@@ -138,20 +140,20 @@ impl<'a> TargetKind<'a> {
     /// Returns `true` if this target is annotated as excluded from dependency resolution.
     fn is_excluded(&self) -> bool {
         match self {
-            TargetKind::AttributeGroup(ag) => match &ag.group {
+            TargetKind::AttributeGroup(ag) => match &ag.item {
                 AttributeGroup::Internal(_) => false,
                 AttributeGroup::Public(p) => is_excluded(&p.common.annotations),
             },
-            TargetKind::Span(s) => is_excluded(&s.span.common.annotations),
-            TargetKind::Metric(m) => is_excluded(&m.metric.common.annotations),
-            TargetKind::Event(e) => is_excluded(&e.event.common.annotations),
+            TargetKind::Span(s) => is_excluded(&s.item.common.annotations),
+            TargetKind::Metric(m) => is_excluded(&m.item.common.annotations),
+            TargetKind::Event(e) => is_excluded(&e.item.common.annotations),
         }
     }
 
     /// Returns `true` if this target is publicly visible outside the local registry.
     fn is_public(&self) -> bool {
         match self {
-            TargetKind::AttributeGroup(ag) => match &ag.group {
+            TargetKind::AttributeGroup(ag) => match &ag.item {
                 AttributeGroup::Internal(_) => false,
                 AttributeGroup::Public(_) => true,
             },
@@ -270,7 +272,7 @@ pub(crate) fn expand<'a, C: SchemaCacheLookup>(
 
     let mut public_groups = Vec::new();
     for (id, indexed_group) in index.attribute_groups() {
-        if let AttributeGroup::Public(p) = &indexed_group.group {
+        if let AttributeGroup::Public(p) = &indexed_group.item {
             let items = expanded
                 .get(&ExpandKey::Group(id.clone()))
                 .map(|g| g.items.clone())
@@ -376,7 +378,7 @@ fn expand_target(
 
     match target {
         TargetKind::AttributeGroup(ag) => {
-            let raw_attributes = match &ag.group {
+            let raw_attributes = match &ag.item {
                 AttributeGroup::Internal(i) => &i.attributes,
                 AttributeGroup::Public(p) => &p.attributes,
             };
@@ -393,13 +395,12 @@ fn expand_target(
                 self_excluded,
                 &mut inherited_excluded_source,
                 &provenance,
-                false,
             )?;
         }
         TargetKind::Metric(m) => {
             expand_attribute_or_group_refs(
                 &consumer_id,
-                &m.metric.attributes,
+                &m.item.attributes,
                 index,
                 expanded,
                 visiting_set,
@@ -410,13 +411,12 @@ fn expand_target(
                 self_excluded,
                 &mut inherited_excluded_source,
                 &provenance,
-                false,
             )?;
         }
         TargetKind::Event(e) => {
             expand_attribute_or_group_refs(
                 &consumer_id,
-                &e.event.attributes,
+                &e.item.attributes,
                 index,
                 expanded,
                 visiting_set,
@@ -427,13 +427,12 @@ fn expand_target(
                 self_excluded,
                 &mut inherited_excluded_source,
                 &provenance,
-                false,
             )?;
         }
         TargetKind::Span(s) => {
-            expand_span_attribute_or_group_refs(
+            expand_attribute_or_group_refs(
                 &consumer_id,
-                &s.span.attributes,
+                &s.item.attributes,
                 index,
                 expanded,
                 visiting_set,
@@ -558,70 +557,57 @@ fn expand_included_ref_group(
     Ok(())
 }
 
-/// Expands `ref_group` entries followed by inline attribute overrides for an attribute group, metric, or event.
-#[allow(clippy::too_many_arguments)]
-fn expand_attribute_or_group_refs(
-    consumer_id: &SignalId,
-    raw_attributes: &[AttributeOrGroupRef],
-    index: &Index,
-    expanded: &mut BTreeMap<ExpandKey, ExpandedGroup>,
-    visiting_set: &mut HashSet<ExpandKey>,
-    visiting_stack: &mut Vec<ExpandKey>,
-    warnings: &mut Vec<Error>,
-    items_map: &mut BTreeMap<String, GroupAttributeItem>,
-    is_consumer_public: bool,
-    is_consumer_excluded: bool,
-    inherited_excluded_source: &mut Option<(String, &'static str)>,
-    provenance: &SemconvProvenance,
-    is_span_consumer: bool,
-) -> Result<(), Error> {
-    for entry in raw_attributes {
-        if let AttributeOrGroupRef::Group(gref) = entry {
-            expand_included_ref_group(
-                consumer_id,
-                &gref.ref_group,
-                index,
-                expanded,
-                visiting_set,
-                visiting_stack,
-                warnings,
-                items_map,
-                is_consumer_public,
-                is_consumer_excluded,
-                inherited_excluded_source,
-                provenance,
-                is_span_consumer,
-            )?;
-        }
-    }
-
-    for entry in raw_attributes {
-        if let AttributeOrGroupRef::Attribute(aref) = entry {
-            if let Some(existing) = items_map.get_mut(&aref.r#ref) {
-                existing.aref = rules::merge_attribute_refs(&existing.aref, aref);
-                existing.origin_group = consumer_id.clone();
-            } else {
-                _ = items_map.insert(
-                    aref.r#ref.clone(),
-                    GroupAttributeItem {
-                        key: aref.r#ref.clone(),
-                        aref: aref.clone(),
-                        sampling_relevant: None,
-                        origin_group: consumer_id.clone(),
-                    },
-                );
-            }
-        }
-    }
-
-    Ok(())
+/// Adapts authored attribute-or-group entries across span and non-span containers.
+trait ExpandableAttrEntry {
+    /// Whether the consumer preserves `sampling_relevant` flags on included attributes.
+    const IS_SPAN_CONSUMER: bool;
+    /// Returns the referenced `ref_group` ID when this entry is a group inclusion.
+    fn group_ref(&self) -> Option<SignalId>;
+    /// Returns the inline `AttributeRef` and optional `sampling_relevant` flag when this entry is an attribute.
+    fn inline_attr(&self) -> Option<(&AttributeRef, Option<bool>)>;
 }
 
-/// Expands `ref_group` entries followed by inline span attribute overrides, preserving `sampling_relevant`.
+impl ExpandableAttrEntry for AttributeOrGroupRef {
+    const IS_SPAN_CONSUMER: bool = false;
+
+    fn group_ref(&self) -> Option<SignalId> {
+        match self {
+            Self::Group(g) => Some(g.ref_group.clone()),
+            Self::Attribute(_) => None,
+        }
+    }
+
+    fn inline_attr(&self) -> Option<(&AttributeRef, Option<bool>)> {
+        match self {
+            Self::Attribute(a) => Some((a, None)),
+            Self::Group(_) => None,
+        }
+    }
+}
+
+impl ExpandableAttrEntry for SpanAttributeOrGroupRef {
+    const IS_SPAN_CONSUMER: bool = true;
+
+    fn group_ref(&self) -> Option<SignalId> {
+        match self {
+            Self::Group(g) => Some(SignalId::from(g.ref_group.clone())),
+            Self::Attribute(_) => None,
+        }
+    }
+
+    fn inline_attr(&self) -> Option<(&AttributeRef, Option<bool>)> {
+        match self {
+            Self::Attribute(s) => Some((&s.base, s.sampling_relevant)),
+            Self::Group(_) => None,
+        }
+    }
+}
+
+/// Expands `ref_group` entries followed by inline attribute overrides into `items_map`.
 #[allow(clippy::too_many_arguments)]
-fn expand_span_attribute_or_group_refs(
+fn expand_attribute_or_group_refs<E: ExpandableAttrEntry>(
     consumer_id: &SignalId,
-    raw_attributes: &[SpanAttributeOrGroupRef],
+    raw_attributes: &[E],
     index: &Index,
     expanded: &mut BTreeMap<ExpandKey, ExpandedGroup>,
     visiting_set: &mut HashSet<ExpandKey>,
@@ -634,8 +620,7 @@ fn expand_span_attribute_or_group_refs(
     provenance: &SemconvProvenance,
 ) -> Result<(), Error> {
     for entry in raw_attributes {
-        if let SpanAttributeOrGroupRef::Group(gref) = entry {
-            let ref_id = SignalId::from(gref.ref_group.clone());
+        if let Some(ref_id) = entry.group_ref() {
             expand_included_ref_group(
                 consumer_id,
                 &ref_id,
@@ -649,25 +634,24 @@ fn expand_span_attribute_or_group_refs(
                 is_consumer_excluded,
                 inherited_excluded_source,
                 provenance,
-                true,
+                E::IS_SPAN_CONSUMER,
             )?;
         }
     }
 
     for entry in raw_attributes {
-        if let SpanAttributeOrGroupRef::Attribute(span_aref) = entry {
-            if let Some(existing) = items_map.get_mut(&span_aref.base.r#ref) {
-                existing.aref = rules::merge_attribute_refs(&existing.aref, &span_aref.base);
-                existing.sampling_relevant =
-                    span_aref.sampling_relevant.or(existing.sampling_relevant);
+        if let Some((aref, sampling_relevant)) = entry.inline_attr() {
+            if let Some(existing) = items_map.get_mut(&aref.r#ref) {
+                existing.aref = rules::merge_attribute_refs(&existing.aref, aref);
+                existing.sampling_relevant = sampling_relevant.or(existing.sampling_relevant);
                 existing.origin_group = consumer_id.clone();
             } else {
                 _ = items_map.insert(
-                    span_aref.base.r#ref.clone(),
+                    aref.r#ref.clone(),
                     GroupAttributeItem {
-                        key: span_aref.base.r#ref.clone(),
-                        aref: span_aref.base.clone(),
-                        sampling_relevant: span_aref.sampling_relevant,
+                        key: aref.r#ref.clone(),
+                        aref: aref.clone(),
+                        sampling_relevant,
                         origin_group: consumer_id.clone(),
                     },
                 );

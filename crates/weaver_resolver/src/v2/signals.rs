@@ -7,6 +7,7 @@ use weaver_common::error::handle_errors;
 use weaver_resolved_schema::v2::attribute::Attribute;
 use weaver_resolved_schema::v2::entity::EntityAssociation as ResolvedEntityAssociation;
 use weaver_resolved_schema::v2::provenance::Provenance;
+use weaver_semconv::provenance::Provenance as SemconvProvenance;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v2::attribute::{AttributeRef, RequirementLevel};
 use weaver_semconv::v2::entity_association::EntityAssociation as SemconvEntityAssociation;
@@ -17,7 +18,7 @@ use weaver_semconv::v2::span::{SpanKindSpec, SpanName};
 use weaver_semconv::v2::CommonFields;
 
 use super::attributes::Catalog;
-use super::groups::{ExpandKey, ExpandedGroups};
+use super::groups::{ExpandKey, ExpandedGroups, GroupAttributeItem};
 use super::index::Index;
 use super::rules;
 use crate::error::Error;
@@ -108,6 +109,29 @@ pub(crate) struct ResolvedSignals {
     pub entities: Vec<ResolvedEntity>,
 }
 
+/// Resolves expanded group attribute items into sorted `(Attribute, RequirementLevel)` pairs.
+fn resolve_expanded_attributes<C: SchemaCacheLookup>(
+    expanded_items: &[GroupAttributeItem],
+    used_in: &str,
+    consumer_excluded: bool,
+    provenance: &SemconvProvenance,
+    catalog: &mut Catalog<'_, C>,
+) -> Result<Vec<(Attribute, RequirementLevel)>, Error> {
+    let mut attributes = Vec::with_capacity(expanded_items.len());
+    for item in expanded_items {
+        let resolved_attr = catalog.resolve_attribute_ref(
+            &item.aref,
+            used_in,
+            consumer_excluded,
+            Some(provenance),
+        )?;
+        let req_level = rules::resolve_requirement_level(&item.aref);
+        attributes.push((resolved_attr, req_level));
+    }
+    attributes.sort_by(|(a, _), (b, _)| a.key.cmp(&b.key));
+    Ok(attributes)
+}
+
 /// Resolves all base signals in the index against expanded groups and catalog.
 pub(crate) fn resolve_bases<'a, C: SchemaCacheLookup>(
     index: &Index,
@@ -118,28 +142,19 @@ pub(crate) fn resolve_bases<'a, C: SchemaCacheLookup>(
 
     let mut metrics = Vec::with_capacity(index.metrics().len());
     for (name, indexed_m) in index.metrics() {
-        let m = &indexed_m.metric;
+        let m = &indexed_m.item;
         let provenance = Provenance {
             source: None,
             path: indexed_m.provenance.path.clone(),
         };
-        let m_excluded = is_excluded(&m.common.annotations);
-
         let used_in = format!("metric.{name}");
-        let expanded_items = groups.items_for(&ExpandKey::Metric(name.clone()));
-
-        let mut attributes = Vec::with_capacity(expanded_items.len());
-        for item in expanded_items {
-            let resolved_attr = catalog.resolve_attribute_ref(
-                &item.aref,
-                &used_in,
-                m_excluded,
-                Some(&indexed_m.provenance),
-            )?;
-            let req_level = rules::resolve_requirement_level(&item.aref);
-            attributes.push((resolved_attr, req_level));
-        }
-        attributes.sort_by(|(a, _), (b, _)| a.key.cmp(&b.key));
+        let attributes = resolve_expanded_attributes(
+            groups.items_for(&ExpandKey::Metric(name.clone())),
+            &used_in,
+            is_excluded(&m.common.annotations),
+            &indexed_m.provenance,
+            catalog,
+        )?;
 
         metrics.push(ResolvedMetric {
             name: name.clone(),
@@ -157,7 +172,7 @@ pub(crate) fn resolve_bases<'a, C: SchemaCacheLookup>(
 
     let mut spans = Vec::with_capacity(index.spans().len());
     for (type_id, indexed_s) in index.spans() {
-        let s = &indexed_s.span;
+        let s = &indexed_s.item;
         let provenance = Provenance {
             source: None,
             path: indexed_s.provenance.path.clone(),
@@ -211,28 +226,19 @@ pub(crate) fn resolve_bases<'a, C: SchemaCacheLookup>(
 
     let mut events = Vec::with_capacity(index.events().len());
     for (name, indexed_e) in index.events() {
-        let e = &indexed_e.event;
+        let e = &indexed_e.item;
         let provenance = Provenance {
             source: None,
             path: indexed_e.provenance.path.clone(),
         };
-        let e_excluded = is_excluded(&e.common.annotations);
         let used_in = format!("event.{name}");
-
-        let expanded_items = groups.items_for(&ExpandKey::Event(name.clone()));
-
-        let mut attributes = Vec::with_capacity(expanded_items.len());
-        for item in expanded_items {
-            let resolved_attr = catalog.resolve_attribute_ref(
-                &item.aref,
-                &used_in,
-                e_excluded,
-                Some(&indexed_e.provenance),
-            )?;
-            let req_level = rules::resolve_requirement_level(&item.aref);
-            attributes.push((resolved_attr, req_level));
-        }
-        attributes.sort_by(|(a, _), (b, _)| a.key.cmp(&b.key));
+        let attributes = resolve_expanded_attributes(
+            groups.items_for(&ExpandKey::Event(name.clone())),
+            &used_in,
+            is_excluded(&e.common.annotations),
+            &indexed_e.provenance,
+            catalog,
+        )?;
 
         events.push(ResolvedEvent {
             name: name.clone(),
@@ -248,7 +254,7 @@ pub(crate) fn resolve_bases<'a, C: SchemaCacheLookup>(
 
     let mut entities = Vec::with_capacity(index.entities().len());
     for (type_id, indexed_en) in index.entities() {
-        let en = &indexed_en.entity;
+        let en = &indexed_en.item;
         let provenance = Provenance {
             source: None,
             path: indexed_en.provenance.path.clone(),
