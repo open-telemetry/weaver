@@ -1,0 +1,104 @@
+# Code attributes: stable (v1.33.0) -> pre-stability (v1.29.0), spans and logs.
+#
+# Lets queries written against the old code.* names also see data from
+# producers that emit the stable names. Written on its own, not inverted.
+#
+# Left out:
+#   - code.namespace: not split out of code.function.name. The namespace ends
+#     at the last separator, which `split` can't select. code.function.name
+#     is renamed to code.function as is (approximate: fully-qualified value).
+file_format: transform/2.0
+source:
+  schema_url: https://opentelemetry.io/schemas/1.33.0
+target:
+  schema_url: https://opentelemetry.io/schemas/1.29.0
+gaps: {}
+policies:
+  # --- Spans ----------------------------------------------------------------
+  - id: code-span-line-number-back
+    name: code.line.number becomes code.lineno on spans
+    description: >
+      Same type (int) and meaning. Old-shaped data has no code.line.number,
+      so the rule doesn't touch it. With code/dup emission the existing
+      code.lineno wins (upsert false).
+    trace_transform:
+      matches:
+        - target: {span_attribute: [code.line.number]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {span_attribute: [code.line.number]}, to: code.lineno}
+
+  - id: code-span-column-number-back
+    name: code.column.number becomes code.column on spans
+    description: Same type (int) and meaning.
+    trace_transform:
+      matches:
+        - target: {span_attribute: [code.column.number]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {span_attribute: [code.column.number]}, to: code.column}
+
+  - id: code-span-file-path-back
+    name: code.file.path becomes code.filepath on spans
+    description: Same type (string) and meaning.
+    trace_transform:
+      matches:
+        - target: {span_attribute: [code.file.path]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {span_attribute: [code.file.path]}, to: code.filepath}
+
+  # --- Logs -----------------------------------------------------------------
+  - id: code-log-line-number-back
+    name: code.line.number becomes code.lineno on log records
+    description: Same type (int) and meaning.
+    log_transform:
+      matches:
+        - target: {log_attribute: [code.line.number]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {log_attribute: [code.line.number]}, to: code.lineno}
+
+  - id: code-log-column-number-back
+    name: code.column.number becomes code.column on log records
+    description: Same type (int) and meaning.
+    log_transform:
+      matches:
+        - target: {log_attribute: [code.column.number]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {log_attribute: [code.column.number]}, to: code.column}
+
+  - id: code-log-file-path-back
+    name: code.file.path becomes code.filepath on log records
+    description: Same type (string) and meaning.
+    log_transform:
+      matches:
+        - target: {log_attribute: [code.file.path]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {log_attribute: [code.file.path]}, to: code.filepath}
+
+  - id: code-span-function-name-back
+    name: code.function.name becomes code.function on spans (approximate)
+    description: >
+      Approximate: keeps the fully-qualified name in code.function and leaves
+      code.namespace unset.
+    trace_transform:
+      matches:
+        - target: {span_attribute: [code.function.name]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {span_attribute: [code.function.name]}, to: code.function}
+
+  - id: code-log-function-name-back
+    name: code.function.name becomes code.function on log records (approximate)
+    description: >
+      Approximate: keeps the fully-qualified name in code.function and leaves
+      code.namespace unset.
+    log_transform:
+      matches:
+        - target: {log_attribute: [code.function.name]}
+          predicate: {exists: {}}
+      rename:
+        - {from: {log_attribute: [code.function.name]}, to: code.function}
