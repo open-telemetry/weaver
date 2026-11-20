@@ -101,6 +101,7 @@ impl<'a> WeaverEngine<'a> {
             include_unreferenced: self.registry_config.include_unreferenced,
             auth: self.auth.clone(),
             schema_url_overrides: self.resolve_config.schema_url_overrides.clone(),
+            v2: self.registry_config.v2,
             ..Default::default()
         };
         let mut resolver = WeaverResolver::new(config);

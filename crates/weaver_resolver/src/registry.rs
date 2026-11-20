@@ -104,6 +104,7 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
     imports: Vec<ImportsWithProvenance>,
     dependencies: Vec<ResolvedDependency>,
     include_unreferenced: bool,
+    v2: bool,
     cache_lookup: &C,
 ) -> WResult<Registry, Error> {
     let groups = specs
@@ -164,6 +165,14 @@ pub(crate) fn resolve_registry_with_dependencies<C: crate::SchemaCacheLookup>(
 
     if let Err(e) = resolve_attribute_references(&mut ureg, attr_catalog, cache_lookup) {
         return WResult::FatalErr(e);
+    }
+
+    // After attribute references, which settle identity roles, and before
+    // imports and associations, so nothing can reach the converted entity.
+    if v2 {
+        if let Err(e) = convert_entities_without_identity(&mut ureg, attr_catalog, &mut errors) {
+            return WResult::FatalErr(e);
+        }
     }
 
     // We need to *import* objects from the dependencies as required.
@@ -674,6 +683,105 @@ fn resolve_entity_associations(ureg: &mut UnresolvedRegistry) -> Result<(), Erro
             .extend(group_origins);
     }
     Ok(())
+}
+
+/// V2 entities require identity, so V1 entities without identity attributes
+/// become public attribute groups when the registry is resolved for V2.
+fn convert_entities_without_identity(
+    ureg: &mut UnresolvedRegistry,
+    attr_catalog: &AttributeCatalog,
+    errors: &mut Vec<Error>,
+) -> Result<(), Error> {
+    let identifying = attr_catalog.identifying_refs();
+    let mut converted = HashSet::new();
+    for g in ureg
+        .groups
+        .iter_mut()
+        .filter(|g| g.group.r#type == GroupType::Entity && !g.is_v2)
+    {
+        if g.group.attributes.iter().any(|ar| identifying.contains(ar)) {
+            continue;
+        }
+        errors.push(Error::EntityMissingIdentity {
+            group_id: g.group.id.clone(),
+            provenance: g.provenance.clone().map(Box::new),
+        });
+        to_public_attribute_group(&mut g.group);
+        g.visibility = Some(AttributeGroupVisibilitySpec::Public);
+        let _ = converted.insert(g.group.id.clone());
+    }
+    reject_refinements_of(
+        ureg.groups.iter().map(|g| (&g.group, g.provenance.clone())),
+        &converted,
+    )
+}
+
+/// The same conversion for a V1 registry that was resolved before it was loaded.
+pub(crate) fn convert_resolved_entities_without_identity(
+    schema: &mut weaver_resolved_schema::v1::ResolvedTelemetrySchema,
+    errors: &mut Vec<Error>,
+) -> Result<(), Error> {
+    let catalog = &schema.catalog;
+    let mut converted = HashSet::new();
+    for g in schema
+        .registry
+        .groups
+        .iter_mut()
+        .filter(|g| g.r#type == GroupType::Entity && !g.is_v2)
+    {
+        let has_identity = g
+            .attributes
+            .iter()
+            .filter_map(|ar| catalog.attribute(ar))
+            .any(|a| a.role == Some(AttributeRole::Identifying));
+        if has_identity {
+            continue;
+        }
+        errors.push(Error::EntityMissingIdentity {
+            group_id: g.id.clone(),
+            provenance: g.provenance().map(Box::new),
+        });
+        to_public_attribute_group(g);
+        let _ = converted.insert(g.id.clone());
+    }
+    if !converted.is_empty() {
+        check_v2_signal_id_collisions(&schema.registry, errors);
+    }
+    reject_refinements_of(
+        schema.registry.groups.iter().map(|g| (g, g.provenance())),
+        &converted,
+    )
+}
+
+fn to_public_attribute_group(group: &mut Group) {
+    group.r#type = GroupType::AttributeGroup;
+    group.visibility = Some(AttributeGroupVisibilitySpec::Public);
+}
+
+/// Extends already ran, so an entity that keeps its identity may still refine
+/// one that was just converted.
+fn reject_refinements_of<'a>(
+    groups: impl Iterator<Item = (&'a Group, Option<Provenance>)>,
+    converted: &HashSet<String>,
+) -> Result<(), Error> {
+    let errors: Vec<Error> = groups
+        .filter(|(g, _)| g.r#type == GroupType::Entity)
+        .filter_map(|(g, provenance)| {
+            let parent = g.lineage.as_ref()?.extends_group.as_ref()?;
+            converted
+                .contains(parent)
+                .then(|| Error::EntityRefinementWithoutIdentity {
+                    refinement_id: g.id.clone(),
+                    r#ref: parent.clone(),
+                    provenance: provenance.map(Box::new),
+                })
+        })
+        .collect();
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(Error::CompoundError(errors))
+    }
 }
 
 /// Resolves attribute references in the given registry.
