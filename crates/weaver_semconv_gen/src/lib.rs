@@ -9,6 +9,7 @@ use serde::Serialize;
 use std::{fmt, fs};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
+use weaver_common::log_warn;
 use weaver_diff::diff_output;
 
 mod parser;
@@ -105,6 +106,18 @@ enum SnippetType {
     Weaver,
 }
 
+/// Logs a warning for each comment that looks like a snippet marker but can't be parsed.
+fn warn_on_malformed_markers(file: &str, markdown: &str) {
+    for (index, line) in markdown.lines().enumerate() {
+        if parser::looks_like_snippet_marker(line) && !parser::is_valid_snippet_marker(line) {
+            log_warn(format!(
+                "Invalid markdown snippet marker in {file}:{}: {line}",
+                index + 1
+            ));
+        }
+    }
+}
+
 /// A trait denoting how to update the contents of a markdown using `semconv` snippet headers.
 pub trait MarkdownSnippetGenerator {
     /// Update the contents of a markdown file.
@@ -122,6 +135,7 @@ pub trait MarkdownSnippetGenerator {
         let original_markdown = fs::read_to_string(file)
             .map_err(|e| Error::StdIoError(e.to_string()))?
             .replace("\r\n", "\n");
+        warn_on_malformed_markers(file, &original_markdown);
         let updated_markdown =
             self.update_markdown_contents(&original_markdown, attribute_registry_base_url)?;
         if !dry_run {
