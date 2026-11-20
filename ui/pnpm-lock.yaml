@@ -77,8 +77,8 @@ importers:
         specifier: 7.1.1
         version: 7.1.1(eslint@10.14.0(jiti@2.7.0))
       eslint-plugin-react-refresh:
-        specifier: 0.5.7
-        version: 0.5.7(eslint@10.14.0(jiti@2.7.0))
+        specifier: 0.5.8
+        version: 0.5.8(eslint@10.14.0(jiti@2.7.0))
       globals:
         specifier: 17.13.0
         version: 17.13.0
@@ -1091,8 +1091,8 @@ packages:
     peerDependencies:
       eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0 || ^9.0.0 || ^10.0.0
 
-  eslint-plugin-react-refresh@0.5.7:
-    resolution: {integrity: sha512-XhJSzLljuYD4UjNuFGJu2v7aD3sqNVK12w5/DCUfrNfHWegZo2+TsavNx8MuxMwEquuFAzNbNfXKU0WoZ+YUIg==}
+  eslint-plugin-react-refresh@0.5.8:
+    resolution: {integrity: sha512-VYgz1iCC5LxeAd6YRz5ATfg8WKrNb1ulHMpCe4pQpn3CS9DiYpZi5wcag73O8iChLhrl/CmlGMmzA6eXZ2cX4Q==}
     peerDependencies:
       eslint: ^9 || ^10
 
@@ -3328,7 +3328,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-react-refresh@0.5.7(eslint@10.14.0(jiti@2.7.0)):
+  eslint-plugin-react-refresh@0.5.8(eslint@10.14.0(jiti@2.7.0)):
     dependencies:
       eslint: 10.14.0(jiti@2.7.0)
 
