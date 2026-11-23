@@ -216,6 +216,7 @@ pub struct WeaverResolver {
     direct_dependencies: HashMap<SchemaUrl, Vec<SchemaUrl>>,
     config: WeaverResolverConfig,
     warned_v1_dependencies: BTreeSet<SchemaUrl>,
+    root_is_pure_v2: bool,
 }
 
 impl WeaverResolver {
@@ -228,6 +229,7 @@ impl WeaverResolver {
             direct_dependencies: HashMap::new(),
             config,
             warned_v1_dependencies: BTreeSet::new(),
+            root_is_pure_v2: false,
         }
     }
 
@@ -260,7 +262,7 @@ impl WeaverResolver {
     /// Records the direct dependencies of `schema_url` if not already recorded, preserving
     /// version-arbitrated entries.
     fn record_direct_dependencies(&mut self, schema_url: &SchemaUrl, direct: Vec<SchemaUrl>) {
-        if direct.is_empty() || self.direct_dependencies.contains_key(schema_url) {
+        if self.direct_dependencies.contains_key(schema_url) {
             return;
         }
         let _ = self.direct_dependencies.insert(schema_url.clone(), direct);
@@ -423,7 +425,7 @@ impl WeaverResolver {
         }
 
         let mut dep_warnings = Vec::new();
-        if self.config.target == ResolutionTarget::V2 {
+        if self.config.target == ResolutionTarget::V2 && self.root_is_pure_v2 {
             self.collect_v2_dependency_warnings(&loaded, &mut dep_warnings);
         }
 
@@ -464,6 +466,10 @@ impl WeaverResolver {
                     schema_url: url.as_str().to_owned(),
                 });
             }
+            return;
+        }
+        if !self.root_is_pure_v2 {
+            return;
         }
         if let LoadedSemconvRegistry::Unresolved { dependencies, .. } = loaded {
             for dep in dependencies {
@@ -529,10 +535,11 @@ impl WeaverResolver {
         loaded: LoadedSemconvRegistry,
         is_root: bool,
     ) -> WResult<Arc<WeaverResolvedSchema>, Error> {
+        let source_format = loaded.source_format();
         if is_root {
             self.active_graph_schemas.clear();
+            self.root_is_pure_v2 = source_format == Some(SourceFormat::V2);
         }
-        let source_format = loaded.source_format();
         let mut v2_warnings = Vec::new();
         self.collect_v2_fallback_warnings(&loaded, is_root, &mut v2_warnings);
 
@@ -627,7 +634,9 @@ impl WeaverResolver {
         for dep_url in schema.dependencies() {
             if let Some(cached) = self.active_or_cached_schema(dep_url) {
                 let _ = schemas.insert(dep_url.clone(), cached);
-            } else if self.direct_dependencies.contains_key(dep_url) {
+            } else if self.direct_dependencies.contains_key(dep_url)
+                || self.config.schema_url_overrides.contains_key(dep_url)
+            {
                 match self.resolve_dependency_schema(dep_url) {
                     WResult::Ok(resolved) => {
                         let _ = schemas.insert(dep_url.clone(), resolved);
@@ -1146,5 +1155,163 @@ mod tests {
             }
             WResult::FatalErr(e) => panic!("Resolution failed: {e}"),
         }
+    }
+
+    #[test]
+    fn test_mixed_root_with_v1_dep_does_not_emit_v1_dependency_warning() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let dep_dir = temp.path().join("dep");
+        let root_dir = temp.path().join("root");
+        std::fs::create_dir_all(&dep_dir).unwrap();
+        std::fs::create_dir_all(&root_dir).unwrap();
+
+        std::fs::write(
+            dep_dir.join("registry_manifest.yaml"),
+            "name: dep\nversion: 1.0.0\nsemconv_version: 1.0.0\nschema_base_url: https://example.com/dep\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dep_dir.join("attrs.yaml"),
+            "groups:\n  - id: registry.dep\n    type: attribute_group\n    brief: dep attrs\n    attributes:\n      - id: dep.attr\n        type: string\n        brief: dep attr\n        stability: stable\n",
+        )
+        .unwrap();
+
+        let dep_path_str = dep_dir.to_string_lossy().replace('\\', "/");
+        std::fs::write(
+            root_dir.join("manifest.yaml"),
+            format!(
+                "description: root\nschema_url: https://example.com/root/1.0.0\ndependencies:\n  - schema_url: https://example.com/dep/1.0.0\n    registry_path: {dep_path_str}\n"
+            ),
+        )
+        .unwrap();
+        std::fs::write(
+            root_dir.join("v1.yaml"),
+            "groups:\n  - id: registry.root.v1\n    type: attribute_group\n    brief: v1\n    attributes:\n      - id: root.v1.attr\n        type: string\n        brief: v1 attr\n        stability: stable\n",
+        )
+        .unwrap();
+        std::fs::write(
+            root_dir.join("v2.yaml"),
+            "file_format: definition/2\nattributes:\n  - key: root.v2.attr\n    type: string\n    brief: v2 attr\n    stability: stable\n",
+        )
+        .unwrap();
+
+        let repo = RegistryRepo::try_new(
+            None,
+            &VirtualDirectoryPath::LocalFolder {
+                path: root_dir.to_string_lossy().into_owned(),
+            },
+            &mut vec![],
+        )
+        .unwrap();
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig {
+            target: ResolutionTarget::V2,
+            ..Default::default()
+        });
+        match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
+            WResult::OkWithNFEs(_, nfes) => {
+                assert!(
+                    nfes.iter()
+                        .any(|e| matches!(e, Error::MixedRegistryUsesV1Path { .. })),
+                    "Expected MixedRegistryUsesV1Path warning, got: {nfes:?}"
+                );
+                assert!(
+                    !nfes
+                        .iter()
+                        .any(|e| matches!(e, Error::V1DependencyUsesV1Path { .. })),
+                    "Mixed root should not also emit V1DependencyUsesV1Path: {nfes:?}"
+                );
+            }
+            WResult::Ok(_) => panic!("Expected OkWithNFEs with MixedRegistryUsesV1Path"),
+            WResult::FatalErr(e) => panic!("Resolution failed: {e}"),
+        }
+    }
+
+    #[test]
+    fn test_schema_cache_for_keeps_published_leaf_and_resolves_overridden_transitive() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let leaf_dir = temp.path().join("leaf");
+        let mid_dir = temp.path().join("mid");
+        let root_dir = temp.path().join("root");
+        std::fs::create_dir_all(&leaf_dir).unwrap();
+        std::fs::create_dir_all(&mid_dir).unwrap();
+        std::fs::create_dir_all(&root_dir).unwrap();
+
+        let leaf_url = SchemaUrl::try_from("https://example.com/leaf/1.0.0").unwrap();
+        let mid_url = SchemaUrl::try_from("https://example.com/mid/1.0.0").unwrap();
+
+        std::fs::write(
+            leaf_dir.join("manifest.yaml"),
+            "file_format: manifest/2.0\nschema_url: https://example.com/leaf/1.0.0\ndescription: leaf\nstability: stable\nresolved_registry_uri: resolved.yaml\n",
+        )
+        .unwrap();
+        std::fs::write(
+            leaf_dir.join("resolved.yaml"),
+            "file_format: resolved/2.0\nschema_url: https://example.com/leaf/1.0.0\nattribute_catalog: []\nregistry:\n  attributes: []\n  attribute_groups: []\n  entities: []\n  events: []\n  metrics: []\n  spans: []\nrefinements:\n  metrics: []\n  spans: []\n  events: []\ndependencies: []\n",
+        )
+        .unwrap();
+        std::fs::write(
+            mid_dir.join("manifest.yaml"),
+            "file_format: manifest/2.0\nschema_url: https://example.com/mid/1.0.0\ndescription: mid\nstability: stable\nresolved_registry_uri: resolved.yaml\n",
+        )
+        .unwrap();
+        std::fs::write(
+            mid_dir.join("resolved.yaml"),
+            "file_format: resolved/2.0\nschema_url: https://example.com/mid/1.0.0\nattribute_catalog: []\nregistry:\n  attributes: []\n  attribute_groups: []\n  entities: []\n  events: []\n  metrics: []\n  spans: []\nrefinements:\n  metrics: []\n  spans: []\n  events: []\ndependencies:\n  - https://example.com/leaf/1.0.0\n",
+        )
+        .unwrap();
+
+        let mid_path_str = mid_dir.to_string_lossy().replace('\\', "/");
+        std::fs::write(
+            root_dir.join("manifest.yaml"),
+            format!(
+                "description: root\nschema_url: https://example.com/root/1.0.0\ndependencies:\n  - schema_url: https://example.com/mid/1.0.0\n    registry_path: {mid_path_str}\n"
+            ),
+        )
+        .unwrap();
+        std::fs::write(
+            root_dir.join("attrs.yaml"),
+            "file_format: definition/2\nattributes:\n  - key: root.attr\n    type: string\n    brief: root attr\n    stability: stable\n",
+        )
+        .unwrap();
+
+        let mut overrides = BTreeMap::new();
+        let _ = overrides.insert(
+            leaf_url.clone(),
+            VirtualDirectoryPath::LocalFolder {
+                path: leaf_dir.to_string_lossy().into_owned(),
+            },
+        );
+        let repo = RegistryRepo::try_new(
+            None,
+            &VirtualDirectoryPath::LocalFolder {
+                path: root_dir.to_string_lossy().into_owned(),
+            },
+            &mut vec![],
+        )
+        .unwrap();
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig {
+            target: ResolutionTarget::V2,
+            schema_url_overrides: overrides,
+            ..Default::default()
+        });
+        let resolved = match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("root resolution failed: {e}"),
+        };
+
+        let cache = resolver
+            .schema_cache_for(&resolved)
+            .into_result_failing_non_fatal()
+            .expect("schema_cache_for succeeded");
+        assert!(cache.get(&mid_url).is_some(), "mid should be in cache");
+        assert!(
+            cache.get(&leaf_url).is_some(),
+            "overridden transitive leaf should be materialized in cache"
+        );
+        assert_eq!(
+            cache.direct_dependencies(&leaf_url),
+            Some(&[][..]),
+            "published leaf should retain empty direct_dependencies"
+        );
     }
 }

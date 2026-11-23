@@ -850,6 +850,7 @@ fn load_definition_repository(
             WResult::FatalErr(e) => return WResult::FatalErr(Error::FailToResolveDefinition(e)),
         }
     }
+    specs.sort_by(|a, b| a.provenance.path.cmp(&b.provenance.path));
 
     WResult::OkWithNFEs(
         LoadedSemconvRegistry::Unresolved {

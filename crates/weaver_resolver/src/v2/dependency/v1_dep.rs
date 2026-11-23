@@ -350,7 +350,7 @@ impl V1Dependency {
                     .map(v1_span_name_to_v2)
                     .unwrap_or_else(|| SpanName {
                         templates: vec![],
-                        note: group.name.clone(),
+                        note: group.name.clone().or_else(|| Some(id.to_owned())),
                     }),
                 requirement_level,
                 attributes: attrs
@@ -459,6 +459,13 @@ impl V1Dependency {
         (attr, excluded)
     }
 
+    /// Returns `true` if `g` is a V1 refinement of another group of the same `GroupType`.
+    fn is_refinement(g: &Group) -> bool {
+        g.lineage
+            .as_ref()
+            .is_some_and(|l| l.extends_group_type.as_ref() == Some(&g.r#type))
+    }
+
     /// Returns all importable metrics from this dependency.
     pub fn importable_metrics(&self) -> Vec<DepImportedMetric> {
         let my_schema_url = self.schema_url();
@@ -466,7 +473,10 @@ impl V1Dependency {
             .registry
             .groups
             .iter()
-            .filter(|g| g.r#type == GroupType::Metric || g.r#type == GroupType::MetricGroup)
+            .filter(|g| {
+                (g.r#type == GroupType::Metric || g.r#type == GroupType::MetricGroup)
+                    && !Self::is_refinement(g)
+            })
             .map(|g| {
                 let meta = self.group_meta(g, &my_schema_url);
                 let (entity_associations, association_origins) = self.group_associations(g);
@@ -509,7 +519,7 @@ impl V1Dependency {
             .registry
             .groups
             .iter()
-            .filter(|g| g.r#type == GroupType::Span)
+            .filter(|g| g.r#type == GroupType::Span && !Self::is_refinement(g))
             .map(|g| {
                 let meta = self.group_meta(g, &my_schema_url);
                 let (entity_associations, association_origins) = self.group_associations(g);
@@ -518,21 +528,23 @@ impl V1Dependency {
                     .into_iter()
                     .map(|a| (a.attr, a.req, a.sampling_relevant, a.origin, a.is_v1_def))
                     .collect();
+                let type_id = v2_namespace_id(g).unwrap_or_else(|| SignalId::from(g.id.as_str()));
+                let name = g
+                    .span_name
+                    .clone()
+                    .map(v1_span_name_to_v2)
+                    .unwrap_or_else(|| SpanName {
+                        templates: vec![],
+                        note: g.name.clone().or_else(|| Some(type_id.to_string())),
+                    });
                 DepImportedSpan {
-                    r#type: v2_namespace_id(g).unwrap_or_else(|| SignalId::from(g.id.as_str())),
+                    r#type: type_id,
                     kind: g
                         .span_kind
                         .clone()
                         .map(v1_span_kind_to_v2)
                         .unwrap_or(SpanKindSpec::Internal),
-                    name: g
-                        .span_name
-                        .clone()
-                        .map(v1_span_name_to_v2)
-                        .unwrap_or_else(|| SpanName {
-                            templates: vec![],
-                            note: g.name.clone(),
-                        }),
+                    name,
                     requirement_level: g.requirement_level.clone().map(Into::into),
                     attributes,
                     entity_associations,
@@ -554,7 +566,7 @@ impl V1Dependency {
             .registry
             .groups
             .iter()
-            .filter(|g| g.r#type == GroupType::Event)
+            .filter(|g| g.r#type == GroupType::Event && !Self::is_refinement(g))
             .map(|g| {
                 let meta = self.group_meta(g, &my_schema_url);
                 let (entity_associations, association_origins) = self.group_associations(g);
@@ -591,7 +603,7 @@ impl V1Dependency {
             .registry
             .groups
             .iter()
-            .filter(|g| g.r#type == GroupType::Entity)
+            .filter(|g| g.r#type == GroupType::Entity && !Self::is_refinement(g))
             .map(|g| {
                 let meta = self.group_meta(g, &my_schema_url);
                 let mut identity = Vec::new();
@@ -627,7 +639,10 @@ impl V1Dependency {
             .registry
             .groups
             .iter()
-            .filter(|g| g.r#type == GroupType::AttributeGroup)
+            .filter(|g| {
+                g.r#type == GroupType::AttributeGroup
+                    && g.visibility == Some(AttributeGroupVisibilitySpec::Public)
+            })
             .map(|g| {
                 let meta = self.group_meta(g, &my_schema_url);
                 let attributes = self
@@ -845,5 +860,117 @@ mod tests {
         assert_eq!(looked_up.attribute.key, "a.test");
         assert!(!looked_up.excluded);
         assert!(dep.lookup_attribute("nonexistent").unwrap().is_none());
+    }
+
+    #[test]
+    fn test_v1_dependency_excludes_refinements_from_importable_metrics() {
+        let mut v1_schema = sample_v1_schema();
+        let base_metric = Group {
+            id: "metric.hw.errors".to_owned(),
+            r#type: GroupType::Metric,
+            brief: "base metric".to_owned(),
+            note: None,
+            prefix: String::new(),
+            extends: None,
+            stability: None,
+            deprecated: None,
+            attributes: vec![],
+            span_kind: None,
+            span_name: None,
+            events: vec![],
+            metric_name: Some("hw.errors".to_owned()),
+            instrument: Some(weaver_semconv::v1::group::InstrumentSpec::Counter),
+            unit: Some("{error}".to_owned()),
+            requirement_level: None,
+            name: None,
+            lineage: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: false,
+        };
+        let mut refinement_metric = base_metric.clone();
+        refinement_metric.id = "metric.hw.cpu.errors".to_owned();
+        refinement_metric.brief = "cpu refinement".to_owned();
+        let mut lineage = weaver_resolved_schema::v1::lineage::GroupLineage::new(
+            weaver_semconv::provenance::Provenance::new(
+                SchemaUrl::try_from("http://test/schemas/1.0.0").unwrap(),
+                "test.yaml",
+            ),
+        );
+        lineage.extends_group_type = Some(GroupType::Metric);
+        refinement_metric.lineage = Some(lineage);
+
+        v1_schema.registry.groups.push(refinement_metric);
+        v1_schema.registry.groups.push(base_metric);
+
+        let dep = V1Dependency::new(v1_schema);
+        let imported = dep.importable_metrics();
+        assert_eq!(imported.len(), 1);
+        assert_eq!(&*imported[0].name, "hw.errors");
+        assert_eq!(imported[0].common.brief, "base metric");
+    }
+
+    #[test]
+    fn test_v1_dependency_excludes_non_public_attribute_groups() {
+        let mut v1_schema = sample_v1_schema();
+        let mut public_group = v1_schema.registry.groups[0].clone();
+        public_group.id = "attribute_group.public.attrs".to_owned();
+        public_group.visibility = Some(AttributeGroupVisibilitySpec::Public);
+        v1_schema.registry.groups.push(public_group);
+
+        let dep = V1Dependency::new(v1_schema);
+        let imported = dep.importable_attribute_groups();
+        assert_eq!(imported.len(), 1);
+        assert_eq!(&*imported[0].id, "public.attrs");
+    }
+
+    #[test]
+    fn test_v1_dependency_span_without_span_name_uses_fallback_note() {
+        let mut v1_schema = sample_v1_schema();
+        let span_group = Group {
+            id: "span.http.client".to_owned(),
+            r#type: GroupType::Span,
+            brief: "http client span".to_owned(),
+            note: None,
+            prefix: String::new(),
+            extends: None,
+            stability: None,
+            deprecated: None,
+            attributes: vec![],
+            span_kind: Some(weaver_semconv::v1::group::SpanKindSpec::Client),
+            span_name: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            requirement_level: None,
+            name: None,
+            lineage: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: false,
+        };
+        v1_schema.registry.groups.push(span_group);
+
+        let dep = V1Dependency::new(v1_schema);
+        let imported = dep.importable_spans();
+        assert_eq!(imported.len(), 1);
+        assert_eq!(imported[0].name.note.as_deref(), Some("http.client"));
+
+        let looked_up = dep
+            .lookup_signal("span", "http.client")
+            .expect("found span");
+        match looked_up.payload {
+            DepSignalPayload::Span { name, .. } => {
+                assert_eq!(name.note.as_deref(), Some("http.client"));
+            }
+            other => panic!("Expected Span payload, got: {other:?}"),
+        }
     }
 }
