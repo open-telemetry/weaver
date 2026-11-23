@@ -398,21 +398,9 @@ impl WeaverResolver {
         &mut self,
         loaded: LoadedSemconvRegistry,
     ) -> WResult<Arc<WeaverResolvedSchema>, Error> {
-        let schema_url = match &loaded {
-            LoadedSemconvRegistry::Unresolved { repo, .. } => {
-                let manifest = match repo.to_v2_manifest() {
-                    Ok(m) => m,
-                    Err(e) => return WResult::FatalErr(e.into()),
-                };
-                manifest.schema_url().clone()
-            }
-            LoadedSemconvRegistry::Resolved { schema, .. } => {
-                match SchemaUrl::try_from(schema.schema_url.as_str()) {
-                    Ok(url) => url,
-                    Err(_) => return WResult::FatalErr(Error::FailToResolveSchemaUrl {}),
-                }
-            }
-            LoadedSemconvRegistry::ResolvedV2 { schema, .. } => schema.schema_url.clone(),
+        let schema_url = match Self::schema_url_of_result(&loaded) {
+            Ok(url) => url,
+            Err(e) => return WResult::FatalErr(e),
         };
 
         if let Some(cached) = self.active_graph_schemas.get(&schema_url).cloned() {
@@ -437,30 +425,36 @@ impl WeaverResolver {
         }
     }
 
-    /// Extracts the [`SchemaUrl`] from a loaded semantic convention registry, if valid.
-    fn schema_url_of(loaded: &LoadedSemconvRegistry) -> Option<SchemaUrl> {
+    /// Extracts the [`SchemaUrl`] from a loaded semantic convention registry, returning an
+    /// error if the manifest or schema URL cannot be resolved.
+    fn schema_url_of_result(loaded: &LoadedSemconvRegistry) -> Result<SchemaUrl, Error> {
         match loaded {
             LoadedSemconvRegistry::Unresolved { repo, .. } => {
-                repo.to_v2_manifest().ok().map(|m| m.schema_url().clone())
+                Ok(repo.to_v2_manifest()?.schema_url().clone())
             }
             LoadedSemconvRegistry::Resolved { schema, .. } => {
-                SchemaUrl::try_from(schema.schema_url.as_str()).ok()
+                SchemaUrl::try_from(schema.schema_url.as_str())
+                    .map_err(|_| Error::FailToResolveSchemaUrl {})
             }
-            LoadedSemconvRegistry::ResolvedV2 { schema, .. } => Some(schema.schema_url.clone()),
+            LoadedSemconvRegistry::ResolvedV2 { schema, .. } => Ok(schema.schema_url.clone()),
         }
     }
 
-    /// Appends V2-fallback warnings for `loaded` and its dependencies when targeting V2.
+    /// Extracts the [`SchemaUrl`] from a loaded semantic convention registry, if valid.
+    fn schema_url_of(loaded: &LoadedSemconvRegistry) -> Option<SchemaUrl> {
+        Self::schema_url_of_result(loaded).ok()
+    }
+
+    /// Appends V2-fallback warnings for the root registry and its dependencies when targeting V2.
     fn collect_v2_fallback_warnings(
         &mut self,
         loaded: &LoadedSemconvRegistry,
-        is_root: bool,
         out: &mut Vec<Error>,
     ) {
         if self.config.target != ResolutionTarget::V2 {
             return;
         }
-        if is_root && loaded.source_format() == Some(SourceFormat::Mixed) {
+        if loaded.source_format() == Some(SourceFormat::Mixed) {
             if let Some(url) = Self::schema_url_of(loaded) {
                 out.push(Error::MixedRegistryUsesV1Path {
                     schema_url: url.as_str().to_owned(),
@@ -541,7 +535,9 @@ impl WeaverResolver {
             self.root_is_pure_v2 = source_format == Some(SourceFormat::V2);
         }
         let mut v2_warnings = Vec::new();
-        self.collect_v2_fallback_warnings(&loaded, is_root, &mut v2_warnings);
+        if is_root {
+            self.collect_v2_fallback_warnings(&loaded, &mut v2_warnings);
+        }
 
         match loaded {
             LoadedSemconvRegistry::Unresolved {

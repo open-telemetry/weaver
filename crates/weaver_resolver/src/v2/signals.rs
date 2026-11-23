@@ -10,6 +10,7 @@ use weaver_resolved_schema::v2::provenance::Provenance;
 use weaver_semconv::provenance::Provenance as SemconvProvenance;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v2::attribute::{AttributeRef, RequirementLevel};
+use weaver_semconv::v2::entity::IdentityAttributeRef;
 use weaver_semconv::v2::entity_association::EntityAssociation as SemconvEntityAssociation;
 use weaver_semconv::v2::metric::InstrumentSpec;
 use weaver_semconv::v2::signal_id::SignalId;
@@ -24,6 +25,72 @@ use super::rules;
 use crate::error::Error;
 use crate::graph::chosen_versions::SchemaCacheLookup;
 use crate::graph::exclusion::is_excluded;
+
+/// Typed discriminator for the four V2 signal kinds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum SignalKind {
+    Metric,
+    Span,
+    Event,
+    Entity,
+}
+
+impl SignalKind {
+    /// All four signal kinds in canonical order.
+    pub const ALL: [Self; 4] = [Self::Metric, Self::Span, Self::Event, Self::Entity];
+
+    /// Lowercase signal kind identifier (`"metric"`, `"span"`, `"event"`, `"entity"`).
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Metric => "metric",
+            Self::Span => "span",
+            Self::Event => "event",
+            Self::Entity => "entity",
+        }
+    }
+
+    /// Title-case signal kind label used in diagnostic messages.
+    #[must_use]
+    pub const fn title(self) -> &'static str {
+        match self {
+            Self::Metric => "Metric",
+            Self::Span => "Span",
+            Self::Event => "Event",
+            Self::Entity => "Entity",
+        }
+    }
+
+    /// Optional leading `<kind>.` prefix stripped when normalizing refinement IDs.
+    #[must_use]
+    pub const fn prefix(self) -> &'static str {
+        match self {
+            Self::Metric => "metric.",
+            Self::Span => "span.",
+            Self::Event => "event.",
+            Self::Entity => "entity.",
+        }
+    }
+
+    /// Strips an optional leading `<kind>.` prefix from `id`.
+    #[must_use]
+    pub fn normalize_id(self, id: &str) -> SignalId {
+        SignalId::from(id.strip_prefix(self.prefix()).unwrap_or(id))
+    }
+}
+
+/// Converts an [`IdentityAttributeRef`] into an [`AttributeRef`] so identity references share override resolution.
+#[must_use]
+pub(crate) fn entity_identity_to_attr_ref(id_ref: &IdentityAttributeRef) -> AttributeRef {
+    AttributeRef {
+        r#ref: id_ref.r#ref.clone(),
+        brief: id_ref.brief.clone(),
+        examples: id_ref.examples.clone(),
+        requirement_level: None,
+        note: id_ref.note.clone(),
+        annotations: id_ref.annotations.clone(),
+    }
+}
 
 /// Unresolved or resolved entity associations on a signal.
 #[derive(Debug, Clone)]
@@ -271,16 +338,9 @@ pub(crate) fn resolve_bases<'a, C: SchemaCacheLookup>(
 
         let mut identity = Vec::with_capacity(en.identity.len());
         for id_ref in &en.identity {
-            let fake_aref = AttributeRef {
-                r#ref: id_ref.r#ref.clone(),
-                brief: id_ref.brief.clone(),
-                examples: id_ref.examples.clone(),
-                requirement_level: None,
-                note: id_ref.note.clone(),
-                annotations: id_ref.annotations.clone(),
-            };
+            let aref = entity_identity_to_attr_ref(id_ref);
             let resolved_attr = catalog.resolve_attribute_ref(
-                &fake_aref,
+                &aref,
                 &used_in,
                 en_excluded,
                 Some(&indexed_en.provenance),

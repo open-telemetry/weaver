@@ -11,7 +11,7 @@ use weaver_semconv::provenance::Provenance;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v2::attribute::RequirementLevel;
 
-use super::signals::EntityAssociations;
+use super::signals::{EntityAssociations, SignalKind};
 use weaver_semconv::v2::metric::InstrumentSpec;
 use weaver_semconv::v2::signal_id::SignalId;
 use weaver_semconv::v2::signal_requirement_level::SignalRequirementLevel;
@@ -158,15 +158,15 @@ pub(crate) struct DepSignal {
 }
 
 impl DepSignal {
-    /// Returns the lowercase signal kind identifier for this payload.
+    /// Returns the signal kind for this payload.
     #[must_use]
     #[cfg(test)]
-    pub fn kind(&self) -> &'static str {
+    pub fn kind(&self) -> SignalKind {
         match &self.payload {
-            DepSignalPayload::Metric { .. } => "metric",
-            DepSignalPayload::Span { .. } => "span",
-            DepSignalPayload::Event { .. } => "event",
-            DepSignalPayload::Entity { .. } => "entity",
+            DepSignalPayload::Metric { .. } => SignalKind::Metric,
+            DepSignalPayload::Span { .. } => SignalKind::Span,
+            DepSignalPayload::Event { .. } => SignalKind::Event,
+            DepSignalPayload::Entity { .. } => SignalKind::Entity,
         }
     }
 }
@@ -174,7 +174,7 @@ impl DepSignal {
 /// Version-abstracted adapter over a resolved dependency schema.
 #[derive(Debug, Clone)]
 pub(crate) enum DependencyAdapter {
-    V2(V2Dependency),
+    V2(Box<V2Dependency>),
     V1(Box<V1Dependency>),
 }
 
@@ -184,7 +184,7 @@ impl DependencyAdapter {
     pub fn from_resolved_schema(schema: &Arc<WeaverResolvedSchema>) -> Self {
         match schema.as_ref() {
             WeaverResolvedSchema::V2(_) => {
-                DependencyAdapter::V2(V2Dependency::from_bundle(Arc::clone(schema)))
+                DependencyAdapter::V2(Box::new(V2Dependency::from_bundle(Arc::clone(schema))))
             }
             WeaverResolvedSchema::V1(_) => {
                 DependencyAdapter::V1(Box::new(V1Dependency::from_bundle(Arc::clone(schema))))
@@ -201,7 +201,7 @@ impl DependencyAdapter {
     }
 
     /// Looks up a signal by kind and id.
-    pub fn lookup_signal(&self, kind: &str, id: &str) -> Option<DepSignal> {
+    pub fn lookup_signal(&self, kind: SignalKind, id: &str) -> Option<DepSignal> {
         match self {
             DependencyAdapter::V2(d) => d.lookup_signal(kind, id),
             DependencyAdapter::V1(d) => d.lookup_signal(kind, id),
@@ -209,11 +209,13 @@ impl DependencyAdapter {
     }
 
     /// Looks up a signal by id across all kinds, returning its kind if found.
-    pub fn lookup_signal_any_kind(&self, id: &str) -> Option<(&'static str, DepSignal)> {
-        match self {
-            DependencyAdapter::V2(d) => d.lookup_signal_any_kind(id),
-            DependencyAdapter::V1(d) => d.lookup_signal_any_kind(id),
+    pub fn lookup_signal_any_kind(&self, id: &str) -> Option<(SignalKind, DepSignal)> {
+        for kind in SignalKind::ALL {
+            if let Some(sig) = self.lookup_signal(kind, id) {
+                return Some((kind, sig));
+            }
         }
+        None
     }
 
     /// Returns all importable metrics from this dependency.
@@ -382,7 +384,7 @@ impl V2Dependencies {
     /// Looks up a non-excluded signal across dependencies, resolving conflicts and version upgrades.
     pub fn lookup_signal<C: SchemaCacheLookup>(
         &self,
-        kind: &str,
+        kind: SignalKind,
         id: &str,
         refinement_id: &str,
         provenance: Option<&Provenance>,
@@ -404,8 +406,8 @@ impl V2Dependencies {
                         return Err(Error::InvalidRefinement {
                             refinement_id: refinement_id.to_owned(),
                             r#ref: id.to_owned(),
-                            refinement_type: capitalize_kind(kind),
-                            signal_type: capitalize_kind(other_kind),
+                            refinement_type: kind.title().to_owned(),
+                            signal_type: other_kind.title().to_owned(),
                         });
                     }
                 }
@@ -440,17 +442,6 @@ impl V2Dependencies {
         }
 
         Ok(winning)
-    }
-}
-
-/// Formats a lowercase signal kind identifier in title case for diagnostic messages.
-fn capitalize_kind(kind: &str) -> String {
-    match kind {
-        "metric" => "Metric".to_owned(),
-        "span" => "Span".to_owned(),
-        "event" => "Event".to_owned(),
-        "entity" => "Entity".to_owned(),
-        other => other.to_owned(),
     }
 }
 
@@ -544,20 +535,22 @@ mod tests {
             dependencies: Default::default(),
         };
 
-        let dep = V2Dependency::new(Arc::new(schema));
-        let sig = dep.lookup_signal("metric", "test.metric").expect("found");
-        assert_eq!(sig.kind(), "metric");
+        let dep = DependencyAdapter::V2(Box::new(V2Dependency::new(Arc::new(schema))));
+        let sig = dep
+            .lookup_signal(SignalKind::Metric, "test.metric")
+            .expect("found");
+        assert_eq!(sig.kind(), SignalKind::Metric);
         assert_eq!(sig.origin.as_str(), "https://example.com/v2/1.0.0");
         assert!(!sig.excluded);
 
         // Wrong kind lookup returns None for specific kind
-        assert!(dep.lookup_signal("span", "test.metric").is_none());
+        assert!(dep.lookup_signal(SignalKind::Span, "test.metric").is_none());
 
         // Any kind finds it
         let (found_kind, found_sig) = dep
             .lookup_signal_any_kind("test.metric")
             .expect("found any");
-        assert_eq!(found_kind, "metric");
+        assert_eq!(found_kind, SignalKind::Metric);
         assert_eq!(found_sig.origin.as_str(), "https://example.com/v2/1.0.0");
     }
 
@@ -633,8 +626,8 @@ mod tests {
             .collect();
         let deps = V2Dependencies::new(
             vec![
-                DependencyAdapter::V2(V2Dependency::new(Arc::new(s1))),
-                DependencyAdapter::V2(V2Dependency::new(Arc::new(s2))),
+                DependencyAdapter::V2(Box::new(V2Dependency::new(Arc::new(s1)))),
+                DependencyAdapter::V2(Box::new(V2Dependency::new(Arc::new(s2)))),
             ],
             urls,
         );
@@ -675,14 +668,14 @@ mod tests {
             .collect();
         let deps = V2Dependencies::new(
             vec![
-                DependencyAdapter::V2(V2Dependency::new(Arc::new(s1))),
-                DependencyAdapter::V2(V2Dependency::new(Arc::new(s2))),
+                DependencyAdapter::V2(Box::new(V2Dependency::new(Arc::new(s1)))),
+                DependencyAdapter::V2(Box::new(V2Dependency::new(Arc::new(s2)))),
             ],
             urls,
         );
 
         let err = deps
-            .lookup_signal("metric", "shared.metric", "refiner", None, &())
+            .lookup_signal(SignalKind::Metric, "shared.metric", "refiner", None, &())
             .unwrap_err();
         assert!(
             matches!(err, Error::AmbiguousReference { ref r#ref, .. } if r#ref == "shared.metric"),
@@ -708,7 +701,9 @@ mod tests {
         let chosen_url = chosen_schema.schema_url.clone();
         let urls = [s1.schema_url.clone()].into_iter().collect();
         let deps = V2Dependencies::new(
-            vec![DependencyAdapter::V2(V2Dependency::new(Arc::new(s1)))],
+            vec![DependencyAdapter::V2(Box::new(V2Dependency::new(
+                Arc::new(s1),
+            )))],
             urls,
         );
 
@@ -748,7 +743,9 @@ mod tests {
         let chosen_url = chosen_schema.schema_url.clone();
         let urls = [s1.schema_url.clone()].into_iter().collect();
         let deps = V2Dependencies::new(
-            vec![DependencyAdapter::V2(V2Dependency::new(Arc::new(s1)))],
+            vec![DependencyAdapter::V2(Box::new(V2Dependency::new(
+                Arc::new(s1),
+            )))],
             urls,
         );
 
@@ -758,7 +755,7 @@ mod tests {
         };
 
         let err = deps
-            .lookup_signal("metric", "upgraded.metric", "refiner", None, &ctx)
+            .lookup_signal(SignalKind::Metric, "upgraded.metric", "refiner", None, &ctx)
             .unwrap_err();
         assert!(
             matches!(err, Error::GroupNotFoundInUpgradedSchema { ref group_id, .. } if group_id == "upgraded.metric"),

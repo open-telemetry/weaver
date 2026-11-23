@@ -369,8 +369,8 @@ mod tests {
         let urls = [s1_url.clone(), s2_url.clone()].into_iter().collect();
         let deps = V2Dependencies::new(
             vec![
-                DependencyAdapter::V2(V2Dependency::new(Arc::new(s1))),
-                DependencyAdapter::V2(V2Dependency::new(Arc::new(s2.clone()))),
+                DependencyAdapter::V2(Box::new(V2Dependency::new(Arc::new(s1)))),
+                DependencyAdapter::V2(Box::new(V2Dependency::new(Arc::new(s2.clone())))),
             ],
             urls,
         );

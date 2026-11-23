@@ -3,7 +3,6 @@
 //! Native adapter reading V2 schemas as dependencies into the V2 resolution pass.
 
 use std::collections::{BTreeMap, HashMap};
-use std::ops::Deref;
 use std::sync::Arc;
 use weaver_resolved_schema::v2::attribute::{Attribute, AttributeRef};
 use weaver_resolved_schema::v2::catalog::AttributeCatalog;
@@ -22,36 +21,47 @@ use crate::graph::entity_lookup::{
     v2_association_origins, v2_source_url, EntityLocation, EntityLookup,
 };
 use crate::graph::exclusion::is_excluded;
-use crate::v2::signals::EntityAssociations;
+use crate::v2::signals::{EntityAssociations, SignalKind};
 use crate::WeaverResolvedSchema;
 
-/// Reference-counted handle to a resolved V2 schema.
-#[derive(Debug, Clone)]
-enum SharedV2Schema {
-    Bundle(Arc<WeaverResolvedSchema>),
-    #[cfg(test)]
-    Direct(Arc<V2Schema>),
+/// Location of a signal in a resolved V2 schema (refinement or base registry slice index).
+#[derive(Debug, Clone, Copy)]
+enum SignalSlot {
+    Refinement(usize),
+    Base(usize),
 }
 
-impl Deref for SharedV2Schema {
-    type Target = V2Schema;
-
-    /// Returns a reference to the underlying `V2Schema`.
-    fn deref(&self) -> &Self::Target {
-        match self {
-            Self::Bundle(bundle) => bundle.as_v2().expect("SharedV2Schema::Bundle must hold V2"),
-            #[cfg(test)]
-            Self::Direct(schema) => schema,
-        }
+/// Builds an `O(1)` signal lookup map preferring `refinements` over `bases` on identical IDs.
+fn index_signal_slots<'a, R, B>(
+    refinements: &'a [R],
+    ref_id: impl Fn(&'a R) -> &'a str,
+    bases: &'a [B],
+    base_id: impl Fn(&'a B) -> &'a str,
+) -> HashMap<String, SignalSlot> {
+    let mut map = HashMap::with_capacity(refinements.len() + bases.len());
+    for (idx, r) in refinements.iter().enumerate() {
+        let _ = map
+            .entry(ref_id(r).to_owned())
+            .or_insert(SignalSlot::Refinement(idx));
     }
+    for (idx, b) in bases.iter().enumerate() {
+        let _ = map
+            .entry(base_id(b).to_owned())
+            .or_insert(SignalSlot::Base(idx));
+    }
+    map
 }
 
 /// Adapter over a resolved V2 schema dependency.
 #[derive(Debug, Clone)]
 pub(crate) struct V2Dependency {
-    schema: SharedV2Schema,
+    bundle: Arc<WeaverResolvedSchema>,
     deps_vec: Vec<SchemaUrl>,
     exported_attrs: HashMap<String, u32>,
+    span_index: HashMap<String, SignalSlot>,
+    metric_index: HashMap<String, SignalSlot>,
+    event_index: HashMap<String, SignalSlot>,
+    entity_index: HashMap<String, SignalSlot>,
 }
 
 impl V2Dependency {
@@ -59,21 +69,16 @@ impl V2Dependency {
     #[cfg(test)]
     #[must_use]
     pub fn new(schema: Arc<V2Schema>) -> Self {
-        Self::from_shared(SharedV2Schema::Direct(schema))
+        let owned = Arc::unwrap_or_clone(schema);
+        Self::from_bundle(Arc::new(WeaverResolvedSchema::V2(owned)))
     }
 
     /// Creates a new adapter wrapping a shared `Arc<WeaverResolvedSchema>` without cloning.
     #[must_use]
     pub fn from_bundle(bundle: Arc<WeaverResolvedSchema>) -> Self {
-        assert!(
-            bundle.as_v2().is_some(),
-            "V2Dependency::from_bundle requires a V2 schema"
-        );
-        Self::from_shared(SharedV2Schema::Bundle(bundle))
-    }
-
-    /// Indexes linearized dependency URLs and exported attribute catalog indices from `schema`.
-    fn from_shared(schema: SharedV2Schema) -> Self {
+        let schema = bundle
+            .as_v2()
+            .expect("V2Dependency::from_bundle requires a V2 schema");
         let deps_vec: Vec<SchemaUrl> = schema.dependencies.iter().cloned().collect();
         let mut exported_attrs = HashMap::with_capacity(schema.registry.attributes.len());
         for aref in &schema.registry.attributes {
@@ -90,11 +95,48 @@ impl V2Dependency {
                 }
             }
         }
+
+        let span_index = index_signal_slots(
+            &schema.refinements.spans,
+            |r| &r.id,
+            &schema.registry.spans,
+            |s| &s.r#type,
+        );
+        let metric_index = index_signal_slots(
+            &schema.refinements.metrics,
+            |r| &r.id,
+            &schema.registry.metrics,
+            |m| &m.name,
+        );
+        let event_index = index_signal_slots(
+            &schema.refinements.events,
+            |r| &r.id,
+            &schema.registry.events,
+            |e| &e.name,
+        );
+        let entity_index = index_signal_slots(
+            &schema.refinements.entities,
+            |r| &r.id,
+            &schema.registry.entities,
+            |en| &en.r#type,
+        );
+
         Self {
-            schema,
+            bundle,
             deps_vec,
             exported_attrs,
+            span_index,
+            metric_index,
+            event_index,
+            entity_index,
         }
+    }
+
+    /// Returns a reference to the underlying `V2Schema`.
+    fn schema(&self) -> &V2Schema {
+        self.bundle
+            .as_v2()
+            .expect("V2Dependency bundle must hold a V2 schema")
     }
 
     /// Looks up an attribute definition by key.
@@ -114,19 +156,15 @@ impl V2Dependency {
         }))
     }
 
-    /// Looks up a signal by kind and id.
-    pub fn lookup_signal(&self, kind: &str, id: &str) -> Option<DepSignal> {
+    /// Looks up a signal by kind and id in `O(1)` time.
+    pub fn lookup_signal(&self, kind: SignalKind, id: &str) -> Option<DepSignal> {
+        let schema = self.schema();
         match kind {
-            "span" => {
-                let span = self
-                    .schema
-                    .refinements
-                    .spans
-                    .iter()
-                    .find(|r| &*r.id == id)
-                    .map(|r| &r.span)
-                    .or_else(|| self.schema.registry.spans.iter().find(|s| &*s.r#type == id))?;
-
+            SignalKind::Span => {
+                let span = match *self.span_index.get(id)? {
+                    SignalSlot::Refinement(i) => &schema.refinements.spans[i].span,
+                    SignalSlot::Base(i) => &schema.registry.spans[i],
+                };
                 let attributes = span
                     .attributes
                     .iter()
@@ -158,16 +196,11 @@ impl V2Dependency {
                     association_origins: self.association_origins(&span.entity_associations),
                 })
             }
-            "metric" => {
-                let metric = self
-                    .schema
-                    .refinements
-                    .metrics
-                    .iter()
-                    .find(|r| &*r.id == id)
-                    .map(|r| &r.metric)
-                    .or_else(|| self.schema.registry.metrics.iter().find(|m| &*m.name == id))?;
-
+            SignalKind::Metric => {
+                let metric = match *self.metric_index.get(id)? {
+                    SignalSlot::Refinement(i) => &schema.refinements.metrics[i].metric,
+                    SignalSlot::Base(i) => &schema.registry.metrics[i],
+                };
                 let attributes = self.resolve_signal_attrs(
                     metric
                         .attributes
@@ -192,16 +225,11 @@ impl V2Dependency {
                     association_origins: self.association_origins(&metric.entity_associations),
                 })
             }
-            "event" => {
-                let event = self
-                    .schema
-                    .refinements
-                    .events
-                    .iter()
-                    .find(|r| &*r.id == id)
-                    .map(|r| &r.event)
-                    .or_else(|| self.schema.registry.events.iter().find(|e| &*e.name == id))?;
-
+            SignalKind::Event => {
+                let event = match *self.event_index.get(id)? {
+                    SignalSlot::Refinement(i) => &schema.refinements.events[i].event,
+                    SignalSlot::Base(i) => &schema.registry.events[i],
+                };
                 let attributes = self.resolve_signal_attrs(
                     event
                         .attributes
@@ -224,22 +252,11 @@ impl V2Dependency {
                     association_origins: self.association_origins(&event.entity_associations),
                 })
             }
-            "entity" => {
-                let entity = self
-                    .schema
-                    .refinements
-                    .entities
-                    .iter()
-                    .find(|r| &*r.id == id)
-                    .map(|r| &r.entity)
-                    .or_else(|| {
-                        self.schema
-                            .registry
-                            .entities
-                            .iter()
-                            .find(|en| &*en.r#type == id)
-                    })?;
-
+            SignalKind::Entity => {
+                let entity = match *self.entity_index.get(id)? {
+                    SignalSlot::Refinement(i) => &schema.refinements.entities[i].entity,
+                    SignalSlot::Base(i) => &schema.registry.entities[i],
+                };
                 let identity = entity
                     .identity
                     .iter()
@@ -266,23 +283,12 @@ impl V2Dependency {
                     association_origins: BTreeMap::new(),
                 })
             }
-            _ => None,
         }
-    }
-
-    /// Looks up a signal by id across all kinds.
-    pub fn lookup_signal_any_kind(&self, id: &str) -> Option<(&'static str, DepSignal)> {
-        for kind in ["metric", "span", "event", "entity"] {
-            if let Some(s) = self.lookup_signal(kind, id) {
-                return Some((kind, s));
-            }
-        }
-        None
     }
 
     /// Returns all importable metrics from this dependency.
     pub fn importable_metrics(&self) -> Vec<DepImportedMetric> {
-        self.schema
+        self.schema()
             .registry
             .metrics
             .iter()
@@ -307,7 +313,7 @@ impl V2Dependency {
 
     /// Returns all importable spans from this dependency.
     pub fn importable_spans(&self) -> Vec<DepImportedSpan> {
-        self.schema
+        self.schema()
             .registry
             .spans
             .iter()
@@ -348,7 +354,7 @@ impl V2Dependency {
 
     /// Returns all importable events from this dependency.
     pub fn importable_events(&self) -> Vec<DepImportedEvent> {
-        self.schema
+        self.schema()
             .registry
             .events
             .iter()
@@ -371,7 +377,7 @@ impl V2Dependency {
 
     /// Returns all importable entities from this dependency.
     pub fn importable_entities(&self) -> Vec<DepImportedEntity> {
-        self.schema
+        self.schema()
             .registry
             .entities
             .iter()
@@ -405,7 +411,7 @@ impl V2Dependency {
 
     /// Returns all importable attribute groups from this dependency.
     pub fn importable_attribute_groups(&self) -> Vec<DepImportedAttributeGroup> {
-        self.schema
+        self.schema()
             .registry
             .attribute_groups
             .iter()
@@ -428,7 +434,7 @@ impl V2Dependency {
 
     /// Resolves a catalog `AttributeRef` into its cloned `Attribute` and defining `SchemaUrl`.
     fn resolve_catalog_attr(&self, aref: &AttributeRef) -> Option<(Attribute, SchemaUrl)> {
-        let attr = self.schema.attribute_catalog.attribute(aref)?;
+        let attr = self.schema().attribute_catalog.attribute(aref)?;
         let origin = self.source_url(attr.provenance.source);
         Some((attr.clone(), origin))
     }
@@ -464,18 +470,18 @@ impl V2Dependency {
         &self,
         associations: &[EntityAssociation],
     ) -> BTreeMap<String, SchemaUrl> {
-        v2_association_origins(&self.schema, &self.deps_vec, associations)
+        v2_association_origins(self.schema(), &self.deps_vec, associations)
     }
 
     /// Resolves an optional `DependencyRef` index to its `SchemaUrl`, defaulting to this schema's URL.
     fn source_url(&self, source: Option<DependencyRef>) -> SchemaUrl {
-        v2_source_url(&self.schema, &self.deps_vec, source)
+        v2_source_url(self.schema(), &self.deps_vec, source)
     }
 }
 
 impl EntityLookup for V2Dependency {
     /// Looks up an entity's origin and exclusion status in the underlying V2 schema.
     fn lookup_entity(&self, name: &str) -> Option<EntityLocation> {
-        self.schema.lookup_entity(name)
+        self.schema().lookup_entity(name)
     }
 }

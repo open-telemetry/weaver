@@ -103,52 +103,43 @@ impl GroupSummary {
     }
 }
 
-/// Resolved V1 or V2 dependency schema supporting group, attribute, and entity lookups.
-#[derive(Debug)]
-pub(crate) enum ResolvedDependency {
-    /// Resolved V1 dependency schema.
-    V1(Box<V1Schema>),
-    /// Resolved V2 dependency schema.
-    V2(Box<V2Schema>),
-}
+/// Resolved V1 or V2 dependency schema supporting group, attribute, and entity lookups without cloning.
+#[derive(Debug, Clone)]
+pub(crate) struct ResolvedDependency(Arc<WeaverResolvedSchema>);
 
 impl ResolvedDependency {
-    /// Clones a `WeaverResolvedSchema` behind `arc` into a `ResolvedDependency`.
+    /// Shares an existing `Arc<WeaverResolvedSchema>` as a `ResolvedDependency` without cloning.
     pub(crate) fn from_arc(arc: &Arc<WeaverResolvedSchema>) -> Self {
-        match arc.as_ref() {
-            WeaverResolvedSchema::V1(s) => ResolvedDependency::V1(Box::new(s.clone())),
-            WeaverResolvedSchema::V2(s) => ResolvedDependency::V2(Box::new(s.clone())),
-        }
+        Self(Arc::clone(arc))
+    }
+
+    /// Returns a reference to the underlying resolved schema bundle.
+    pub(crate) fn as_schema(&self) -> &WeaverResolvedSchema {
+        &self.0
     }
 
     /// Looks up a `GroupSummary` by group or signal `id`.
     pub(crate) fn lookup_group_summary(&self, id: &str) -> Option<GroupSummary> {
-        match self {
-            ResolvedDependency::V1(schema) => schema.lookup_group_summary(id),
-            ResolvedDependency::V2(schema) => schema.lookup_group_summary(id),
-        }
+        self.0.lookup_group_summary(id)
     }
 
     /// Looks up an entity definition or refinement matching `name`.
     pub(crate) fn lookup_entity(&self, name: &str) -> Option<EntityLocation> {
-        match self {
-            ResolvedDependency::V1(schema) => schema.lookup_entity(name),
-            ResolvedDependency::V2(schema) => schema.lookup_entity(name),
-        }
+        self.0.lookup_entity(name)
     }
 
     /// Records the latest compatible `SchemaUrl` per registry name from this dependency and its transitive dependencies.
     #[cfg(test)]
     pub(crate) fn collect_chosen_versions(&self, chosen: &mut HashMap<String, SchemaUrl>) {
-        match self {
-            ResolvedDependency::V1(s) => {
+        match self.0.as_ref() {
+            WeaverResolvedSchema::V1(s) => {
                 collect_chosen_versions(
                     SchemaUrl::try_from(s.schema_url.as_str()).ok().as_ref(),
                     &s.dependencies,
                     chosen,
                 );
             }
-            ResolvedDependency::V2(s) => {
+            WeaverResolvedSchema::V2(s) => {
                 collect_chosen_versions(Some(&s.schema_url), &s.dependencies, chosen);
             }
         }
@@ -184,13 +175,13 @@ impl GroupRefinementLookup for Vec<ResolvedDependency> {
 
 impl From<V1Schema> for ResolvedDependency {
     fn from(value: V1Schema) -> Self {
-        ResolvedDependency::V1(Box::new(value))
+        Self(Arc::new(WeaverResolvedSchema::V1(value)))
     }
 }
 
 impl From<V2Schema> for ResolvedDependency {
     fn from(value: V2Schema) -> Self {
-        ResolvedDependency::V2(Box::new(value))
+        Self(Arc::new(WeaverResolvedSchema::V2(value)))
     }
 }
 
@@ -205,7 +196,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_lookup_group_summary() -> Result<(), Box<dyn Error>> {
-        let d = ResolvedDependency::V1(Box::new(example_v1_schema()));
+        let d = ResolvedDependency::from(example_v1_schema());
         let result = d.lookup_group_summary("a");
         assert!(
             result.is_some(),
@@ -230,7 +221,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_lookup_group_summary_v2() -> Result<(), Box<dyn Error>> {
-        let d = ResolvedDependency::V2(Box::new(example_v2_schema()));
+        let d = ResolvedDependency::from(example_v2_schema());
 
         let result_metric = d.lookup_group_summary("metric.a");
         assert!(result_metric.is_some(), "Should find metric.a");

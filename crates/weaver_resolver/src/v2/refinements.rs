@@ -29,8 +29,8 @@ use super::groups::{self, ExpandedGroups, GroupAttributeItem};
 use super::index::{Index, Indexed};
 use super::rules;
 use super::signals::{
-    EntityAssociations, ResolvedEntity, ResolvedEvent, ResolvedMetric, ResolvedSignals,
-    ResolvedSpan,
+    entity_identity_to_attr_ref, EntityAssociations, ResolvedEntity, ResolvedEvent, ResolvedMetric,
+    ResolvedSignals, ResolvedSpan, SignalKind,
 };
 use crate::error::Error;
 use crate::graph::chosen_versions::SchemaCacheLookup;
@@ -53,71 +53,100 @@ fn is_required(req: &RequirementLevel) -> bool {
     )
 }
 
-/// Returns an `InvalidRefinement` error if `parent_ref` matches a local base signal of a different kind.
-fn check_wrong_kind_in_base(
-    parent_ref: &SignalId,
-    stripped_ref: &SignalId,
-    raw_id: &SignalId,
-    expected_kind: &str,
-    base_signals: &ResolvedSignals,
-) -> Option<Error> {
-    if expected_kind != "Span" {
-        if let Some(s) = base_signals
+/// `O(1)` lookup index over local base signals for refinement parent and kind-mismatch checks.
+struct BaseSignalIndex<'a> {
+    signals: &'a ResolvedSignals,
+    spans: HashMap<&'a str, usize>,
+    metrics: HashMap<&'a str, usize>,
+    events: HashMap<&'a str, usize>,
+    entities: HashMap<&'a str, usize>,
+}
+
+impl<'a> BaseSignalIndex<'a> {
+    /// Builds name-to-slice-index maps over `signals`.
+    fn new(signals: &'a ResolvedSignals) -> Self {
+        let spans = signals
             .spans
             .iter()
-            .find(|s| s.r#type == *parent_ref || s.r#type == *stripped_ref)
-        {
-            return Some(Error::InvalidRefinement {
-                refinement_id: raw_id.to_string(),
-                r#ref: s.r#type.to_string(),
-                refinement_type: expected_kind.to_owned(),
-                signal_type: "Span".to_owned(),
-            });
-        }
-    }
-    if expected_kind != "Metric" {
-        if let Some(m) = base_signals
+            .enumerate()
+            .map(|(i, s)| (s.r#type.as_ref(), i))
+            .collect();
+        let metrics = signals
             .metrics
             .iter()
-            .find(|m| m.name == *parent_ref || m.name == *stripped_ref)
-        {
-            return Some(Error::InvalidRefinement {
-                refinement_id: raw_id.to_string(),
-                r#ref: m.name.to_string(),
-                refinement_type: expected_kind.to_owned(),
-                signal_type: "Metric".to_owned(),
-            });
-        }
-    }
-    if expected_kind != "Event" {
-        if let Some(e) = base_signals
+            .enumerate()
+            .map(|(i, m)| (m.name.as_ref(), i))
+            .collect();
+        let events = signals
             .events
             .iter()
-            .find(|e| e.name == *parent_ref || e.name == *stripped_ref)
-        {
-            return Some(Error::InvalidRefinement {
-                refinement_id: raw_id.to_string(),
-                r#ref: e.name.to_string(),
-                refinement_type: expected_kind.to_owned(),
-                signal_type: "Event".to_owned(),
-            });
-        }
-    }
-    if expected_kind != "Entity" {
-        if let Some(en) = base_signals
+            .enumerate()
+            .map(|(i, e)| (e.name.as_ref(), i))
+            .collect();
+        let entities = signals
             .entities
             .iter()
-            .find(|en| en.r#type == *parent_ref || en.r#type == *stripped_ref)
-        {
-            return Some(Error::InvalidRefinement {
-                refinement_id: raw_id.to_string(),
-                r#ref: en.r#type.to_string(),
-                refinement_type: expected_kind.to_owned(),
-                signal_type: "Entity".to_owned(),
-            });
+            .enumerate()
+            .map(|(i, en)| (en.r#type.as_ref(), i))
+            .collect();
+        Self {
+            signals,
+            spans,
+            metrics,
+            events,
+            entities,
         }
     }
-    None
+
+    /// Looks up a local base signal index in `map` by `parent_ref` or `stripped_ref`.
+    fn lookup_index(
+        map: &HashMap<&'a str, usize>,
+        parent_ref: &SignalId,
+        stripped_ref: &SignalId,
+    ) -> Option<usize> {
+        let raw: &str = parent_ref.as_ref();
+        let stripped: &str = stripped_ref.as_ref();
+        map.get(raw).or_else(|| map.get(stripped)).copied()
+    }
+
+    /// Returns an `InvalidRefinement` error if `parent_ref` matches a local base signal of a different kind.
+    fn check_wrong_kind(
+        &self,
+        parent_ref: &SignalId,
+        stripped_ref: &SignalId,
+        raw_id: &SignalId,
+        expected_kind: SignalKind,
+    ) -> Option<Error> {
+        for kind in [
+            SignalKind::Span,
+            SignalKind::Metric,
+            SignalKind::Event,
+            SignalKind::Entity,
+        ] {
+            if kind == expected_kind {
+                continue;
+            }
+            let matched_id: Option<&str> = match kind {
+                SignalKind::Span => Self::lookup_index(&self.spans, parent_ref, stripped_ref)
+                    .map(|i| self.signals.spans[i].r#type.as_ref()),
+                SignalKind::Metric => Self::lookup_index(&self.metrics, parent_ref, stripped_ref)
+                    .map(|i| self.signals.metrics[i].name.as_ref()),
+                SignalKind::Event => Self::lookup_index(&self.events, parent_ref, stripped_ref)
+                    .map(|i| self.signals.events[i].name.as_ref()),
+                SignalKind::Entity => Self::lookup_index(&self.entities, parent_ref, stripped_ref)
+                    .map(|i| self.signals.entities[i].r#type.as_ref()),
+            };
+            if let Some(matched_id) = matched_id {
+                return Some(Error::InvalidRefinement {
+                    refinement_id: raw_id.to_string(),
+                    r#ref: matched_id.to_owned(),
+                    refinement_type: expected_kind.title().to_owned(),
+                    signal_type: kind.title().to_owned(),
+                });
+            }
+        }
+        None
+    }
 }
 
 /// Categorized view of a single authored refinement attribute entry.
@@ -448,10 +477,8 @@ struct ParentSnapshot<T> {
 
 /// Per-signal-kind specification driving `resolve_kind_refinements`.
 trait RefinementKindSpec {
-    /// Lowercase signal kind prefix (`metric`, `span`, `event`, or `entity`).
-    const KIND_LOWER: &'static str;
-    /// Capitalized signal kind label used in `InvalidRefinement` diagnostics.
-    const KIND_TITLE: &'static str;
+    /// Signal kind for this refinement family.
+    const KIND: SignalKind;
     /// Authored refinement AST type in `Index`.
     type Raw;
     /// Resolved signal type used for both inherited parent snapshots and refinement outputs.
@@ -463,9 +490,9 @@ trait RefinementKindSpec {
     fn parent_ref(raw: &Self::Raw) -> &SignalId;
     /// Returns the authored annotations map on `raw`.
     fn annotations(raw: &Self::Raw) -> &BTreeMap<String, YamlValue>;
-    /// Looks up a matching parent in local `base_signals`.
+    /// Looks up a matching parent in local `base_index` in `O(1)` time.
     fn find_local_base<'a>(
-        base_signals: &'a ResolvedSignals,
+        base_index: &BaseSignalIndex<'a>,
         parent_ref: &SignalId,
         stripped_ref: &SignalId,
     ) -> Option<&'a Self::Resolved>;
@@ -497,13 +524,13 @@ trait RefinementKindSpec {
 fn resolve_kind_refinements<'a, S: RefinementKindSpec, C: SchemaCacheLookup>(
     index: &Index,
     deps: &V2Dependencies,
-    base_signals: &ResolvedSignals,
+    base_index: &BaseSignalIndex<'_>,
     expanded_groups: &ExpandedGroups,
     catalog: &mut Catalog<'a, C>,
     cache_lookup: &C,
     warnings: &mut Vec<Error>,
 ) -> Result<Vec<(SignalId, S::Resolved)>, Error> {
-    let mut resolved_list: Vec<(SignalId, S::Resolved)> = Vec::new();
+    let mut resolved_map: BTreeMap<SignalId, S::Resolved> = BTreeMap::new();
     let mut unresolved: Vec<(&SignalId, &Indexed<S::Raw>)> = S::indexed_map(index).iter().collect();
     let mut fatal_errors = Vec::new();
 
@@ -511,58 +538,57 @@ fn resolve_kind_refinements<'a, S: RefinementKindSpec, C: SchemaCacheLookup>(
         let mut progress = false;
         let mut still_unresolved: Vec<(&SignalId, &Indexed<S::Raw>)> = Vec::new();
 
-        for (raw_id, indexed) in &unresolved {
+        let mut unresolved_ids: HashSet<SignalId> = HashSet::with_capacity(unresolved.len() * 2);
+        for &(other_id, _) in &unresolved {
+            _ = unresolved_ids.insert(other_id.clone());
+            _ = unresolved_ids.insert(S::KIND.normalize_id(other_id));
+        }
+
+        for &(raw_id, indexed) in &unresolved {
             let raw = &indexed.item;
-            let refinement_id = rules::normalize_refinement_id(S::KIND_LOWER, raw_id);
+            let refinement_id = S::KIND.normalize_id(raw_id);
             let schema_provenance = SchemaProvenance {
                 source: None,
                 path: indexed.provenance.path.clone(),
             };
             let is_ref_excluded = is_excluded(S::annotations(raw));
             let parent_ref = S::parent_ref(raw);
-            let stripped_parent_ref = rules::normalize_refinement_id(S::KIND_LOWER, parent_ref);
+            let stripped_parent_ref = S::KIND.normalize_id(parent_ref);
 
             let parent = if let Some(base) =
-                S::find_local_base(base_signals, parent_ref, &stripped_parent_ref)
+                S::find_local_base(base_index, parent_ref, &stripped_parent_ref)
             {
                 ParentSnapshot {
                     excluded: S::is_resolved_excluded(base),
                     signal: base.clone(),
                 }
-            } else if let Some((_, prev)) = resolved_list
-                .iter()
-                .find(|(id, _)| id == parent_ref || *id == stripped_parent_ref)
+            } else if let Some(prev) = resolved_map
+                .get(parent_ref)
+                .or_else(|| resolved_map.get(&stripped_parent_ref))
             {
                 ParentSnapshot {
                     excluded: S::is_resolved_excluded(prev),
                     signal: prev.clone(),
                 }
             } else {
-                let is_parent_unresolved = unresolved.iter().any(|(other_id, _)| {
-                    if *other_id == *raw_id {
-                        return false;
-                    }
-                    let nid = rules::normalize_refinement_id(S::KIND_LOWER, other_id);
-                    nid == *parent_ref || nid == stripped_parent_ref || *other_id == parent_ref
-                });
+                let is_self = parent_ref == raw_id || stripped_parent_ref == refinement_id;
+                let is_parent_unresolved = !is_self
+                    && (unresolved_ids.contains(parent_ref)
+                        || unresolved_ids.contains(&stripped_parent_ref));
                 if is_parent_unresolved {
-                    still_unresolved.push((*raw_id, *indexed));
+                    still_unresolved.push((raw_id, indexed));
                     continue;
                 }
 
-                if let Some(err) = check_wrong_kind_in_base(
-                    parent_ref,
-                    &stripped_parent_ref,
-                    raw_id,
-                    S::KIND_TITLE,
-                    base_signals,
-                ) {
+                if let Some(err) =
+                    base_index.check_wrong_kind(parent_ref, &stripped_parent_ref, raw_id, S::KIND)
+                {
                     fatal_errors.push(err);
                     continue;
                 }
 
                 match deps.lookup_signal(
-                    S::KIND_LOWER,
+                    S::KIND,
                     parent_ref.as_ref(),
                     raw_id.as_ref(),
                     Some(&indexed.provenance),
@@ -589,7 +615,7 @@ fn resolve_kind_refinements<'a, S: RefinementKindSpec, C: SchemaCacheLookup>(
             if parent.excluded && !is_ref_excluded {
                 fatal_errors.push(Error::ExcludedFromDependencyResolution {
                     id: parent_ref.to_string(),
-                    r#type: S::KIND_LOWER.to_owned(),
+                    r#type: S::KIND.as_str().to_owned(),
                     used_in: raw_id.to_string(),
                     provenance: Some(Box::new(indexed.provenance.clone())),
                 });
@@ -609,7 +635,7 @@ fn resolve_kind_refinements<'a, S: RefinementKindSpec, C: SchemaCacheLookup>(
                 warnings,
             ) {
                 Ok(resolved) => {
-                    resolved_list.push((refinement_id, resolved));
+                    _ = resolved_map.insert(refinement_id, resolved);
                     progress = true;
                 }
                 Err(errs) => {
@@ -633,16 +659,14 @@ fn resolve_kind_refinements<'a, S: RefinementKindSpec, C: SchemaCacheLookup>(
     }
 
     handle_errors(fatal_errors)?;
-    resolved_list.sort_by(|(a, _), (b, _)| a.cmp(b));
-    Ok(resolved_list)
+    Ok(resolved_map.into_iter().collect())
 }
 
 /// Metric refinement resolution rules.
 struct MetricRefinementSpec;
 
 impl RefinementKindSpec for MetricRefinementSpec {
-    const KIND_LOWER: &'static str = "metric";
-    const KIND_TITLE: &'static str = "Metric";
+    const KIND: SignalKind = SignalKind::Metric;
     type Raw = MetricRefinement;
     type Resolved = ResolvedMetric;
 
@@ -659,14 +683,12 @@ impl RefinementKindSpec for MetricRefinementSpec {
     }
 
     fn find_local_base<'a>(
-        base_signals: &'a ResolvedSignals,
+        base_index: &BaseSignalIndex<'a>,
         parent_ref: &SignalId,
         stripped_ref: &SignalId,
     ) -> Option<&'a Self::Resolved> {
-        base_signals
-            .metrics
-            .iter()
-            .find(|m| m.name == *parent_ref || m.name == *stripped_ref)
+        BaseSignalIndex::lookup_index(&base_index.metrics, parent_ref, stripped_ref)
+            .map(|i| &base_index.signals.metrics[i])
     }
 
     fn is_resolved_excluded(m: &Self::Resolved) -> bool {
@@ -766,8 +788,7 @@ impl RefinementKindSpec for MetricRefinementSpec {
 struct SpanRefinementSpec;
 
 impl RefinementKindSpec for SpanRefinementSpec {
-    const KIND_LOWER: &'static str = "span";
-    const KIND_TITLE: &'static str = "Span";
+    const KIND: SignalKind = SignalKind::Span;
     type Raw = SpanRefinement;
     type Resolved = ResolvedSpan;
 
@@ -784,14 +805,12 @@ impl RefinementKindSpec for SpanRefinementSpec {
     }
 
     fn find_local_base<'a>(
-        base_signals: &'a ResolvedSignals,
+        base_index: &BaseSignalIndex<'a>,
         parent_ref: &SignalId,
         stripped_ref: &SignalId,
     ) -> Option<&'a Self::Resolved> {
-        base_signals
-            .spans
-            .iter()
-            .find(|s| s.r#type == *parent_ref || s.r#type == *stripped_ref)
+        BaseSignalIndex::lookup_index(&base_index.spans, parent_ref, stripped_ref)
+            .map(|i| &base_index.signals.spans[i])
     }
 
     fn is_resolved_excluded(s: &Self::Resolved) -> bool {
@@ -907,8 +926,7 @@ impl RefinementKindSpec for SpanRefinementSpec {
 struct EventRefinementSpec;
 
 impl RefinementKindSpec for EventRefinementSpec {
-    const KIND_LOWER: &'static str = "event";
-    const KIND_TITLE: &'static str = "Event";
+    const KIND: SignalKind = SignalKind::Event;
     type Raw = EventRefinement;
     type Resolved = ResolvedEvent;
 
@@ -925,14 +943,12 @@ impl RefinementKindSpec for EventRefinementSpec {
     }
 
     fn find_local_base<'a>(
-        base_signals: &'a ResolvedSignals,
+        base_index: &BaseSignalIndex<'a>,
         parent_ref: &SignalId,
         stripped_ref: &SignalId,
     ) -> Option<&'a Self::Resolved> {
-        base_signals
-            .events
-            .iter()
-            .find(|e| e.name == *parent_ref || e.name == *stripped_ref)
+        BaseSignalIndex::lookup_index(&base_index.events, parent_ref, stripped_ref)
+            .map(|i| &base_index.signals.events[i])
     }
 
     fn is_resolved_excluded(e: &Self::Resolved) -> bool {
@@ -1026,8 +1042,7 @@ impl RefinementKindSpec for EventRefinementSpec {
 struct EntityRefinementSpec;
 
 impl RefinementKindSpec for EntityRefinementSpec {
-    const KIND_LOWER: &'static str = "entity";
-    const KIND_TITLE: &'static str = "Entity";
+    const KIND: SignalKind = SignalKind::Entity;
     type Raw = EntityRefinement;
     type Resolved = ResolvedEntity;
 
@@ -1044,14 +1059,12 @@ impl RefinementKindSpec for EntityRefinementSpec {
     }
 
     fn find_local_base<'a>(
-        base_signals: &'a ResolvedSignals,
+        base_index: &BaseSignalIndex<'a>,
         parent_ref: &SignalId,
         stripped_ref: &SignalId,
     ) -> Option<&'a Self::Resolved> {
-        base_signals
-            .entities
-            .iter()
-            .find(|en| en.r#type == *parent_ref || en.r#type == *stripped_ref)
+        BaseSignalIndex::lookup_index(&base_index.entities, parent_ref, stripped_ref)
+            .map(|i| &base_index.signals.entities[i])
     }
 
     fn is_resolved_excluded(en: &Self::Resolved) -> bool {
@@ -1133,16 +1146,9 @@ impl RefinementKindSpec for EntityRefinementSpec {
 
         let mut identity_attrs = parent.identity;
         for id_ref in &en_ref.identity {
-            let fake_aref = AttributeRef {
-                r#ref: id_ref.r#ref.clone(),
-                brief: id_ref.brief.clone(),
-                examples: id_ref.examples.clone(),
-                note: id_ref.note.clone(),
-                requirement_level: None,
-                annotations: id_ref.annotations.clone(),
-            };
+            let aref = entity_identity_to_attr_ref(id_ref);
             if let Some(existing) = identity_attrs.iter_mut().find(|a| a.key == id_ref.r#ref) {
-                *existing = rules::apply_attribute_ref_overrides(existing, &fake_aref);
+                *existing = rules::apply_attribute_ref_overrides(existing, &aref);
             }
         }
         for attr in &identity_attrs {
@@ -1195,10 +1201,11 @@ pub(crate) fn resolve<'a, C: SchemaCacheLookup>(
     cache_lookup: &C,
     warnings: &mut Vec<Error>,
 ) -> Result<ResolvedRefinements, Error> {
+    let base_index = BaseSignalIndex::new(base_signals);
     let metrics = resolve_kind_refinements::<MetricRefinementSpec, _>(
         index,
         deps,
-        base_signals,
+        &base_index,
         expanded_groups,
         catalog,
         cache_lookup,
@@ -1207,7 +1214,7 @@ pub(crate) fn resolve<'a, C: SchemaCacheLookup>(
     let spans = resolve_kind_refinements::<SpanRefinementSpec, _>(
         index,
         deps,
-        base_signals,
+        &base_index,
         expanded_groups,
         catalog,
         cache_lookup,
@@ -1216,7 +1223,7 @@ pub(crate) fn resolve<'a, C: SchemaCacheLookup>(
     let events = resolve_kind_refinements::<EventRefinementSpec, _>(
         index,
         deps,
-        base_signals,
+        &base_index,
         expanded_groups,
         catalog,
         cache_lookup,
@@ -1225,7 +1232,7 @@ pub(crate) fn resolve<'a, C: SchemaCacheLookup>(
     let entities = resolve_kind_refinements::<EntityRefinementSpec, _>(
         index,
         deps,
-        base_signals,
+        &base_index,
         expanded_groups,
         catalog,
         cache_lookup,

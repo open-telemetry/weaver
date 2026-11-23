@@ -5,7 +5,6 @@
 #[cfg(test)]
 use std::cell::Cell;
 use std::collections::{BTreeMap, HashMap};
-use std::ops::Deref;
 use std::sync::Arc;
 use weaver_resolved_schema::convert::v2_namespace_id;
 use weaver_resolved_schema::v1::attribute::Attribute as V1Attribute;
@@ -37,29 +36,8 @@ use super::{
 use crate::error::Error;
 use crate::graph::entity_lookup::{EntityLocation, EntityLookup};
 use crate::graph::exclusion::is_excluded;
-use crate::v2::signals::EntityAssociations;
+use crate::v2::signals::{EntityAssociations, SignalKind};
 use crate::WeaverResolvedSchema;
-
-/// Reference-counted handle to a resolved V1 schema.
-#[derive(Debug, Clone)]
-enum SharedV1Schema {
-    Bundle(Arc<WeaverResolvedSchema>),
-    #[cfg(test)]
-    Direct(Arc<V1Schema>),
-}
-
-impl Deref for SharedV1Schema {
-    type Target = V1Schema;
-
-    /// Returns a reference to the underlying `V1Schema`.
-    fn deref(&self) -> &Self::Target {
-        match self {
-            Self::Bundle(bundle) => bundle.as_v1().expect("SharedV1Schema::Bundle must hold V1"),
-            #[cfg(test)]
-            Self::Direct(schema) => schema,
-        }
-    }
-}
 
 #[cfg(test)]
 thread_local! {
@@ -118,7 +96,7 @@ struct ConvertedGroupAttr {
 /// Adapter over a resolved V1 schema dependency.
 #[derive(Debug, Clone)]
 pub(crate) struct V1Dependency {
-    schema: SharedV1Schema,
+    bundle: Arc<WeaverResolvedSchema>,
     my_schema_url: Option<SchemaUrl>,
     group_origins: HashMap<String, SchemaUrl>,
     dep_name_urls: HashMap<String, SchemaUrl>,
@@ -129,27 +107,21 @@ impl V1Dependency {
     #[cfg(test)]
     #[must_use]
     pub fn new(schema: V1Schema) -> Self {
-        Self::from_shared(SharedV1Schema::Direct(Arc::new(schema)))
+        Self::from_bundle(Arc::new(WeaverResolvedSchema::V1(schema)))
     }
 
     /// Creates a new adapter wrapping a shared `Arc<WeaverResolvedSchema>` without cloning.
     #[must_use]
     pub fn from_bundle(bundle: Arc<WeaverResolvedSchema>) -> Self {
-        assert!(
-            bundle.as_v1().is_some(),
-            "V1Dependency::from_bundle requires a V1 schema"
-        );
-        Self::from_shared(SharedV1Schema::Bundle(bundle))
-    }
-
-    /// Indexes dependency URLs and group provenance origins from `schema`.
-    fn from_shared(schema: SharedV1Schema) -> Self {
         #[cfg(test)]
         V1_ADAPTER_DISALLOWED.with(|c| {
             if c.get() {
                 panic!("V1Dependency was invoked while DisallowV1AdapterScope was active!");
             }
         });
+        let schema = bundle
+            .as_v1()
+            .expect("V1Dependency::from_bundle requires a V1 schema");
         let my_schema_url = SchemaUrl::try_from(schema.schema_url.as_str()).ok();
         let mut group_origins = HashMap::with_capacity(schema.registry.groups.len());
         let mut dep_name_urls = HashMap::with_capacity(schema.dependencies.len());
@@ -169,11 +141,18 @@ impl V1Dependency {
             }
         }
         Self {
-            schema,
+            bundle,
             my_schema_url,
             group_origins,
             dep_name_urls,
         }
+    }
+
+    /// Returns a reference to the underlying `V1Schema`.
+    fn schema(&self) -> &V1Schema {
+        self.bundle
+            .as_v1()
+            .expect("V1Dependency bundle must hold a V1 schema")
     }
 
     /// Returns the parsed schema URL of this dependency, falling back to `SchemaUrl::new_unknown`.
@@ -224,20 +203,84 @@ impl V1Dependency {
         (assocs, self.association_origins(g))
     }
 
+    /// Extracts converted metric header fields `(name, instrument, unit)` from a V1 `Group`.
+    fn metric_header(g: &Group, fallback_id: Option<&str>) -> (SignalId, InstrumentSpec, String) {
+        let name = g
+            .metric_name
+            .clone()
+            .map(SignalId::from)
+            .or_else(|| fallback_id.map(SignalId::from))
+            .or_else(|| v2_namespace_id(g))
+            .unwrap_or_else(|| SignalId::from(g.id.as_str()));
+        let instrument = g
+            .instrument
+            .clone()
+            .map(v1_instrument_to_v2)
+            .unwrap_or(InstrumentSpec::UpDownCounter);
+        let unit = g.unit.clone().unwrap_or_default();
+        (name, instrument, unit)
+    }
+
+    /// Extracts converted span header fields `(type_id, kind, name)` from a V1 `Group`.
+    fn span_header(g: &Group, fallback_id: Option<&str>) -> (SignalId, SpanKindSpec, SpanName) {
+        let type_id = fallback_id
+            .map(SignalId::from)
+            .or_else(|| v2_namespace_id(g))
+            .unwrap_or_else(|| SignalId::from(g.id.as_str()));
+        let kind = g
+            .span_kind
+            .clone()
+            .map(v1_span_kind_to_v2)
+            .unwrap_or(SpanKindSpec::Internal);
+        let name = g
+            .span_name
+            .clone()
+            .map(v1_span_name_to_v2)
+            .unwrap_or_else(|| SpanName {
+                templates: vec![],
+                note: g.name.clone().or_else(|| Some(type_id.to_string())),
+            });
+        (type_id, kind, name)
+    }
+
+    /// Extracts the V2 event name from a V1 `Group`.
+    fn event_name(g: &Group, fallback_id: Option<&str>) -> SignalId {
+        g.name
+            .clone()
+            .map(SignalId::from)
+            .or_else(|| fallback_id.map(SignalId::from))
+            .or_else(|| v2_namespace_id(g))
+            .unwrap_or_else(|| SignalId::from(g.id.as_str()))
+    }
+
+    /// Extracts the V2 entity type ID from a V1 `Group`.
+    fn entity_type(g: &Group, fallback_id: Option<&str>) -> SignalId {
+        if let Some(id) = fallback_id {
+            g.name
+                .clone()
+                .map(SignalId::from)
+                .unwrap_or_else(|| SignalId::from(id))
+        } else {
+            v2_namespace_id(g)
+                .or_else(|| g.name.clone().map(SignalId::from))
+                .unwrap_or_else(|| SignalId::from(g.id.as_str()))
+        }
+    }
+
     /// Converts all catalog attributes referenced by `g` with their origin URLs and V1 definition flags.
     fn convert_group_attrs(&self, g: &Group, default_url: &SchemaUrl) -> Vec<ConvertedGroupAttr> {
+        let schema = self.schema();
         g.attributes
             .iter()
             .filter_map(|attr_ref| {
-                let a = self.schema.catalog.attribute(attr_ref)?;
+                let a = schema.catalog.attribute(attr_ref)?;
                 let (attr, _) = Self::convert_v1_attribute(a);
-                let origin = if let Some((_, src)) =
-                    self.schema.catalog.root_attribute_definition(&a.name)
-                {
-                    self.find_attribute_origin(src, default_url)
-                } else {
-                    self.find_attribute_origin(&g.id, default_url)
-                };
+                let origin =
+                    if let Some((_, src)) = schema.catalog.root_attribute_definition(&a.name) {
+                        self.find_attribute_origin(src, default_url)
+                    } else {
+                        self.find_attribute_origin(&g.id, default_url)
+                    };
                 let is_v1_def = g
                     .lineage
                     .as_ref()
@@ -257,15 +300,16 @@ impl V1Dependency {
 
     /// Looks up an attribute definition by key.
     pub fn lookup_attribute(&self, key: &str) -> Result<Option<DepAttribute>, Error> {
+        let schema = self.schema();
         let Some(my_schema_url) = self.my_schema_url.as_ref() else {
             return Err(Error::InvalidUrl {
-                url: self.schema.schema_url.clone(),
-                error: SchemaUrl::try_from(self.schema.schema_url.as_str())
+                url: schema.schema_url.clone(),
+                error: SchemaUrl::try_from(schema.schema_url.as_str())
                     .expect_err("my_schema_url is None only when schema_url is invalid"),
             });
         };
 
-        if let Some((attr, source_group)) = self.schema.catalog.root_attribute_definition(key) {
+        if let Some((attr, source_group)) = schema.catalog.root_attribute_definition(key) {
             let origin = self.find_attribute_origin(source_group, my_schema_url);
             let (v2_attr, excluded) = Self::convert_v1_attribute(attr);
             return Ok(Some(DepAttribute {
@@ -276,9 +320,9 @@ impl V1Dependency {
         }
 
         // Fallback for deserialized schemas without root attributes.
-        for group in &self.schema.registry.groups {
+        for group in &schema.registry.groups {
             for attr_ref in &group.attributes {
-                if let Some(a) = self.schema.catalog.attribute(attr_ref) {
+                if let Some(a) = schema.catalog.attribute(attr_ref) {
                     if a.name == key {
                         let origin = group
                             .provenance()
@@ -299,17 +343,16 @@ impl V1Dependency {
     }
 
     /// Looks up a signal by kind and id.
-    pub fn lookup_signal(&self, kind: &str, id: &str) -> Option<DepSignal> {
+    pub fn lookup_signal(&self, kind: SignalKind, id: &str) -> Option<DepSignal> {
         let my_schema_url = self.my_schema_url.as_ref()?;
         let expected_group_type = match kind {
-            "span" => GroupType::Span,
-            "metric" => GroupType::Metric,
-            "event" => GroupType::Event,
-            "entity" => GroupType::Entity,
-            _ => return None,
+            SignalKind::Span => GroupType::Span,
+            SignalKind::Metric => GroupType::Metric,
+            SignalKind::Event => GroupType::Event,
+            SignalKind::Entity => GroupType::Entity,
         };
 
-        let group = self.schema.registry.groups.iter().find(|g| {
+        let group = self.schema().registry.groups.iter().find(|g| {
             g.r#type == expected_group_type
                 && v2_namespace_id(g).is_some_and(|sig_id| &*sig_id == id)
         })?;
@@ -318,59 +361,42 @@ impl V1Dependency {
         let attrs = self.convert_group_attrs(group, my_schema_url);
         let requirement_level = group.requirement_level.clone().map(Into::into);
 
-        let payload = match expected_group_type {
-            GroupType::Metric => DepSignalPayload::Metric {
-                name: group
-                    .metric_name
-                    .clone()
-                    .map(SignalId::from)
-                    .unwrap_or_else(|| SignalId::from(id)),
-                instrument: group
-                    .instrument
-                    .clone()
-                    .map(v1_instrument_to_v2)
-                    .unwrap_or(InstrumentSpec::UpDownCounter),
-                unit: group.unit.clone().unwrap_or_default(),
+        let payload = match kind {
+            SignalKind::Metric => {
+                let (name, instrument, unit) = Self::metric_header(group, Some(id));
+                DepSignalPayload::Metric {
+                    name,
+                    instrument,
+                    unit,
+                    requirement_level,
+                    attributes: attrs
+                        .into_iter()
+                        .map(|a| (a.attr, a.req, a.origin))
+                        .collect(),
+                }
+            }
+            SignalKind::Span => {
+                let (r#type, span_kind, name) = Self::span_header(group, Some(id));
+                DepSignalPayload::Span {
+                    r#type,
+                    kind: span_kind,
+                    name,
+                    requirement_level,
+                    attributes: attrs
+                        .into_iter()
+                        .map(|a| (a.attr, a.req, a.sampling_relevant, a.origin))
+                        .collect(),
+                }
+            }
+            SignalKind::Event => DepSignalPayload::Event {
+                name: Self::event_name(group, Some(id)),
                 requirement_level,
                 attributes: attrs
                     .into_iter()
                     .map(|a| (a.attr, a.req, a.origin))
                     .collect(),
             },
-            GroupType::Span => DepSignalPayload::Span {
-                r#type: SignalId::from(id),
-                kind: group
-                    .span_kind
-                    .clone()
-                    .map(v1_span_kind_to_v2)
-                    .unwrap_or(SpanKindSpec::Internal),
-                name: group
-                    .span_name
-                    .clone()
-                    .map(v1_span_name_to_v2)
-                    .unwrap_or_else(|| SpanName {
-                        templates: vec![],
-                        note: group.name.clone().or_else(|| Some(id.to_owned())),
-                    }),
-                requirement_level,
-                attributes: attrs
-                    .into_iter()
-                    .map(|a| (a.attr, a.req, a.sampling_relevant, a.origin))
-                    .collect(),
-            },
-            GroupType::Event => DepSignalPayload::Event {
-                name: group
-                    .name
-                    .clone()
-                    .map(SignalId::from)
-                    .unwrap_or_else(|| SignalId::from(id)),
-                requirement_level,
-                attributes: attrs
-                    .into_iter()
-                    .map(|a| (a.attr, a.req, a.origin))
-                    .collect(),
-            },
-            GroupType::Entity => {
+            SignalKind::Entity => {
                 let mut identity = Vec::new();
                 let mut description = Vec::new();
                 for a in attrs {
@@ -381,24 +407,19 @@ impl V1Dependency {
                     }
                 }
                 DepSignalPayload::Entity {
-                    r#type: group
-                        .name
-                        .clone()
-                        .map(SignalId::from)
-                        .unwrap_or_else(|| SignalId::from(id)),
+                    r#type: Self::entity_type(group, Some(id)),
                     requirement_level,
                     identity,
                     description,
                 }
             }
-            _ => return None,
         };
 
-        let (entity_associations, association_origins) = match group.r#type {
-            GroupType::Metric | GroupType::Span | GroupType::Event => {
+        let (entity_associations, association_origins) = match kind {
+            SignalKind::Metric | SignalKind::Span | SignalKind::Event => {
                 self.group_associations(group)
             }
-            _ => (EntityAssociations::Raw(vec![]), BTreeMap::new()),
+            SignalKind::Entity => (EntityAssociations::Raw(vec![]), BTreeMap::new()),
         };
 
         Some(DepSignal {
@@ -409,16 +430,6 @@ impl V1Dependency {
             entity_associations,
             association_origins,
         })
-    }
-
-    /// Looks up a signal by id across all kinds.
-    pub fn lookup_signal_any_kind(&self, id: &str) -> Option<(&'static str, DepSignal)> {
-        for kind in ["metric", "span", "event", "entity"] {
-            if let Some(s) = self.lookup_signal(kind, id) {
-                return Some((kind, s));
-            }
-        }
-        None
     }
 
     /// Resolves the defining `SchemaUrl` for an attribute's `source_group`, falling back to `my_schema_url`.
@@ -469,7 +480,7 @@ impl V1Dependency {
     /// Returns all importable metrics from this dependency.
     pub fn importable_metrics(&self) -> Vec<DepImportedMetric> {
         let my_schema_url = self.schema_url();
-        self.schema
+        self.schema()
             .registry
             .groups
             .iter()
@@ -485,19 +496,11 @@ impl V1Dependency {
                     .into_iter()
                     .map(|a| (a.attr, a.req, a.origin, a.is_v1_def))
                     .collect();
+                let (name, instrument, unit) = Self::metric_header(g, None);
                 DepImportedMetric {
-                    name: g
-                        .metric_name
-                        .clone()
-                        .map(SignalId::from)
-                        .or_else(|| v2_namespace_id(g))
-                        .unwrap_or_else(|| SignalId::from(g.id.as_str())),
-                    instrument: g
-                        .instrument
-                        .clone()
-                        .map(v1_instrument_to_v2)
-                        .unwrap_or(InstrumentSpec::UpDownCounter),
-                    unit: g.unit.clone().unwrap_or_default(),
+                    name,
+                    instrument,
+                    unit,
                     requirement_level: g.requirement_level.clone().map(Into::into),
                     attributes,
                     entity_associations,
@@ -515,7 +518,7 @@ impl V1Dependency {
     /// Returns all importable spans from this dependency.
     pub fn importable_spans(&self) -> Vec<DepImportedSpan> {
         let my_schema_url = self.schema_url();
-        self.schema
+        self.schema()
             .registry
             .groups
             .iter()
@@ -528,22 +531,10 @@ impl V1Dependency {
                     .into_iter()
                     .map(|a| (a.attr, a.req, a.sampling_relevant, a.origin, a.is_v1_def))
                     .collect();
-                let type_id = v2_namespace_id(g).unwrap_or_else(|| SignalId::from(g.id.as_str()));
-                let name = g
-                    .span_name
-                    .clone()
-                    .map(v1_span_name_to_v2)
-                    .unwrap_or_else(|| SpanName {
-                        templates: vec![],
-                        note: g.name.clone().or_else(|| Some(type_id.to_string())),
-                    });
+                let (r#type, kind, name) = Self::span_header(g, None);
                 DepImportedSpan {
-                    r#type: type_id,
-                    kind: g
-                        .span_kind
-                        .clone()
-                        .map(v1_span_kind_to_v2)
-                        .unwrap_or(SpanKindSpec::Internal),
+                    r#type,
+                    kind,
                     name,
                     requirement_level: g.requirement_level.clone().map(Into::into),
                     attributes,
@@ -562,7 +553,7 @@ impl V1Dependency {
     /// Returns all importable events from this dependency.
     pub fn importable_events(&self) -> Vec<DepImportedEvent> {
         let my_schema_url = self.schema_url();
-        self.schema
+        self.schema()
             .registry
             .groups
             .iter()
@@ -576,12 +567,7 @@ impl V1Dependency {
                     .map(|a| (a.attr, a.req, a.origin, a.is_v1_def))
                     .collect();
                 DepImportedEvent {
-                    name: g
-                        .name
-                        .clone()
-                        .map(SignalId::from)
-                        .or_else(|| v2_namespace_id(g))
-                        .unwrap_or_else(|| SignalId::from(g.id.as_str())),
+                    name: Self::event_name(g, None),
                     requirement_level: g.requirement_level.clone().map(Into::into),
                     attributes,
                     entity_associations,
@@ -599,7 +585,7 @@ impl V1Dependency {
     /// Returns all importable entities from this dependency.
     pub fn importable_entities(&self) -> Vec<DepImportedEntity> {
         let my_schema_url = self.schema_url();
-        self.schema
+        self.schema()
             .registry
             .groups
             .iter()
@@ -616,9 +602,7 @@ impl V1Dependency {
                     }
                 }
                 DepImportedEntity {
-                    r#type: v2_namespace_id(g)
-                        .or_else(|| g.name.clone().map(SignalId::from))
-                        .unwrap_or_else(|| SignalId::from(g.id.as_str())),
+                    r#type: Self::entity_type(g, None),
                     requirement_level: g.requirement_level.clone().map(Into::into),
                     identity,
                     description,
@@ -635,7 +619,7 @@ impl V1Dependency {
     /// Returns all importable attribute groups from this dependency.
     pub fn importable_attribute_groups(&self) -> Vec<DepImportedAttributeGroup> {
         let my_schema_url = self.schema_url();
-        self.schema
+        self.schema()
             .registry
             .groups
             .iter()
@@ -670,6 +654,9 @@ impl V1Dependency {
     }
 
     /// Computes candidate wildcard-matching keys for importing a V1 `Group` in V2.
+    ///
+    /// Intentionally strips legacy `span.`, `attribute_group.`, and `resource.` prefixes on
+    /// V1 groups so V2 consumers can write unprefixed `imports:` patterns against V1 dependencies.
     fn v1_match_keys(g: &Group) -> Vec<String> {
         let name = g.name.as_deref();
         let metric_name = g.metric_name.as_deref();
@@ -752,11 +739,8 @@ impl V1Dependency {
 
     /// Collects the defining `SchemaUrl` for each entity referenced in `group.entity_associations`.
     fn association_origins(&self, group: &Group) -> BTreeMap<String, SchemaUrl> {
-        let recorded = self
-            .schema
-            .registry
-            .entity_association_origins
-            .get(&group.id);
+        let schema = self.schema();
+        let recorded = schema.registry.entity_association_origins.get(&group.id);
         group
             .entity_associations
             .iter()
@@ -764,8 +748,7 @@ impl V1Dependency {
             .filter_map(|name| {
                 let origin = match recorded.and_then(|origins| origins.get(name)) {
                     Some(origin) => Some(origin.clone()),
-                    None => self
-                        .schema
+                    None => schema
                         .lookup_entity(name)
                         .filter(|location| !location.excluded)
                         .map(|location| location.origin),
@@ -779,7 +762,7 @@ impl V1Dependency {
 impl EntityLookup for V1Dependency {
     /// Looks up an entity's origin and exclusion status in the underlying V1 schema.
     fn lookup_entity(&self, name: &str) -> Option<EntityLocation> {
-        self.schema.lookup_entity(name)
+        self.schema().lookup_entity(name)
     }
 }
 
@@ -964,7 +947,7 @@ mod tests {
         assert_eq!(imported[0].name.note.as_deref(), Some("http.client"));
 
         let looked_up = dep
-            .lookup_signal("span", "http.client")
+            .lookup_signal(SignalKind::Span, "http.client")
             .expect("found span");
         match looked_up.payload {
             DepSignalPayload::Span { name, .. } => {

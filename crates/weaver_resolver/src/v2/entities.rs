@@ -13,12 +13,15 @@ use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v2::entity_association::EntityAssociation as SemconvEntityAssociation;
 use weaver_semconv::v2::signal_id::SignalId;
 
-use super::dependency::{DepImportedEntity, V2Dependencies};
-use super::imports::ImportedItems;
+use super::dependency::V2Dependencies;
+use super::imports::{ImportedItem, ImportedItems};
 use super::index::Index;
 use super::refinements::ResolvedRefinements;
 use super::rules;
-use super::signals::{EntityAssociations, ResolvedSignals};
+use super::signals::{
+    EntityAssociations, ResolvedEntity, ResolvedEvent, ResolvedMetric, ResolvedSignals,
+    ResolvedSpan, SignalKind,
+};
 use crate::error::Error;
 use crate::graph::chosen_versions::SchemaCacheLookup;
 use crate::graph::entity_lookup::{resolve_entity, upgrade_entity_origin, EntityResolution};
@@ -66,16 +69,143 @@ impl AssociationNode for ResolvedEntityAssociation {
     }
 }
 
+/// Uniform access to entity association fields on resolved metric, span, and event signals.
+trait AssociableSignal {
+    const KIND: SignalKind;
+    fn signal_id(&self) -> &SignalId;
+    fn provenance_path(&self) -> &str;
+    fn is_excluded(&self) -> bool;
+    fn associations_and_origins(
+        &mut self,
+    ) -> (&mut EntityAssociations, &BTreeMap<String, SchemaUrl>);
+}
+
+impl AssociableSignal for ResolvedMetric {
+    const KIND: SignalKind = SignalKind::Metric;
+    fn signal_id(&self) -> &SignalId {
+        &self.name
+    }
+    fn provenance_path(&self) -> &str {
+        &self.provenance.path
+    }
+    fn is_excluded(&self) -> bool {
+        is_excluded(&self.common.annotations)
+    }
+    fn associations_and_origins(
+        &mut self,
+    ) -> (&mut EntityAssociations, &BTreeMap<String, SchemaUrl>) {
+        (&mut self.entity_associations, &self.association_origins)
+    }
+}
+
+impl AssociableSignal for ResolvedSpan {
+    const KIND: SignalKind = SignalKind::Span;
+    fn signal_id(&self) -> &SignalId {
+        &self.r#type
+    }
+    fn provenance_path(&self) -> &str {
+        &self.provenance.path
+    }
+    fn is_excluded(&self) -> bool {
+        is_excluded(&self.common.annotations)
+    }
+    fn associations_and_origins(
+        &mut self,
+    ) -> (&mut EntityAssociations, &BTreeMap<String, SchemaUrl>) {
+        (&mut self.entity_associations, &self.association_origins)
+    }
+}
+
+impl AssociableSignal for ResolvedEvent {
+    const KIND: SignalKind = SignalKind::Event;
+    fn signal_id(&self) -> &SignalId {
+        &self.name
+    }
+    fn provenance_path(&self) -> &str {
+        &self.provenance.path
+    }
+    fn is_excluded(&self) -> bool {
+        is_excluded(&self.common.annotations)
+    }
+    fn associations_and_origins(
+        &mut self,
+    ) -> (&mut EntityAssociations, &BTreeMap<String, SchemaUrl>) {
+        (&mut self.entity_associations, &self.association_origins)
+    }
+}
+
 /// Shared lookup tables and error accumulator for resolving entity associations across a registry.
 struct AssociationResolver<'a, C: SchemaCacheLookup> {
     local_entities: &'a HashMap<String, LocalEntityInfo>,
-    imported_entities: &'a [DepImportedEntity],
+    imported_entities: &'a [ImportedItem<ResolvedEntity>],
     deps: &'a V2Dependencies,
     cache_lookup: &'a C,
     errors: Vec<Error>,
 }
 
 impl<'a, C: SchemaCacheLookup> AssociationResolver<'a, C> {
+    /// Resolves entity associations across a slice of local base signals.
+    fn resolve_local_signals<S: AssociableSignal>(
+        &mut self,
+        signals: &mut [S],
+        schema_url: &SchemaUrl,
+    ) {
+        for sig in signals {
+            let id = sig.signal_id().clone();
+            let path = sig.provenance_path().to_owned();
+            let excluded = sig.is_excluded();
+            let (assocs, origins) = sig.associations_and_origins();
+            self.resolve_signal(
+                assocs,
+                origins,
+                S::KIND.as_str(),
+                &id,
+                schema_url,
+                &path,
+                excluded,
+            );
+        }
+    }
+
+    /// Resolves entity associations across a slice of local signal refinements.
+    fn resolve_refinements<S: AssociableSignal>(
+        &mut self,
+        refinements: &mut [(SignalId, S)],
+        schema_url: &SchemaUrl,
+    ) {
+        for (ref_id, sig) in refinements {
+            let path = sig.provenance_path().to_owned();
+            let excluded = sig.is_excluded();
+            let (assocs, origins) = sig.associations_and_origins();
+            self.resolve_signal(
+                assocs,
+                origins,
+                S::KIND.as_str(),
+                ref_id,
+                schema_url,
+                &path,
+                excluded,
+            );
+        }
+    }
+
+    /// Resolves entity associations across a slice of imported signals.
+    fn resolve_imported_signals<S: AssociableSignal>(&mut self, imported: &mut [ImportedItem<S>]) {
+        for entry in imported {
+            let id = entry.item.signal_id().clone();
+            let path = entry.item.provenance_path().to_owned();
+            let (assocs, origins) = entry.item.associations_and_origins();
+            self.resolve_signal(
+                assocs,
+                origins,
+                S::KIND.as_str(),
+                &id,
+                &entry.origin,
+                &path,
+                entry.excluded,
+            );
+        }
+    }
     /// Resolves `assocs` in place when non-empty.
     fn resolve_signal(
         &mut self,
@@ -210,7 +340,7 @@ impl<'a, C: SchemaCacheLookup> AssociationResolver<'a, C> {
             if self
                 .imported_entities
                 .iter()
-                .any(|en| &*en.r#type == entity_name && en.origin == upgraded_origin)
+                .any(|en| &*en.item.r#type == entity_name && en.origin == upgraded_origin)
             {
                 return Ok(EntityRef::local(SignalId::from(entity_name)));
             }
@@ -278,7 +408,7 @@ pub(crate) fn resolve_associations<C: SchemaCacheLookup>(
     // Seed with imported entities, then override with local entities and refinements.
     let mut local_entities: HashMap<String, LocalEntityInfo> = HashMap::new();
     for en in &imported.entities {
-        let type_id = en.r#type.clone();
+        let type_id = en.item.r#type.clone();
         _ = local_entities.insert(
             type_id.to_string(),
             LocalEntityInfo {
@@ -289,7 +419,7 @@ pub(crate) fn resolve_associations<C: SchemaCacheLookup>(
     }
 
     for (id, indexed_en) in index.entity_refinements() {
-        let norm_id = rules::normalize_refinement_id("entity", id);
+        let norm_id = rules::normalize_refinement_id(SignalKind::Entity, id);
         let excluded = is_excluded(&indexed_en.item.annotations);
         _ = local_entities.insert(
             norm_id.to_string(),
@@ -321,107 +451,17 @@ pub(crate) fn resolve_associations<C: SchemaCacheLookup>(
         errors: Vec::new(),
     };
 
-    for m in &mut signals.metrics {
-        resolver.resolve_signal(
-            &mut m.entity_associations,
-            &m.association_origins,
-            "metric",
-            &m.name,
-            schema_url,
-            &m.provenance.path,
-            is_excluded(&m.common.annotations),
-        );
-    }
-    for s in &mut signals.spans {
-        resolver.resolve_signal(
-            &mut s.entity_associations,
-            &s.association_origins,
-            "span",
-            &s.r#type,
-            schema_url,
-            &s.provenance.path,
-            is_excluded(&s.common.annotations),
-        );
-    }
-    for e in &mut signals.events {
-        resolver.resolve_signal(
-            &mut e.entity_associations,
-            &e.association_origins,
-            "event",
-            &e.name,
-            schema_url,
-            &e.provenance.path,
-            is_excluded(&e.common.annotations),
-        );
-    }
+    resolver.resolve_local_signals(&mut signals.metrics, schema_url);
+    resolver.resolve_local_signals(&mut signals.spans, schema_url);
+    resolver.resolve_local_signals(&mut signals.events, schema_url);
 
-    for (ref_id, m) in &mut refinements.metrics {
-        resolver.resolve_signal(
-            &mut m.entity_associations,
-            &m.association_origins,
-            "metric",
-            ref_id,
-            schema_url,
-            &m.provenance.path,
-            is_excluded(&m.common.annotations),
-        );
-    }
-    for (ref_id, s) in &mut refinements.spans {
-        resolver.resolve_signal(
-            &mut s.entity_associations,
-            &s.association_origins,
-            "span",
-            ref_id,
-            schema_url,
-            &s.provenance.path,
-            is_excluded(&s.common.annotations),
-        );
-    }
-    for (ref_id, e) in &mut refinements.events {
-        resolver.resolve_signal(
-            &mut e.entity_associations,
-            &e.association_origins,
-            "event",
-            ref_id,
-            schema_url,
-            &e.provenance.path,
-            is_excluded(&e.common.annotations),
-        );
-    }
+    resolver.resolve_refinements(&mut refinements.metrics, schema_url);
+    resolver.resolve_refinements(&mut refinements.spans, schema_url);
+    resolver.resolve_refinements(&mut refinements.events, schema_url);
 
-    for m in &mut imported.metrics {
-        resolver.resolve_signal(
-            &mut m.entity_associations,
-            &m.association_origins,
-            "metric",
-            &m.name,
-            &m.origin,
-            &m.provenance.path,
-            m.excluded,
-        );
-    }
-    for s in &mut imported.spans {
-        resolver.resolve_signal(
-            &mut s.entity_associations,
-            &s.association_origins,
-            "span",
-            &s.r#type,
-            &s.origin,
-            &s.provenance.path,
-            s.excluded,
-        );
-    }
-    for e in &mut imported.events {
-        resolver.resolve_signal(
-            &mut e.entity_associations,
-            &e.association_origins,
-            "event",
-            &e.name,
-            &e.origin,
-            &e.provenance.path,
-            e.excluded,
-        );
-    }
+    resolver.resolve_imported_signals(&mut imported.metrics);
+    resolver.resolve_imported_signals(&mut imported.spans);
+    resolver.resolve_imported_signals(&mut imported.events);
 
     handle_errors(resolver.errors)?;
     Ok(())

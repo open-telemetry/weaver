@@ -18,9 +18,11 @@ use super::dependency::{
     DepImportedAttributeGroup, DepImportedEntity, DepImportedEvent, DepImportedMetric,
     DepImportedSpan, DependencyAdapter, V2Dependencies,
 };
-use super::groups::ExpandedGroups;
+use super::groups::{ExpandedGroups, ResolvedPublicGroup};
 use super::index::{Index, Indexed, IndexedImports};
-use super::signals::ResolvedSignals;
+use super::signals::{
+    ResolvedEntity, ResolvedEvent, ResolvedMetric, ResolvedSignals, ResolvedSpan,
+};
 use crate::error::Error;
 use crate::graph::chosen_versions::{
     chosen_version_if_superseded, lookup_chosen_schema, SchemaCacheLookup,
@@ -28,14 +30,22 @@ use crate::graph::chosen_versions::{
 use crate::graph::entity_lookup::upgrade_entity_origin;
 use crate::graph::imports::{build_globset, ImportField};
 
-/// All items imported from dependencies.
+/// An imported signal converted to its resolved form and paired with its dependency origin and exclusion flag.
+#[derive(Debug, Clone)]
+pub(crate) struct ImportedItem<T> {
+    pub item: T,
+    pub origin: SchemaUrl,
+    pub excluded: bool,
+}
+
+/// All items imported from dependencies in resolved representation.
 #[derive(Debug, Default)]
 pub(crate) struct ImportedItems {
-    pub metrics: Vec<DepImportedMetric>,
-    pub spans: Vec<DepImportedSpan>,
-    pub events: Vec<DepImportedEvent>,
-    pub entities: Vec<DepImportedEntity>,
-    pub attribute_groups: Vec<DepImportedAttributeGroup>,
+    pub metrics: Vec<ImportedItem<ResolvedMetric>>,
+    pub spans: Vec<ImportedItem<ResolvedSpan>>,
+    pub events: Vec<ImportedItem<ResolvedEvent>>,
+    pub entities: Vec<ImportedItem<ResolvedEntity>>,
+    pub attribute_groups: Vec<ResolvedPublicGroup>,
 }
 
 /// Upgrades `attr` and registers it (and any V1 definition marker) in `catalog`.
@@ -709,11 +719,103 @@ pub(crate) fn resolve<'a, C: SchemaCacheLookup>(
 
     Ok((
         ImportedItems {
-            metrics,
-            spans,
-            events,
-            entities,
-            attribute_groups,
+            metrics: metrics
+                .into_iter()
+                .map(|m| ImportedItem {
+                    item: ResolvedMetric {
+                        name: m.name,
+                        instrument: m.instrument,
+                        unit: m.unit,
+                        attributes: m
+                            .attributes
+                            .into_iter()
+                            .map(|(a, req, _, _)| (a, req))
+                            .collect(),
+                        entity_associations: m.entity_associations,
+                        association_origins: m.association_origins,
+                        requirement_level: m.requirement_level,
+                        common: m.common,
+                        provenance: m.provenance,
+                    },
+                    origin: m.origin,
+                    excluded: m.excluded,
+                })
+                .collect(),
+            spans: spans
+                .into_iter()
+                .map(|s| ImportedItem {
+                    item: ResolvedSpan {
+                        r#type: s.r#type,
+                        kind: s.kind,
+                        name: s.name,
+                        attributes: s
+                            .attributes
+                            .into_iter()
+                            .map(|(a, req, samp, _, _)| (a, req, samp))
+                            .collect(),
+                        entity_associations: s.entity_associations,
+                        association_origins: s.association_origins,
+                        requirement_level: s.requirement_level,
+                        common: s.common,
+                        provenance: s.provenance,
+                    },
+                    origin: s.origin,
+                    excluded: s.excluded,
+                })
+                .collect(),
+            events: events
+                .into_iter()
+                .map(|e| ImportedItem {
+                    item: ResolvedEvent {
+                        name: e.name,
+                        attributes: e
+                            .attributes
+                            .into_iter()
+                            .map(|(a, req, _, _)| (a, req))
+                            .collect(),
+                        entity_associations: e.entity_associations,
+                        association_origins: e.association_origins,
+                        requirement_level: e.requirement_level,
+                        common: e.common,
+                        provenance: e.provenance,
+                    },
+                    origin: e.origin,
+                    excluded: e.excluded,
+                })
+                .collect(),
+            entities: entities
+                .into_iter()
+                .map(|en| ImportedItem {
+                    item: ResolvedEntity {
+                        r#type: en.r#type,
+                        identity: en.identity.into_iter().map(|(a, _, _)| a).collect(),
+                        description: en
+                            .description
+                            .into_iter()
+                            .map(|(a, req, _, _)| (a, req))
+                            .collect(),
+                        requirement_level: en.requirement_level,
+                        common: en.common,
+                        provenance: en.provenance,
+                    },
+                    origin: en.origin,
+                    excluded: en.excluded,
+                })
+                .collect(),
+            attribute_groups: attribute_groups
+                .into_iter()
+                .filter(|ag| ag.is_public)
+                .map(|ag| ResolvedPublicGroup {
+                    id: ag.id,
+                    attributes: ag
+                        .attributes
+                        .into_iter()
+                        .map(|(a, req, _, _)| (a, req))
+                        .collect(),
+                    common: ag.common,
+                    provenance: ag.provenance,
+                })
+                .collect(),
         },
         warnings,
     ))

@@ -17,6 +17,7 @@ use weaver_semconv::v2::Imports;
 use weaver_semconv::Error as SemconvError;
 
 use super::rules::normalize_refinement_id;
+use super::signals::SignalKind;
 use crate::error::Error;
 
 /// Local specification item paired with its source provenance.
@@ -258,7 +259,7 @@ pub(crate) fn build(specs: &[SemConvSpecWithProvenance]) -> Result<Index, Error>
             );
         }
         for metric_ref in v2_spec.metric_refinements() {
-            let norm_id = normalize_refinement_id("metric", &metric_ref.id);
+            let norm_id = normalize_refinement_id(SignalKind::Metric, &metric_ref.id);
             push_raw(
                 &mut raw_metric_refinements,
                 norm_id,
@@ -267,15 +268,15 @@ pub(crate) fn build(specs: &[SemConvSpecWithProvenance]) -> Result<Index, Error>
             );
         }
         for span_ref in v2_spec.span_refinements() {
-            let norm_id = normalize_refinement_id("span", &span_ref.id);
+            let norm_id = normalize_refinement_id(SignalKind::Span, &span_ref.id);
             push_raw(&mut raw_span_refinements, norm_id, span_ref.clone(), prov);
         }
         for event_ref in v2_spec.event_refinements() {
-            let norm_id = normalize_refinement_id("event", &event_ref.id);
+            let norm_id = normalize_refinement_id(SignalKind::Event, &event_ref.id);
             push_raw(&mut raw_event_refinements, norm_id, event_ref.clone(), prov);
         }
         for entity_ref in v2_spec.entity_refinements() {
-            let norm_id = normalize_refinement_id("entity", &entity_ref.id);
+            let norm_id = normalize_refinement_id(SignalKind::Entity, &entity_ref.id);
             push_raw(
                 &mut raw_entity_refinements,
                 norm_id,

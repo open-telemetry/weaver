@@ -2970,7 +2970,7 @@ groups:
         let url_base_v1_0 = SchemaUrl::try_from("https://example.com/base/1.0.0").unwrap();
         let url_base_v1_1 = SchemaUrl::try_from("https://example.com/base/1.1.0").unwrap();
 
-        let base_v1_0 = ResolvedDependency::V1(Box::new(ResolvedTelemetrySchema {
+        let base_v1_0 = ResolvedDependency::from(ResolvedTelemetrySchema {
             file_format: "resolved/1.0".to_owned(),
             schema_url: "https://example.com/base/1.0.0".to_owned(),
             registry_id: "base".to_owned(),
@@ -2985,9 +2985,9 @@ groups:
             dependencies: Default::default(),
             versions: None,
             registry_manifest: None,
-        }));
+        });
 
-        let base_v1_1 = ResolvedDependency::V1(Box::new(ResolvedTelemetrySchema {
+        let base_v1_1 = ResolvedDependency::from(ResolvedTelemetrySchema {
             file_format: "resolved/1.0".to_owned(),
             schema_url: "https://example.com/base/1.1.0".to_owned(),
             registry_id: "base".to_owned(),
@@ -3002,9 +3002,9 @@ groups:
             dependencies: Default::default(),
             versions: None,
             registry_manifest: None,
-        }));
+        });
 
-        let layer1_a = ResolvedDependency::V1(Box::new(ResolvedTelemetrySchema {
+        let layer1_a = ResolvedDependency::from(ResolvedTelemetrySchema {
             file_format: "resolved/1.0".to_owned(),
             schema_url: "https://example.com/layer1_a/0.1.0".to_owned(),
             registry_id: "layer1_a".to_owned(),
@@ -3019,9 +3019,9 @@ groups:
             dependencies: [url_base_v1_0.clone()].into_iter().collect(),
             versions: None,
             registry_manifest: None,
-        }));
+        });
 
-        let layer1_b = ResolvedDependency::V1(Box::new(ResolvedTelemetrySchema {
+        let layer1_b = ResolvedDependency::from(ResolvedTelemetrySchema {
             file_format: "resolved/1.0".to_owned(),
             schema_url: "https://example.com/layer1_b/0.1.0".to_owned(),
             registry_id: "layer1_b".to_owned(),
@@ -3036,7 +3036,7 @@ groups:
             dependencies: [url_base_v1_1.clone()].into_iter().collect(),
             versions: None,
             registry_manifest: None,
-        }));
+        });
 
         let mut chosen_versions = HashMap::new();
         layer1_a.collect_chosen_versions(&mut chosen_versions);

@@ -1286,7 +1286,9 @@ mod tests {
 
         let dep = crate::v2::dependency::v2_dep::V2Dependency::new(Arc::new(schema_with_oob_ref));
         assert!(dep.lookup_attribute("nonexistent").unwrap().is_none());
-        assert!(dep.lookup_signal("metric", "nonexistent").is_none());
+        assert!(dep
+            .lookup_signal(crate::v2::signals::SignalKind::Metric, "nonexistent")
+            .is_none());
         assert!(dep.importable_spans().is_empty());
         assert!(dep.importable_metrics().is_empty());
         assert!(dep.importable_events().is_empty());

@@ -15,26 +15,15 @@ use weaver_semconv::v2::stability::Stability;
 use weaver_semconv::v2::CommonFields;
 use weaver_semconv::YamlValue;
 
+use super::signals::SignalKind;
 use crate::error::{AttributeRole, Error};
 pub(crate) use crate::graph::merge::merge_annotations;
 use crate::graph::refinement_rules;
 
 /// Strips an optional leading `<kind>.` prefix from a refinement ID.
 #[must_use]
-pub(crate) fn normalize_refinement_id(kind: &str, id: &str) -> SignalId {
-    let prefix = match kind {
-        "metric" => "metric.",
-        "span" => "span.",
-        "event" => "event.",
-        "entity" => "entity.",
-        _ => "",
-    };
-    if !prefix.is_empty() {
-        if let Some(stripped) = id.strip_prefix(prefix) {
-            return SignalId::from(stripped);
-        }
-    }
-    SignalId::from(id)
+pub(crate) fn normalize_refinement_id(kind: SignalKind, id: &str) -> SignalId {
+    kind.normalize_id(id)
 }
 
 /// Uses `refinement_brief` when non-empty; otherwise inherits `parent_brief`.
@@ -400,25 +389,37 @@ mod tests {
     #[test]
     fn test_normalize_refinement_id() {
         assert_eq!(
-            &*normalize_refinement_id("metric", "metric.foo.bar"),
+            &*normalize_refinement_id(SignalKind::Metric, "metric.foo.bar"),
             "foo.bar"
         );
-        assert_eq!(&*normalize_refinement_id("span", "span.my_span"), "my_span");
         assert_eq!(
-            &*normalize_refinement_id("event", "event.user.login"),
+            &*normalize_refinement_id(SignalKind::Span, "span.my_span"),
+            "my_span"
+        );
+        assert_eq!(
+            &*normalize_refinement_id(SignalKind::Event, "event.user.login"),
             "user.login"
         );
         assert_eq!(
-            &*normalize_refinement_id("entity", "entity.host.vm"),
+            &*normalize_refinement_id(SignalKind::Entity, "entity.host.vm"),
             "host.vm"
         );
 
         // Non-prefixed ids are preserved
-        assert_eq!(&*normalize_refinement_id("metric", "foo.bar"), "foo.bar");
-        assert_eq!(&*normalize_refinement_id("entity", "host.vm"), "host.vm");
+        assert_eq!(
+            &*normalize_refinement_id(SignalKind::Metric, "foo.bar"),
+            "foo.bar"
+        );
+        assert_eq!(
+            &*normalize_refinement_id(SignalKind::Entity, "host.vm"),
+            "host.vm"
+        );
 
         // Different kind prefix is NOT stripped
-        assert_eq!(&*normalize_refinement_id("metric", "span.foo"), "span.foo");
+        assert_eq!(
+            &*normalize_refinement_id(SignalKind::Metric, "span.foo"),
+            "span.foo"
+        );
     }
 
     #[test]

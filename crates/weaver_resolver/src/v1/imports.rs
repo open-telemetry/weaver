@@ -1145,11 +1145,11 @@ impl ImportableDependency for ResolvedDependency {
         attribute_catalog: &mut AttributeCatalog,
         cache_lookup: &C,
     ) -> Result<Vec<GroupWithProvenance>, Error> {
-        match self {
-            ResolvedDependency::V1(schema) => {
+        match self.as_schema() {
+            WeaverResolvedSchema::V1(schema) => {
                 schema.import_groups(imports, attribute_catalog, cache_lookup)
             }
-            ResolvedDependency::V2(schema) => {
+            WeaverResolvedSchema::V2(schema) => {
                 schema.import_groups(imports, attribute_catalog, cache_lookup)
             }
         }
@@ -1442,8 +1442,8 @@ mod tests {
     #[test]
     fn test_import_groups_vec() -> Result<(), Box<dyn Error>> {
         let deps = vec![
-            ResolvedDependency::V1(Box::new(example_v1_schema())),
-            ResolvedDependency::V2(Box::new(example_v2_schema())),
+            ResolvedDependency::from(example_v1_schema()),
+            ResolvedDependency::from(example_v2_schema()),
         ];
         let mut catalog = AttributeCatalog::default();
         let schema_url =

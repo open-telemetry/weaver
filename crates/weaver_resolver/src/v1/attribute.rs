@@ -492,8 +492,8 @@ impl AttributeLookup for Vec<ResolvedDependency> {
 
 impl AttributeLookup for ResolvedDependency {
     fn lookup_attribute(&self, key: &str) -> Result<Option<AttributeWithSource>, Error> {
-        match self {
-            ResolvedDependency::V1(schema) => {
+        match self.as_schema() {
+            WeaverResolvedSchema::V1(schema) => {
                 if let Some(mut at) = schema.lookup_attribute(key)? {
                     if let AttributeSource::Local { .. } = at.source {
                         at.source = AttributeSource::Dependency {
@@ -510,7 +510,7 @@ impl AttributeLookup for ResolvedDependency {
                     Ok(None)
                 }
             }
-            ResolvedDependency::V2(schema) => schema.lookup_attribute(key),
+            WeaverResolvedSchema::V2(schema) => schema.lookup_attribute(key),
         }
     }
 }
@@ -837,8 +837,8 @@ mod tests {
             dependencies: Default::default(),
         };
 
-        let dep1 = ResolvedDependency::V2(Box::new(schema1));
-        let dep2 = ResolvedDependency::V2(Box::new(schema2));
+        let dep1 = ResolvedDependency::from(schema1);
+        let dep2 = ResolvedDependency::from(schema2);
 
         let deps = vec![dep1, dep2];
 
@@ -937,8 +937,8 @@ mod tests {
             dependencies: Default::default(),
         };
 
-        let dep1 = ResolvedDependency::V1(Box::new(schema_v1));
-        let dep2 = ResolvedDependency::V2(Box::new(schema_v2));
+        let dep1 = ResolvedDependency::from(schema_v1);
+        let dep2 = ResolvedDependency::from(schema_v2);
 
         let deps = vec![dep1, dep2];
 
@@ -1014,8 +1014,8 @@ mod tests {
         let excluded = v2_schema_with_attr("http://test/schema/excluded", "error.type", true);
         let visible = v2_schema_with_attr("http://test/schema/visible", "error.type", false);
         let deps = vec![
-            ResolvedDependency::V2(Box::new(excluded)),
-            ResolvedDependency::V2(Box::new(visible)),
+            ResolvedDependency::from(excluded),
+            ResolvedDependency::from(visible),
         ];
 
         let found = deps

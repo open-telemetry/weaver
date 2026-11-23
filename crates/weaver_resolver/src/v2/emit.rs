@@ -24,7 +24,7 @@ use weaver_semconv::v2::attribute::RequirementLevel;
 use weaver_semconv::v2::signal_id::SignalId;
 
 use super::attributes::FinalCatalog;
-use super::groups::ExpandedGroups;
+use super::groups::{ExpandedGroups, ResolvedPublicGroup};
 use super::imports::ImportedItems;
 use super::refinements::ResolvedRefinements;
 use super::signals::{
@@ -64,6 +64,24 @@ fn emit_resolved_associations(assocs: &EntityAssociations) -> Vec<ResolvedEntity
     match assocs {
         EntityAssociations::Resolved(resolved) => resolved.clone(),
         EntityAssociations::Raw(_) => Vec::new(),
+    }
+}
+
+/// Converts a `ResolvedPublicGroup` into a schema-ready `V2AttributeGroup`.
+fn emit_attribute_group(cat: &FinalCatalog, g: &ResolvedPublicGroup) -> V2AttributeGroup {
+    let attributes = emit_attribute_refs(
+        cat,
+        g.attributes.iter().map(|(a, req)| (a, req)),
+        |base, requirement_level| AttributeGroupAttributeRef {
+            base,
+            requirement_level,
+        },
+    );
+    V2AttributeGroup {
+        id: g.id.clone(),
+        attributes,
+        common: g.common.clone(),
+        provenance: g.provenance.clone(),
     }
 }
 
@@ -191,152 +209,44 @@ pub(crate) fn schema(
 ) -> V2Schema {
     let registry_attributes = cat.local_def_attribute_refs();
 
-    let mut attribute_groups = Vec::with_capacity(
-        groups.public_groups().len()
-            + imported
-                .attribute_groups
-                .iter()
-                .filter(|ag| ag.is_public)
-                .count(),
-    );
-    for g in groups.public_groups() {
-        let attributes = emit_attribute_refs(
-            &cat,
-            g.attributes.iter().map(|(a, req)| (a, req)),
-            |base, requirement_level| AttributeGroupAttributeRef {
-                base,
-                requirement_level,
-            },
-        );
-        attribute_groups.push(V2AttributeGroup {
-            id: g.id.clone(),
-            attributes,
-            common: g.common.clone(),
-            provenance: g.provenance.clone(),
-        });
-    }
-    for ag in imported.attribute_groups {
-        if ag.is_public {
-            let attributes = emit_attribute_refs(
-                &cat,
-                ag.attributes.iter().map(|(a, req, _, _)| (a, req)),
-                |base, requirement_level| AttributeGroupAttributeRef {
-                    base,
-                    requirement_level,
-                },
-            );
-            attribute_groups.push(V2AttributeGroup {
-                id: ag.id,
-                attributes,
-                common: ag.common,
-                provenance: ag.provenance,
-            });
-        }
-    }
+    let mut attribute_groups: Vec<V2AttributeGroup> = groups
+        .public_groups()
+        .iter()
+        .chain(imported.attribute_groups.iter())
+        .map(|g| emit_attribute_group(&cat, g))
+        .collect();
     attribute_groups.sort_by(|a, b| a.id.cmp(&b.id));
 
-    let mut metrics = Vec::with_capacity(signals.metrics.len() + imported.metrics.len());
-    metrics.extend(signals.metrics.into_iter().map(|m| emit_metric(&cat, m)));
-    for m in imported.metrics {
-        let attributes = emit_attribute_refs(
-            &cat,
-            m.attributes.iter().map(|(a, req, _, _)| (a, req)),
-            |base, requirement_level| MetricAttributeRef {
-                base,
-                requirement_level,
-            },
-        );
-        let entity_associations = emit_resolved_associations(&m.entity_associations);
-        metrics.push(V2Metric {
-            name: m.name,
-            instrument: m.instrument,
-            unit: m.unit,
-            attributes,
-            entity_associations,
-            requirement_level: m.requirement_level,
-            common: m.common,
-            provenance: m.provenance,
-        });
-    }
+    let mut metrics: Vec<V2Metric> = signals
+        .metrics
+        .into_iter()
+        .chain(imported.metrics.into_iter().map(|i| i.item))
+        .map(|m| emit_metric(&cat, m))
+        .collect();
     metrics.sort_by(|a, b| a.name.cmp(&b.name));
 
-    let mut spans = Vec::with_capacity(signals.spans.len() + imported.spans.len());
-    spans.extend(signals.spans.into_iter().map(|s| emit_span(&cat, s)));
-    for s in imported.spans {
-        let attributes = emit_span_attribute_refs(
-            &cat,
-            s.attributes
-                .iter()
-                .map(|(a, req, samp, _, _)| (a, req, *samp)),
-        );
-        let entity_associations = emit_resolved_associations(&s.entity_associations);
-        spans.push(V2Span {
-            r#type: s.r#type,
-            kind: s.kind,
-            name: s.name,
-            attributes,
-            entity_associations,
-            requirement_level: s.requirement_level,
-            common: s.common,
-            provenance: s.provenance,
-        });
-    }
+    let mut spans: Vec<V2Span> = signals
+        .spans
+        .into_iter()
+        .chain(imported.spans.into_iter().map(|i| i.item))
+        .map(|s| emit_span(&cat, s))
+        .collect();
     spans.sort_by(|a, b| a.r#type.cmp(&b.r#type));
 
-    let mut events = Vec::with_capacity(signals.events.len() + imported.events.len());
-    events.extend(signals.events.into_iter().map(|e| emit_event(&cat, e)));
-    for e in imported.events {
-        let attributes = emit_attribute_refs(
-            &cat,
-            e.attributes.iter().map(|(a, req, _, _)| (a, req)),
-            |base, requirement_level| EventAttributeRef {
-                base,
-                requirement_level,
-            },
-        );
-        let entity_associations = emit_resolved_associations(&e.entity_associations);
-        events.push(V2Event {
-            name: e.name,
-            attributes,
-            entity_associations,
-            requirement_level: e.requirement_level,
-            common: e.common,
-            provenance: e.provenance,
-        });
-    }
+    let mut events: Vec<V2Event> = signals
+        .events
+        .into_iter()
+        .chain(imported.events.into_iter().map(|i| i.item))
+        .map(|e| emit_event(&cat, e))
+        .collect();
     events.sort_by(|a, b| a.name.cmp(&b.name));
 
-    let mut entities = Vec::with_capacity(signals.entities.len() + imported.entities.len());
-    entities.extend(
-        signals
-            .entities
-            .into_iter()
-            .map(|en| emit_entity(&cat, en, true)),
-    );
-    for en in imported.entities {
-        let mut identity: Vec<AttributeRef> = en
-            .identity
-            .iter()
-            .map(|(attr, _, _)| cat.attribute_ref(attr))
-            .collect();
-        identity.sort();
-        let description = emit_attribute_refs(
-            &cat,
-            en.description.iter().map(|(a, req, _, _)| (a, req)),
-            |base, requirement_level| EntityAttributeRef {
-                base,
-                requirement_level,
-            },
-        );
-        entities.push(V2Entity {
-            r#type: en.r#type,
-            identity,
-            description,
-            requirement_level: en.requirement_level,
-            common: en.common,
-            provenance: en.provenance,
-        });
-    }
+    let mut entities: Vec<V2Entity> = signals
+        .entities
+        .into_iter()
+        .chain(imported.entities.into_iter().map(|i| i.item))
+        .map(|en| emit_entity(&cat, en, true))
+        .collect();
     entities.sort_by(|a, b| a.r#type.cmp(&b.r#type));
 
     let metric_refinements = emit_refinement_list(
