@@ -259,10 +259,10 @@ impl WeaverResolver {
         )
     }
 
-    /// Records the direct dependencies of `schema_url` if not already recorded, preserving
-    /// version-arbitrated entries.
+    /// Records the direct dependencies of `schema_url` if non-empty and not already recorded,
+    /// preserving version-arbitrated entries.
     fn record_direct_dependencies(&mut self, schema_url: &SchemaUrl, direct: Vec<SchemaUrl>) {
-        if self.direct_dependencies.contains_key(schema_url) {
+        if direct.is_empty() || self.direct_dependencies.contains_key(schema_url) {
             return;
         }
         let _ = self.direct_dependencies.insert(schema_url.clone(), direct);
@@ -1303,15 +1303,16 @@ mod tests {
             .schema_cache_for(&resolved)
             .into_result_failing_non_fatal()
             .expect("schema_cache_for succeeded");
+        let root_url = SchemaUrl::try_from("https://example.com/root/1.0.0").unwrap();
         assert!(cache.get(&mid_url).is_some(), "mid should be in cache");
         assert!(
             cache.get(&leaf_url).is_some(),
             "overridden transitive leaf should be materialized in cache"
         );
         assert_eq!(
-            cache.direct_dependencies(&leaf_url),
-            Some(&[][..]),
-            "published leaf should retain empty direct_dependencies"
+            cache.direct_dependencies(&root_url),
+            Some(std::slice::from_ref(&mid_url)),
+            "root should retain direct dependency edge to mid"
         );
     }
 }
