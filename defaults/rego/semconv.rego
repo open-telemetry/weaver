@@ -87,11 +87,22 @@ entity_refs(association) := {node |
 }
 
 # The registry that defines the entity a reference names.
+# Follows `dependency_graph` upgrade edges if `provenance.source` holds a
+# pre-arbitration declared URL.
 defining_registry(ref) := input if {
     not ref.provenance.source
 }
 
-defining_registry(ref) := input.dependencies[ref.provenance.source]
+defining_registry(ref) := dep if {
+    dep := input.dependencies[ref.provenance.source]
+}
+
+defining_registry(ref) := input.dependencies[edge.schema_url] if {
+    not input.dependencies[ref.provenance.source]
+    some edges in input.dependency_graph
+    some edge in edges
+    edge.upgraded_from == ref.provenance.source
+}
 
 # The entity definition a reference names. A reference names an entity type or
 # the id of an entity refinement. The entity type wins, as it does in weaver.

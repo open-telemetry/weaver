@@ -16,7 +16,7 @@ use crate::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::iter;
 use weaver_common::result::WResult;
 use weaver_resolved_schema::v2::{
@@ -47,10 +47,67 @@ pub struct ForgeResolvedRegistry {
     /// schema url.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub dependencies: BTreeMap<SchemaUrl, ForgeDependency>,
-    /// The direct dependencies of each registry, this one included. A registry
+    /// The direct dependencies of each registry, this one included. Each edge
+    /// records the resolved (chosen) `schema_url` and, when dependency version
+    /// arbitration upgraded the declared version, `upgraded_from`. A registry
     /// with no entry has unknown dependencies, not none.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub dependency_graph: BTreeMap<SchemaUrl, Vec<SchemaUrl>>,
+    pub dependency_graph: BTreeMap<SchemaUrl, Vec<DependencyEdge>>,
+}
+
+/// A directed edge in [`ForgeResolvedRegistry::dependency_graph`].
+///
+/// `schema_url` is always the resolved (chosen) dependency URL after version
+/// arbitration. When dependency resolution upgraded the originally declared
+/// version to a higher compatible version, `upgraded_from` records the
+/// declared URL before arbitration.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DependencyEdge {
+    /// The resolved (chosen) schema URL of the direct dependency.
+    pub schema_url: SchemaUrl,
+    /// The originally declared schema URL when dependency resolution upgraded
+    /// it to `schema_url`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upgraded_from: Option<SchemaUrl>,
+}
+
+impl DependencyEdge {
+    /// Creates an edge whose resolved schema URL matches the declared URL.
+    #[must_use]
+    pub fn new(schema_url: SchemaUrl) -> Self {
+        Self {
+            schema_url,
+            upgraded_from: None,
+        }
+    }
+
+    /// Creates an edge recording that `upgraded_from` was upgraded to `schema_url`.
+    #[must_use]
+    pub fn upgraded(schema_url: SchemaUrl, upgraded_from: SchemaUrl) -> Self {
+        Self {
+            schema_url,
+            upgraded_from: Some(upgraded_from),
+        }
+    }
+
+    /// Returns the originally declared schema URL for this dependency edge.
+    #[must_use]
+    pub fn declared_schema_url(&self) -> &SchemaUrl {
+        self.upgraded_from.as_ref().unwrap_or(&self.schema_url)
+    }
+
+    /// Returns `true` when dependency resolution upgraded this edge from its declared version.
+    #[must_use]
+    pub fn is_upgraded(&self) -> bool {
+        self.upgraded_from.is_some()
+    }
+}
+
+impl From<SchemaUrl> for DependencyEdge {
+    fn from(schema_url: SchemaUrl) -> Self {
+        Self::new(schema_url)
+    }
 }
 
 /// A dependency of a [`ForgeResolvedRegistry`], stored under its schema url.
@@ -119,9 +176,21 @@ pub struct Refinements {
     pub entities: Vec<EntityRefinement>,
 }
 
+/// Returns the chosen URL from `chosen_by_major` when `declared` has a valid
+/// SemVer version in the same registry and major series that was superseded by
+/// a different chosen URL.
+fn find_upgraded_url<'a>(
+    declared: &SchemaUrl,
+    chosen_by_major: &'a HashMap<(String, u64), SchemaUrl>,
+) -> Option<&'a SchemaUrl> {
+    let declared_ver = declared.semver().ok()?;
+    let chosen = chosen_by_major.get(&(declared.name().to_owned(), declared_ver.major))?;
+    (chosen != declared).then_some(chosen)
+}
+
 /// Computes the shortest directed path length from `start` to `target` in `graph`.
 fn distance_in_dependency_graph(
-    graph: &BTreeMap<SchemaUrl, Vec<SchemaUrl>>,
+    graph: &BTreeMap<SchemaUrl, Vec<DependencyEdge>>,
     start: &SchemaUrl,
     target: &SchemaUrl,
 ) -> Option<usize> {
@@ -135,12 +204,12 @@ fn distance_in_dependency_graph(
 
     while let Some((curr, dist)) = queue.pop_front() {
         if let Some(directs) = graph.get(curr) {
-            for next in directs {
-                if next == target {
+            for edge in directs {
+                if &edge.schema_url == target || edge.upgraded_from.as_ref() == Some(target) {
                     return Some(dist + 1);
                 }
-                if visited.insert(next) {
-                    queue.push_back((next, dist + 1));
+                if visited.insert(&edge.schema_url) {
+                    queue.push_back((&edge.schema_url, dist + 1));
                 }
             }
         }
@@ -149,6 +218,30 @@ fn distance_in_dependency_graph(
 }
 
 impl ForgeResolvedRegistry {
+    /// Resolves `url` to the chosen dependency URL in this registry.
+    ///
+    /// If `url` is an originally declared version that was upgraded during
+    /// dependency resolution, returns the chosen `schema_url` from
+    /// [`Self::dependency_graph`]; otherwise returns `url` unchanged.
+    #[must_use]
+    pub fn resolve_dependency_url<'a>(&'a self, url: &'a SchemaUrl) -> &'a SchemaUrl {
+        if self.dependencies.contains_key(url) {
+            return url;
+        }
+        self.dependency_graph
+            .values()
+            .flatten()
+            .find(|edge| edge.upgraded_from.as_ref() == Some(url))
+            .map_or(url, |edge| &edge.schema_url)
+    }
+
+    /// Looks up a dependency by either its chosen [`SchemaUrl`] or an
+    /// originally declared URL that was upgraded during resolution.
+    #[must_use]
+    pub fn lookup_dependency(&self, url: &SchemaUrl) -> Option<&ForgeDependency> {
+        self.dependencies.get(self.resolve_dependency_url(url))
+    }
+
     /// Returns dependencies that transitively depend on `target_url`, ordered nearest-first.
     fn candidate_dependencies_for_target(
         &self,
@@ -172,8 +265,9 @@ impl ForgeResolvedRegistry {
             .collect()
     }
 
-    /// Resolves `entity_ref` to its [`Entity`] definition, falling back to loaded dependencies in
-    /// `dependency_graph` ordered nearest-first when the source registry is not directly loaded.
+    /// Resolves `entity_ref` to its [`Entity`] definition, following upgraded dependency URLs
+    /// and falling back to loaded dependencies in `dependency_graph` ordered nearest-first when
+    /// the source registry is not directly loaded.
     pub fn lookup_entity(&self, entity_ref: &EntityRef) -> Result<&Entity, Error> {
         let target_url = match &entity_ref.provenance.source {
             None => {
@@ -186,7 +280,9 @@ impl ForgeResolvedRegistry {
             Some(url) => url,
         };
 
-        if let Some(dep) = self.dependencies.get(target_url) {
+        let effective_url = self.resolve_dependency_url(target_url);
+
+        if let Some(dep) = self.dependencies.get(effective_url) {
             if let Some(entity) =
                 defined_entity(&dep.registry, &dep.refinements, &entity_ref.r#type)
             {
@@ -194,13 +290,18 @@ impl ForgeResolvedRegistry {
             }
         }
 
-        let candidate_deps = self.candidate_dependencies_for_target(target_url);
+        let candidate_deps = self.candidate_dependencies_for_target(effective_url);
 
         for (_dep_url, dep) in &candidate_deps {
             if let Some(entity) =
                 defined_entity(&dep.registry, &dep.refinements, &entity_ref.r#type)
             {
-                if entity.provenance.source.as_ref() == Some(target_url) {
+                if entity
+                    .provenance
+                    .source
+                    .as_ref()
+                    .is_some_and(|s| s == effective_url || s == target_url)
+                {
                     return Ok(entity);
                 }
             }
@@ -230,7 +331,7 @@ impl ForgeResolvedRegistry {
         let mut queue: VecDeque<&SchemaUrl> = self
             .dependency_graph
             .get(&self.schema_url)
-            .map(|direct| direct.iter().collect())
+            .map(|direct| direct.iter().map(|edge| &edge.schema_url).collect())
             .unwrap_or_default();
 
         while let Some(url) = queue.pop_front() {
@@ -241,7 +342,7 @@ impl ForgeResolvedRegistry {
                 ordered.push(entry);
             }
             if let Some(direct) = self.dependency_graph.get(url) {
-                queue.extend(direct.iter());
+                queue.extend(direct.iter().map(|edge| &edge.schema_url));
             }
         }
 
@@ -263,6 +364,18 @@ impl ForgeResolvedRegistry {
     ) -> WResult<Self, Error> {
         let mut non_fatal_errors = Vec::new();
         let schema_url = schema.schema_url.clone();
+        // The root schema's `dependencies` set holds the arbitrated (chosen) version for
+        // each dependency `(registry_name, major_version)`. Seed `chosen_by_major` from it so
+        // superseded versions declared by intermediate dependencies are not materialized alongside
+        // the chosen one and are recorded as `upgraded_from` edges in `dependency_graph`.
+        let mut chosen_by_major: HashMap<(String, u64), SchemaUrl> = schema
+            .dependencies
+            .iter()
+            .filter_map(|url| {
+                let ver = url.semver().ok()?;
+                Some(((url.name().to_owned(), ver.major), url.clone()))
+            })
+            .collect();
         let mut pending: Vec<SchemaUrl> = schema.dependencies.iter().cloned().collect();
 
         let (registry, refinements) = match Self::materialize(schema) {
@@ -295,13 +408,22 @@ impl ForgeResolvedRegistry {
                     }
                 }
             };
-            pending.extend(
-                dep_schema
-                    .dependencies
-                    .iter()
-                    .filter(|url| !dependencies.contains_key(*url))
-                    .cloned(),
-            );
+            for sub_url in &dep_schema.dependencies {
+                let effective_url =
+                    if let Some(chosen) = find_upgraded_url(sub_url, &chosen_by_major) {
+                        chosen.clone()
+                    } else {
+                        if let Ok(ver) = sub_url.semver() {
+                            let _ = chosen_by_major
+                                .entry((sub_url.name().to_owned(), ver.major))
+                                .or_insert_with(|| sub_url.clone());
+                        }
+                        sub_url.clone()
+                    };
+                if !dependencies.contains_key(&effective_url) {
+                    pending.push(effective_url);
+                }
+            }
 
             let (dep_registry, dep_refinements) = match Self::materialize(dep_schema) {
                 Ok(parts) => parts,
@@ -316,12 +438,23 @@ impl ForgeResolvedRegistry {
             );
         }
 
+        let resolve_edge = |declared: &SchemaUrl| -> DependencyEdge {
+            if dependencies.contains_key(declared) {
+                return DependencyEdge::new(declared.clone());
+            }
+            match find_upgraded_url(declared, &chosen_by_major) {
+                Some(chosen) => DependencyEdge::upgraded(chosen.clone(), declared.clone()),
+                None => DependencyEdge::new(declared.clone()),
+            }
+        };
+
         let dependency_graph = iter::once(&schema_url)
             .chain(dependencies.keys())
             .filter_map(|url| {
-                resolver
-                    .direct_dependencies(url)
-                    .map(|direct| (url.clone(), direct.to_vec()))
+                resolver.direct_dependencies(url).map(|direct| {
+                    let edges = direct.iter().map(resolve_edge).collect();
+                    (url.clone(), edges)
+                })
             })
             .collect();
 
@@ -1933,7 +2066,7 @@ pub(crate) mod tests {
         forge
             .dependency_graph
             .get(&url(of))
-            .map(|deps| deps.iter().map(SchemaUrl::to_string).collect())
+            .map(|deps| deps.iter().map(|e| e.schema_url.to_string()).collect())
     }
 
     /// Loads a `data/dependency_tree` registry and builds its forge registry.
@@ -2144,8 +2277,8 @@ pub(crate) mod tests {
         assert_eq!(
             forge.dependency_graph,
             BTreeMap::from([
-                (root_url, vec![middle_url.clone()]),
-                (middle_url, vec![leaf_url.clone()]),
+                (root_url, vec![DependencyEdge::new(middle_url.clone())]),
+                (middle_url, vec![DependencyEdge::new(leaf_url.clone())]),
                 (leaf_url, vec![]),
             ])
         );
@@ -2515,8 +2648,14 @@ pub(crate) mod tests {
         assert_eq!(
             forge_registry.dependency_graph,
             BTreeMap::from([
-                (root_url.clone(), vec![dep_a_url.clone()]),
-                (dep_a_url.clone(), vec![dep_b_url.clone()]),
+                (
+                    root_url.clone(),
+                    vec![DependencyEdge::new(dep_a_url.clone())]
+                ),
+                (
+                    dep_a_url.clone(),
+                    vec![DependencyEdge::new(dep_b_url.clone())]
+                ),
             ])
         );
 
@@ -2597,8 +2736,11 @@ pub(crate) mod tests {
                 (base_url.clone(), test_dependency(&["host"])),
             ]),
             dependency_graph: BTreeMap::from([
-                (main_url, vec![middle_url.clone()]),
-                (middle_url.clone(), vec![base_url.clone()]),
+                (main_url, vec![DependencyEdge::new(middle_url.clone())]),
+                (
+                    middle_url.clone(),
+                    vec![DependencyEdge::new(base_url.clone())],
+                ),
             ]),
         };
         (middle_url, base_url, main)
@@ -2839,8 +2981,11 @@ pub(crate) mod tests {
             },
             dependencies: BTreeMap::from([(direct_url.clone(), direct_dep)]),
             dependency_graph: BTreeMap::from([
-                (main_url, vec![direct_url.clone()]),
-                (direct_url.clone(), vec![absent_transitive_url.clone()]),
+                (main_url, vec![DependencyEdge::new(direct_url.clone())]),
+                (
+                    direct_url.clone(),
+                    vec![DependencyEdge::new(absent_transitive_url.clone())],
+                ),
             ]),
         };
 
@@ -2976,7 +3121,7 @@ pub(crate) mod tests {
         assert!(forge_registry.dependencies.contains_key(&b_url));
         assert_eq!(
             forge_registry.dependency_graph.get(&b_url),
-            Some(&vec![c_url.clone()])
+            Some(&vec![DependencyEdge::new(c_url.clone())])
         );
 
         let leaf = match &forge_registry.registry.spans[0].entity_associations[0] {
@@ -3046,5 +3191,166 @@ pub(crate) mod tests {
             forge_registry.registry.attribute_groups[1].id,
             "z_group".into()
         );
+    }
+
+    #[test]
+    fn test_dependency_graph_records_upgraded_edges_and_supports_lookups() {
+        let main_url = url("https://example.com/main/1.0.0");
+        let a_url = url("https://example.com/a/1.0.0");
+        let b_url = url("https://example.com/b/1.0.0");
+        let c_100 = url("https://example.com/c/1.0.0");
+        let c_110 = url("https://example.com/c/1.1.0");
+        let c_120 = url("https://example.com/c/1.2.0");
+
+        let c_120_entity = entity::Entity {
+            r#type: "host".to_owned().into(),
+            identity: vec![],
+            description: vec![],
+            requirement_level: None,
+            common: CommonFields {
+                brief: "host from c 1.2.0".to_owned(),
+                ..Default::default()
+            },
+            provenance: provenance::Provenance::default(),
+        };
+        let mut c_120_schema = empty_schema(&c_120, BTreeSet::new());
+        c_120_schema.registry.entities.push(c_120_entity);
+
+        let a_schema = empty_schema(&a_url, [c_110.clone()].into_iter().collect());
+        let b_schema = empty_schema(&b_url, [c_120.clone()].into_iter().collect());
+        let main_schema = empty_schema(
+            &main_url,
+            [a_url.clone(), b_url.clone(), c_120.clone()]
+                .into_iter()
+                .collect(),
+        );
+
+        let mut mock_resolver = MockSchemaResolver::new();
+        // Even if superseded versions remain in cache, only the chosen c@1.2.0 should be materialized.
+        mock_resolver.add_v2_schema(empty_schema(&c_100, BTreeSet::new()));
+        mock_resolver.add_v2_schema(empty_schema(&c_110, BTreeSet::new()));
+        mock_resolver.add_v2_schema(c_120_schema);
+        mock_resolver.add_v2_schema(a_schema);
+        mock_resolver.add_v2_schema(b_schema);
+        mock_resolver.add_direct_dependencies(
+            main_url.clone(),
+            vec![a_url.clone(), b_url.clone(), c_100.clone()],
+        );
+        mock_resolver.add_direct_dependencies(a_url.clone(), vec![c_110.clone()]);
+        mock_resolver.add_direct_dependencies(b_url.clone(), vec![c_120.clone()]);
+        mock_resolver.add_direct_dependencies(c_120.clone(), vec![]);
+
+        let forge = match ForgeResolvedRegistry::try_from_resolved_schema(
+            main_schema,
+            &mut mock_resolver,
+        ) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
+        };
+
+        assert_eq!(
+            forge.dependencies.keys().cloned().collect::<Vec<_>>(),
+            vec![a_url.clone(), b_url.clone(), c_120.clone()]
+        );
+
+        assert_eq!(
+            forge.dependency_graph,
+            BTreeMap::from([
+                (
+                    main_url.clone(),
+                    vec![
+                        DependencyEdge::new(a_url.clone()),
+                        DependencyEdge::new(b_url.clone()),
+                        DependencyEdge::upgraded(c_120.clone(), c_100.clone()),
+                    ],
+                ),
+                (
+                    a_url.clone(),
+                    vec![DependencyEdge::upgraded(c_120.clone(), c_110.clone())],
+                ),
+                (b_url.clone(), vec![DependencyEdge::new(c_120.clone())]),
+                (c_120.clone(), vec![]),
+            ])
+        );
+
+        // Nearest-first traversal follows resolved edges without dangling on c@1.0.0.
+        assert_eq!(
+            nearest_first(&forge),
+            vec![a_url.to_string(), b_url.to_string(), c_120.to_string()]
+        );
+
+        // Dependency and entity lookups work with both chosen and pre-upgrade declared URLs.
+        assert_eq!(forge.resolve_dependency_url(&c_120), &c_120);
+        assert_eq!(forge.resolve_dependency_url(&c_110), &c_120);
+        assert_eq!(forge.resolve_dependency_url(&c_100), &c_120);
+        assert!(forge.lookup_dependency(&c_120).is_some());
+        assert!(forge.lookup_dependency(&c_110).is_some());
+        assert!(forge.lookup_dependency(&c_100).is_some());
+
+        for source in [&c_120, &c_110, &c_100] {
+            let entity_ref = EntityRef {
+                r#type: "host".to_owned().into(),
+                provenance: Provenance {
+                    source: Some(source.clone()),
+                    path: None,
+                },
+            };
+            let found = forge
+                .lookup_entity(&entity_ref)
+                .expect("entity should resolve through chosen or declared URL");
+            assert_eq!(found.common.brief, "host from c 1.2.0");
+        }
+
+        // Verify JSON serialization omits `upgraded_from` on non-upgraded edges and includes it on upgraded ones.
+        let json_val = serde_json::to_value(&forge).expect("serialize");
+        let main_edges = json_val["dependency_graph"][main_url.as_str()]
+            .as_array()
+            .expect("main edges array");
+        assert!(main_edges[0].get("upgraded_from").is_none());
+        assert_eq!(main_edges[2]["schema_url"], c_120.as_str());
+        assert_eq!(main_edges[2]["upgraded_from"], c_100.as_str());
+
+        let round_trip: ForgeResolvedRegistry =
+            serde_json::from_value(json_val).expect("deserialize");
+        assert_eq!(round_trip, forge);
+    }
+
+    #[test]
+    fn test_dependency_graph_records_cross_scheme_upgrade() {
+        let main_url = url("https://example.com/main/1.0.0");
+        let a_url = url("https://example.com/a/1.0.0");
+        let c_https = url("https://example.com/c/1.0.0");
+        let c_http = url("http://example.com/c/1.1.0");
+
+        let main_schema = empty_schema(
+            &main_url,
+            [a_url.clone(), c_http.clone()].into_iter().collect(),
+        );
+        let a_schema = empty_schema(&a_url, [c_http.clone()].into_iter().collect());
+
+        let mut mock_resolver = MockSchemaResolver::new();
+        mock_resolver.add_v2_schema(a_schema);
+        mock_resolver.add_v2_schema(empty_schema(&c_http, BTreeSet::new()));
+        mock_resolver
+            .add_direct_dependencies(main_url.clone(), vec![a_url.clone(), c_https.clone()]);
+        mock_resolver.add_direct_dependencies(a_url.clone(), vec![c_http.clone()]);
+        mock_resolver.add_direct_dependencies(c_http.clone(), vec![]);
+
+        let forge = match ForgeResolvedRegistry::try_from_resolved_schema(
+            main_schema,
+            &mut mock_resolver,
+        ) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
+        };
+
+        assert_eq!(
+            forge.dependency_graph.get(&main_url),
+            Some(&vec![
+                DependencyEdge::new(a_url),
+                DependencyEdge::upgraded(c_http.clone(), c_https.clone()),
+            ])
+        );
+        assert_eq!(forge.resolve_dependency_url(&c_https), &c_http);
     }
 }
