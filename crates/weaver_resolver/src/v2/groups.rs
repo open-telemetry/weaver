@@ -768,7 +768,7 @@ attribute_groups:
             WResult::FatalErr(e) => panic!("fatal: {e}"),
         };
 
-        let (index, _) = crate::v2::index::build(&[spec]).unwrap();
+        let index = crate::v2::index::build(&[spec]).unwrap();
         let empty_deps =
             crate::v2::dependency::V2Dependencies::new(vec![], std::collections::BTreeSet::new());
         let mut catalog = Catalog::new(&empty_deps, &());

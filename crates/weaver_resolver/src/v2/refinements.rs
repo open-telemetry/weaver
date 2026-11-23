@@ -433,19 +433,15 @@ fn inherit_common_fields(
     }
 }
 
-/// Replaces parent entity associations when `override_assocs` is non-empty, or inherits parent associations.
+/// Replaces parent entity associations when `override_assocs` is `Some`, or inherits parent associations when `None`.
 fn inherit_entity_associations(
-    override_assocs: &[SemconvEntityAssociation],
+    override_assocs: Option<&[SemconvEntityAssociation]>,
     parent_assocs: EntityAssociations,
     parent_origins: BTreeMap<String, SchemaUrl>,
 ) -> (EntityAssociations, BTreeMap<String, SchemaUrl>) {
-    if override_assocs.is_empty() {
-        (parent_assocs, parent_origins)
-    } else {
-        (
-            EntityAssociations::Raw(override_assocs.to_vec()),
-            BTreeMap::new(),
-        )
+    match override_assocs {
+        None => (parent_assocs, parent_origins),
+        Some(list) => (EntityAssociations::Raw(list.to_vec()), BTreeMap::new()),
     }
 }
 
@@ -745,7 +741,7 @@ impl RefinementKindSpec for MetricRefinementSpec {
             warnings,
         )?;
         let (entity_associations, association_origins) = inherit_entity_associations(
-            &m_ref.entity_associations,
+            m_ref.entity_associations.as_deref(),
             parent.entity_associations,
             parent.association_origins,
         );
@@ -886,7 +882,7 @@ impl RefinementKindSpec for SpanRefinementSpec {
         }
 
         let (entity_associations, association_origins) = inherit_entity_associations(
-            &s_ref.entity_associations,
+            s_ref.entity_associations.as_deref(),
             parent.entity_associations,
             parent.association_origins,
         );
@@ -1007,7 +1003,7 @@ impl RefinementKindSpec for EventRefinementSpec {
             warnings,
         )?;
         let (entity_associations, association_origins) = inherit_entity_associations(
-            &e_ref.entity_associations,
+            e_ref.entity_associations.as_deref(),
             parent.entity_associations,
             parent.association_origins,
         );

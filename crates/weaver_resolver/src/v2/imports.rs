@@ -5,6 +5,7 @@
 use globset::{GlobSet, GlobSetBuilder};
 use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap, HashSet};
+use weaver_common::error::handle_errors;
 use weaver_resolved_schema::v2::attribute::Attribute;
 use weaver_resolved_schema::v2::provenance::Provenance as SchemaProvenance;
 use weaver_semconv::provenance::Provenance as SemconvProvenance;
@@ -18,7 +19,7 @@ use super::dependency::{
     DepImportedSpan, DependencyAdapter, V2Dependencies,
 };
 use super::groups::ExpandedGroups;
-use super::index::IndexedImports;
+use super::index::{Index, Indexed, IndexedImports};
 use super::signals::ResolvedSignals;
 use crate::error::Error;
 use crate::graph::chosen_versions::{
@@ -547,9 +548,31 @@ fn collect_rival_warnings(
     }
 }
 
+/// Records a `DuplicateGroupId` error when an imported signal collides with a local refinement ID.
+fn collect_imported_refinement_collisions<I: ImportableDepItem, R>(
+    imported: &[I],
+    local_refinements: &BTreeMap<SignalId, Indexed<R>>,
+    duplicate_group_ids: &mut Vec<Error>,
+) {
+    for item in imported {
+        let key = item.key();
+        if let Some(refinement) = local_refinements.get(key) {
+            duplicate_group_ids.push(Error::DuplicateGroupId {
+                group_id: key.to_string(),
+                provenances: vec![
+                    refinement.provenance.clone(),
+                    SemconvProvenance::new(item.origin().clone(), ""),
+                ],
+            });
+        }
+    }
+}
+
 /// Resolves `imports:` blocks against dependencies, applying version upgrades and deduplication.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn resolve<'a, C: SchemaCacheLookup>(
     schema_url: &SchemaUrl,
+    local_index: &Index,
     local_signals: &ResolvedSignals,
     expanded_groups: &ExpandedGroups,
     imports: &[IndexedImports],
@@ -699,11 +722,34 @@ pub(crate) fn resolve<'a, C: SchemaCacheLookup>(
         &mut duplicate_group_names,
     );
 
-    let mut warnings = Vec::new();
-    warnings.extend(duplicate_group_ids);
-    warnings.extend(duplicate_metric_names);
-    warnings.extend(duplicate_group_names);
+    collect_imported_refinement_collisions(
+        &metrics,
+        local_index.metric_refinements(),
+        &mut duplicate_group_ids,
+    );
+    collect_imported_refinement_collisions(
+        &spans,
+        local_index.span_refinements(),
+        &mut duplicate_group_ids,
+    );
+    collect_imported_refinement_collisions(
+        &events,
+        local_index.event_refinements(),
+        &mut duplicate_group_ids,
+    );
+    collect_imported_refinement_collisions(
+        &entities,
+        local_index.entity_refinements(),
+        &mut duplicate_group_ids,
+    );
 
+    let mut collision_errors = Vec::new();
+    collision_errors.extend(duplicate_group_ids);
+    collision_errors.extend(duplicate_metric_names);
+    collision_errors.extend(duplicate_group_names);
+    handle_errors(collision_errors)?;
+
+    let mut warnings = Vec::new();
     for field in ImportField::all() {
         let patterns = &explicit_patterns_map[&field];
         let matched = &matched_patterns[&field];

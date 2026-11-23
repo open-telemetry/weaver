@@ -50,12 +50,12 @@ pub(crate) fn resolve(
     specs: Vec<SemConvSpecWithProvenance>,
     dependencies: Vec<LoadedSemconvRegistry>,
 ) -> WResult<V2Schema, Error> {
-    let (mut local_index, index_nfes) = match index::build(&specs) {
+    let mut local_index = match index::build(&specs) {
         Ok(idx) => idx,
         Err(e) => return WResult::FatalErr(e),
     };
 
-    let mut non_fatal_errors = index_nfes;
+    let mut non_fatal_errors = Vec::new();
 
     if resolver.include_unreferenced() {
         non_fatal_errors.push(Error::DeprecatedIncludeUnreferencedWarning {});
@@ -137,6 +137,7 @@ pub(crate) fn resolve(
 
     let (mut imported_items, import_warnings) = match imports::resolve(
         &schema_url,
+        &local_index,
         &resolved_signals,
         &expanded_groups,
         local_index.imports(),
@@ -171,7 +172,6 @@ pub(crate) fn resolve(
         resolved_refinements,
         imported_items,
         v2_deps.urls(),
-        &local_index,
     );
 
     if non_fatal_errors.is_empty() {

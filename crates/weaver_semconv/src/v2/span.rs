@@ -493,12 +493,14 @@ pub struct SpanRefinement {
     pub attributes: Vec<SpanRefinementAttributeOrGroupRef>,
     /// Which resources this span should be associated with.
     ///
+    /// When `None` (omitted), inherits the parent span's entity associations.
+    /// When `Some(list)`, replaces the parent's entity associations (an empty list clears them).
+    ///
     /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
     /// entity reference or a nested `one_of`/`all_of` expression.
-    /// Note: This field is currently not propagated during resolution.
     #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub entity_associations: Vec<EntityAssociation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entity_associations: Option<Vec<EntityAssociation>>,
 
     /// Refines the brief description of the signal.
     /// Note: This field is currently not propagated during resolution.

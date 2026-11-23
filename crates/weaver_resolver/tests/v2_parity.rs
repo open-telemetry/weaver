@@ -1381,18 +1381,21 @@ fn test_parity_top_diamond() {
 
 #[test]
 fn test_parity_top_rival_import() {
-    let legacy = resolve_fixture(
+    let _legacy = resolve_fixture(
         "data/entity-assoc-imports/top_rival_import",
         ResolutionTarget::V1,
     )
     .expect("Legacy resolution succeeded");
-    let native = resolve_fixture(
+    let native_err = resolve_fixture(
         "data/entity-assoc-imports/top_rival_import",
         ResolutionTarget::V2,
     )
-    .expect("Native resolution succeeded");
-
-    assert_v2_schema_eq(&native, &legacy);
+    .expect_err("Native V2 treats rival imported definitions as fatal");
+    let msg = native_err.to_string();
+    assert!(
+        msg.contains("entity.host") && msg.contains("host"),
+        "Expected duplicate entity.host / host error, got: {msg}"
+    );
 }
 
 #[test]
@@ -1500,7 +1503,7 @@ fn test_parity_include_unreferenced() {
         }
     };
 
-    let (legacy_schema, legacy_nfes) = resolve_with_include_unref(ResolutionTarget::V1);
+    let (mut legacy_schema, legacy_nfes) = resolve_with_include_unref(ResolutionTarget::V1);
     let (native_schema, native_nfes) = resolve_with_include_unref(ResolutionTarget::V2);
 
     assert!(
@@ -1515,6 +1518,34 @@ fn test_parity_include_unreferenced() {
             .any(|e| matches!(e, Error::DeprecatedIncludeUnreferencedWarning {})),
         "Expected DeprecatedIncludeUnreferencedWarning for Native"
     );
+
+    // Native V2 sorts refinements by normalized `id`, matching forge output order.
+    let metric_ids: Vec<&str> = native_schema
+        .refinements
+        .metrics
+        .iter()
+        .map(|r| r.id.as_ref())
+        .collect();
+    let mut sorted_metric_ids = metric_ids.clone();
+    sorted_metric_ids.sort();
+    assert_eq!(metric_ids, sorted_metric_ids);
+
+    legacy_schema
+        .refinements
+        .metrics
+        .sort_by(|a, b| a.id.cmp(&b.id));
+    legacy_schema
+        .refinements
+        .spans
+        .sort_by(|a, b| a.id.cmp(&b.id));
+    legacy_schema
+        .refinements
+        .events
+        .sort_by(|a, b| a.id.cmp(&b.id));
+    legacy_schema
+        .refinements
+        .entities
+        .sort_by(|a, b| a.id.cmp(&b.id));
 
     assert_v2_schema_eq(&native_schema, &legacy_schema);
 }
@@ -1826,34 +1857,56 @@ metrics:
         path: root_dir.display().to_string(),
     };
 
-    let collect_dups = |target: ResolutionTarget| -> Vec<String> {
-        let mut repo_nfes = Vec::new();
-        let repo = RegistryRepo::try_new(None, &location, &mut repo_nfes).expect("repo");
-        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default().with_target(target));
-        match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
-            WResult::OkWithNFEs(_, nfes) => {
-                let mut dups = Vec::new();
-                for nfe in nfes {
-                    match nfe {
-                        Error::DuplicateGroupId { group_id, .. } => {
-                            dups.push(format!("group:{group_id}"));
+    let collect_dups = |errs: Vec<Error>| -> Vec<String> {
+        let mut dups = Vec::new();
+        for err in errs {
+            match err {
+                Error::DuplicateGroupId { group_id, .. } => {
+                    dups.push(format!("group:{group_id}"));
+                }
+                Error::DuplicateMetricName { metric_name, .. } => {
+                    dups.push(format!("metric:{metric_name}"));
+                }
+                Error::CompoundError(inner) => {
+                    for sub in inner {
+                        match sub {
+                            Error::DuplicateGroupId { group_id, .. } => {
+                                dups.push(format!("group:{group_id}"));
+                            }
+                            Error::DuplicateMetricName { metric_name, .. } => {
+                                dups.push(format!("metric:{metric_name}"));
+                            }
+                            _ => {}
                         }
-                        Error::DuplicateMetricName { metric_name, .. } => {
-                            dups.push(format!("metric:{metric_name}"));
-                        }
-                        _ => {}
                     }
                 }
-                dups.sort();
-                dups
+                _ => {}
             }
-            WResult::FatalErr(e) => panic!("Expected OkWithNFEs for {target:?}, got FatalErr({e})"),
-            WResult::Ok(_) => panic!("Expected OkWithNFEs for {target:?}, got Ok without NFEs"),
         }
+        dups.sort();
+        dups
     };
 
-    let legacy_dups = collect_dups(ResolutionTarget::V1);
-    let native_dups = collect_dups(ResolutionTarget::V2);
+    let mut repo_nfes = Vec::new();
+    let repo = RegistryRepo::try_new(None, &location, &mut repo_nfes).expect("repo");
+    let mut legacy_resolver =
+        WeaverResolver::new(WeaverResolverConfig::default().with_target(ResolutionTarget::V1));
+    let legacy_dups = match legacy_resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
+        WResult::OkWithNFEs(_, nfes) => collect_dups(nfes),
+        WResult::FatalErr(e) => panic!("Expected OkWithNFEs for V1, got FatalErr({e})"),
+        WResult::Ok(_) => panic!("Expected OkWithNFEs for V1, got Ok without NFEs"),
+    };
+
+    let mut repo_nfes = Vec::new();
+    let repo = RegistryRepo::try_new(None, &location, &mut repo_nfes).expect("repo");
+    let mut native_resolver =
+        WeaverResolver::new(WeaverResolverConfig::default().with_target(ResolutionTarget::V2));
+    let native_dups = match native_resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
+        WResult::FatalErr(e) => collect_dups(vec![e]),
+        WResult::Ok(_) | WResult::OkWithNFEs(..) => {
+            panic!("Expected FatalErr for local-vs-imported collision in native V2")
+        }
+    };
 
     assert_eq!(
         legacy_dups,
@@ -2584,7 +2637,7 @@ span_refinements:
 }
 
 #[test]
-fn test_v2_refinement_id_collision_warning() {
+fn test_v2_refinement_id_collision_is_fatal() {
     let dir = tempfile::tempdir().expect("tempdir");
     let reg_dir = dir.path().join("registry");
     std::fs::create_dir_all(&reg_dir).expect("create_dir");
@@ -2604,18 +2657,277 @@ metric_refinements:
 
     let res = resolve_fixture_raw(dir.path().to_str().unwrap(), ResolutionTarget::V2);
     match res {
-        WResult::OkWithNFEs(_, nfes) => {
-            let collision = nfes.iter().find(|e| {
-                matches!(e, Error::DuplicateGroupId { group_id, .. } if group_id == "test.metric")
-            });
-            assert!(
-                collision.is_some(),
-                "Expected DuplicateGroupId for normalized refinement id collision"
-            );
+        WResult::FatalErr(Error::DuplicateGroupId { group_id, .. }) => {
+            assert_eq!(group_id, "test.metric");
         }
-        WResult::FatalErr(other) => panic!("Expected OkWithNFEs, got FatalErr({other})"),
-        WResult::Ok(_) => panic!("Expected OkWithNFEs, got Ok"),
+        WResult::FatalErr(other) => {
+            panic!("Expected FatalErr(DuplicateGroupId), got FatalErr({other})")
+        }
+        WResult::Ok(_) | WResult::OkWithNFEs(..) => {
+            panic!("Expected FatalErr for normalized refinement id collision")
+        }
     }
+}
+
+#[test]
+fn test_v2_duplicate_local_definitions_are_fatal() {
+    let cases = [
+        (
+            "duplicate metric",
+            r#"file_format: definition/2
+metrics:
+  - name: dup.metric
+    instrument: counter
+    unit: "1"
+    brief: first
+    stability: stable
+  - name: dup.metric
+    instrument: counter
+    unit: "1"
+    brief: second
+    stability: stable
+"#,
+        ),
+        (
+            "duplicate span",
+            r#"file_format: definition/2
+spans:
+  - type: dup.span
+    kind: internal
+    brief: first
+    stability: stable
+    name:
+      note: first
+  - type: dup.span
+    kind: internal
+    brief: second
+    stability: stable
+    name:
+      note: second
+"#,
+        ),
+        (
+            "duplicate event",
+            r#"file_format: definition/2
+events:
+  - name: dup.event
+    brief: first
+    stability: stable
+  - name: dup.event
+    brief: second
+    stability: stable
+"#,
+        ),
+        (
+            "duplicate refinement",
+            r#"file_format: definition/2
+metrics:
+  - name: base.metric
+    instrument: counter
+    unit: "1"
+    brief: base
+    stability: stable
+metric_refinements:
+  - id: dup.ref
+    ref: base.metric
+  - id: dup.ref
+    ref: base.metric
+"#,
+        ),
+    ];
+
+    for (label, yaml) in cases {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let reg_dir = dir.path().join("registry");
+        std::fs::create_dir_all(&reg_dir).expect("create_dir");
+        std::fs::write(reg_dir.join("schema.yaml"), yaml).expect("write schema");
+        let res = resolve_fixture_raw(dir.path().to_str().unwrap(), ResolutionTarget::V2);
+        assert!(
+            matches!(res, WResult::FatalErr(_)),
+            "Expected FatalErr for {label} in native V2"
+        );
+    }
+}
+
+#[test]
+fn test_v2_refinement_id_colliding_with_imported_signal_is_fatal() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let dep_dir = dir.path().join("dep/registry");
+    let root_dir = dir.path().join("root/registry");
+    std::fs::create_dir_all(&dep_dir).expect("create dep dir");
+    std::fs::create_dir_all(&root_dir).expect("create root dir");
+
+    std::fs::write(
+        dep_dir.join("manifest.yaml"),
+        "description: dep\nschema_url: https://dep.example.com/schemas/1.0.0\n",
+    )
+    .expect("write dep manifest");
+    std::fs::write(
+        dep_dir.join("metrics.yaml"),
+        r#"file_format: definition/2
+metrics:
+  - name: dep.metric
+    instrument: counter
+    unit: "1"
+    brief: dep metric
+    stability: stable
+"#,
+    )
+    .expect("write dep metrics");
+
+    let dep_path = dep_dir.to_string_lossy().replace('\\', "/");
+    std::fs::write(
+        root_dir.join("manifest.yaml"),
+        format!(
+            "description: root\nschema_url: https://root.example.com/schemas/1.0.0\ndependencies:\n  - schema_url: https://dep.example.com/schemas/1.0.0\n    registry_path: {dep_path}\n"
+        ),
+    )
+    .expect("write root manifest");
+    std::fs::write(
+        root_dir.join("metrics.yaml"),
+        r#"file_format: definition/2
+imports:
+  metrics:
+    - dep.metric
+metrics:
+  - name: local.metric
+    instrument: counter
+    unit: "1"
+    brief: local metric
+    stability: stable
+metric_refinements:
+  - id: dep.metric
+    ref: local.metric
+"#,
+    )
+    .expect("write root metrics");
+
+    let res = resolve_fixture_raw(
+        root_dir.parent().unwrap().to_str().unwrap(),
+        ResolutionTarget::V2,
+    );
+    match res {
+        WResult::FatalErr(Error::DuplicateGroupId { group_id, .. }) => {
+            assert_eq!(group_id, "dep.metric");
+        }
+        WResult::FatalErr(other) => {
+            panic!("Expected FatalErr(DuplicateGroupId), got FatalErr({other})")
+        }
+        WResult::Ok(_) | WResult::OkWithNFEs(..) => {
+            panic!("Expected FatalErr when refinement id collides with imported signal")
+        }
+    }
+}
+
+#[test]
+fn test_v2_refinement_entity_associations_empty_list_clears_parent() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let reg_dir = dir.path().join("registry");
+    std::fs::create_dir_all(&reg_dir).expect("create_dir");
+
+    let yaml = r#"file_format: definition/2
+attributes:
+  - key: host.id
+    type: string
+    brief: Host ID
+    stability: stable
+entities:
+  - type: host
+    brief: Host entity
+    stability: stable
+    identity:
+      - ref: host.id
+metrics:
+  - name: base.metric
+    instrument: counter
+    unit: "1"
+    brief: Base metric
+    stability: stable
+    entity_associations:
+      - host
+spans:
+  - type: base.span
+    kind: internal
+    brief: Base span
+    stability: stable
+    name:
+      note: base span
+    entity_associations:
+      - host
+events:
+  - name: base.event
+    brief: Base event
+    stability: stable
+    entity_associations:
+      - host
+metric_refinements:
+  - id: metric.inherits
+    ref: base.metric
+  - id: metric.clears
+    ref: base.metric
+    entity_associations: []
+span_refinements:
+  - id: span.inherits
+    ref: base.span
+  - id: span.clears
+    ref: base.span
+    entity_associations: []
+event_refinements:
+  - id: event.inherits
+    ref: base.event
+  - id: event.clears
+    ref: base.event
+    entity_associations: []
+"#;
+    std::fs::write(reg_dir.join("schema.yaml"), yaml).expect("write schema");
+
+    let schema = resolve_fixture(dir.path().to_str().unwrap(), ResolutionTarget::V2)
+        .expect("resolution should succeed");
+
+    let m_inherits = schema
+        .refinements
+        .metrics
+        .iter()
+        .find(|r| &*r.id == "inherits")
+        .expect("metric.inherits");
+    let m_clears = schema
+        .refinements
+        .metrics
+        .iter()
+        .find(|r| &*r.id == "clears")
+        .expect("metric.clears");
+    assert_eq!(m_inherits.metric.entity_associations.len(), 1);
+    assert!(m_clears.metric.entity_associations.is_empty());
+
+    let s_inherits = schema
+        .refinements
+        .spans
+        .iter()
+        .find(|r| &*r.id == "inherits")
+        .expect("span.inherits");
+    let s_clears = schema
+        .refinements
+        .spans
+        .iter()
+        .find(|r| &*r.id == "clears")
+        .expect("span.clears");
+    assert_eq!(s_inherits.span.entity_associations.len(), 1);
+    assert!(s_clears.span.entity_associations.is_empty());
+
+    let e_inherits = schema
+        .refinements
+        .events
+        .iter()
+        .find(|r| &*r.id == "inherits")
+        .expect("event.inherits");
+    let e_clears = schema
+        .refinements
+        .events
+        .iter()
+        .find(|r| &*r.id == "clears")
+        .expect("event.clears");
+    assert_eq!(e_inherits.event.entity_associations.len(), 1);
+    assert!(e_clears.event.entity_associations.is_empty());
 }
 
 #[test]

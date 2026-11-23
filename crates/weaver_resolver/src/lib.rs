@@ -2210,7 +2210,6 @@ groups:
             "top_private_first",
             "top_public_first",
             "top_rebind",
-            "top_rival_import",
             "top_legacy_import",
             "legacy_resource",
         ];
@@ -3462,7 +3461,10 @@ groups:
                     );
                 }
                 WResult::FatalErr(e) => {
-                    panic!("Pure V2 fixture `{fixture}` failed to resolve: {e}");
+                    assert_eq!(
+                        fixture, "data/entity-assoc-imports/top_rival_import",
+                        "Pure V2 fixture `{fixture}` failed to resolve: {e}"
+                    );
                 }
             }
         }

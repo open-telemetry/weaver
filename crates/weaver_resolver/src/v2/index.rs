@@ -3,6 +3,7 @@
 //! Local symbol tables and duplicate checks across V2 specification files.
 
 use std::collections::BTreeMap;
+use weaver_common::error::handle_errors;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::semconv::{SemConvSpecWithProvenance, Versioned};
 use weaver_semconv::v2::attribute::AttributeDef;
@@ -146,17 +147,17 @@ fn push_raw<K: Ord, T>(
     map.entry(key).or_default().push((item, provenance.clone()));
 }
 
-/// Keeps the first definition per key and records a duplicate warning when multiple exist.
+/// Keeps the first definition per key and records a duplicate error when multiple exist.
 fn collect_unique<K: Ord, T>(
     raw: BTreeMap<K, Vec<(T, Provenance)>>,
-    warnings: &mut Vec<Error>,
+    errors: &mut Vec<Error>,
     on_duplicate: impl Fn(&K, Vec<Provenance>) -> Error,
 ) -> BTreeMap<K, Indexed<T>> {
     let mut out = BTreeMap::new();
     for (key, items) in raw {
         if items.len() > 1 {
             let provenances = items.iter().map(|(_, p)| p.clone()).collect();
-            warnings.push(on_duplicate(&key, provenances));
+            errors.push(on_duplicate(&key, provenances));
         }
         if let Some((item, provenance)) = items.into_iter().next() {
             _ = out.insert(key, Indexed { item, provenance });
@@ -165,16 +166,16 @@ fn collect_unique<K: Ord, T>(
     out
 }
 
-/// Keeps the first refinement per normalized ID and warns on collisions with siblings or `bases`.
+/// Keeps the first refinement per normalized ID and records duplicate errors on collisions with siblings or `bases`.
 fn collect_unique_refinements<T, B>(
     raw: BTreeMap<SignalId, Vec<(T, Provenance)>>,
     bases: &BTreeMap<SignalId, Indexed<B>>,
-    warnings: &mut Vec<Error>,
+    errors: &mut Vec<Error>,
 ) -> BTreeMap<SignalId, Indexed<T>> {
     let mut out = BTreeMap::new();
     for (id, items) in raw {
         if items.len() > 1 {
-            warnings.push(Error::DuplicateGroupId {
+            errors.push(Error::DuplicateGroupId {
                 group_id: id.to_string(),
                 provenances: items.iter().map(|(_, p)| p.clone()).collect(),
             });
@@ -182,7 +183,7 @@ fn collect_unique_refinements<T, B>(
         if let Some(base) = bases.get(&id) {
             let mut provenances = vec![base.provenance.clone()];
             provenances.extend(items.iter().map(|(_, p)| p.clone()));
-            warnings.push(Error::DuplicateGroupId {
+            errors.push(Error::DuplicateGroupId {
                 group_id: id.to_string(),
                 provenances,
             });
@@ -194,8 +195,8 @@ fn collect_unique_refinements<T, B>(
     out
 }
 
-/// Builds the local symbol tables from specs, detecting duplicates.
-pub(crate) fn build(specs: &[SemConvSpecWithProvenance]) -> Result<(Index, Vec<Error>), Error> {
+/// Builds the local symbol tables from specs, returning a fatal error if any duplicate definitions exist.
+pub(crate) fn build(specs: &[SemConvSpecWithProvenance]) -> Result<Index, Error> {
     let mut raw_attributes = BTreeMap::new();
     let mut raw_groups = BTreeMap::new();
     let mut raw_metrics = BTreeMap::new();
@@ -284,21 +285,21 @@ pub(crate) fn build(specs: &[SemConvSpecWithProvenance]) -> Result<(Index, Vec<E
         }
     }
 
-    let mut warnings = Vec::new();
+    let mut errors = Vec::new();
 
-    let attributes = collect_unique(raw_attributes, &mut warnings, |key, provenances| {
+    let attributes = collect_unique(raw_attributes, &mut errors, |key, provenances| {
         Error::DuplicateAttributeId {
             attribute_id: key.clone(),
             group_ids: provenances.into_iter().map(|p| p.path).collect(),
         }
     });
-    let attribute_groups = collect_unique(raw_groups, &mut warnings, |id, provenances| {
+    let attribute_groups = collect_unique(raw_groups, &mut errors, |id, provenances| {
         Error::DuplicateGroupId {
             group_id: id.to_string(),
             provenances,
         }
     });
-    let metrics = collect_unique(raw_metrics, &mut warnings, |name, provenances| {
+    let metrics = collect_unique(raw_metrics, &mut errors, |name, provenances| {
         Error::DuplicateMetricName {
             metric_name: name.to_string(),
             provenances,
@@ -308,32 +309,30 @@ pub(crate) fn build(specs: &[SemConvSpecWithProvenance]) -> Result<(Index, Vec<E
         group_name: name.to_string(),
         provenances,
     };
-    let spans = collect_unique(raw_spans, &mut warnings, duplicate_group_name);
-    let events = collect_unique(raw_events, &mut warnings, duplicate_group_name);
-    let entities = collect_unique(raw_entities, &mut warnings, duplicate_group_name);
+    let spans = collect_unique(raw_spans, &mut errors, duplicate_group_name);
+    let events = collect_unique(raw_events, &mut errors, duplicate_group_name);
+    let entities = collect_unique(raw_entities, &mut errors, duplicate_group_name);
 
     let metric_refinements =
-        collect_unique_refinements(raw_metric_refinements, &metrics, &mut warnings);
-    let span_refinements = collect_unique_refinements(raw_span_refinements, &spans, &mut warnings);
-    let event_refinements =
-        collect_unique_refinements(raw_event_refinements, &events, &mut warnings);
+        collect_unique_refinements(raw_metric_refinements, &metrics, &mut errors);
+    let span_refinements = collect_unique_refinements(raw_span_refinements, &spans, &mut errors);
+    let event_refinements = collect_unique_refinements(raw_event_refinements, &events, &mut errors);
     let entity_refinements =
-        collect_unique_refinements(raw_entity_refinements, &entities, &mut warnings);
+        collect_unique_refinements(raw_entity_refinements, &entities, &mut errors);
 
-    Ok((
-        Index {
-            attributes,
-            attribute_groups,
-            metrics,
-            spans,
-            events,
-            entities,
-            metric_refinements,
-            span_refinements,
-            event_refinements,
-            entity_refinements,
-            imports: indexed_imports,
-        },
-        warnings,
-    ))
+    handle_errors(errors)?;
+
+    Ok(Index {
+        attributes,
+        attribute_groups,
+        metrics,
+        spans,
+        events,
+        entities,
+        metric_refinements,
+        span_refinements,
+        event_refinements,
+        entity_refinements,
+        imports: indexed_imports,
+    })
 }

@@ -344,6 +344,18 @@ fn test_v2_goldens_native_engine() {
 
         match case.kind {
             TestCaseKind::Schema => {
+                // Native V2 treats rival imported definitions as fatal errors rather than warnings.
+                if case.test_dir == "data/entity-assoc-imports/top_rival_import" {
+                    let err = res
+                        .expect_err("Expected fatal error for rival import collision in native V2");
+                    let msg = err.to_string();
+                    assert!(
+                        msg.contains("entity.host") && msg.contains("host"),
+                        "Expected duplicate entity.host / host error, got: {msg}"
+                    );
+                    continue;
+                }
+
                 // Check warnings against expected-warnings.json if present
                 let expected_warnings_file = Path::new(&case.test_dir).join(EXPECTED_WARNINGS_FILE);
                 if expected_warnings_file.exists() {

@@ -2,7 +2,7 @@
 
 //! Assembly and emission of the final V2 `ResolvedTelemetrySchema`.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use weaver_resolved_schema::v2::attribute::{Attribute, AttributeRef};
 use weaver_resolved_schema::v2::attribute_group::{
     AttributeGroup as V2AttributeGroup, AttributeGroupAttributeRef,
@@ -26,7 +26,6 @@ use weaver_semconv::v2::signal_id::SignalId;
 use super::attributes::FinalCatalog;
 use super::groups::ExpandedGroups;
 use super::imports::ImportedItems;
-use super::index::{Index, Indexed};
 use super::refinements::ResolvedRefinements;
 use super::signals::{
     EntityAssociations, ResolvedEntity, ResolvedEvent, ResolvedMetric, ResolvedSignals,
@@ -159,43 +158,28 @@ fn emit_entity(cat: &FinalCatalog, en: ResolvedEntity, sort_identity: bool) -> V
     }
 }
 
-/// Combines base signals and explicit refinements into a sorted refinement vector.
-#[allow(clippy::too_many_arguments)]
-fn emit_refinement_list<B: Clone, R, Out, Raw>(
-    kind_prefix: &str,
-    prefix_fallback: bool,
+/// Combines base signals and explicit refinements into a refinement vector sorted by `id`.
+fn emit_refinement_list<B: Clone, R, Out>(
     bases: &[B],
     base_id: impl Fn(&B) -> &SignalId,
     refined: Vec<(SignalId, R)>,
-    indexed_raw: &BTreeMap<SignalId, Indexed<Raw>>,
-    raw_id: impl Fn(&Raw) -> &SignalId,
     wrap_base: impl Fn(SignalId, B) -> Out,
     wrap_refined: impl Fn(SignalId, R) -> Out,
 ) -> Vec<Out> {
     let mut keyed = Vec::with_capacity(bases.len() + refined.len());
     keyed.extend(bases.iter().map(|b| {
         let id = base_id(b).clone();
-        let sort_key = format!("{kind_prefix}.{id}");
-        (sort_key, wrap_base(id, b.clone()))
+        (id.clone(), wrap_base(id, b.clone()))
     }));
     for (id, r) in refined {
-        let sort_key = indexed_raw
-            .get(&id)
-            .map(|ir| raw_id(&ir.item).to_string())
-            .unwrap_or_else(|| {
-                if prefix_fallback {
-                    format!("{kind_prefix}.{id}")
-                } else {
-                    id.to_string()
-                }
-            });
-        keyed.push((sort_key, wrap_refined(id, r)));
+        keyed.push((id.clone(), wrap_refined(id, r)));
     }
     keyed.sort_by(|a, b| a.0.cmp(&b.0));
     keyed.into_iter().map(|(_, item)| item).collect()
 }
 
 /// Assembles the final `ResolvedTelemetrySchema` directly in V2 format.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn schema(
     schema_url: SchemaUrl,
     cat: FinalCatalog,
@@ -204,7 +188,6 @@ pub(crate) fn schema(
     refinements: ResolvedRefinements,
     imported: ImportedItems,
     dependencies: &BTreeSet<SchemaUrl>,
-    index: &Index,
 ) -> V2Schema {
     let registry_attributes = cat.local_def_attribute_refs();
 
@@ -357,13 +340,9 @@ pub(crate) fn schema(
     entities.sort_by(|a, b| a.r#type.cmp(&b.r#type));
 
     let metric_refinements = emit_refinement_list(
-        "metric",
-        false,
         &metrics,
         |m| &m.name,
         refinements.metrics,
-        index.metric_refinements(),
-        |raw| &raw.id,
         |id, metric| MetricRefinement { id, metric },
         |id, m| MetricRefinement {
             id,
@@ -371,13 +350,9 @@ pub(crate) fn schema(
         },
     );
     let span_refinements = emit_refinement_list(
-        "span",
-        false,
         &spans,
         |s| &s.r#type,
         refinements.spans,
-        index.span_refinements(),
-        |raw| &raw.id,
         |id, span| SpanRefinement { id, span },
         |id, s| SpanRefinement {
             id,
@@ -385,13 +360,9 @@ pub(crate) fn schema(
         },
     );
     let event_refinements = emit_refinement_list(
-        "event",
-        false,
         &events,
         |e| &e.name,
         refinements.events,
-        index.event_refinements(),
-        |raw| &raw.id,
         |id, event| EventRefinement { id, event },
         |id, e| EventRefinement {
             id,
@@ -399,13 +370,9 @@ pub(crate) fn schema(
         },
     );
     let entity_refinements = emit_refinement_list(
-        "entity",
-        true,
         &entities,
         |en| &en.r#type,
         refinements.entities,
-        index.entity_refinements(),
-        |raw| &raw.id,
         |id, entity| EntityRefinement { id, entity },
         |id, en| EntityRefinement {
             id,
