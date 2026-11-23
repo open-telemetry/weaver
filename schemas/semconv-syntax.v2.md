@@ -390,7 +390,7 @@ A span refinement definition consists of the following properties:
 - `ref` - Required. The type of the span being refined.
 - `name` - Optional. Overrides the [span name](#span-name) specification from the referenced base span. If set, the entire `name` structure from the refinement replaces the base span's `name`; otherwise, the base span's `name` is inherited.
 - `attributes` - Optional. List of attribute references, group references, or [`unref` entries](#removing-inherited-attributes).
-- `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this span should be associated with. Inherited from the refined signal when omitted; replaces it when set.
+- `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this span should be associated with. Inherited from the refined signal when omitted; replaces it when set (an empty list `[]` clears inherited associations).
 - `brief` - Optional. Refines the brief description of the signal.
 - `note` - Optional. Refines the more elaborate description of the signal.
 - `stability` - Optional. Refines the stability of the signal.
@@ -580,7 +580,7 @@ An event refinement definition consists of the following properties:
 - `id` - Required. Uniquely identifies the event refinement.
 - `ref` - Required. The name of the event being refined.
 - `attributes` - Optional. List of attribute references, group references, or [`unref` entries](#removing-inherited-attributes).
-- `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this event should be associated with. Inherited from the refined signal when omitted; replaces it when set.
+- `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this event should be associated with. Inherited from the refined signal when omitted; replaces it when set (an empty list `[]` clears inherited associations).
 - `brief` - Optional. Refines the brief description of the signal.
 - `note` - Optional. Refines the more elaborate description of the signal.
 - `stability` - Optional. Refines the stability of the signal.
@@ -637,7 +637,7 @@ A metric refinement definition consists of the following properties:
 - `id` - Required. Uniquely identifies the metric refinement.
 - `ref` - Required. The name of the metric being refined.
 - `attributes` - Optional. List of attribute references, group references, or [`unref` entries](#removing-inherited-attributes).
-- `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this metric should be associated with. Inherited from the refined signal when omitted; replaces it when set.
+- `entity_associations` - Optional. [Entity association expressions](#entity-associations) describing which entities this metric should be associated with. Inherited from the refined signal when omitted; replaces it when set (an empty list `[]` clears inherited associations).
 - `brief` - Optional. Refines the brief description of the signal.
 - `note` - Optional. Refines the more elaborate description of the signal.
 - `stability` - Optional. Refines the stability of the signal.
