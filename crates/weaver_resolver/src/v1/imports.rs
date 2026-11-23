@@ -36,7 +36,7 @@ use crate::error::Error;
 use crate::graph::chosen_versions::{
     chosen_version_if_superseded, lookup_chosen_schema, SchemaCacheLookup,
 };
-use crate::graph::entity_lookup::{v2_source_url, EntityLookup};
+use crate::graph::entity_lookup::{v2_association_origins, v2_source_url, EntityLookup};
 use crate::graph::exclusion::is_excluded;
 use crate::graph::imports::{build_globset, ImportField};
 use crate::v1::attribute::{AttributeCatalog, AttributeSource};
@@ -863,28 +863,6 @@ fn imported_v2_group(
         is_v2: true,
         span_name: None,
     }
-}
-
-/// Resolves the defining `SchemaUrl` for each entity referenced in `associations` within `schema`.
-pub(crate) fn v2_association_origins(
-    schema: &V2Schema,
-    deps: &[SchemaUrl],
-    associations: &[V2EntityAssociation],
-) -> BTreeMap<String, SchemaUrl> {
-    associations
-        .iter()
-        .flat_map(|assoc| assoc.refs())
-        .filter_map(|entity_ref| {
-            let origin = match entity_ref.provenance.source {
-                Some(dep_ref) => deps.get(dep_ref.0 as usize).cloned(),
-                None => schema
-                    .lookup_entity(&entity_ref.r#type)
-                    .filter(|location| !location.excluded)
-                    .map(|location| location.origin),
-            };
-            origin.map(|origin| (entity_ref.r#type.to_string(), origin))
-        })
-        .collect()
 }
 
 /// Converts V2 resolved entity associations into V1 name-based association expressions.

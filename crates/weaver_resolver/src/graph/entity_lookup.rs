@@ -2,6 +2,8 @@
 
 //! Shared entity lookup types for entity associations.
 
+use std::collections::BTreeMap;
+use weaver_resolved_schema::v2::entity::EntityAssociation as V2EntityAssociation;
 use weaver_resolved_schema::v2::provenance::DependencyRef;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_semconv::schema_url::SchemaUrl;
@@ -90,6 +92,29 @@ pub(crate) fn v2_source_url(
     source
         .and_then(|dep_ref| deps.get(dep_ref.0 as usize).cloned())
         .unwrap_or_else(|| schema.schema_url.clone())
+}
+
+/// Resolves the defining `SchemaUrl` for each non-excluded entity referenced in `associations` within `schema`.
+#[must_use]
+pub(crate) fn v2_association_origins(
+    schema: &V2Schema,
+    deps: &[SchemaUrl],
+    associations: &[V2EntityAssociation],
+) -> BTreeMap<String, SchemaUrl> {
+    associations
+        .iter()
+        .flat_map(|assoc| assoc.refs())
+        .filter_map(|entity_ref| {
+            let origin = match entity_ref.provenance.source {
+                Some(dep_ref) => deps.get(dep_ref.0 as usize).cloned(),
+                None => schema
+                    .lookup_entity(&entity_ref.r#type)
+                    .filter(|location| !location.excluded)
+                    .map(|location| location.origin),
+            };
+            origin.map(|origin| (entity_ref.r#type.to_string(), origin))
+        })
+        .collect()
 }
 
 /// Upgrades an entity association origin to the chosen version if superseded, failing if the entity was removed or excluded.

@@ -189,12 +189,14 @@ fn partition_attributes<E: RefinementAttrEntry>(entries: &[E]) -> PartitionedAtt
 }
 
 /// Expands `ref_groups` and merges `inline_refs` on top, returning merged items and group-origin map.
+#[allow(clippy::too_many_arguments)]
 fn prepare_refinement_attributes(
     ref_groups: &[SignalId],
     inline_refs: &[(AttributeRef, Option<bool>)],
     expanded_groups: &ExpandedGroups,
     consumer_id: &str,
     is_consumer_excluded: bool,
+    is_span_consumer: bool,
     provenance: Option<&SemconvProvenance>,
     warnings: &mut Vec<Error>,
 ) -> Result<
@@ -209,6 +211,7 @@ fn prepare_refinement_attributes(
         expanded_groups,
         consumer_id,
         is_consumer_excluded,
+        is_span_consumer,
         provenance,
         warnings,
     )?;
@@ -218,22 +221,9 @@ fn prepare_refinement_attributes(
         _ = included_group_attrs.insert(item.key.clone(), item.origin_group.to_string());
     }
 
+    let consumer_sig = SignalId::from(consumer_id);
     for (aref, sampling_relevant) in inline_refs {
-        if let Some(existing) = items_map.get_mut(&aref.r#ref) {
-            existing.aref = rules::merge_attribute_refs(&existing.aref, aref);
-            existing.sampling_relevant = (*sampling_relevant).or(existing.sampling_relevant);
-            existing.origin_group = SignalId::from(consumer_id);
-        } else {
-            _ = items_map.insert(
-                aref.r#ref.clone(),
-                GroupAttributeItem {
-                    key: aref.r#ref.clone(),
-                    aref: aref.clone(),
-                    sampling_relevant: *sampling_relevant,
-                    origin_group: SignalId::from(consumer_id),
-                },
-            );
-        }
+        groups::merge_inline_attribute(&mut items_map, &consumer_sig, aref, *sampling_relevant);
     }
 
     Ok((items_map, included_group_attrs))
@@ -241,6 +231,8 @@ fn prepare_refinement_attributes(
 
 /// Adapts resolved attribute tuples across non-span (`(Attribute, RequirementLevel)`) and span signals.
 trait RefinedAttrSlot: Sized {
+    /// Whether this attribute slot retains `sampling_relevant` flags.
+    const IS_SPAN_SLOT: bool;
     /// Returns the resolved `Attribute` in this slot.
     fn attr(&self) -> &Attribute;
     /// Returns the `RequirementLevel` in this slot.
@@ -256,6 +248,7 @@ trait RefinedAttrSlot: Sized {
 }
 
 impl RefinedAttrSlot for (Attribute, RequirementLevel) {
+    const IS_SPAN_SLOT: bool = false;
     fn attr(&self) -> &Attribute {
         &self.0
     }
@@ -278,6 +271,7 @@ impl RefinedAttrSlot for (Attribute, RequirementLevel) {
 }
 
 impl RefinedAttrSlot for (Attribute, RequirementLevel, Option<bool>) {
+    const IS_SPAN_SLOT: bool = true;
     fn attr(&self) -> &Attribute {
         &self.0
     }
@@ -358,6 +352,7 @@ where
         expanded_groups,
         used_in,
         is_ref_excluded,
+        A::IS_SPAN_SLOT,
         Some(provenance),
         warnings,
     )

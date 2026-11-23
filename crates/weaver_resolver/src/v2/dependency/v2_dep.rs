@@ -18,7 +18,9 @@ use super::{
     DepImportedMetric, DepImportedSpan, DepSignal, DepSignalPayload,
 };
 use crate::error::Error;
-use crate::graph::entity_lookup::{v2_source_url, EntityLocation, EntityLookup};
+use crate::graph::entity_lookup::{
+    v2_association_origins, v2_source_url, EntityLocation, EntityLookup,
+};
 use crate::graph::exclusion::is_excluded;
 use crate::v2::signals::EntityAssociations;
 use crate::WeaverResolvedSchema;
@@ -457,27 +459,12 @@ impl V2Dependency {
             .collect()
     }
 
-    /// Maps each entity referenced in `associations` to its defining `SchemaUrl`.
+    /// Maps each non-excluded entity referenced in `associations` to its defining `SchemaUrl`.
     fn association_origins(
         &self,
         associations: &[EntityAssociation],
     ) -> BTreeMap<String, SchemaUrl> {
-        associations
-            .iter()
-            .flat_map(|assoc| assoc.refs())
-            .filter_map(|entity_ref| {
-                let origin = match entity_ref.provenance.source {
-                    Some(dep_ref) => self.deps_vec.get(dep_ref.0 as usize).cloned(),
-                    None => self
-                        .schema
-                        .lookup_entity(&entity_ref.r#type)
-                        .filter(|location| !location.excluded)
-                        .map(|location| location.origin)
-                        .or_else(|| Some(self.schema.schema_url.clone())),
-                };
-                origin.map(|origin| (entity_ref.r#type.to_string(), origin))
-            })
-            .collect()
+        v2_association_origins(&self.schema, &self.deps_vec, associations)
     }
 
     /// Resolves an optional `DependencyRef` index to its `SchemaUrl`, defaulting to this schema's URL.

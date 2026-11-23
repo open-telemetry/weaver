@@ -20,10 +20,12 @@ use weaver_semconv::v1::group::GroupType;
 use weaver_semconv::v2::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::v2::CommonFields;
 
-use crate::graph::entity_lookup::{v2_source_url, EntityLocation, EntityLookup};
+use crate::graph::entity_lookup::{
+    v2_association_origins, v2_source_url, EntityLocation, EntityLookup,
+};
 use crate::graph::exclusion::is_excluded;
 use crate::v1::dependency::{GroupRefinementLookup, GroupSource, GroupSummary};
-use crate::v1::imports::{to_named_associations, v2_association_origins};
+use crate::v1::imports::to_named_associations;
 
 impl EntityLookup for V2Schema {
     fn lookup_entity(&self, name: &str) -> Option<EntityLocation> {

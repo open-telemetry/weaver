@@ -22,13 +22,16 @@ use crate::error::Error;
 use crate::graph::chosen_versions::SchemaCacheLookup;
 use crate::graph::exclusion::is_excluded;
 
+/// Maximum `ref_group` inclusion depth before reporting a cycle error.
+const MAX_REF_GROUP_DEPTH: usize = 64;
+
 /// An attribute item within an expanded attribute group.
 #[derive(Debug, Clone)]
 pub(crate) struct GroupAttributeItem {
     pub key: String,
     pub aref: AttributeRef,
     pub sampling_relevant: Option<bool>,
-    /// The group from which this attribute entered (used for sibling collision checks).
+    /// The `ref_group` (or consumer) from which this attribute entered.
     pub origin_group: SignalId,
 }
 
@@ -45,11 +48,25 @@ pub(crate) struct ResolvedPublicGroup {
 #[derive(Debug, Clone)]
 pub(crate) struct ExpandedGroup {
     pub items: Vec<GroupAttributeItem>,
-    #[allow(dead_code)]
-    pub is_public: bool,
     pub is_excluded: bool,
     pub excluded_source: Option<(String, &'static str)>,
     pub signal_type: Option<&'static str>,
+}
+
+impl ExpandedGroup {
+    /// Returns the exclusion source `(id, kind)` tainting this group, if any.
+    fn exclusion_taint(&self, ref_id: &SignalId) -> Option<(String, &'static str)> {
+        if self.is_excluded {
+            Some(self.excluded_source.clone().unwrap_or_else(|| {
+                (
+                    ref_id.to_string(),
+                    self.signal_type.unwrap_or("attribute_group"),
+                )
+            }))
+        } else {
+            self.excluded_source.clone()
+        }
+    }
 }
 
 /// Typed expansion key separating attribute groups from signals whose `<kind>.<id>` string matches a group ID.
@@ -59,6 +76,24 @@ pub(crate) enum ExpandKey {
     Span(SignalId),
     Metric(SignalId),
     Event(SignalId),
+}
+
+impl ExpandKey {
+    /// Returns candidate keys for a `ref_group` identifier, preferring an `attribute_group` over a
+    /// deprecated `<kind>.<id>` signal reference.
+    fn ref_group_candidates(ref_id: &SignalId) -> [Option<Self>; 2] {
+        let id_str: &str = ref_id.as_ref();
+        let signal_key = if let Some(type_id) = id_str.strip_prefix("span.") {
+            Some(Self::Span(SignalId::from(type_id)))
+        } else if let Some(name) = id_str.strip_prefix("metric.") {
+            Some(Self::Metric(SignalId::from(name)))
+        } else {
+            id_str
+                .strip_prefix("event.")
+                .map(|name| Self::Event(SignalId::from(name)))
+        };
+        [Some(Self::Group(ref_id.clone())), signal_key]
+    }
 }
 
 impl Display for ExpandKey {
@@ -89,26 +124,10 @@ impl ExpandedGroups {
     /// Resolves a `ref_group` identifier, preferring an `attribute_group` over a deprecated `<kind>.<id>` signal.
     #[must_use]
     pub fn resolve_ref_group(&self, ref_id: &SignalId) -> Option<&ExpandedGroup> {
-        if let Some(eg) = self.groups.get(&ExpandKey::Group(ref_id.clone())) {
-            return Some(eg);
-        }
-        let id_str: &str = ref_id.as_ref();
-        if let Some(type_id) = id_str.strip_prefix("span.") {
-            if let Some(eg) = self.groups.get(&ExpandKey::Span(SignalId::from(type_id))) {
-                return Some(eg);
-            }
-        }
-        if let Some(name) = id_str.strip_prefix("metric.") {
-            if let Some(eg) = self.groups.get(&ExpandKey::Metric(SignalId::from(name))) {
-                return Some(eg);
-            }
-        }
-        if let Some(name) = id_str.strip_prefix("event.") {
-            if let Some(eg) = self.groups.get(&ExpandKey::Event(SignalId::from(name))) {
-                return Some(eg);
-            }
-        }
-        None
+        ExpandKey::ref_group_candidates(ref_id)
+            .into_iter()
+            .flatten()
+            .find_map(|key| self.groups.get(&key))
     }
 
     /// Returns all resolved public attribute groups sorted by ID.
@@ -190,371 +209,10 @@ fn lookup_ref_group<'a>(
     ref_id: &SignalId,
     index: &'a Index,
 ) -> Option<(ExpandKey, TargetKind<'a>)> {
-    if let Some(ag) = index.attribute_groups().get(ref_id) {
-        return Some((
-            ExpandKey::Group(ref_id.clone()),
-            TargetKind::AttributeGroup(ag),
-        ));
-    }
-    let id_str: &str = ref_id.as_ref();
-    if let Some(type_id) = id_str.strip_prefix("span.") {
-        let sig_id = SignalId::from(type_id);
-        if let Some(s) = index.spans().get(&sig_id) {
-            return Some((ExpandKey::Span(sig_id), TargetKind::Span(s)));
-        }
-    }
-    if let Some(name) = id_str.strip_prefix("metric.") {
-        let sig_id = SignalId::from(name);
-        if let Some(m) = index.metrics().get(&sig_id) {
-            return Some((ExpandKey::Metric(sig_id), TargetKind::Metric(m)));
-        }
-    }
-    if let Some(name) = id_str.strip_prefix("event.") {
-        let sig_id = SignalId::from(name);
-        if let Some(e) = index.events().get(&sig_id) {
-            return Some((ExpandKey::Event(sig_id), TargetKind::Event(e)));
-        }
-    }
-    None
-}
-
-/// Expands all attribute groups and signals in topological order, detecting cycles and collisions.
-pub(crate) fn expand<'a, C: SchemaCacheLookup>(
-    index: &Index,
-    catalog: &mut Catalog<'a, C>,
-    warnings: &mut Vec<Error>,
-) -> Result<ExpandedGroups, Error> {
-    let mut expanded = BTreeMap::new();
-    let mut visiting_set = HashSet::new();
-    let mut visiting_stack = Vec::new();
-
-    for id in index.attribute_groups().keys() {
-        expand_target(
-            &ExpandKey::Group(id.clone()),
-            index,
-            &mut expanded,
-            &mut visiting_set,
-            &mut visiting_stack,
-            warnings,
-        )?;
-    }
-
-    for s in index.spans().keys() {
-        expand_target(
-            &ExpandKey::Span(s.clone()),
-            index,
-            &mut expanded,
-            &mut visiting_set,
-            &mut visiting_stack,
-            warnings,
-        )?;
-    }
-    for m in index.metrics().keys() {
-        expand_target(
-            &ExpandKey::Metric(m.clone()),
-            index,
-            &mut expanded,
-            &mut visiting_set,
-            &mut visiting_stack,
-            warnings,
-        )?;
-    }
-    for e in index.events().keys() {
-        expand_target(
-            &ExpandKey::Event(e.clone()),
-            index,
-            &mut expanded,
-            &mut visiting_set,
-            &mut visiting_stack,
-            warnings,
-        )?;
-    }
-
-    let mut public_groups = Vec::new();
-    for (id, indexed_group) in index.attribute_groups() {
-        if let AttributeGroup::Public(p) = &indexed_group.item {
-            let items = expanded
-                .get(&ExpandKey::Group(id.clone()))
-                .map(|g| g.items.clone())
-                .unwrap_or_default();
-            let is_group_excluded = is_excluded(&p.common.annotations);
-            let mut resolved_attributes = Vec::new();
-
-            for item in items {
-                let resolved_attr = catalog.resolve_attribute_ref(
-                    &item.aref,
-                    id.as_ref(),
-                    is_group_excluded,
-                    Some(&indexed_group.provenance),
-                )?;
-                let req_level = rules::resolve_requirement_level(&item.aref);
-                resolved_attributes.push((resolved_attr, req_level));
-            }
-
-            resolved_attributes.sort_by(|(a, _), (b, _)| a.key.cmp(&b.key));
-
-            public_groups.push(ResolvedPublicGroup {
-                id: id.clone(),
-                attributes: resolved_attributes,
-                common: p.common.clone(),
-                provenance: SchemaProvenance {
-                    source: None,
-                    path: indexed_group.provenance.path.clone(),
-                },
-            });
-        }
-    }
-
-    public_groups.sort_by(|a, b| a.id.cmp(&b.id));
-
-    Ok(ExpandedGroups {
-        groups: expanded,
-        public_groups,
-    })
-}
-
-/// Maximum `ref_group` inclusion depth before reporting a cycle error.
-const MAX_REF_GROUP_DEPTH: usize = 64;
-
-/// Recursively expands `ref_group` inclusions for `key`, tracking active ancestors for cycle detection.
-fn expand_target(
-    key: &ExpandKey,
-    index: &Index,
-    expanded: &mut BTreeMap<ExpandKey, ExpandedGroup>,
-    visiting_set: &mut HashSet<ExpandKey>,
-    visiting_stack: &mut Vec<ExpandKey>,
-    warnings: &mut Vec<Error>,
-) -> Result<(), Error> {
-    if expanded.contains_key(key) {
-        return Ok(());
-    }
-
-    let target = lookup_target_by_key(key, index).ok_or_else(|| Error::UnresolvedRefGroup {
-        used_in: key.to_string(),
-        ref_group: key.to_string(),
-        provenance: None,
-    })?;
-    let provenance = target.provenance().clone();
-
-    if visiting_set.contains(key) {
-        let start = visiting_stack.iter().position(|x| x == key).unwrap_or(0);
-        let mut cycle_parts: Vec<String> = visiting_stack[start..]
-            .iter()
-            .map(ToString::to_string)
-            .collect();
-        cycle_parts.push(key.to_string());
-        let cycle_str = cycle_parts.join(" -> ");
-        return Err(Error::AttributeGroupCycle {
-            cycle: cycle_str,
-            provenance: Some(Box::new(provenance)),
-        });
-    }
-
-    if visiting_stack.len() >= MAX_REF_GROUP_DEPTH {
-        return Err(Error::AttributeGroupCycle {
-            cycle: format!("maximum ref_group depth of {MAX_REF_GROUP_DEPTH} exceeded at {key}"),
-            provenance: Some(Box::new(provenance)),
-        });
-    }
-
-    _ = visiting_set.insert(key.clone());
-    visiting_stack.push(key.clone());
-
-    let is_public = target.is_public();
-    let self_excluded = target.is_excluded();
-    let signal_type = target.signal_type();
-    let consumer_id = SignalId::from(key.to_string());
-    let self_excluded_source = if self_excluded {
-        Some((
-            consumer_id.to_string(),
-            target.signal_type().unwrap_or("attribute_group"),
-        ))
-    } else {
-        None
-    };
-    let mut inherited_excluded_source = None;
-
-    let mut items_map: BTreeMap<String, GroupAttributeItem> = BTreeMap::new();
-
-    match target {
-        TargetKind::AttributeGroup(ag) => {
-            let raw_attributes = match &ag.item {
-                AttributeGroup::Internal(i) => &i.attributes,
-                AttributeGroup::Public(p) => &p.attributes,
-            };
-            expand_attribute_or_group_refs(
-                &consumer_id,
-                raw_attributes,
-                index,
-                expanded,
-                visiting_set,
-                visiting_stack,
-                warnings,
-                &mut items_map,
-                is_public,
-                self_excluded,
-                &mut inherited_excluded_source,
-                &provenance,
-            )?;
-        }
-        TargetKind::Metric(m) => {
-            expand_attribute_or_group_refs(
-                &consumer_id,
-                &m.item.attributes,
-                index,
-                expanded,
-                visiting_set,
-                visiting_stack,
-                warnings,
-                &mut items_map,
-                is_public,
-                self_excluded,
-                &mut inherited_excluded_source,
-                &provenance,
-            )?;
-        }
-        TargetKind::Event(e) => {
-            expand_attribute_or_group_refs(
-                &consumer_id,
-                &e.item.attributes,
-                index,
-                expanded,
-                visiting_set,
-                visiting_stack,
-                warnings,
-                &mut items_map,
-                is_public,
-                self_excluded,
-                &mut inherited_excluded_source,
-                &provenance,
-            )?;
-        }
-        TargetKind::Span(s) => {
-            expand_attribute_or_group_refs(
-                &consumer_id,
-                &s.item.attributes,
-                index,
-                expanded,
-                visiting_set,
-                visiting_stack,
-                warnings,
-                &mut items_map,
-                is_public,
-                self_excluded,
-                &mut inherited_excluded_source,
-                &provenance,
-            )?;
-        }
-    }
-
-    _ = visiting_stack.pop();
-    _ = visiting_set.remove(key);
-    let excluded_source = self_excluded_source.or(inherited_excluded_source);
-    _ = expanded.insert(
-        key.clone(),
-        ExpandedGroup {
-            items: items_map.into_values().collect(),
-            is_public,
-            is_excluded: self_excluded,
-            excluded_source,
-            signal_type,
-        },
-    );
-    Ok(())
-}
-
-/// Expands a single `ref_group` inclusion into `items_map`, checking deprecation, exclusion, and sibling collisions.
-#[allow(clippy::too_many_arguments)]
-fn expand_included_ref_group(
-    consumer_id: &SignalId,
-    ref_id: &SignalId,
-    index: &Index,
-    expanded: &mut BTreeMap<ExpandKey, ExpandedGroup>,
-    visiting_set: &mut HashSet<ExpandKey>,
-    visiting_stack: &mut Vec<ExpandKey>,
-    warnings: &mut Vec<Error>,
-    items_map: &mut BTreeMap<String, GroupAttributeItem>,
-    is_consumer_public: bool,
-    is_consumer_excluded: bool,
-    inherited_excluded_source: &mut Option<(String, &'static str)>,
-    provenance: &SemconvProvenance,
-    is_span_consumer: bool,
-) -> Result<(), Error> {
-    let (target_key, target) =
-        lookup_ref_group(ref_id, index).ok_or_else(|| Error::UnresolvedRefGroup {
-            used_in: consumer_id.to_string(),
-            ref_group: ref_id.to_string(),
-            provenance: Some(Box::new(provenance.clone())),
-        })?;
-
-    if let Some(sig_type) = target.signal_type() {
-        warnings.push(Error::DeprecatedSignalRefGroup {
-            used_in: consumer_id.to_string(),
-            ref_group: ref_id.to_string(),
-            signal_type: sig_type.to_owned(),
-            provenance: Some(Box::new(provenance.clone())),
-        });
-    }
-
-    expand_target(
-        &target_key,
-        index,
-        expanded,
-        visiting_set,
-        visiting_stack,
-        warnings,
-    )?;
-
-    let included = expanded.get(&target_key).expect("target was just expanded");
-    let taint = if included.is_excluded {
-        Some(included.excluded_source.clone().unwrap_or_else(|| {
-            (
-                ref_id.to_string(),
-                target.signal_type().unwrap_or("attribute_group"),
-            )
-        }))
-    } else {
-        included.excluded_source.clone()
-    };
-
-    if let Some((ex_id, ex_type)) = taint {
-        if is_consumer_public && !is_consumer_excluded {
-            return Err(Error::ExcludedFromDependencyResolution {
-                id: ex_id,
-                r#type: ex_type.to_owned(),
-                used_in: consumer_id.to_string(),
-                provenance: Some(Box::new(provenance.clone())),
-            });
-        }
-        if inherited_excluded_source.is_none() {
-            *inherited_excluded_source = Some((ex_id, ex_type));
-        }
-    }
-
-    let mut dup_errors = Vec::new();
-    for item in &included.items {
-        if let Some(existing) = items_map.get(&item.key) {
-            if existing.origin_group != item.origin_group {
-                dup_errors.push(Error::DuplicateAttributeId {
-                    attribute_id: item.key.clone(),
-                    group_ids: vec![
-                        existing.origin_group.to_string(),
-                        item.origin_group.to_string(),
-                    ],
-                });
-            }
-        } else {
-            let mut item = item.clone();
-            if !is_span_consumer {
-                item.sampling_relevant = None;
-            }
-            _ = items_map.insert(item.key.clone(), item);
-        }
-    }
-    if !dup_errors.is_empty() {
-        return Err(Error::CompoundError(dup_errors));
-    }
-    Ok(())
+    ExpandKey::ref_group_candidates(ref_id)
+        .into_iter()
+        .flatten()
+        .find_map(|key| lookup_target_by_key(&key, index).map(|target| (key, target)))
 }
 
 /// Adapts authored attribute-or-group entries across span and non-span containers.
@@ -603,63 +261,351 @@ impl ExpandableAttrEntry for SpanAttributeOrGroupRef {
     }
 }
 
-/// Expands `ref_group` entries followed by inline attribute overrides into `items_map`.
-#[allow(clippy::too_many_arguments)]
-fn expand_attribute_or_group_refs<E: ExpandableAttrEntry>(
-    consumer_id: &SignalId,
-    raw_attributes: &[E],
-    index: &Index,
-    expanded: &mut BTreeMap<ExpandKey, ExpandedGroup>,
-    visiting_set: &mut HashSet<ExpandKey>,
-    visiting_stack: &mut Vec<ExpandKey>,
-    warnings: &mut Vec<Error>,
+/// Merges a single inline attribute reference on top of `items_map`.
+pub(crate) fn merge_inline_attribute(
     items_map: &mut BTreeMap<String, GroupAttributeItem>,
+    consumer_id: &SignalId,
+    aref: &AttributeRef,
+    sampling_relevant: Option<bool>,
+) {
+    if let Some(existing) = items_map.get_mut(&aref.r#ref) {
+        existing.aref = rules::merge_attribute_refs(&existing.aref, aref);
+        existing.sampling_relevant = sampling_relevant.or(existing.sampling_relevant);
+        existing.origin_group = consumer_id.clone();
+    } else {
+        _ = items_map.insert(
+            aref.r#ref.clone(),
+            GroupAttributeItem {
+                key: aref.r#ref.clone(),
+                aref: aref.clone(),
+                sampling_relevant,
+                origin_group: consumer_id.clone(),
+            },
+        );
+    }
+}
+
+/// Merges an already-expanded `ref_group` into `items_map`, checking deprecation, exclusion taint,
+/// and duplicate attributes across sibling or diamond `ref_group` inclusions.
+#[allow(clippy::too_many_arguments)]
+fn merge_included_group(
+    included: &ExpandedGroup,
+    ref_id: &SignalId,
+    consumer_id: &str,
     is_consumer_public: bool,
     is_consumer_excluded: bool,
-    inherited_excluded_source: &mut Option<(String, &'static str)>,
-    provenance: &SemconvProvenance,
+    inherited_excluded_source: Option<&mut Option<(String, &'static str)>>,
+    is_span_consumer: bool,
+    provenance: Option<&SemconvProvenance>,
+    items_map: &mut BTreeMap<String, GroupAttributeItem>,
+    warnings: &mut Vec<Error>,
 ) -> Result<(), Error> {
-    for entry in raw_attributes {
-        if let Some(ref_id) = entry.group_ref() {
-            expand_included_ref_group(
-                consumer_id,
-                &ref_id,
-                index,
-                expanded,
-                visiting_set,
-                visiting_stack,
-                warnings,
-                items_map,
-                is_consumer_public,
-                is_consumer_excluded,
-                inherited_excluded_source,
-                provenance,
-                E::IS_SPAN_CONSUMER,
-            )?;
-        }
+    if let Some(sig_type) = included.signal_type {
+        warnings.push(Error::DeprecatedSignalRefGroup {
+            used_in: consumer_id.to_owned(),
+            ref_group: ref_id.to_string(),
+            signal_type: sig_type.to_owned(),
+            provenance: provenance.map(|p| Box::new(p.clone())),
+        });
     }
 
-    for entry in raw_attributes {
-        if let Some((aref, sampling_relevant)) = entry.inline_attr() {
-            if let Some(existing) = items_map.get_mut(&aref.r#ref) {
-                existing.aref = rules::merge_attribute_refs(&existing.aref, aref);
-                existing.sampling_relevant = sampling_relevant.or(existing.sampling_relevant);
-                existing.origin_group = consumer_id.clone();
-            } else {
-                _ = items_map.insert(
-                    aref.r#ref.clone(),
-                    GroupAttributeItem {
-                        key: aref.r#ref.clone(),
-                        aref: aref.clone(),
-                        sampling_relevant,
-                        origin_group: consumer_id.clone(),
-                    },
-                );
+    if let Some((ex_id, ex_type)) = included.exclusion_taint(ref_id) {
+        if is_consumer_public && !is_consumer_excluded {
+            return Err(Error::ExcludedFromDependencyResolution {
+                id: ex_id,
+                r#type: ex_type.to_owned(),
+                used_in: consumer_id.to_owned(),
+                provenance: provenance.map(|p| Box::new(p.clone())),
+            });
+        }
+        if let Some(slot) = inherited_excluded_source {
+            if slot.is_none() {
+                *slot = Some((ex_id, ex_type));
             }
         }
     }
 
+    let mut dup_errors = Vec::new();
+    for item in &included.items {
+        if let Some(existing) = items_map.get(&item.key) {
+            dup_errors.push(Error::DuplicateAttributeId {
+                attribute_id: item.key.clone(),
+                group_ids: vec![existing.origin_group.to_string(), ref_id.to_string()],
+            });
+        } else {
+            let mut item = item.clone();
+            if !is_span_consumer {
+                item.sampling_relevant = None;
+            }
+            item.origin_group = ref_id.clone();
+            _ = items_map.insert(item.key.clone(), item);
+        }
+    }
+    if !dup_errors.is_empty() {
+        return Err(Error::CompoundError(dup_errors));
+    }
     Ok(())
+}
+
+/// Stateful DFS expander for resolving local `ref_group` DAGs.
+struct GroupExpander<'a> {
+    index: &'a Index,
+    expanded: BTreeMap<ExpandKey, ExpandedGroup>,
+    visiting_set: HashSet<ExpandKey>,
+    visiting_stack: Vec<ExpandKey>,
+    warnings: &'a mut Vec<Error>,
+}
+
+impl<'a> GroupExpander<'a> {
+    /// Creates a new expander over `index`.
+    fn new(index: &'a Index, warnings: &'a mut Vec<Error>) -> Self {
+        Self {
+            index,
+            expanded: BTreeMap::new(),
+            visiting_set: HashSet::new(),
+            visiting_stack: Vec::new(),
+            warnings,
+        }
+    }
+
+    /// Recursively expands `ref_group` inclusions for `key`, detecting cycles and attribute collisions.
+    fn expand_target(&mut self, key: &ExpandKey) -> Result<(), Error> {
+        if self.expanded.contains_key(key) {
+            return Ok(());
+        }
+
+        let target =
+            lookup_target_by_key(key, self.index).ok_or_else(|| Error::UnresolvedRefGroup {
+                used_in: key.to_string(),
+                ref_group: key.to_string(),
+                provenance: None,
+            })?;
+        let provenance = target.provenance().clone();
+
+        if self.visiting_set.contains(key) {
+            let start = self
+                .visiting_stack
+                .iter()
+                .position(|x| x == key)
+                .unwrap_or(0);
+            let mut cycle_parts: Vec<String> = self.visiting_stack[start..]
+                .iter()
+                .map(ToString::to_string)
+                .collect();
+            cycle_parts.push(key.to_string());
+            return Err(Error::AttributeGroupCycle {
+                cycle: cycle_parts.join(" -> "),
+                provenance: Some(Box::new(provenance)),
+            });
+        }
+
+        if self.visiting_stack.len() >= MAX_REF_GROUP_DEPTH {
+            return Err(Error::AttributeGroupCycle {
+                cycle: format!(
+                    "maximum ref_group depth of {MAX_REF_GROUP_DEPTH} exceeded at {key}"
+                ),
+                provenance: Some(Box::new(provenance)),
+            });
+        }
+
+        _ = self.visiting_set.insert(key.clone());
+        self.visiting_stack.push(key.clone());
+
+        let is_public = target.is_public();
+        let self_excluded = target.is_excluded();
+        let signal_type = target.signal_type();
+        let consumer_id = SignalId::from(key.to_string());
+        let self_excluded_source = self_excluded.then(|| {
+            (
+                consumer_id.to_string(),
+                signal_type.unwrap_or("attribute_group"),
+            )
+        });
+        let mut inherited_excluded_source = None;
+        let mut items_map: BTreeMap<String, GroupAttributeItem> = BTreeMap::new();
+
+        match target {
+            TargetKind::AttributeGroup(ag) => {
+                let raw_attributes = match &ag.item {
+                    AttributeGroup::Internal(i) => &i.attributes,
+                    AttributeGroup::Public(p) => &p.attributes,
+                };
+                self.expand_entries(
+                    &consumer_id,
+                    raw_attributes,
+                    &mut items_map,
+                    is_public,
+                    self_excluded,
+                    &mut inherited_excluded_source,
+                    &provenance,
+                )?;
+            }
+            TargetKind::Metric(m) => {
+                self.expand_entries(
+                    &consumer_id,
+                    &m.item.attributes,
+                    &mut items_map,
+                    is_public,
+                    self_excluded,
+                    &mut inherited_excluded_source,
+                    &provenance,
+                )?;
+            }
+            TargetKind::Event(e) => {
+                self.expand_entries(
+                    &consumer_id,
+                    &e.item.attributes,
+                    &mut items_map,
+                    is_public,
+                    self_excluded,
+                    &mut inherited_excluded_source,
+                    &provenance,
+                )?;
+            }
+            TargetKind::Span(s) => {
+                self.expand_entries(
+                    &consumer_id,
+                    &s.item.attributes,
+                    &mut items_map,
+                    is_public,
+                    self_excluded,
+                    &mut inherited_excluded_source,
+                    &provenance,
+                )?;
+            }
+        }
+
+        _ = self.visiting_stack.pop();
+        _ = self.visiting_set.remove(key);
+        let excluded_source = self_excluded_source.or(inherited_excluded_source);
+        _ = self.expanded.insert(
+            key.clone(),
+            ExpandedGroup {
+                items: items_map.into_values().collect(),
+                is_excluded: self_excluded,
+                excluded_source,
+                signal_type,
+            },
+        );
+        Ok(())
+    }
+
+    /// Expands `ref_group` entries followed by inline attribute overrides into `items_map`.
+    #[allow(clippy::too_many_arguments)]
+    fn expand_entries<E: ExpandableAttrEntry>(
+        &mut self,
+        consumer_id: &SignalId,
+        raw_attributes: &[E],
+        items_map: &mut BTreeMap<String, GroupAttributeItem>,
+        is_consumer_public: bool,
+        is_consumer_excluded: bool,
+        inherited_excluded_source: &mut Option<(String, &'static str)>,
+        provenance: &SemconvProvenance,
+    ) -> Result<(), Error> {
+        for entry in raw_attributes {
+            if let Some(ref_id) = entry.group_ref() {
+                let (target_key, _) = lookup_ref_group(&ref_id, self.index).ok_or_else(|| {
+                    Error::UnresolvedRefGroup {
+                        used_in: consumer_id.to_string(),
+                        ref_group: ref_id.to_string(),
+                        provenance: Some(Box::new(provenance.clone())),
+                    }
+                })?;
+
+                self.expand_target(&target_key)?;
+
+                let included = self
+                    .expanded
+                    .get(&target_key)
+                    .expect("target was just expanded");
+                merge_included_group(
+                    included,
+                    &ref_id,
+                    consumer_id.as_ref(),
+                    is_consumer_public,
+                    is_consumer_excluded,
+                    Some(inherited_excluded_source),
+                    E::IS_SPAN_CONSUMER,
+                    Some(provenance),
+                    items_map,
+                    self.warnings,
+                )?;
+            }
+        }
+
+        for entry in raw_attributes {
+            if let Some((aref, sampling_relevant)) = entry.inline_attr() {
+                merge_inline_attribute(items_map, consumer_id, aref, sampling_relevant);
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// Expands all attribute groups and signals in topological order, detecting cycles and collisions.
+pub(crate) fn expand<'a, C: SchemaCacheLookup>(
+    index: &Index,
+    catalog: &mut Catalog<'a, C>,
+    warnings: &mut Vec<Error>,
+) -> Result<ExpandedGroups, Error> {
+    let mut expander = GroupExpander::new(index, warnings);
+
+    for id in index.attribute_groups().keys() {
+        expander.expand_target(&ExpandKey::Group(id.clone()))?;
+    }
+    for s in index.spans().keys() {
+        expander.expand_target(&ExpandKey::Span(s.clone()))?;
+    }
+    for m in index.metrics().keys() {
+        expander.expand_target(&ExpandKey::Metric(m.clone()))?;
+    }
+    for e in index.events().keys() {
+        expander.expand_target(&ExpandKey::Event(e.clone()))?;
+    }
+
+    let expanded = expander.expanded;
+    let mut public_groups = Vec::new();
+    for (id, indexed_group) in index.attribute_groups() {
+        if let AttributeGroup::Public(p) = &indexed_group.item {
+            let items = expanded
+                .get(&ExpandKey::Group(id.clone()))
+                .map(|g| g.items.clone())
+                .unwrap_or_default();
+            let is_group_excluded = is_excluded(&p.common.annotations);
+            let mut resolved_attributes = Vec::new();
+
+            for item in items {
+                let resolved_attr = catalog.resolve_attribute_ref(
+                    &item.aref,
+                    id.as_ref(),
+                    is_group_excluded,
+                    Some(&indexed_group.provenance),
+                )?;
+                let req_level = rules::resolve_requirement_level(&item.aref);
+                resolved_attributes.push((resolved_attr, req_level));
+            }
+
+            resolved_attributes.sort_by(|(a, _), (b, _)| a.key.cmp(&b.key));
+
+            public_groups.push(ResolvedPublicGroup {
+                id: id.clone(),
+                attributes: resolved_attributes,
+                common: p.common.clone(),
+                provenance: SchemaProvenance {
+                    source: None,
+                    path: indexed_group.provenance.path.clone(),
+                },
+            });
+        }
+    }
+
+    public_groups.sort_by(|a, b| a.id.cmp(&b.id));
+
+    Ok(ExpandedGroups {
+        groups: expanded,
+        public_groups,
+    })
 }
 
 /// Collects attributes from `ref_groups` for a refinement, rejecting unresolved, excluded, or colliding groups.
@@ -668,6 +614,7 @@ pub(crate) fn collect_refinement_group_items(
     expanded_groups: &ExpandedGroups,
     consumer_id: &str,
     is_consumer_excluded: bool,
+    is_span_consumer: bool,
     provenance: Option<&SemconvProvenance>,
     warnings: &mut Vec<Error>,
 ) -> Result<BTreeMap<String, GroupAttributeItem>, Error> {
@@ -681,55 +628,18 @@ pub(crate) fn collect_refinement_group_items(
             }
         })?;
 
-        if let Some(sig_type) = eg.signal_type {
-            warnings.push(Error::DeprecatedSignalRefGroup {
-                used_in: consumer_id.to_owned(),
-                ref_group: group_id.to_string(),
-                signal_type: sig_type.to_owned(),
-                provenance: provenance.map(|p| Box::new(p.clone())),
-            });
-        }
-
-        let taint = if eg.is_excluded {
-            Some(eg.excluded_source.clone().unwrap_or_else(|| {
-                (
-                    group_id.to_string(),
-                    eg.signal_type.unwrap_or("attribute_group"),
-                )
-            }))
-        } else {
-            eg.excluded_source.clone()
-        };
-
-        if let Some((ex_id, ex_type)) = taint {
-            if !is_consumer_excluded {
-                return Err(Error::ExcludedFromDependencyResolution {
-                    id: ex_id,
-                    r#type: ex_type.to_owned(),
-                    used_in: consumer_id.to_owned(),
-                    provenance: provenance.map(|p| Box::new(p.clone())),
-                });
-            }
-        }
-
-        let mut dup_errors = Vec::new();
-        for item in &eg.items {
-            if let Some(existing) = items_map.get(&item.key) {
-                if existing.origin_group != *group_id {
-                    dup_errors.push(Error::DuplicateAttributeId {
-                        attribute_id: item.key.clone(),
-                        group_ids: vec![existing.origin_group.to_string(), group_id.to_string()],
-                    });
-                }
-            } else {
-                let mut item = item.clone();
-                item.origin_group = group_id.clone();
-                _ = items_map.insert(item.key.clone(), item);
-            }
-        }
-        if !dup_errors.is_empty() {
-            return Err(Error::CompoundError(dup_errors));
-        }
+        merge_included_group(
+            eg,
+            group_id,
+            consumer_id,
+            true,
+            is_consumer_excluded,
+            None,
+            is_span_consumer,
+            provenance,
+            &mut items_map,
+            warnings,
+        )?;
     }
     Ok(items_map)
 }
@@ -743,20 +653,7 @@ mod tests {
     use weaver_semconv::schema_url::SchemaUrl;
     use weaver_semconv::semconv::SemConvSpecWithProvenance;
 
-    #[test]
-    fn test_attribute_group_cycle_detected() {
-        let yaml = r#"
-file_format: "definition/2"
-attribute_groups:
-  - id: group_a
-    visibility: internal
-    attributes:
-      - ref_group: group_b
-  - id: group_b
-    visibility: internal
-    attributes:
-      - ref_group: group_a
-"#;
+    fn expand_yaml(yaml: &str) -> Result<ExpandedGroups, Error> {
         let mut temp_file = NamedTempFile::new().unwrap();
         temp_file.write_all(yaml.as_bytes()).unwrap();
 
@@ -772,11 +669,101 @@ attribute_groups:
         let empty_deps =
             crate::v2::dependency::V2Dependencies::new(vec![], std::collections::BTreeSet::new());
         let mut catalog = Catalog::new(&empty_deps, &());
+        catalog.define_local(&index).unwrap();
         let mut warnings = Vec::new();
-        let err = expand(&index, &mut catalog, &mut warnings).unwrap_err();
+        expand(&index, &mut catalog, &mut warnings)
+    }
+
+    #[test]
+    fn test_attribute_group_cycle_detected() {
+        let yaml = r#"
+file_format: "definition/2"
+attribute_groups:
+  - id: group_a
+    visibility: internal
+    attributes:
+      - ref_group: group_b
+  - id: group_b
+    visibility: internal
+    attributes:
+      - ref_group: group_a
+"#;
+        let err = expand_yaml(yaml).unwrap_err();
         assert!(
             matches!(err, Error::AttributeGroupCycle { ref cycle, .. } if cycle.contains("group_a -> group_b -> group_a") || cycle.contains("group_b -> group_a -> group_b")),
             "Expected AttributeGroupCycle, got: {err:?}"
+        );
+    }
+
+    #[test]
+    fn test_diamond_ref_group_rejected_as_duplicate_attribute() {
+        let yaml = r#"
+file_format: "definition/2"
+attributes:
+  - key: shared.attr
+    type: string
+    brief: shared
+    stability: stable
+attribute_groups:
+  - id: g0
+    visibility: internal
+    attributes:
+      - ref: shared.attr
+  - id: g1
+    visibility: internal
+    attributes:
+      - ref_group: g0
+  - id: g2
+    visibility: internal
+    attributes:
+      - ref_group: g0
+spans:
+  - type: test.span
+    kind: internal
+    brief: test span
+    stability: stable
+    name:
+      note: test
+    attributes:
+      - ref_group: g1
+      - ref_group: g2
+"#;
+        let err = expand_yaml(yaml).unwrap_err();
+        assert!(
+            matches!(err, Error::CompoundError(ref errs) if errs.iter().any(|e| matches!(e, Error::DuplicateAttributeId { attribute_id, .. } if attribute_id == "shared.attr"))),
+            "Expected DuplicateAttributeId for diamond ref_group, got: {err:?}"
+        );
+    }
+
+    #[test]
+    fn test_same_ref_group_listed_twice_rejected() {
+        let yaml = r#"
+file_format: "definition/2"
+attributes:
+  - key: shared.attr
+    type: string
+    brief: shared
+    stability: stable
+attribute_groups:
+  - id: g0
+    visibility: internal
+    attributes:
+      - ref: shared.attr
+spans:
+  - type: test.span
+    kind: internal
+    brief: test span
+    stability: stable
+    name:
+      note: test
+    attributes:
+      - ref_group: g0
+      - ref_group: g0
+"#;
+        let err = expand_yaml(yaml).unwrap_err();
+        assert!(
+            matches!(err, Error::CompoundError(ref errs) if errs.iter().any(|e| matches!(e, Error::DuplicateAttributeId { attribute_id, .. } if attribute_id == "shared.attr"))),
+            "Expected DuplicateAttributeId when listing same ref_group twice, got: {err:?}"
         );
     }
 }
