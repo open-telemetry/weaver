@@ -2,7 +2,7 @@
 
 //! Resolution of `imports:` blocks against dependencies in native V2.
 
-use globset::{GlobSet, GlobSetBuilder};
+use globset::GlobSet;
 use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use weaver_common::error::handle_errors;
@@ -11,7 +11,7 @@ use weaver_resolved_schema::v2::provenance::Provenance as SchemaProvenance;
 use weaver_semconv::provenance::Provenance as SemconvProvenance;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v2::signal_id::SignalId;
-use weaver_semconv::v2::{GroupWildcard, Imports};
+use weaver_semconv::v2::GroupWildcard;
 
 use super::attributes::{upgrade_attribute_content, Catalog};
 use super::dependency::{
@@ -26,52 +26,7 @@ use crate::graph::chosen_versions::{
     chosen_version_if_superseded, lookup_chosen_schema, SchemaCacheLookup,
 };
 use crate::graph::entity_lookup::upgrade_entity_origin;
-
-/// The field of an `imports:` block that lists a signal type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum ImportField {
-    Metrics,
-    Events,
-    Spans,
-    Entities,
-    AttributeGroups,
-}
-
-impl ImportField {
-    /// Returns all five importable definition categories in deterministic processing order.
-    pub fn all() -> [Self; 5] {
-        [
-            Self::Metrics,
-            Self::Events,
-            Self::Spans,
-            Self::Entities,
-            Self::AttributeGroups,
-        ]
-    }
-
-    /// Returns the YAML field name for this import category.
-    pub fn name(&self) -> &'static str {
-        match self {
-            Self::Metrics => "metrics",
-            Self::Events => "events",
-            Self::Spans => "spans",
-            Self::Entities => "entities",
-            Self::AttributeGroups => "attribute_groups",
-        }
-    }
-
-    /// Returns the wildcard patterns configured for this category in `imports`.
-    pub fn patterns<'a>(&self, imports: &'a Imports) -> &'a [GroupWildcard] {
-        let field = match self {
-            Self::Metrics => &imports.metrics,
-            Self::Events => &imports.events,
-            Self::Spans => &imports.spans,
-            Self::Entities => &imports.entities,
-            Self::AttributeGroups => &imports.attribute_groups,
-        };
-        field.as_deref().unwrap_or_default()
-    }
-}
+use crate::graph::imports::{build_globset, ImportField};
 
 /// All items imported from dependencies.
 #[derive(Debug, Default)]
@@ -81,17 +36,6 @@ pub(crate) struct ImportedItems {
     pub events: Vec<DepImportedEvent>,
     pub entities: Vec<DepImportedEntity>,
     pub attribute_groups: Vec<DepImportedAttributeGroup>,
-}
-
-/// Compiles an iterator of `GroupWildcard` patterns into a `GlobSet` matcher.
-fn build_globset<'a>(wildcards: impl Iterator<Item = &'a GroupWildcard>) -> Result<GlobSet, Error> {
-    let mut builder = GlobSetBuilder::new();
-    for wildcard in wildcards {
-        _ = builder.add(wildcard.0.clone());
-    }
-    builder.build().map_err(|e| Error::InvalidWildcard {
-        error: e.to_string(),
-    })
 }
 
 /// Upgrades `attr` and registers it (and any V1 definition marker) in `catalog`.
@@ -593,7 +537,7 @@ pub(crate) fn resolve<'a, C: SchemaCacheLookup>(
             .iter()
             .flat_map(|i| field.patterns(&i.imports))
             .collect();
-        let exp_globset = build_globset(exp_pats.iter().copied())?;
+        let exp_globset = build_globset(exp_pats.iter().map(|w| &w.0))?;
         let count = exp_pats.len();
         _ = explicit_patterns_map.insert(field, exp_pats);
         _ = explicit_matchers.insert(field, exp_globset);
@@ -603,7 +547,7 @@ pub(crate) fn resolve<'a, C: SchemaCacheLookup>(
             .iter()
             .flat_map(|i| field.patterns(&i.imports))
             .collect();
-        let any_globset = build_globset(any_pats.iter().copied())?;
+        let any_globset = build_globset(any_pats.iter().map(|w| &w.0))?;
         _ = any_matchers.insert(field, any_globset);
     }
 

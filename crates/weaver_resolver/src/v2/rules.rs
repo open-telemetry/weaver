@@ -17,6 +17,7 @@ use weaver_semconv::YamlValue;
 
 use crate::error::{AttributeRole, Error};
 pub(crate) use crate::graph::merge::merge_annotations;
+use crate::graph::refinement_rules;
 
 /// Strips an optional leading `<kind>.` prefix from a refinement ID.
 #[must_use]
@@ -97,6 +98,7 @@ pub(crate) fn inherit_annotations(
 }
 
 /// Validates attribute `unref` entries against parent and refinement constraints.
+#[allow(clippy::too_many_arguments)]
 #[must_use]
 pub(crate) fn validate_attribute_unrefs(
     refinement_id: &str,
@@ -109,36 +111,17 @@ pub(crate) fn validate_attribute_unrefs(
     included_group_attrs: &HashMap<String, String>,
     provenance: Option<&Provenance>,
 ) -> Vec<Error> {
-    let mut seen = HashSet::new();
-    let mut errors = Vec::new();
-
-    for u in unrefs {
-        let key = &u.unref;
-        let reason = if !seen.insert(key.clone()) {
-            "duplicate unref entry".to_owned()
-        } else if local_attr_keys.contains(key) {
-            "the attribute is also explicitly referenced by this refinement".to_owned()
-        } else if let Some(source) = included_group_attrs.get(key) {
-            format!("the attribute is also included by ref_group `{source}`")
-        } else if parent_identifying_keys.contains(key) {
-            format!("the attribute identifies entity `{parent_ref}`; refinements must preserve identity")
-        } else if parent_required_keys.contains(key) {
-            format!("the attribute is required by `{parent_ref}`")
-        } else if !parent_attr_keys.contains(key) {
-            format!("the attribute is not inherited from `{parent_ref}`")
-        } else {
-            continue;
-        };
-
-        errors.push(Error::InvalidAttributeUnref {
-            refinement_id: refinement_id.to_owned(),
-            attribute_key: key.clone(),
-            reason,
-            provenance: provenance.cloned().map(Box::new),
-        });
-    }
-
-    errors
+    refinement_rules::validate_attribute_unrefs(
+        refinement_id,
+        parent_ref,
+        unrefs.iter().map(|u| u.unref.as_str()),
+        parent_attr_keys,
+        parent_required_keys,
+        parent_identifying_keys,
+        local_attr_keys,
+        included_group_attrs,
+        provenance,
+    )
 }
 
 /// Validates that an entity refinement preserves its parent's identifying attribute set.
@@ -151,41 +134,22 @@ pub(crate) fn validate_entity_identity_refinements(
     refinement_description_keys: &[String],
     provenance: Option<&Provenance>,
 ) -> Vec<Error> {
-    if parent_identifying_keys.is_empty() {
-        return vec![Error::EntityRefinementWithoutIdentity {
-            refinement_id: refinement_id.to_owned(),
-            r#ref: parent_ref.to_owned(),
-            provenance: provenance.cloned().map(Box::new),
-        }];
-    }
+    let refined_roles = refinement_identity_keys
+        .iter()
+        .map(|k| (k.as_str(), AttributeRole::Identifying))
+        .chain(
+            refinement_description_keys
+                .iter()
+                .map(|k| (k.as_str(), AttributeRole::Descriptive)),
+        );
 
-    let mut errors = Vec::new();
-
-    for key in refinement_identity_keys {
-        if !parent_identifying_keys.contains(key) {
-            errors.push(Error::EntityRefinementChangedIdentity {
-                refinement_id: refinement_id.to_owned(),
-                r#ref: parent_ref.to_owned(),
-                attribute_id: key.clone(),
-                role: AttributeRole::Identifying,
-                provenance: provenance.cloned().map(Box::new),
-            });
-        }
-    }
-
-    for key in refinement_description_keys {
-        if parent_identifying_keys.contains(key) {
-            errors.push(Error::EntityRefinementChangedIdentity {
-                refinement_id: refinement_id.to_owned(),
-                r#ref: parent_ref.to_owned(),
-                attribute_id: key.clone(),
-                role: AttributeRole::Descriptive,
-                provenance: provenance.cloned().map(Box::new),
-            });
-        }
-    }
-
-    errors
+    refinement_rules::validate_entity_identity_refinements(
+        refinement_id,
+        parent_ref,
+        parent_identifying_keys,
+        refined_roles,
+        provenance,
+    )
 }
 
 /// Applies `aref` overrides (`brief`, `note`, `examples`, `annotations`) onto `def`, keeping definition-owned fields intact.

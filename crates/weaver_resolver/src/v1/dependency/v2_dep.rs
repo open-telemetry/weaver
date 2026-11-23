@@ -6,7 +6,6 @@ use std::collections::BTreeMap;
 use weaver_resolved_schema::v1::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::v2::attribute::Attribute as V2Attribute;
 use weaver_resolved_schema::v2::entity::Entity;
-use weaver_resolved_schema::v2::provenance::DependencyRef;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_resolved_schema::v2::Signal;
 use weaver_semconv::convert::{
@@ -21,7 +20,7 @@ use weaver_semconv::v1::group::GroupType;
 use weaver_semconv::v2::signal_requirement_level::SignalRequirementLevel;
 use weaver_semconv::v2::CommonFields;
 
-use crate::graph::entity_lookup::{EntityLocation, EntityLookup};
+use crate::graph::entity_lookup::{v2_source_url, EntityLocation, EntityLookup};
 use crate::graph::exclusion::is_excluded;
 use crate::v1::dependency::{GroupRefinementLookup, GroupSource, GroupSummary};
 use crate::v1::imports::{to_named_associations, v2_association_origins};
@@ -51,18 +50,6 @@ impl EntityLookup for V2Schema {
             excluded: is_excluded(&entity.common.annotations),
         })
     }
-}
-
-/// Resolves the origin `SchemaUrl` of a V2 item from `deps` (materialized from `schema.dependencies`)
-/// when `source` is set, or `schema.schema_url` otherwise.
-pub(crate) fn v2_source_url(
-    schema: &V2Schema,
-    deps: &[SchemaUrl],
-    source: Option<DependencyRef>,
-) -> SchemaUrl {
-    source
-        .and_then(|dep_ref| deps.get(dep_ref.0 as usize).cloned())
-        .unwrap_or_else(|| schema.schema_url.clone())
 }
 
 /// Converts a V2 catalog attribute and per-signal reference overrides into an `UnresolvedAttribute`.

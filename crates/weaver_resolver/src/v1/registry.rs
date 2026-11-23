@@ -6,6 +6,9 @@ use crate::graph::chosen_versions::SchemaCacheLookup;
 use crate::graph::entity_lookup::{resolve_entity, EntityResolution};
 use crate::graph::exclusion::is_excluded;
 use crate::graph::merge::merge_annotations;
+use crate::graph::refinement_rules::{
+    validate_attribute_unrefs, validate_entity_identity_refinements,
+};
 use crate::v1::attribute::{AttributeCatalog, AttributeLookup};
 use crate::v1::dependency::{GroupSource, GroupSummary, ResolvedDependency};
 use crate::v1::exclusion::is_group_excluded;
@@ -1169,43 +1172,42 @@ fn attribute_unref_errors(
     included: &[(String, &[UnresolvedAttribute])],
     defined_roles: &AttributeRoles<'_>,
 ) -> Vec<Error> {
-    let inherited: HashMap<_, _> = parent_attrs
+    let parent_attr_keys: HashSet<String> = parent_attrs.iter().map(|a| a.spec.id()).collect();
+    let parent_required_keys: HashSet<String> = parent_attrs
         .iter()
-        .map(|a| (a.spec.id(), &a.spec))
+        .filter(|a| a.spec.is_required())
+        .map(|a| a.spec.id())
         .collect();
-    let local: HashSet<_> = group.attributes.iter().map(|a| a.spec.id()).collect();
-    let included: HashMap<_, _> = included
+    let parent_identifying_keys: HashSet<String> = if group.group.r#type == GroupType::Entity {
+        parent_attrs
+            .iter()
+            .filter(|a| defined_roles.of(&a.spec) == Some(AttributeRole::Identifying))
+            .map(|a| a.spec.id())
+            .collect()
+    } else {
+        HashSet::new()
+    };
+    let local_attr_keys: HashSet<String> = group.attributes.iter().map(|a| a.spec.id()).collect();
+    let included_group_attrs: HashMap<String, String> = included
         .iter()
-        .flat_map(|(source, attrs)| attrs.iter().map(move |attr| (attr.spec.id(), source)))
-        .collect();
-    let mut seen = HashSet::new();
-    group.attribute_unrefs.iter().filter_map(|key| {
-        let reason = if !seen.insert(key) {
-            "duplicate unref entry".to_owned()
-        } else if local.contains(key) {
-            "the attribute is also explicitly referenced by this refinement".to_owned()
-        } else if let Some(source) = included.get(key) {
-            format!("the attribute is also included by ref_group `{source}`")
-        } else if let Some(spec) = inherited.get(key) {
-            if group.group.r#type == GroupType::Entity
-                && defined_roles.of(spec) == Some(AttributeRole::Identifying)
-            {
-                format!("the attribute identifies entity `{parent_ref}`; refinements must preserve identity")
-            } else if spec.is_required() {
-                format!("the attribute is required by `{parent_ref}`")
-            } else {
-                return None;
-            }
-        } else {
-            format!("the attribute is not inherited from `{parent_ref}`")
-        };
-        Some(Error::InvalidAttributeUnref {
-            refinement_id: group.group.id.clone(),
-            attribute_key: key.clone(),
-            reason,
-            provenance: group.provenance.clone().map(Box::new),
+        .flat_map(|(source, attrs)| {
+            attrs
+                .iter()
+                .map(move |attr| (attr.spec.id(), source.clone()))
         })
-    }).collect()
+        .collect();
+
+    validate_attribute_unrefs(
+        &group.group.id,
+        parent_ref,
+        group.attribute_unrefs.iter().map(String::as_str),
+        &parent_attr_keys,
+        &parent_required_keys,
+        &parent_identifying_keys,
+        &local_attr_keys,
+        &included_group_attrs,
+        group.provenance.as_ref(),
+    )
 }
 
 /// Errors when an entity refinement alters the identity of the base entity
@@ -1217,48 +1219,26 @@ fn entity_identity_refinement_errors(
     parent_attrs: &[UnresolvedAttribute],
     defined_roles: &AttributeRoles<'_>,
 ) -> Vec<Error> {
-    let role_of = |spec: &AttributeSpec| defined_roles.of(spec);
-
-    let has_identity = parent_attrs
+    let parent_identifying_keys: HashSet<String> = parent_attrs
         .iter()
-        .any(|p| role_of(&p.spec) == Some(AttributeRole::Identifying));
+        .filter(|p| defined_roles.of(&p.spec) == Some(AttributeRole::Identifying))
+        .map(|p| p.spec.id())
+        .collect();
 
-    if !has_identity {
-        return vec![Error::EntityRefinementWithoutIdentity {
-            refinement_id: group.group.id.clone(),
-            r#ref: extends.to_owned(),
-            provenance: group.provenance.clone().map(Box::new),
-        }];
-    }
+    let refined_roles = group.attributes.iter().filter_map(|attr| {
+        let AttributeSpec::Ref { r#ref, role, .. } = &attr.spec else {
+            return None;
+        };
+        role.as_ref().map(|r| (r#ref.as_str(), r.clone()))
+    });
 
-    group
-        .attributes
-        .iter()
-        .filter_map(|attr| {
-            let AttributeSpec::Ref { r#ref, role, .. } = &attr.spec else {
-                return None;
-            };
-            let refined_role = role.as_ref()?;
-            let changes_identity = match parent_attrs.iter().find(|p| p.spec.id() == *r#ref) {
-                // Attribute declared by the base entity: its identity role
-                // must not change.
-                Some(base) => {
-                    let base_role = role_of(&base.spec).unwrap_or(AttributeRole::Descriptive);
-                    base_role != *refined_role
-                }
-                // Attribute introduced by the refinement: allowed only under
-                // `description`, never as a new identity attribute.
-                None => *refined_role == AttributeRole::Identifying,
-            };
-            changes_identity.then(|| Error::EntityRefinementChangedIdentity {
-                refinement_id: group.group.id.clone(),
-                r#ref: extends.to_owned(),
-                attribute_id: r#ref.clone(),
-                role: refined_role.clone(),
-                provenance: group.provenance.clone().map(Box::new),
-            })
-        })
-        .collect()
+    validate_entity_identity_refinements(
+        &group.group.id,
+        extends,
+        &parent_identifying_keys,
+        refined_roles,
+        group.provenance.as_ref(),
+    )
 }
 
 /// Merges attributes from `include_groups` in priority order, applies overrides from `attrs_group`, and records attribute lineage.

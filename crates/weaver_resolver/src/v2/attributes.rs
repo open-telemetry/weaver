@@ -13,9 +13,7 @@ use super::dependency::V2Dependencies;
 use super::index::Index;
 use super::rules;
 use crate::error::Error;
-use crate::graph::chosen_versions::{
-    chosen_version_if_superseded, lookup_chosen_schema, SchemaCacheLookup,
-};
+use crate::graph::chosen_versions::{upgrade_if_superseded, SchemaCacheLookup};
 use crate::graph::exclusion::is_excluded;
 use crate::graph::merge::merge_annotations;
 
@@ -214,74 +212,70 @@ pub(crate) fn upgrade_attribute_content<C: SchemaCacheLookup>(
     deps: &V2Dependencies,
     cache_lookup: &C,
 ) -> Result<SchemaUrl, Error> {
-    if let Some(chosen_url) = chosen_version_if_superseded(origin, cache_lookup)? {
-        let chosen_schema = lookup_chosen_schema(&chosen_url, cache_lookup)?;
-        let dep_attr = deps
-            .adapter_for(&chosen_url, &chosen_schema)
-            .lookup_attribute(&attr.key)?;
-        let Some(dep_attr) = dep_attr else {
-            return Err(Error::AttributeNotFoundInUpgradedSchema {
-                attribute_name: attr.key.clone(),
-                original_url: origin.to_string(),
-                upgraded_url: chosen_url.to_string(),
-            });
-        };
-        if dep_attr.excluded {
-            return Err(Error::AttributeNotFoundInUpgradedSchema {
-                attribute_name: attr.key.clone(),
-                original_url: origin.to_string(),
-                upgraded_url: chosen_url.to_string(),
-            });
+    let Some((chosen_url, dep_attr)) = upgrade_if_superseded(
+        origin,
+        cache_lookup,
+        |chosen_url, chosen_schema| {
+            Ok(deps
+                .adapter_for(chosen_url, chosen_schema)
+                .lookup_attribute(&attr.key)?
+                .filter(|a| !a.excluded))
+        },
+        |orig, chosen| Error::AttributeNotFoundInUpgradedSchema {
+            attribute_name: attr.key.clone(),
+            original_url: orig.to_string(),
+            upgraded_url: chosen.to_string(),
+        },
+    )?
+    else {
+        return Ok(origin.clone());
+    };
+
+    attr.r#type = dep_attr.attribute.r#type;
+    attr.common.stability = dep_attr.attribute.common.stability;
+    attr.common.deprecated = dep_attr.attribute.common.deprecated;
+
+    let orig_base_attr = cache_lookup.lookup_schema(origin).and_then(|orig_schema| {
+        deps.adapter_for(origin, &orig_schema)
+            .lookup_attribute(&attr.key)
+            .ok()
+            .flatten()
+    });
+    if let Some(orig_base) = orig_base_attr {
+        if attr.common.brief == orig_base.attribute.common.brief {
+            attr.common.brief = dep_attr.attribute.common.brief;
         }
-
-        attr.r#type = dep_attr.attribute.r#type;
-        attr.common.stability = dep_attr.attribute.common.stability;
-        attr.common.deprecated = dep_attr.attribute.common.deprecated;
-
-        let orig_base_attr = cache_lookup.lookup_schema(origin).and_then(|orig_schema| {
-            deps.adapter_for(origin, &orig_schema)
-                .lookup_attribute(&attr.key)
-                .ok()
-                .flatten()
-        });
-        if let Some(orig_base) = orig_base_attr {
-            if attr.common.brief == orig_base.attribute.common.brief {
-                attr.common.brief = dep_attr.attribute.common.brief;
-            }
-            if attr.common.note == orig_base.attribute.common.note {
-                attr.common.note = dep_attr.attribute.common.note;
-            }
-            if attr.examples == orig_base.attribute.examples {
-                attr.examples = dep_attr.attribute.examples;
-            }
-            if attr.common.annotations == orig_base.attribute.common.annotations {
-                attr.common.annotations = dep_attr.attribute.common.annotations;
-            } else {
-                attr.common.annotations = merge_annotations(
-                    dep_attr.attribute.common.annotations,
-                    &attr.common.annotations,
-                );
-            }
+        if attr.common.note == orig_base.attribute.common.note {
+            attr.common.note = dep_attr.attribute.common.note;
+        }
+        if attr.examples == orig_base.attribute.examples {
+            attr.examples = dep_attr.attribute.examples;
+        }
+        if attr.common.annotations == orig_base.attribute.common.annotations {
+            attr.common.annotations = dep_attr.attribute.common.annotations;
         } else {
-            if attr.common.brief.is_empty() {
-                attr.common.brief = dep_attr.attribute.common.brief;
-            }
-            if attr.common.note.is_none() {
-                attr.common.note = dep_attr.attribute.common.note;
-            }
-            if attr.examples.is_none() {
-                attr.examples = dep_attr.attribute.examples;
-            }
             attr.common.annotations = merge_annotations(
                 dep_attr.attribute.common.annotations,
                 &attr.common.annotations,
             );
         }
-
-        Ok(chosen_url)
     } else {
-        Ok(origin.clone())
+        if attr.common.brief.is_empty() {
+            attr.common.brief = dep_attr.attribute.common.brief;
+        }
+        if attr.common.note.is_none() {
+            attr.common.note = dep_attr.attribute.common.note;
+        }
+        if attr.examples.is_none() {
+            attr.examples = dep_attr.attribute.examples;
+        }
+        attr.common.annotations = merge_annotations(
+            dep_attr.attribute.common.annotations,
+            &attr.common.annotations,
+        );
     }
+
+    Ok(chosen_url)
 }
 
 #[cfg(test)]

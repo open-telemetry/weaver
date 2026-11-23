@@ -130,3 +130,24 @@ pub(crate) fn lookup_chosen_schema<C: SchemaCacheLookup>(
             schema_url: chosen_url.clone(),
         })
 }
+
+/// Looks up an item in the chosen dependency schema when `origin` has been superseded.
+///
+/// Returns `Ok(None)` when `origin` is not superseded. When superseded, resolves the chosen
+/// schema from `cache_lookup`, invokes `lookup` (returning `Ok(None)` if absent or excluded),
+/// and maps absence to `not_found(origin, &chosen_url)`.
+pub(crate) fn upgrade_if_superseded<T, C: SchemaCacheLookup>(
+    origin: &SchemaUrl,
+    cache_lookup: &C,
+    lookup: impl FnOnce(&SchemaUrl, &Arc<WeaverResolvedSchema>) -> Result<Option<T>, Error>,
+    not_found: impl FnOnce(&SchemaUrl, &SchemaUrl) -> Error,
+) -> Result<Option<(SchemaUrl, T)>, Error> {
+    let Some(chosen_url) = chosen_version_if_superseded(origin, cache_lookup)? else {
+        return Ok(None);
+    };
+    let chosen_schema = lookup_chosen_schema(&chosen_url, cache_lookup)?;
+    let Some(upgraded) = lookup(&chosen_url, &chosen_schema)? else {
+        return Err(not_found(origin, &chosen_url));
+    };
+    Ok(Some((chosen_url, upgraded)))
+}

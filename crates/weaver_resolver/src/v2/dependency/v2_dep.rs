@@ -18,7 +18,7 @@ use super::{
     DepImportedMetric, DepImportedSpan, DepSignal, DepSignalPayload,
 };
 use crate::error::Error;
-use crate::graph::entity_lookup::{EntityLocation, EntityLookup};
+use crate::graph::entity_lookup::{v2_source_url, EntityLocation, EntityLookup};
 use crate::graph::exclusion::is_excluded;
 use crate::v2::signals::EntityAssociations;
 use crate::WeaverResolvedSchema;
@@ -482,9 +482,7 @@ impl V2Dependency {
 
     /// Resolves an optional `DependencyRef` index to its `SchemaUrl`, defaulting to this schema's URL.
     fn source_url(&self, source: Option<DependencyRef>) -> SchemaUrl {
-        source
-            .and_then(|dep_ref| self.deps_vec.get(dep_ref.0 as usize).cloned())
-            .unwrap_or_else(|| self.schema.schema_url.clone())
+        v2_source_url(&self.schema, &self.deps_vec, source)
     }
 }
 

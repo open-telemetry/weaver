@@ -2,12 +2,12 @@
 
 //! Shared entity lookup types for entity associations.
 
+use weaver_resolved_schema::v2::provenance::DependencyRef;
+use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_semconv::schema_url::SchemaUrl;
 
 use crate::error::Error;
-use crate::graph::chosen_versions::{
-    chosen_version_if_superseded, lookup_chosen_schema, SchemaCacheLookup,
-};
+use crate::graph::chosen_versions::{upgrade_if_superseded, SchemaCacheLookup};
 use crate::graph::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
 use crate::WeaverResolvedSchema;
 
@@ -79,25 +79,42 @@ pub(crate) fn resolve_entity<T: EntityLookup>(deps: &[T], name: &str) -> EntityR
     }
 }
 
+/// Resolves the origin `SchemaUrl` of a V2 item from `deps` (materialized from `schema.dependencies`)
+/// when `source` is set, or `schema.schema_url` otherwise.
+#[must_use]
+pub(crate) fn v2_source_url(
+    schema: &V2Schema,
+    deps: &[SchemaUrl],
+    source: Option<DependencyRef>,
+) -> SchemaUrl {
+    source
+        .and_then(|dep_ref| deps.get(dep_ref.0 as usize).cloned())
+        .unwrap_or_else(|| schema.schema_url.clone())
+}
+
 /// Upgrades an entity association origin to the chosen version if superseded, failing if the entity was removed or excluded.
 pub(crate) fn upgrade_entity_origin<C: SchemaCacheLookup>(
     entity_name: &str,
     origin: &SchemaUrl,
     cache_lookup: &C,
 ) -> Result<SchemaUrl, Error> {
-    let Some(chosen_url) = chosen_version_if_superseded(origin, cache_lookup)? else {
+    let Some((chosen_url, ())) = upgrade_if_superseded(
+        origin,
+        cache_lookup,
+        |_, chosen_schema| {
+            Ok(chosen_schema
+                .lookup_entity(entity_name)
+                .is_some_and(|loc| !loc.excluded)
+                .then_some(()))
+        },
+        |orig, chosen| Error::EntityNotFoundInUpgradedSchema {
+            entity_name: entity_name.to_owned(),
+            original_url: orig.to_string(),
+            upgraded_url: chosen.to_string(),
+        },
+    )?
+    else {
         return Ok(origin.clone());
     };
-    let chosen_schema = lookup_chosen_schema(&chosen_url, cache_lookup)?;
-    if chosen_schema
-        .lookup_entity(entity_name)
-        .is_none_or(|loc| loc.excluded)
-    {
-        return Err(Error::EntityNotFoundInUpgradedSchema {
-            entity_name: entity_name.to_owned(),
-            original_url: origin.to_string(),
-            upgraded_url: chosen_url.to_string(),
-        });
-    }
     Ok(chosen_url)
 }

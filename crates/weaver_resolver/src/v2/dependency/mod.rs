@@ -19,10 +19,8 @@ use weaver_semconv::v2::span::{SpanKindSpec, SpanName};
 use weaver_semconv::v2::CommonFields;
 
 use crate::error::Error;
-use crate::graph::chosen_versions::{
-    chosen_version_if_superseded, lookup_chosen_schema, SchemaCacheLookup,
-};
-use crate::graph::conflict_strategy::{DependencyVersionConflictStrategy, UseLatestMajorVersion};
+use crate::graph::chosen_versions::{upgrade_if_superseded, SchemaCacheLookup};
+use crate::graph::conflict_strategy::pick_winning_by_origin;
 pub(crate) use crate::graph::entity_lookup::{EntityLocation, EntityLookup};
 use crate::WeaverResolvedSchema;
 
@@ -359,23 +357,21 @@ impl V2Dependencies {
             }
         }
 
-        if let Some(chosen_url) = chosen_version_if_superseded(&winning.origin, cache_lookup)? {
-            let chosen_schema = lookup_chosen_schema(&chosen_url, cache_lookup)?;
-            let chosen_adapter = self.adapter_for(&chosen_url, &chosen_schema);
-            let Some(upgraded) = chosen_adapter.lookup_attribute(key)? else {
-                return Err(Error::AttributeNotFoundInUpgradedSchema {
-                    attribute_name: key.to_owned(),
-                    original_url: winning.origin.to_string(),
-                    upgraded_url: chosen_url.to_string(),
-                });
-            };
-            if upgraded.excluded {
-                return Err(Error::AttributeNotFoundInUpgradedSchema {
-                    attribute_name: key.to_owned(),
-                    original_url: winning.origin.to_string(),
-                    upgraded_url: chosen_url.to_string(),
-                });
-            }
+        if let Some((chosen_url, upgraded)) = upgrade_if_superseded(
+            &winning.origin,
+            cache_lookup,
+            |chosen_url, chosen_schema| {
+                Ok(self
+                    .adapter_for(chosen_url, chosen_schema)
+                    .lookup_attribute(key)?
+                    .filter(|a| !a.excluded))
+            },
+            |orig, chosen| Error::AttributeNotFoundInUpgradedSchema {
+                attribute_name: key.to_owned(),
+                original_url: orig.to_string(),
+                upgraded_url: chosen.to_string(),
+            },
+        )? {
             winning = upgraded;
             winning.origin = chosen_url;
         }
@@ -424,59 +420,27 @@ impl V2Dependencies {
         let mut winning = pick_winning_by_origin(all_matches, id, |s| &s.origin)?
             .expect("all_matches is not empty");
 
-        if let Some(chosen_url) = chosen_version_if_superseded(&winning.origin, cache_lookup)? {
-            let chosen_schema = lookup_chosen_schema(&chosen_url, cache_lookup)?;
-            let chosen_adapter = self.adapter_for(&chosen_url, &chosen_schema);
-            let Some(upgraded_signal) = chosen_adapter.lookup_signal(kind, id) else {
-                return Err(Error::GroupNotFoundInUpgradedSchema {
-                    group_id: id.to_owned(),
-                    original_url: winning.origin.to_string(),
-                    upgraded_url: chosen_url.to_string(),
-                });
-            };
-            if upgraded_signal.excluded {
-                return Err(Error::GroupNotFoundInUpgradedSchema {
-                    group_id: id.to_owned(),
-                    original_url: winning.origin.to_string(),
-                    upgraded_url: chosen_url.to_string(),
-                });
-            }
+        if let Some((chosen_url, upgraded_signal)) = upgrade_if_superseded(
+            &winning.origin,
+            cache_lookup,
+            |chosen_url, chosen_schema| {
+                Ok(self
+                    .adapter_for(chosen_url, chosen_schema)
+                    .lookup_signal(kind, id)
+                    .filter(|s| !s.excluded))
+            },
+            |orig, chosen| Error::GroupNotFoundInUpgradedSchema {
+                group_id: id.to_owned(),
+                original_url: orig.to_string(),
+                upgraded_url: chosen.to_string(),
+            },
+        )? {
             winning = upgraded_signal;
             winning.origin = chosen_url;
         }
 
         Ok(winning)
     }
-}
-
-/// Arbitrates competing dependency matches using `UseLatestMajorVersion`, reporting incompatible conflicts as `AmbiguousReference`.
-fn pick_winning_by_origin<T>(
-    matches: Vec<T>,
-    reference: &str,
-    origin_of: impl Fn(&T) -> &SchemaUrl,
-) -> Result<Option<T>, Error> {
-    matches
-        .into_iter()
-        .try_fold(None, |acc: Option<T>, m| match acc {
-            None => Ok(Some(m)),
-            Some(existing) => {
-                let winning_url = UseLatestMajorVersion
-                    .resolve_conflict(origin_of(&m), origin_of(&existing))
-                    .map_err(|e| match e {
-                        Error::IncompatibleDependencyVersions { .. } => Error::AmbiguousReference {
-                            r#ref: reference.to_owned(),
-                            schema_url1: origin_of(&m).to_string(),
-                            schema_url2: origin_of(&existing).to_string(),
-                        },
-                        other => other,
-                    })?;
-                if winning_url == *origin_of(&existing) {
-                    Ok(Some(existing))
-                } else {
-                    Ok(Some(m))
-                }
-            }
-        })
 }
 
 /// Formats a lowercase signal kind identifier in title case for diagnostic messages.

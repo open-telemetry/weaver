@@ -45,6 +45,49 @@ impl DependencyVersionConflictStrategy for UseLatestMajorVersion {
     }
 }
 
+/// Arbitrates two competing dependency origins for `reference`, selecting the higher compatible
+/// version within the same registry family or returning [`Error::AmbiguousReference`].
+pub(crate) fn arbitrate_origin_conflict(
+    reference: &str,
+    url1: &SchemaUrl,
+    url2: &SchemaUrl,
+) -> Result<SchemaUrl, Error> {
+    UseLatestMajorVersion
+        .resolve_conflict(url1, url2)
+        .map_err(|e| match e {
+            Error::IncompatibleDependencyVersions { .. } | Error::AmbiguousReference { .. } => {
+                Error::AmbiguousReference {
+                    r#ref: reference.to_owned(),
+                    schema_url1: url1.to_string(),
+                    schema_url2: url2.to_string(),
+                }
+            }
+            other => other,
+        })
+}
+
+/// Selects the single winning item from `matches` using [`arbitrate_origin_conflict`].
+pub(crate) fn pick_winning_by_origin<T>(
+    matches: impl IntoIterator<Item = T>,
+    reference: &str,
+    origin_of: impl Fn(&T) -> &SchemaUrl,
+) -> Result<Option<T>, Error> {
+    matches
+        .into_iter()
+        .try_fold(None, |acc: Option<T>, m| match acc {
+            None => Ok(Some(m)),
+            Some(existing) => {
+                let winning_url =
+                    arbitrate_origin_conflict(reference, origin_of(&m), origin_of(&existing))?;
+                if winning_url == *origin_of(&existing) {
+                    Ok(Some(existing))
+                } else {
+                    Ok(Some(m))
+                }
+            }
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

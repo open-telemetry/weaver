@@ -6,8 +6,10 @@ pub(crate) mod chosen_versions;
 pub(crate) mod conflict_strategy;
 pub(crate) mod entity_lookup;
 pub(crate) mod exclusion;
+pub(crate) mod imports;
 pub mod loader;
 pub(crate) mod merge;
+pub(crate) mod refinement_rules;
 
 #[cfg(test)]
 mod tests {

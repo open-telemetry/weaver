@@ -36,71 +36,37 @@ use crate::error::Error;
 use crate::graph::chosen_versions::{
     chosen_version_if_superseded, lookup_chosen_schema, SchemaCacheLookup,
 };
-use crate::graph::entity_lookup::EntityLookup;
+use crate::graph::entity_lookup::{v2_source_url, EntityLookup};
 use crate::graph::exclusion::is_excluded;
+use crate::graph::imports::{build_globset, ImportField};
 use crate::v1::attribute::{AttributeCatalog, AttributeSource};
 use crate::v1::dependency::v1_dep::find_attribute_source;
-use crate::v1::dependency::v2_dep::v2_source_url;
 use crate::v1::dependency::ResolvedDependency;
 use crate::v1::upgrade::upgrade_entity_origin;
 use crate::WeaverResolvedSchema;
 
-/// Signal category field within an `imports` block.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum ImportField {
-    Metrics,
-    Events,
-    Spans,
-    Entities,
-    AttributeGroups,
+/// Maps a V1 `GroupType` to its corresponding `imports:` category, or `None` if not importable.
+fn import_field_of(group_type: &GroupType) -> Option<ImportField> {
+    match group_type {
+        GroupType::Metric | GroupType::MetricGroup => Some(ImportField::Metrics),
+        GroupType::Event => Some(ImportField::Events),
+        GroupType::Span => Some(ImportField::Spans),
+        GroupType::Entity => Some(ImportField::Entities),
+        GroupType::AttributeGroup => Some(ImportField::AttributeGroups),
+        GroupType::Scope | GroupType::Undefined => None,
+    }
 }
 
-impl ImportField {
-    /// Maps a `GroupType` to its corresponding `imports` field, or `None` if not importable.
-    fn of(group_type: &GroupType) -> Option<Self> {
-        match group_type {
-            GroupType::Metric | GroupType::MetricGroup => Some(Self::Metrics),
-            GroupType::Event => Some(Self::Events),
-            GroupType::Span => Some(Self::Spans),
-            GroupType::Entity => Some(Self::Entities),
-            GroupType::AttributeGroup => Some(Self::AttributeGroups),
-            GroupType::Scope | GroupType::Undefined => None,
-        }
-    }
-
-    /// Returns all importable fields in deterministic order.
-    fn all() -> [Self; 5] {
-        [
-            Self::Metrics,
-            Self::Events,
-            Self::Spans,
-            Self::Entities,
-            Self::AttributeGroups,
-        ]
-    }
-
-    /// Returns the YAML field name used in diagnostics.
-    fn name(&self) -> &'static str {
-        match self {
-            Self::Metrics => "metrics",
-            Self::Events => "events",
-            Self::Spans => "spans",
-            Self::Entities => "entities",
-            Self::AttributeGroups => "attribute_groups",
-        }
-    }
-
-    /// Returns the glob patterns configured for this field in `imports`.
-    fn patterns<'a>(&self, imports: &'a Imports) -> &'a [GroupWildcard] {
-        let field = match self {
-            Self::Metrics => &imports.metrics,
-            Self::Events => &imports.events,
-            Self::Spans => &imports.spans,
-            Self::Entities => &imports.entities,
-            Self::AttributeGroups => &imports.attribute_groups,
-        };
-        field.as_deref().unwrap_or_default()
-    }
+/// Returns the glob patterns configured for `field` in a V1 `Imports` block.
+fn import_field_patterns(field: ImportField, imports: &Imports) -> &[GroupWildcard] {
+    let list = match field {
+        ImportField::Metrics => &imports.metrics,
+        ImportField::Events => &imports.events,
+        ImportField::Spans => &imports.spans,
+        ImportField::Entities => &imports.entities,
+        ImportField::AttributeGroups => &imports.attribute_groups,
+    };
+    list.as_deref().unwrap_or_default()
 }
 
 /// Returns `true` if `import` was synthesized by `--include-unreferenced` rather than authored.
@@ -119,17 +85,17 @@ pub(crate) fn unmatched_import_errors(
     for field in ImportField::all() {
         let patterns: Vec<&GroupWildcard> = explicit
             .iter()
-            .flat_map(|i| field.patterns(&i.imports))
+            .flat_map(|i| import_field_patterns(field, &i.imports))
             .collect();
         if patterns.is_empty() {
             continue;
         }
         // Built from the same list, in the same order, so a match index is an
         // index into `patterns`.
-        let matcher = build_globset(patterns.iter().copied())?;
+        let matcher = build_globset(patterns.iter().map(|w| &w.0))?;
         let mut matched = vec![false; patterns.len()];
         for group in groups {
-            if ImportField::of(&group.group.r#type) != Some(field) {
+            if import_field_of(&group.group.r#type) != Some(field) {
                 continue;
             }
             for key in import_match_keys(&group.group) {
@@ -212,7 +178,8 @@ impl ImportMatchers {
             build_globset(
                 imports
                     .clone()
-                    .flat_map(move |i| field.patterns(&i.imports)),
+                    .flat_map(move |i| import_field_patterns(field, &i.imports))
+                    .map(|w| &w.0),
             )
         };
         Ok(Self {
@@ -237,7 +204,7 @@ impl ImportMatchers {
 
     /// Returns `true` if any pattern in the matching field matches `g`.
     fn matches(&self, g: &Group) -> bool {
-        let Some(field) = ImportField::of(&g.r#type) else {
+        let Some(field) = import_field_of(&g.r#type) else {
             return false;
         };
         let matcher = self.field(field);
@@ -1248,17 +1215,6 @@ fn origin_url(group: &Group, fallback_url: &SchemaUrl) -> SchemaUrl {
         .provenance()
         .map(|prov| prov.schema_url)
         .unwrap_or_else(|| fallback_url.clone())
-}
-
-/// Compiles `wildcards` into a single `GlobSet` matcher.
-fn build_globset<'a>(wildcards: impl Iterator<Item = &'a GroupWildcard>) -> Result<GlobSet, Error> {
-    let mut builder = GlobSet::builder();
-    for wildcard in wildcards {
-        _ = builder.add(wildcard.0.clone());
-    }
-    builder.build().map_err(|e| Error::InvalidWildcard {
-        error: e.to_string(),
-    })
 }
 
 #[cfg(test)]
