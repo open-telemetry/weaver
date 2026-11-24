@@ -698,14 +698,7 @@
         },
         "stability": {
           "description": "Stability of this enum value.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Stability"
-            },
-            {
-              "type": "null"
-            }
-          ]
+          "$ref": "#/$defs/Stability"
         },
         "value": {
           "description": "String, int, or boolean; value of the enum entry.\nIf omitted, defaults to the value of `id`.",
@@ -721,7 +714,8 @@
       },
       "additionalProperties": false,
       "required": [
-        "id"
+        "id",
+        "stability"
       ]
     },
     "Event": {

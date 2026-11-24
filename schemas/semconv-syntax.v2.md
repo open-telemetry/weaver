@@ -174,7 +174,7 @@ and another example of an int enum attribute:
 Enum members have the following properties:
 
 - `id` - Required. Identifies the enum member within this enum.
-- `value` - Required. String, int, or boolean value of the enum entry.
+- `value` - Optional. String, int, or boolean value of the enum entry. Defaults to the `id` when omitted.
 - `brief` - Optional. A short description of what this enum member represents.
 - `note` - Optional. A more elaborate description of the member.
 - `stability` - Required. Specifies the [stability](#stability-levels) of the enum member.

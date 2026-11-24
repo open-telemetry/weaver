@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- 💥 BREAKING CHANGE 💥 v2: `stability` is required on enum members, in both the parser and the JSON schemas. v1 members without `stability` convert to `development`. Fixes [#1146](https://github.com/open-telemetry/weaver/issues/1146)
 - Fix `--registry .` and `--registry ..` loading no definition files. Fixes [#1838](https://github.com/open-telemetry/weaver/issues/1838) - ([#1877](https://github.com/open-telemetry/weaver/pull/1877) by @konippi)
 - `live-check` and `infer` accept OTLP/HTTP (`http/protobuf`) on `--otlp-http-port`, which defaults to `4318` and is bound alongside the gRPC port. Fixes [#1563](https://github.com/open-telemetry/weaver/issues/1563) - ([#1912](https://github.com/open-telemetry/weaver/pull/1912) by @jerbly)
 - Add a `load_registry` tool to `registry mcp` that swaps the served registry without restarting the server. It takes the same values as `--registry`. A new `get_registry_info` tool describes the served registry. ([#1890](https://github.com/open-telemetry/weaver/pull/1890) by @jerbly)
