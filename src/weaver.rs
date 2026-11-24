@@ -157,10 +157,6 @@ impl<'a> WeaverEngine<'a> {
             }
         };
 
-        let mut schema_cache = resolver
-            .schema_cache_for(&resolved_bundle)
-            .capture_non_fatal_errors(diag_msgs)?;
-
         if self.registry_config.v2 || matches!(resolved_bundle, WeaverResolvedSchema::V2(_)) {
             if !self.registry_config.v2 {
                 diag_msgs.extend(Error::V2FlagMissingWarning.into());
@@ -168,7 +164,7 @@ impl<'a> WeaverEngine<'a> {
             let v2_resolved = resolved_bundle.into_v2()?;
             let template = match ForgeResolvedRegistry::try_from_resolved_schema(
                 v2_resolved.clone(),
-                &mut schema_cache,
+                &mut resolver,
             ) {
                 WResult::Ok(t) => t,
                 WResult::OkWithNFEs(t, nfes) => {
@@ -186,6 +182,9 @@ impl<'a> WeaverEngine<'a> {
             }));
         }
 
+        let schema_cache = resolver
+            .schema_cache_for(&resolved_bundle)
+            .capture_non_fatal_errors(diag_msgs)?;
         let resolved = resolved_bundle.into_v1()?;
         let template =
             ResolvedRegistry::try_from_resolved_registry(&resolved.registry, resolved.catalog())?;
@@ -941,6 +940,75 @@ mod tests {
         assert_eq!(
             resolved_v2.resolved_schema().schema_url.as_str(),
             "https://root.example.com/schemas/1.0.0"
+        );
+    }
+
+    #[test]
+    fn test_published_v2_root_loads_dependencies_for_forge() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let manifest = r#"
+file_format: manifest/2.0
+schema_url: https://root.example.com/schemas/1.0.0
+description: Test published root registry.
+stability: stable
+resolved_registry_uri: resolved.yaml
+dependencies:
+  - schema_url: https://dep.example.com/schemas/1.0.0
+"#;
+        let resolved_yaml = r#"
+file_format: resolved/2.0
+schema_url: https://root.example.com/schemas/1.0.0
+attribute_catalog: []
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+dependencies:
+  - https://dep.example.com/schemas/1.0.0
+"#;
+        std::fs::write(dir.path().join("manifest.yaml"), manifest).expect("write manifest");
+        std::fs::write(dir.path().join("resolved.yaml"), resolved_yaml).expect("write resolved");
+
+        let registry_config = EffectiveRegistryConfig {
+            registry: VirtualDirectoryPath::LocalFolder {
+                path: dir.path().display().to_string(),
+            },
+            v2: true,
+            follow_symlinks: false,
+            include_unreferenced: false,
+        };
+        let policy_config = EffectivePolicyConfig::skip_all();
+        let mut resolve_config = EffectiveResolveConfig::default();
+        _ = resolve_config.schema_url_overrides.insert(
+            "https://dep.example.com/schemas/1.0.0".try_into().unwrap(),
+            VirtualDirectoryPath::LocalFolder {
+                path: "tests/v2_forge_dep/dep".to_owned(),
+            },
+        );
+        let auth = HttpAuthResolver::default();
+        let engine = WeaverEngine::new(&registry_config, &policy_config, &resolve_config, &auth);
+        let mut diag_msgs = DiagnosticMessages::empty();
+
+        let resolved = engine
+            .load_and_resolve_main(&mut diag_msgs)
+            .expect("Failed to load published V2 registry with dependency override");
+
+        let Resolved::V2(v2) = resolved else {
+            panic!("Expected Resolved::V2");
+        };
+        let dep_url: weaver_semconv::schema_url::SchemaUrl =
+            "https://dep.example.com/schemas/1.0.0".try_into().unwrap();
+        assert!(
+            v2.template_schema().dependencies.contains_key(&dep_url),
+            "published V2 root should load its dependencies into ForgeResolvedRegistry"
         );
     }
 }

@@ -807,7 +807,7 @@ impl SchemaResolver for WeaverResolver {
         &mut self,
         schema_url: &SchemaUrl,
     ) -> WResult<Arc<WeaverResolvedSchema>, Error> {
-        self.resolve_schema(schema_url)
+        self.resolve_dependency_schema(schema_url)
     }
 
     fn direct_dependencies(&self, schema_url: &SchemaUrl) -> Option<&[SchemaUrl]> {

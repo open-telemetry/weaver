@@ -346,6 +346,17 @@ pub enum Error {
     #[error("Internal error: {0}")]
     InternalError(String),
 
+    /// Warning emitted when a dependency schema is not present in an offline cache
+    /// and must be omitted from the materialized dependency map.
+    #[error(
+        "Dependency `{schema_url}` is not available in the schema cache and will be omitted from materialized dependencies"
+    )]
+    #[diagnostic(severity(warning))]
+    MissingDependencyWarning {
+        /// The missing dependency's schema URL.
+        schema_url: String,
+    },
+
     /// Resolver error.
     #[error("Resolver error: {0}")]
     ResolverError(#[from] weaver_resolver::Error),

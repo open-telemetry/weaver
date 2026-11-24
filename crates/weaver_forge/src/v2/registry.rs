@@ -307,14 +307,6 @@ impl ForgeResolvedRegistry {
             }
         }
 
-        for (_dep_url, dep) in &candidate_deps {
-            if let Some(entity) =
-                defined_entity(&dep.registry, &dep.refinements, &entity_ref.r#type)
-            {
-                return Ok(entity);
-            }
-        }
-
         Err(Error::EntityNotFound {
             entity_type: entity_ref.r#type.to_string(),
             registry: Some(target_url.to_string()),
@@ -392,8 +384,12 @@ impl ForgeResolvedRegistry {
             let (resolved_bundle, dep_nfes) = match resolver.resolve_schema(&dep_url) {
                 WResult::Ok(bundle) => (bundle, vec![]),
                 WResult::OkWithNFEs(bundle, nfes) => (bundle, nfes),
-                WResult::FatalErr(ResolverError::SchemaNotInCache { .. }) => {
-                    // Transitive dependencies of published packages are not loaded into cache.
+                WResult::FatalErr(ResolverError::SchemaNotInCache { schema_url }) => {
+                    // An offline cache may omit transitive dependencies of published packages;
+                    // warn instead of silently dropping them from materialized dependencies.
+                    non_fatal_errors.push(Error::MissingDependencyWarning {
+                        schema_url: schema_url.to_string(),
+                    });
                     continue;
                 }
                 WResult::FatalErr(e) => return WResult::FatalErr(e.into()),
@@ -2962,7 +2958,10 @@ pub(crate) mod tests {
         let absent_transitive_url: SchemaUrl =
             "https://example.com/absent/1.0.0".try_into().unwrap();
 
-        let direct_dep = test_dependency(&["host"]);
+        let mut direct_dep = test_dependency(&["host", "local_only"]);
+        direct_dep.registry.entities[0].provenance.source = Some(absent_transitive_url.clone());
+        direct_dep.refinements.entities[0].entity.provenance.source =
+            Some(absent_transitive_url.clone());
 
         let main = ForgeResolvedRegistry {
             schema_url: main_url.clone(),
@@ -3000,8 +2999,24 @@ pub(crate) mod tests {
 
         let found = main
             .lookup_entity(&entity_ref)
-            .expect("entity should be found via fallback in depending registry");
+            .expect("entity with matching provenance should be found via fallback");
         assert_eq!(found.r#type, "host".to_owned().into());
+
+        // An entity defined locally in `direct_dep` (provenance.source == None) must not
+        // satisfy a reference targeting `absent_transitive_url`.
+        let wrong_provenance_ref = EntityRef {
+            r#type: "local_only".to_owned().into(),
+            provenance: Provenance {
+                source: Some(absent_transitive_url.clone()),
+                path: None,
+            },
+        };
+        let err = main
+            .lookup_entity(&wrong_provenance_ref)
+            .expect_err("entity with mismatched provenance must not be returned");
+        assert!(
+            matches!(err, Error::EntityNotFound { entity_type, .. } if entity_type == "local_only")
+        );
 
         let unknown_ref = EntityRef {
             r#type: "nonexistent".to_owned().into(),
@@ -3110,13 +3125,22 @@ pub(crate) mod tests {
         mock_resolver.add_direct_dependencies(root_url.clone(), vec![b_url.clone()]);
         mock_resolver.add_direct_dependencies(b_url.clone(), vec![c_url.clone()]);
 
-        let forge_registry = match ForgeResolvedRegistry::try_from_resolved_schema(
+        let (forge_registry, nfes) = match ForgeResolvedRegistry::try_from_resolved_schema(
             root_schema,
             &mut mock_resolver,
         ) {
-            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::Ok(r) => (r, vec![]),
+            WResult::OkWithNFEs(r, nfes) => (r, nfes),
             WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
         };
+
+        assert!(
+            nfes.iter().any(|e| matches!(
+                e,
+                Error::MissingDependencyWarning { schema_url } if schema_url == c_url.as_str()
+            )),
+            "expected MissingDependencyWarning for uncached transitive dep, got {nfes:?}"
+        );
 
         assert!(!forge_registry.dependencies.contains_key(&c_url));
         assert!(forge_registry.dependencies.contains_key(&b_url));
