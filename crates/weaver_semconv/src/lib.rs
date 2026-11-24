@@ -5,14 +5,15 @@
 use crate::Error::CompoundError;
 use miette::{Diagnostic, NamedSource, SourceSpan};
 use schemars::{json_schema, JsonSchema, Schema, SchemaGenerator};
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
+use weaver_common::serialize_normalized_path;
 
 pub mod attribute_role;
 pub use attribute_role::AttributeRole;
@@ -32,11 +33,6 @@ fn format_provenance(provenance: &Option<String>) -> String {
         Some(p) => format!("\nProvenance: {p}"),
         None => String::new(),
     }
-}
-
-/// Serializes a filesystem path with `/` separators for cross-platform consistency.
-fn serialize_normalized_path<S: Serializer>(path: &Path, serializer: S) -> Result<S::Ok, S::Error> {
-    serializer.serialize_str(&path.to_string_lossy().replace('\\', "/"))
 }
 
 /// An error that can occur while loading a semantic convention registry.

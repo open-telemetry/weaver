@@ -16,7 +16,7 @@ use crate::error::{format_errors, WeaverError};
 use crate::Error::CompoundError;
 use miette::Diagnostic;
 use paris::formatter::colorize_string;
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 use std::io::Write;
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -337,5 +337,69 @@ pub fn get_path_type(input: &str) -> PathType {
         // to determine if this is a git-relative path or
         // in-archive file reference.
         Err(_) => PathType::WeaverPath,
+    }
+}
+
+/// Normalizes a filesystem path to use forward-slash (`/`) separators across platforms.
+#[must_use]
+pub fn normalize_path_separators<P: AsRef<Path>>(path: P) -> String {
+    path.as_ref().to_string_lossy().replace('\\', "/")
+}
+
+/// Maps `entry_path` relative to `local_root` onto `base_repr`, normalizing path separators to `/`.
+#[must_use]
+pub fn map_relative_path<P: AsRef<Path>, Q: AsRef<Path>>(
+    base_repr: &str,
+    local_root: P,
+    entry_path: Q,
+) -> String {
+    let base = base_repr.replace('\\', "/");
+    let base = base.trim_end_matches('/');
+    match entry_path.as_ref().strip_prefix(local_root.as_ref()) {
+        Ok(rel) => {
+            let rel_str = normalize_path_separators(rel);
+            let rel_str = rel_str.trim_start_matches('/');
+            if rel_str.is_empty() {
+                base.to_owned()
+            } else if base.is_empty() {
+                rel_str.to_owned()
+            } else {
+                format!("{base}/{rel_str}")
+            }
+        }
+        Err(_) => normalize_path_separators(entry_path),
+    }
+}
+
+/// Serializes a filesystem path with forward-slash (`/`) separators for cross-platform consistency.
+pub fn serialize_normalized_path<S: Serializer>(
+    path: &Path,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    serializer.serialize_str(&normalize_path_separators(path))
+}
+
+#[cfg(test)]
+mod path_tests {
+    use super::*;
+
+    #[test]
+    fn test_map_relative_path_normalizes_separators() {
+        assert_eq!(
+            map_relative_path(
+                r"data\registry-test\registry\",
+                Path::new("local/root"),
+                Path::new("local/root/sub/metrics.yaml"),
+            ),
+            "data/registry-test/registry/sub/metrics.yaml"
+        );
+        assert_eq!(
+            map_relative_path(
+                "https://github.com/org/repo.git[model]/",
+                Path::new("/tmp/clone/model"),
+                Path::new("/tmp/clone/model/http/spans.yaml"),
+            ),
+            "https://github.com/org/repo.git[model]/http/spans.yaml"
+        );
     }
 }

@@ -3,11 +3,11 @@
 //! Errors emitted during telemetry schema resolution.
 
 use miette::Diagnostic;
-use serde::{Serialize, Serializer};
-use std::path::{Path, PathBuf};
+use serde::Serialize;
+use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
-use weaver_common::log_error;
+use weaver_common::{log_error, serialize_normalized_path};
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::schema_url::SchemaUrl;
 pub use weaver_semconv::AttributeRole;
@@ -20,11 +20,6 @@ fn format_provenance(prov: &Option<Box<Provenance>>) -> String {
         Some(p) => format!("\nProvenance: {p}"),
         None => String::new(),
     }
-}
-
-/// Serializes a filesystem path with forward-slash separators for cross-platform consistency.
-fn serialize_normalized_path<S: Serializer>(path: &Path, serializer: S) -> Result<S::Ok, S::Error> {
-    serializer.serialize_str(&path.to_string_lossy().replace('\\', "/"))
 }
 
 /// An error that can occur while resolving a telemetry schema.

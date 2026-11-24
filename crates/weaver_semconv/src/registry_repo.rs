@@ -323,6 +323,13 @@ impl RegistryRepo {
         self.registry.vdir_path_str()
     }
 
+    /// Maps a local file path inside this repository onto its logical provenance path with
+    /// forward-slash (`/`) separators.
+    #[must_use]
+    pub fn map_entry_path<P: AsRef<Path>>(&self, entry_path: P) -> String {
+        self.registry.map_local_path(entry_path)
+    }
+
     /// Returns the registry manifest specified in the registry repo.
     #[must_use]
     pub fn manifest(&self) -> Option<&VersionedManifest> {

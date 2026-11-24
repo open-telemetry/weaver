@@ -12,7 +12,6 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::{self, Display};
 use std::fs::File;
 use std::io::BufReader;
-use std::path::Path;
 use std::sync::Arc;
 use walkdir::{DirEntry, WalkDir};
 use weaver_common::http_auth::HttpAuthResolver;
@@ -767,31 +766,6 @@ fn from_vdir<T: DeserializeOwned>(
     })
 }
 
-/// Maps `entry_path` relative to `local_path` onto `registry_path_repr` with forward-slash
-/// separators.
-fn map_semconv_relative_path(
-    registry_path_repr: &str,
-    local_path: &Path,
-    entry_path: &Path,
-) -> String {
-    let base = registry_path_repr.replace('\\', "/");
-    let base = base.trim_end_matches('/');
-    match entry_path.strip_prefix(local_path) {
-        Ok(rel) => {
-            let rel_str = rel.to_string_lossy().replace('\\', "/");
-            let rel_str = rel_str.trim_start_matches('/');
-            if rel_str.is_empty() {
-                base.to_owned()
-            } else if base.is_empty() {
-                rel_str.to_owned()
-            } else {
-                format!("{base}/{rel_str}")
-            }
-        }
-        Err(_) => entry_path.to_string_lossy().replace('\\', "/"),
-    }
-}
-
 /// Loads raw semantic convention specification files in parallel from `registry_repo`.
 fn load_definition_repository(
     registry_repo: RegistryRepo,
@@ -807,9 +781,8 @@ fn load_definition_repository(
             .is_some_and(|s| s.starts_with('.'))
     }
     let local_path = registry_repo.path().to_path_buf();
-    let registry_path_repr = registry_repo.registry_path_repr();
 
-    let result = WalkDir::new(local_path.clone())
+    let result = WalkDir::new(local_path)
         .follow_links(follow_symlinks)
         .into_iter()
         .filter_entry(|e| !is_hidden(e))
@@ -820,8 +793,7 @@ fn load_definition_repository(
                     return vec![].into_par_iter();
                 }
 
-                let mapped_path =
-                    map_semconv_relative_path(registry_path_repr, &local_path, entry.path());
+                let mapped_path = registry_repo.map_entry_path(entry.path());
                 vec![SemConvSpecWithProvenance::from_file_with_mapped_path(
                     registry_repo.schema_url().clone(),
                     entry.path(),
@@ -1292,25 +1264,5 @@ mod tests {
         assert!(dep.importable_events().is_empty());
         assert!(dep.importable_entities().is_empty());
         assert!(dep.importable_attribute_groups().is_empty());
-    }
-
-    #[test]
-    fn test_map_semconv_relative_path_normalizes_separators() {
-        assert_eq!(
-            map_semconv_relative_path(
-                r"data\registry-test\registry\",
-                Path::new("local/root"),
-                Path::new("local/root/sub/metrics.yaml"),
-            ),
-            "data/registry-test/registry/sub/metrics.yaml"
-        );
-        assert_eq!(
-            map_semconv_relative_path(
-                "https://github.com/org/repo.git[model]/",
-                Path::new("/tmp/clone/model"),
-                Path::new("/tmp/clone/model/http/spans.yaml"),
-            ),
-            "https://github.com/org/repo.git[model]/http/spans.yaml"
-        );
     }
 }
