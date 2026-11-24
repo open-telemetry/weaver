@@ -1228,7 +1228,11 @@ mod tests {
         }];
 
         // By default V1 example schema has an AttributeGroup and a Span.
-        let result = d.import_groups(&imports, &mut catalog, &())?;
+        let result = d.import_groups(
+            &imports,
+            &mut catalog,
+            &crate::graph::chosen_versions::NullSchemaCacheLookup,
+        )?;
         assert_eq!(
             result.len(),
             2,
@@ -1266,7 +1270,11 @@ mod tests {
             },
         }];
 
-        let result = d.import_groups(&imports, &mut catalog, &())?;
+        let result = d.import_groups(
+            &imports,
+            &mut catalog,
+            &crate::graph::chosen_versions::NullSchemaCacheLookup,
+        )?;
         assert_eq!(
             result.len(),
             5,
@@ -1321,7 +1329,11 @@ mod tests {
             },
         }];
 
-        let result = d.import_groups(&imports, &mut catalog, &())?;
+        let result = d.import_groups(
+            &imports,
+            &mut catalog,
+            &crate::graph::chosen_versions::NullSchemaCacheLookup,
+        )?;
         let group = |id: &str| {
             result
                 .iter()
@@ -1470,7 +1482,11 @@ mod tests {
             },
         }];
 
-        let result = deps.import_groups(&imports, &mut catalog, &())?;
+        let result = deps.import_groups(
+            &imports,
+            &mut catalog,
+            &crate::graph::chosen_versions::NullSchemaCacheLookup,
+        )?;
         // V1 schema has AttributeGroup, which returns false unless include_all.
         // V2 schema has metric, event, entity, span, and attribute_group that match.
         assert_eq!(result.len(), 5);
@@ -1518,7 +1534,11 @@ mod tests {
             },
         ];
 
-        let result = d.import_groups(&imports, &mut catalog, &())?;
+        let result = d.import_groups(
+            &imports,
+            &mut catalog,
+            &crate::graph::chosen_versions::NullSchemaCacheLookup,
+        )?;
         assert_eq!(
             result.len(),
             2,

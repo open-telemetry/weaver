@@ -691,11 +691,6 @@ mod tests {
         resolver.load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
     }
 
-    #[allow(dead_code)]
-    fn resolve_at(path: &str) -> WResult<WeaverResolvedSchema, Error> {
-        resolve_at_with_config(path, WeaverResolverConfig::default())
-    }
-
     fn resolve_inline_with_parent_and_config(
         consumer_yaml: &str,
         parent_path: &str,
@@ -726,18 +721,6 @@ mod tests {
         };
 
         resolver.resolve_loaded(with_dep).map(Arc::unwrap_or_clone)
-    }
-
-    #[allow(dead_code)]
-    fn resolve_inline_with_parent(
-        consumer_yaml: &str,
-        parent_path: &str,
-    ) -> WResult<WeaverResolvedSchema, Error> {
-        resolve_inline_with_parent_and_config(
-            consumer_yaml,
-            parent_path,
-            WeaverResolverConfig::default(),
-        )
     }
 
     fn assert_exclusion_errors(
@@ -2109,12 +2092,6 @@ groups:
 
     fn resolve_entity_assoc_fixture(name: &str) -> (V2Schema, Vec<Error>) {
         resolve_entity_assoc_fixture_with_engine(name, ResolutionTarget::V1)
-    }
-
-    /// Loads and resolves a `signal-name-preservation` fixture.
-    #[allow(dead_code)]
-    fn load_signal_name_fixture(name: &str) -> WeaverResolvedSchema {
-        load_signal_name_fixture_with_engine(name, ResolutionTarget::V1)
     }
 
     fn load_signal_name_fixture_with_engine(

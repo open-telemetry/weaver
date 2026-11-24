@@ -668,7 +668,10 @@ mod tests {
         let index = crate::v2::index::build(&[spec]).unwrap();
         let empty_deps =
             crate::v2::dependency::V2Dependencies::new(vec![], std::collections::BTreeSet::new());
-        let mut catalog = Catalog::new(&empty_deps, &());
+        let mut catalog = Catalog::new(
+            &empty_deps,
+            &crate::graph::chosen_versions::NullSchemaCacheLookup,
+        );
         catalog.define_local(&index).unwrap();
         let mut warnings = Vec::new();
         expand(&index, &mut catalog, &mut warnings)

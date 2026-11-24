@@ -13,7 +13,7 @@ use std::fmt::{self, Display};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 use walkdir::{DirEntry, WalkDir};
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::result::WResult;
@@ -235,15 +235,13 @@ impl Display for LoadedSemconvRegistry {
 }
 
 /// Loads a semantic convention repository and its dependency graph without caching.
-#[allow(dead_code)]
+#[cfg(test)]
 pub(crate) fn load_semconv_repository(
     registry_repo: RegistryRepo,
     follow_symlinks: bool,
     auth: &HttpAuthResolver,
 ) -> WResult<LoadedSemconvRegistry, Error> {
-    static EMPTY_OVERRIDES: LazyLock<BTreeMap<SchemaUrl, VirtualDirectoryPath>> =
-        LazyLock::new(BTreeMap::new);
-    load_semconv_repository_with_cache(None, registry_repo, follow_symlinks, auth, &EMPTY_OVERRIDES)
+    load_semconv_repository_with_cache(None, registry_repo, follow_symlinks, auth, &BTreeMap::new())
 }
 
 /// Opens a dependency repository from an explicit override path and verifies its `SchemaUrl`.

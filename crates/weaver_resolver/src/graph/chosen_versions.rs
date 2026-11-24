@@ -20,22 +20,13 @@ pub(crate) trait SchemaCacheLookup {
     fn lookup_schema(&self, schema_url: &SchemaUrl) -> Option<Arc<WeaverResolvedSchema>>;
 }
 
-/// No-op lookup context used when no cache or chosen version overrides are needed.
+/// No-op lookup context used in tests when no cache or chosen version overrides are needed.
+#[cfg(test)]
 #[derive(Debug, Clone, Default)]
-#[allow(dead_code)]
 pub(crate) struct NullSchemaCacheLookup;
 
+#[cfg(test)]
 impl SchemaCacheLookup for NullSchemaCacheLookup {
-    fn chosen_version(&self, _registry_name: &str) -> Option<&SchemaUrl> {
-        None
-    }
-
-    fn lookup_schema(&self, _schema_url: &SchemaUrl) -> Option<Arc<WeaverResolvedSchema>> {
-        None
-    }
-}
-
-impl SchemaCacheLookup for () {
     fn chosen_version(&self, _registry_name: &str) -> Option<&SchemaUrl> {
         None
     }

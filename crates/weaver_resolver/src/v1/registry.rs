@@ -2029,7 +2029,7 @@ groups:
                         AttributeSource::Local {
                             group_id: "test".to_owned(),
                         },
-                        &(),
+                        &crate::graph::chosen_versions::NullSchemaCacheLookup,
                     )
                     .expect("Failed to create attribute reference with provenance in test"),
             );
@@ -2127,7 +2127,7 @@ groups:
                         AttributeSource::Local {
                             group_id: "test".to_owned(),
                         },
-                        &(),
+                        &crate::graph::chosen_versions::NullSchemaCacheLookup,
                     )
                     .expect("Failed to create attribute reference with provenance in test"),
             );

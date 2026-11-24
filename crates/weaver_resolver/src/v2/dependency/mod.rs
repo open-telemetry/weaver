@@ -632,7 +632,12 @@ mod tests {
             urls,
         );
 
-        let err = deps.lookup_attribute("shared.key", &()).unwrap_err();
+        let err = deps
+            .lookup_attribute(
+                "shared.key",
+                &crate::graph::chosen_versions::NullSchemaCacheLookup,
+            )
+            .unwrap_err();
         assert!(
             matches!(err, Error::AmbiguousReference { ref r#ref, .. } if r#ref == "shared.key"),
             "Expected AmbiguousReference, got: {err:?}"
@@ -675,7 +680,13 @@ mod tests {
         );
 
         let err = deps
-            .lookup_signal(SignalKind::Metric, "shared.metric", "refiner", None, &())
+            .lookup_signal(
+                SignalKind::Metric,
+                "shared.metric",
+                "refiner",
+                None,
+                &crate::graph::chosen_versions::NullSchemaCacheLookup,
+            )
             .unwrap_err();
         assert!(
             matches!(err, Error::AmbiguousReference { ref r#ref, .. } if r#ref == "shared.metric"),
