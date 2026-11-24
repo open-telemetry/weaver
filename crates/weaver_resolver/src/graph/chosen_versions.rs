@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Graph-wide chosen version arbitration and schema cache lookup.
+//! Graph-wide dependency version conflict resolution and schema cache lookup.
 
 use lru::LruCache;
 use std::collections::HashMap;

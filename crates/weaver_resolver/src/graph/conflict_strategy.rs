@@ -45,9 +45,10 @@ impl DependencyVersionConflictStrategy for UseLatestMajorVersion {
     }
 }
 
-/// Arbitrates two competing dependency origins for `reference`, selecting the higher compatible
-/// version within the same registry family or returning [`Error::AmbiguousReference`].
-pub(crate) fn arbitrate_origin_conflict(
+/// Resolves a version conflict between two competing dependency origins for `reference`,
+/// selecting the higher compatible version within the same registry family or returning
+/// [`Error::AmbiguousReference`].
+pub(crate) fn resolve_origin_conflict(
     reference: &str,
     url1: &SchemaUrl,
     url2: &SchemaUrl,
@@ -66,7 +67,7 @@ pub(crate) fn arbitrate_origin_conflict(
         })
 }
 
-/// Selects the single winning item from `matches` using [`arbitrate_origin_conflict`].
+/// Selects the single winning item from `matches` using [`resolve_origin_conflict`].
 pub(crate) fn pick_winning_by_origin<T>(
     matches: impl IntoIterator<Item = T>,
     reference: &str,
@@ -78,7 +79,7 @@ pub(crate) fn pick_winning_by_origin<T>(
             None => Ok(Some(m)),
             Some(existing) => {
                 let winning_url =
-                    arbitrate_origin_conflict(reference, origin_of(&m), origin_of(&existing))?;
+                    resolve_origin_conflict(reference, origin_of(&m), origin_of(&existing))?;
                 if winning_url == *origin_of(&existing) {
                     Ok(Some(existing))
                 } else {

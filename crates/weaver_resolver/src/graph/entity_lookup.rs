@@ -51,7 +51,7 @@ pub(crate) enum EntityResolution {
 }
 
 /// Resolves an entity association name across all dependencies, deduplicating by origin registry
-/// and arbitrating compatible versions within the same registry family.
+/// and resolving compatible version conflicts within the same registry family.
 pub(crate) fn resolve_entity<T: EntityLookup>(deps: &[T], name: &str) -> EntityResolution {
     let mut origins: Vec<SchemaUrl> = vec![];
     let mut private = false;

@@ -49,7 +49,7 @@ pub struct ForgeResolvedRegistry {
     pub dependencies: BTreeMap<SchemaUrl, ForgeDependency>,
     /// The direct dependencies of each registry, this one included. Each edge
     /// records the resolved (chosen) `schema_url` and, when dependency version
-    /// arbitration upgraded the declared version, `upgraded_from`. A registry
+    /// conflict resolution upgraded the declared version, `upgraded_from`. A registry
     /// with no entry has unknown dependencies, not none.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub dependency_graph: BTreeMap<SchemaUrl, Vec<DependencyEdge>>,
@@ -57,10 +57,10 @@ pub struct ForgeResolvedRegistry {
 
 /// A directed edge in [`ForgeResolvedRegistry::dependency_graph`].
 ///
-/// `schema_url` is always the resolved (chosen) dependency URL after version
-/// arbitration. When dependency resolution upgraded the originally declared
-/// version to a higher compatible version, `upgraded_from` records the
-/// declared URL before arbitration.
+/// `schema_url` is always the resolved (chosen) dependency URL after dependency
+/// version conflict resolution. When dependency version conflict resolution
+/// upgraded the originally declared version to a higher compatible version,
+/// `upgraded_from` records the declared URL before the upgrade.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DependencyEdge {
@@ -364,10 +364,11 @@ impl ForgeResolvedRegistry {
     ) -> WResult<Self, Error> {
         let mut non_fatal_errors = Vec::new();
         let schema_url = schema.schema_url.clone();
-        // The root schema's `dependencies` set holds the arbitrated (chosen) version for
-        // each dependency `(registry_name, major_version)`. Seed `chosen_by_major` from it so
-        // superseded versions declared by intermediate dependencies are not materialized alongside
-        // the chosen one and are recorded as `upgraded_from` edges in `dependency_graph`.
+        // The root schema's `dependencies` set holds the chosen version selected by
+        // dependency version conflict resolution for each `(registry_name, major_version)`.
+        // Seed `chosen_by_major` from it so superseded versions declared by intermediate
+        // dependencies are not materialized alongside the chosen one and are recorded as
+        // `upgraded_from` edges in `dependency_graph`.
         let mut chosen_by_major: HashMap<(String, u64), SchemaUrl> = schema
             .dependencies
             .iter()

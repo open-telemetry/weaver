@@ -12,7 +12,7 @@
       }
     },
     "dependency_graph": {
-      "description": "The direct dependencies of each registry, this one included. Each edge\nrecords the resolved (chosen) `schema_url` and, when dependency version\narbitration upgraded the declared version, `upgraded_from`. A registry\nwith no entry has unknown dependencies, not none.",
+      "description": "The direct dependencies of each registry, this one included. Each edge\nrecords the resolved (chosen) `schema_url` and, when dependency version\nconflict resolution upgraded the declared version, `upgraded_from`. A registry\nwith no entry has unknown dependencies, not none.",
       "type": "object",
       "additionalProperties": {
         "type": "array",
@@ -286,7 +286,7 @@
       ]
     },
     "DependencyEdge": {
-      "description": "A directed edge in [`ForgeResolvedRegistry::dependency_graph`].\n\n`schema_url` is always the resolved (chosen) dependency URL after version\narbitration. When dependency resolution upgraded the originally declared\nversion to a higher compatible version, `upgraded_from` records the\ndeclared URL before arbitration.",
+      "description": "A directed edge in [`ForgeResolvedRegistry::dependency_graph`].\n\n`schema_url` is always the resolved (chosen) dependency URL after dependency\nversion conflict resolution. When dependency version conflict resolution\nupgraded the originally declared version to a higher compatible version,\n`upgraded_from` records the declared URL before the upgrade.",
       "type": "object",
       "properties": {
         "schema_url": {

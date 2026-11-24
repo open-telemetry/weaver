@@ -260,7 +260,7 @@ impl WeaverResolver {
     }
 
     /// Records the direct dependencies of `schema_url` if non-empty and not already recorded,
-    /// preserving version-arbitrated entries.
+    /// preserving entries from earlier dependency resolution.
     fn record_direct_dependencies(&mut self, schema_url: &SchemaUrl, direct: Vec<SchemaUrl>) {
         if direct.is_empty() || self.direct_dependencies.contains_key(schema_url) {
             return;
@@ -285,8 +285,9 @@ impl WeaverResolver {
             .or_else(|| self.cache.peek(url).cloned())
     }
 
-    /// Resolves direct dependencies, records dependency edges, arbitrates chosen versions,
-    /// and pre-resolves superseded versions into `pinned_schemas`.
+    /// Resolves direct dependencies, records dependency edges, runs dependency version conflict
+    /// resolution to select chosen versions, and pre-resolves superseded versions into
+    /// `pinned_schemas`.
     pub(crate) fn resolve_dependency_graph(
         &mut self,
         schema_url: &SchemaUrl,

@@ -17,7 +17,7 @@ use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v1::attribute::{AttributeSpec, RequirementLevel};
 
 use crate::graph::chosen_versions::SchemaCacheLookup;
-use crate::graph::conflict_strategy::arbitrate_origin_conflict;
+use crate::graph::conflict_strategy::resolve_origin_conflict;
 use crate::graph::exclusion::is_excluded;
 use crate::v1::dependency::ResolvedDependency;
 use crate::v1::upgrade::upgrade_attribute;
@@ -156,7 +156,7 @@ fn resolve_conflict(
                 schema_url: schema_url2,
             },
         ) => {
-            let winning_url = arbitrate_origin_conflict(key, schema_url, schema_url2)?;
+            let winning_url = resolve_origin_conflict(key, schema_url, schema_url2)?;
             if winning_url == *schema_url2 {
                 Ok(existing)
             } else {

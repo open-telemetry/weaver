@@ -87,8 +87,8 @@ entity_refs(association) := {node |
 }
 
 # The registry that defines the entity a reference names.
-# Follows `dependency_graph` upgrade edges if `provenance.source` holds a
-# pre-arbitration declared URL.
+# Follows `dependency_graph` upgrade edges if `provenance.source` holds an
+# originally declared URL that was upgraded by dependency version conflict resolution.
 defining_registry(ref) := input if {
     not ref.provenance.source
 }
