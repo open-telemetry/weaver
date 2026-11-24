@@ -7,6 +7,7 @@ use std::fmt::{self, Display, Formatter};
 use weaver_resolved_schema::v2::attribute::Attribute;
 use weaver_resolved_schema::v2::provenance::Provenance as SchemaProvenance;
 use weaver_semconv::provenance::Provenance as SemconvProvenance;
+use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v2::attribute::{AttributeOrGroupRef, AttributeRef, RequirementLevel};
 use weaver_semconv::v2::attribute_group::AttributeGroup;
 use weaver_semconv::v2::event::Event;
@@ -16,6 +17,7 @@ use weaver_semconv::v2::span::{Span, SpanAttributeOrGroupRef};
 use weaver_semconv::v2::CommonFields;
 
 use super::attributes::Catalog;
+use super::dependency::{DepImportedAttributeGroup, V2Dependencies};
 use super::index::{Index, Indexed};
 use super::rules;
 use crate::error::Error;
@@ -33,6 +35,9 @@ pub(crate) struct GroupAttributeItem {
     pub sampling_relevant: Option<bool>,
     /// The `ref_group` (or consumer) from which this attribute entered.
     pub origin_group: SignalId,
+    /// Pre-resolved attribute definition and defining `SchemaUrl` when this item came
+    /// from a dependency attribute group.
+    pub dep_base: Option<(Attribute, SchemaUrl)>,
 }
 
 /// Resolved public attribute group ready for emission.
@@ -280,8 +285,40 @@ pub(crate) fn merge_inline_attribute(
                 aref: aref.clone(),
                 sampling_relevant,
                 origin_group: consumer_id.clone(),
+                dep_base: None,
             },
         );
+    }
+}
+
+/// Converts a resolved dependency public attribute group into an [`ExpandedGroup`].
+fn dep_group_to_expanded(dep_ag: DepImportedAttributeGroup, ref_id: &SignalId) -> ExpandedGroup {
+    let items = dep_ag
+        .attributes
+        .into_iter()
+        .map(|(attr, req_level, attr_origin, _is_v1_def)| {
+            let key = attr.key.clone();
+            GroupAttributeItem {
+                aref: AttributeRef {
+                    r#ref: key.clone(),
+                    brief: None,
+                    examples: None,
+                    requirement_level: Some(req_level),
+                    note: None,
+                    annotations: BTreeMap::new(),
+                },
+                key,
+                sampling_relevant: None,
+                origin_group: ref_id.clone(),
+                dep_base: Some((attr, attr_origin)),
+            }
+        })
+        .collect();
+    ExpandedGroup {
+        items,
+        is_excluded: false,
+        excluded_source: None,
+        signal_type: None,
     }
 }
 
@@ -347,20 +384,29 @@ fn merge_included_group(
     Ok(())
 }
 
-/// Stateful DFS expander for resolving local `ref_group` DAGs.
-struct GroupExpander<'a> {
+/// Stateful DFS expander for resolving local and dependency `ref_group` DAGs.
+struct GroupExpander<'a, C: SchemaCacheLookup> {
     index: &'a Index,
+    deps: &'a V2Dependencies,
+    cache_lookup: &'a C,
     expanded: BTreeMap<ExpandKey, ExpandedGroup>,
     visiting_set: HashSet<ExpandKey>,
     visiting_stack: Vec<ExpandKey>,
     warnings: &'a mut Vec<Error>,
 }
 
-impl<'a> GroupExpander<'a> {
-    /// Creates a new expander over `index`.
-    fn new(index: &'a Index, warnings: &'a mut Vec<Error>) -> Self {
+impl<'a, C: SchemaCacheLookup> GroupExpander<'a, C> {
+    /// Creates a new expander over `index` and its dependencies.
+    fn new(
+        index: &'a Index,
+        deps: &'a V2Dependencies,
+        cache_lookup: &'a C,
+        warnings: &'a mut Vec<Error>,
+    ) -> Self {
         Self {
             index,
+            deps,
+            cache_lookup,
             expanded: BTreeMap::new(),
             visiting_set: HashSet::new(),
             visiting_stack: Vec::new(),
@@ -504,15 +550,27 @@ impl<'a> GroupExpander<'a> {
     ) -> Result<(), Error> {
         for entry in raw_attributes {
             if let Some(ref_id) = entry.group_ref() {
-                let (target_key, _) = lookup_ref_group(&ref_id, self.index).ok_or_else(|| {
-                    Error::UnresolvedRefGroup {
-                        used_in: consumer_id.to_string(),
-                        ref_group: ref_id.to_string(),
-                        provenance: Some(Box::new(provenance.clone())),
+                let target_key = if let Some((local_key, _)) = lookup_ref_group(&ref_id, self.index)
+                {
+                    self.expand_target(&local_key)?;
+                    local_key
+                } else {
+                    let dep_key = ExpandKey::Group(ref_id.clone());
+                    if !self.expanded.contains_key(&dep_key) {
+                        let dep_ag = self
+                            .deps
+                            .lookup_attribute_group(ref_id.as_ref(), self.cache_lookup)?
+                            .ok_or_else(|| Error::UnresolvedRefGroup {
+                                used_in: consumer_id.to_string(),
+                                ref_group: ref_id.to_string(),
+                                provenance: Some(Box::new(provenance.clone())),
+                            })?;
+                        _ = self
+                            .expanded
+                            .insert(dep_key.clone(), dep_group_to_expanded(dep_ag, &ref_id));
                     }
-                })?;
-
-                self.expand_target(&target_key)?;
+                    dep_key
+                };
 
                 let included = self
                     .expanded
@@ -549,7 +607,7 @@ pub(crate) fn expand<'a, C: SchemaCacheLookup>(
     catalog: &mut Catalog<'a, C>,
     warnings: &mut Vec<Error>,
 ) -> Result<ExpandedGroups, Error> {
-    let mut expander = GroupExpander::new(index, warnings);
+    let mut expander = GroupExpander::new(index, catalog.deps(), catalog.cache_lookup(), warnings);
 
     for id in index.attribute_groups().keys() {
         expander.expand_target(&ExpandKey::Group(id.clone()))?;
@@ -576,8 +634,8 @@ pub(crate) fn expand<'a, C: SchemaCacheLookup>(
             let mut resolved_attributes = Vec::new();
 
             for item in items {
-                let resolved_attr = catalog.resolve_attribute_ref(
-                    &item.aref,
+                let resolved_attr = catalog.resolve_group_item(
+                    &item,
                     id.as_ref(),
                     is_group_excluded,
                     Some(&indexed_group.provenance),
@@ -609,9 +667,11 @@ pub(crate) fn expand<'a, C: SchemaCacheLookup>(
 }
 
 /// Collects attributes from `ref_groups` for a refinement, rejecting unresolved, excluded, or colliding groups.
-pub(crate) fn collect_refinement_group_items(
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn collect_refinement_group_items<C: SchemaCacheLookup>(
     ref_groups: &[SignalId],
     expanded_groups: &ExpandedGroups,
+    catalog: &Catalog<'_, C>,
     consumer_id: &str,
     is_consumer_excluded: bool,
     is_span_consumer: bool,
@@ -620,13 +680,19 @@ pub(crate) fn collect_refinement_group_items(
 ) -> Result<BTreeMap<String, GroupAttributeItem>, Error> {
     let mut items_map: BTreeMap<String, GroupAttributeItem> = BTreeMap::new();
     for group_id in ref_groups {
-        let eg = expanded_groups.resolve_ref_group(group_id).ok_or_else(|| {
-            Error::UnresolvedRefGroup {
+        let dep_expanded;
+        let eg = if let Some(local_eg) = expanded_groups.resolve_ref_group(group_id) {
+            local_eg
+        } else if let Some(dep_ag) = catalog.lookup_dep_attribute_group(group_id.as_ref())? {
+            dep_expanded = dep_group_to_expanded(dep_ag, group_id);
+            &dep_expanded
+        } else {
+            return Err(Error::UnresolvedRefGroup {
                 used_in: consumer_id.to_owned(),
                 ref_group: group_id.to_string(),
                 provenance: provenance.map(|p| Box::new(p.clone())),
-            }
-        })?;
+            });
+        };
 
         merge_included_group(
             eg,
@@ -666,8 +732,7 @@ mod tests {
         };
 
         let index = crate::v2::index::build(&[spec]).unwrap();
-        let empty_deps =
-            crate::v2::dependency::V2Dependencies::new(vec![], std::collections::BTreeSet::new());
+        let empty_deps = V2Dependencies::new(vec![], std::collections::BTreeSet::new());
         let mut catalog = Catalog::new(
             &empty_deps,
             &crate::graph::chosen_versions::NullSchemaCacheLookup,

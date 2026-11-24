@@ -3624,3 +3624,287 @@ events:
         "attr.event_own"
     );
 }
+
+#[test]
+fn test_v2_ref_group_resolves_public_group_from_packaged_and_source_dependencies() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let producer_dir = dir.path().join("producer");
+    let published_dir = dir.path().join("published");
+    let consumer_dir = dir.path().join("consumer");
+    let consumer_no_import_dir = dir.path().join("consumer_no_import");
+    let consumer_private_dir = dir.path().join("consumer_private");
+    for d in [
+        &producer_dir,
+        &published_dir,
+        &consumer_dir,
+        &consumer_no_import_dir,
+        &consumer_private_dir,
+    ] {
+        std::fs::create_dir_all(d).expect("mkdir");
+    }
+
+    // Producer registry with a public attribute group, an internal one, and an excluded public one.
+    std::fs::write(
+        producer_dir.join("manifest.yaml"),
+        "file_format: definition_manifest/2.0\nschema_url: https://example.com/producer/1.0.0\n",
+    )
+    .expect("write producer manifest");
+    std::fs::write(
+        producer_dir.join("registry.yaml"),
+        r#"file_format: definition/2
+attributes:
+  - key: example.name
+    type: string
+    brief: Example name.
+    stability: development
+  - key: example.extra
+    type: int
+    brief: Example extra.
+    stability: development
+attribute_groups:
+  - id: example.common
+    visibility: public
+    brief: Common attributes.
+    stability: development
+    attributes:
+      - ref: example.name
+        requirement_level: required
+  - id: example.internal
+    visibility: internal
+    attributes:
+      - ref: example.extra
+  - id: example.excluded
+    visibility: public
+    brief: Excluded attributes.
+    stability: development
+    annotations:
+      dependency_resolution:
+        exclude: true
+    attributes:
+      - ref: example.extra
+spans:
+  - type: base.span
+    kind: internal
+    name:
+      note: Base span.
+    brief: Base span.
+    stability: development
+    requirement_level: recommended
+"#,
+    )
+    .expect("write producer registry");
+
+    // Resolve producer and write a packaged publication artifact (`manifest/2.0` + `resolved.yaml`).
+    let producer_repo = RegistryRepo::try_new(
+        None,
+        &VirtualDirectoryPath::LocalFolder {
+            path: producer_dir.display().to_string(),
+        },
+        &mut vec![],
+    )
+    .expect("producer repo");
+    let producer_config = WeaverResolverConfig::default().with_target(ResolutionTarget::V2);
+    let producer_resolved = match WeaverResolver::new(producer_config)
+        .load_and_resolve_schema(producer_repo, DefaultSchemaVisitor)
+    {
+        WResult::Ok(s) | WResult::OkWithNFEs(s, _) => s.into_v2().expect("v2 schema"),
+        WResult::FatalErr(e) => panic!("producer resolve failed: {e:?}"),
+    };
+    std::fs::write(
+        published_dir.join("manifest.yaml"),
+        r#"file_format: manifest/2.0
+schema_url: https://example.com/producer/1.0.0
+description: Published producer registry.
+stability: development
+resolved_registry_uri: resolved.yaml
+"#,
+    )
+    .expect("write published manifest");
+    std::fs::write(
+        published_dir.join("resolved.yaml"),
+        serde_saphyr::to_string(&producer_resolved).expect("serialize resolved.yaml"),
+    )
+    .expect("write published resolved.yaml");
+
+    let published_path = published_dir.to_string_lossy().replace('\\', "/");
+
+    // Consumer 1: exact issue #1843 repro (imports + ref_group on span, plus inline override & refinement).
+    std::fs::write(
+        consumer_dir.join("manifest.yaml"),
+        format!(
+            "file_format: definition_manifest/2.0\nschema_url: https://example.com/consumer/1.0.0\ndependencies:\n  - schema_url: https://example.com/producer/1.0.0\n    registry_path: {published_path}\n"
+        ),
+    )
+    .expect("write consumer manifest");
+    std::fs::write(
+        consumer_dir.join("registry.yaml"),
+        r#"file_format: definition/2
+imports:
+  attribute_groups: [example.common]
+spans:
+  - type: example.operation
+    kind: internal
+    name:
+      note: Use example.operation.
+    brief: Example operation.
+    stability: development
+    requirement_level: recommended
+    attributes:
+      - ref_group: example.common
+      - ref: example.name
+        brief: Overridden brief in consumer.
+span_refinements:
+  - id: refined.operation
+    ref: base.span
+    brief: Refined base span using dependency ref_group.
+    stability: development
+    attributes:
+      - ref_group: example.common
+"#,
+    )
+    .expect("write consumer registry");
+
+    let consumer_repo = RegistryRepo::try_new(
+        None,
+        &VirtualDirectoryPath::LocalFolder {
+            path: consumer_dir.display().to_string(),
+        },
+        &mut vec![],
+    )
+    .expect("consumer repo");
+    let config = WeaverResolverConfig::default().with_target(ResolutionTarget::V2);
+    let consumer_v2 = match WeaverResolver::new(config)
+        .load_and_resolve_schema(consumer_repo, DefaultSchemaVisitor)
+    {
+        WResult::Ok(s) | WResult::OkWithNFEs(s, _) => s.into_v2().expect("v2 schema"),
+        WResult::FatalErr(e) => panic!("consumer resolve failed: {e:?}"),
+    };
+
+    assert_eq!(consumer_v2.registry.attribute_groups.len(), 1);
+    assert_eq!(
+        &*consumer_v2.registry.attribute_groups[0].id,
+        "example.common"
+    );
+    assert_eq!(consumer_v2.registry.spans.len(), 1);
+    let span = &consumer_v2.registry.spans[0];
+    assert_eq!(span.attributes.len(), 1);
+    let span_attr = &consumer_v2.attribute_catalog[span.attributes[0].base.0 as usize];
+    assert_eq!(span_attr.key, "example.name");
+    assert_eq!(span_attr.common.brief, "Overridden brief in consumer.");
+    assert!(
+        span_attr.provenance.source.is_some(),
+        "attribute from dependency ref_group must preserve dependency provenance"
+    );
+    assert_eq!(
+        span.attributes[0].requirement_level,
+        weaver_semconv::v2::attribute::RequirementLevel::Basic(
+            weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required
+        )
+    );
+
+    // Refinement also resolved `ref_group: example.common` from the packaged dependency.
+    let refined_span = consumer_v2
+        .refinements
+        .spans
+        .iter()
+        .find(|r| &*r.id == "refined.operation")
+        .expect("refined.operation refinement present");
+    assert_eq!(refined_span.span.attributes.len(), 1);
+    let ref_attr = &consumer_v2.attribute_catalog[refined_span.span.attributes[0].base.0 as usize];
+    assert_eq!(ref_attr.key, "example.name");
+    assert!(ref_attr.provenance.source.is_some());
+
+    // Consumer 2: `ref_group` without `imports:` still works and does not re-export the group.
+    std::fs::write(
+        consumer_no_import_dir.join("manifest.yaml"),
+        format!(
+            "file_format: definition_manifest/2.0\nschema_url: https://example.com/consumer2/1.0.0\ndependencies:\n  - schema_url: https://example.com/producer/1.0.0\n    registry_path: {published_path}\n"
+        ),
+    )
+    .expect("write consumer2 manifest");
+    std::fs::write(
+        consumer_no_import_dir.join("registry.yaml"),
+        r#"file_format: definition/2
+spans:
+  - type: example.operation
+    kind: internal
+    name:
+      note: Use example.operation.
+    brief: Example operation.
+    stability: development
+    requirement_level: recommended
+    attributes:
+      - ref_group: example.common
+"#,
+    )
+    .expect("write consumer2 registry");
+
+    let consumer2_repo = RegistryRepo::try_new(
+        None,
+        &VirtualDirectoryPath::LocalFolder {
+            path: consumer_no_import_dir.display().to_string(),
+        },
+        &mut vec![],
+    )
+    .expect("consumer2 repo");
+    let config2 = WeaverResolverConfig::default().with_target(ResolutionTarget::V2);
+    let consumer2_v2 = match WeaverResolver::new(config2)
+        .load_and_resolve_schema(consumer2_repo, DefaultSchemaVisitor)
+    {
+        WResult::Ok(s) | WResult::OkWithNFEs(s, _) => s.into_v2().expect("v2 schema"),
+        WResult::FatalErr(e) => panic!("consumer2 resolve failed: {e:?}"),
+    };
+    assert!(
+        consumer2_v2.registry.attribute_groups.is_empty(),
+        "ref_group alone should not re-export the dependency group"
+    );
+    assert_eq!(consumer2_v2.registry.spans[0].attributes.len(), 1);
+
+    // Consumer 3: internal or excluded dependency attribute groups remain invisible to `ref_group`.
+    let producer_path = producer_dir.to_string_lossy().replace('\\', "/");
+    std::fs::write(
+        consumer_private_dir.join("manifest.yaml"),
+        format!(
+            "file_format: definition_manifest/2.0\nschema_url: https://example.com/consumer3/1.0.0\ndependencies:\n  - schema_url: https://example.com/producer/1.0.0\n    registry_path: {producer_path}\n"
+        ),
+    )
+    .expect("write consumer3 manifest");
+    for private_id in ["example.internal", "example.excluded"] {
+        std::fs::write(
+            consumer_private_dir.join("registry.yaml"),
+            format!(
+                r#"file_format: definition/2
+spans:
+  - type: example.operation
+    kind: internal
+    name:
+      note: Use example.operation.
+    brief: Example operation.
+    stability: development
+    requirement_level: recommended
+    attributes:
+      - ref_group: {private_id}
+"#
+            ),
+        )
+        .expect("write consumer3 registry");
+
+        let repo3 = RegistryRepo::try_new(
+            None,
+            &VirtualDirectoryPath::LocalFolder {
+                path: consumer_private_dir.display().to_string(),
+            },
+            &mut vec![],
+        )
+        .expect("consumer3 repo");
+        let config3 = WeaverResolverConfig::default().with_target(ResolutionTarget::V2);
+        match WeaverResolver::new(config3).load_and_resolve_schema(repo3, DefaultSchemaVisitor) {
+            WResult::FatalErr(Error::UnresolvedRefGroup { ref ref_group, .. })
+                if ref_group == private_id => {}
+            WResult::FatalErr(e) => {
+                panic!("expected UnresolvedRefGroup for {private_id}, got FatalErr({e:?})")
+            }
+            _ => panic!("expected UnresolvedRefGroup for {private_id}, got Ok"),
+        }
+    }
+}

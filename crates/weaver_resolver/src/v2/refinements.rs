@@ -219,10 +219,11 @@ fn partition_attributes<E: RefinementAttrEntry>(entries: &[E]) -> PartitionedAtt
 
 /// Expands `ref_groups` and merges `inline_refs` on top, returning merged items and group-origin map.
 #[allow(clippy::too_many_arguments)]
-fn prepare_refinement_attributes(
+fn prepare_refinement_attributes<C: SchemaCacheLookup>(
     ref_groups: &[SignalId],
     inline_refs: &[(AttributeRef, Option<bool>)],
     expanded_groups: &ExpandedGroups,
+    catalog: &Catalog<'_, C>,
     consumer_id: &str,
     is_consumer_excluded: bool,
     is_span_consumer: bool,
@@ -238,6 +239,7 @@ fn prepare_refinement_attributes(
     let mut items_map = groups::collect_refinement_group_items(
         ref_groups,
         expanded_groups,
+        catalog,
         consumer_id,
         is_consumer_excluded,
         is_span_consumer,
@@ -338,12 +340,8 @@ fn apply_attribute_overrides<'a, A: RefinedAttrSlot, C: SchemaCacheLookup>(
         if let Some(existing) = current_attrs.iter_mut().find(|slot| slot.attr().key == key) {
             existing.apply_override(&item);
         } else {
-            let resolved = catalog.resolve_attribute_ref(
-                &item.aref,
-                consumer_id,
-                is_consumer_excluded,
-                provenance,
-            )?;
+            let resolved =
+                catalog.resolve_group_item(&item, consumer_id, is_consumer_excluded, provenance)?;
             let req = rules::resolve_requirement_level(&item.aref);
             current_attrs.push(A::from_new(resolved, req, item.sampling_relevant));
         }
@@ -379,6 +377,7 @@ where
         &partitioned.ref_groups,
         &partitioned.inline_refs,
         expanded_groups,
+        catalog,
         used_in,
         is_ref_excluded,
         A::IS_SPAN_SLOT,

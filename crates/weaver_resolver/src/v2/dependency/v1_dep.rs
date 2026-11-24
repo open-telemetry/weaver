@@ -616,6 +616,14 @@ impl V1Dependency {
             .collect()
     }
 
+    /// Looks up a public attribute group by ID (or V1 match key).
+    pub fn lookup_attribute_group(&self, id: &str) -> Option<DepImportedAttributeGroup> {
+        let stripped = Self::fix_group_id("attribute_group.", id);
+        self.importable_attribute_groups().into_iter().find(|ag| {
+            &*ag.id == id || &*ag.id == stripped || ag.match_keys.iter().any(|k| k == id)
+        })
+    }
+
     /// Returns all importable attribute groups from this dependency.
     pub fn importable_attribute_groups(&self) -> Vec<DepImportedAttributeGroup> {
         let my_schema_url = self.schema_url();

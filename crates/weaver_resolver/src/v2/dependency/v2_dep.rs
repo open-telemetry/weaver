@@ -58,6 +58,7 @@ pub(crate) struct V2Dependency {
     bundle: Arc<WeaverResolvedSchema>,
     deps_vec: Vec<SchemaUrl>,
     exported_attrs: HashMap<String, u32>,
+    attr_group_index: HashMap<String, usize>,
     span_index: HashMap<String, SignalSlot>,
     metric_index: HashMap<String, SignalSlot>,
     event_index: HashMap<String, SignalSlot>,
@@ -120,11 +121,19 @@ impl V2Dependency {
             &schema.registry.entities,
             |en| &en.r#type,
         );
+        let attr_group_index = schema
+            .registry
+            .attribute_groups
+            .iter()
+            .enumerate()
+            .map(|(idx, ag)| (ag.id.to_string(), idx))
+            .collect();
 
         Self {
             bundle,
             deps_vec,
             exported_attrs,
+            attr_group_index,
             span_index,
             metric_index,
             event_index,
@@ -409,27 +418,41 @@ impl V2Dependency {
             .collect()
     }
 
+    /// Looks up a public attribute group by ID.
+    pub fn lookup_attribute_group(&self, id: &str) -> Option<DepImportedAttributeGroup> {
+        let &idx = self.attr_group_index.get(id)?;
+        Some(self.build_imported_attribute_group(&self.schema().registry.attribute_groups[idx]))
+    }
+
     /// Returns all importable attribute groups from this dependency.
     pub fn importable_attribute_groups(&self) -> Vec<DepImportedAttributeGroup> {
         self.schema()
             .registry
             .attribute_groups
             .iter()
-            .map(|ag| DepImportedAttributeGroup {
-                id: ag.id.clone(),
-                attributes: self.resolve_import_attrs(
-                    ag.attributes
-                        .iter()
-                        .map(|a| (&a.base, &a.requirement_level)),
-                ),
-                common: ag.common.clone(),
-                provenance: ag.provenance.clone(),
-                origin: self.source_url(ag.provenance.source),
-                excluded: is_excluded(&ag.common.annotations),
-                is_public: true,
-                match_keys: vec![ag.id.to_string()],
-            })
+            .map(|ag| self.build_imported_attribute_group(ag))
             .collect()
+    }
+
+    /// Converts a resolved V2 public attribute group into a [`DepImportedAttributeGroup`].
+    fn build_imported_attribute_group(
+        &self,
+        ag: &weaver_resolved_schema::v2::attribute_group::AttributeGroup,
+    ) -> DepImportedAttributeGroup {
+        DepImportedAttributeGroup {
+            id: ag.id.clone(),
+            attributes: self.resolve_import_attrs(
+                ag.attributes
+                    .iter()
+                    .map(|a| (&a.base, &a.requirement_level)),
+            ),
+            common: ag.common.clone(),
+            provenance: ag.provenance.clone(),
+            origin: self.source_url(ag.provenance.source),
+            excluded: is_excluded(&ag.common.annotations),
+            is_public: true,
+            match_keys: vec![ag.id.to_string()],
+        }
     }
 
     /// Resolves a catalog `AttributeRef` into its cloned `Attribute` and defining `SchemaUrl`.

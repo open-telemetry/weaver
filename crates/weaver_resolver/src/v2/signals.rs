@@ -186,12 +186,8 @@ fn resolve_expanded_attributes<C: SchemaCacheLookup>(
 ) -> Result<Vec<(Attribute, RequirementLevel)>, Error> {
     let mut attributes = Vec::with_capacity(expanded_items.len());
     for item in expanded_items {
-        let resolved_attr = catalog.resolve_attribute_ref(
-            &item.aref,
-            used_in,
-            consumer_excluded,
-            Some(provenance),
-        )?;
+        let resolved_attr =
+            catalog.resolve_group_item(item, used_in, consumer_excluded, Some(provenance))?;
         let req_level = rules::resolve_requirement_level(&item.aref);
         attributes.push((resolved_attr, req_level));
     }
@@ -253,8 +249,8 @@ pub(crate) fn resolve_bases<'a, C: SchemaCacheLookup>(
         let mut span_attr_keys = HashSet::with_capacity(expanded_items.len());
 
         for item in expanded_items {
-            let resolved_attr = catalog.resolve_attribute_ref(
-                &item.aref,
+            let resolved_attr = catalog.resolve_group_item(
+                item,
                 &used_in,
                 s_excluded,
                 Some(&indexed_s.provenance),

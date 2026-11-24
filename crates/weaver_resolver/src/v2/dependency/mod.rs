@@ -250,6 +250,14 @@ impl DependencyAdapter {
         }
     }
 
+    /// Looks up a public attribute group by ID.
+    pub fn lookup_attribute_group(&self, id: &str) -> Option<DepImportedAttributeGroup> {
+        match self {
+            DependencyAdapter::V2(d) => d.lookup_attribute_group(id),
+            DependencyAdapter::V1(d) => d.lookup_attribute_group(id),
+        }
+    }
+
     /// Returns all importable attribute groups from this dependency.
     pub fn importable_attribute_groups(&self) -> Vec<DepImportedAttributeGroup> {
         match self {
@@ -370,6 +378,48 @@ impl V2Dependencies {
             },
             |orig, chosen| Error::AttributeNotFoundInUpgradedSchema {
                 attribute_name: key.to_owned(),
+                original_url: orig.to_string(),
+                upgraded_url: chosen.to_string(),
+            },
+        )? {
+            winning = upgraded;
+            winning.origin = chosen_url;
+        }
+
+        Ok(Some(winning))
+    }
+
+    /// Looks up a non-excluded public attribute group across dependencies, resolving conflicts
+    /// and checked dependency upgrades.
+    pub fn lookup_attribute_group<C: SchemaCacheLookup>(
+        &self,
+        id: &str,
+        cache_lookup: &C,
+    ) -> Result<Option<DepImportedAttributeGroup>, Error> {
+        let mut matches = Vec::new();
+        for d in &self.deps {
+            if let Some(group) = d.lookup_attribute_group(id) {
+                if !group.excluded && group.is_public {
+                    matches.push(group);
+                }
+            }
+        }
+
+        let Some(mut winning) = pick_winning_by_origin(matches, id, |g| &g.origin)? else {
+            return Ok(None);
+        };
+
+        if let Some((chosen_url, upgraded)) = upgrade_if_superseded(
+            &winning.origin,
+            cache_lookup,
+            |chosen_url, chosen_schema| {
+                Ok(self
+                    .adapter_for(chosen_url, chosen_schema)
+                    .lookup_attribute_group(id)
+                    .filter(|g| !g.excluded && g.is_public))
+            },
+            |orig, chosen| Error::GroupNotFoundInUpgradedSchema {
+                group_id: id.to_owned(),
                 original_url: orig.to_string(),
                 upgraded_url: chosen.to_string(),
             },

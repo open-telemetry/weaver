@@ -9,7 +9,8 @@ use weaver_semconv::provenance::Provenance as SemconvProvenance;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v2::attribute::AttributeRef;
 
-use super::dependency::V2Dependencies;
+use super::dependency::{DepImportedAttributeGroup, V2Dependencies};
+use super::groups::GroupAttributeItem;
 use super::index::Index;
 use super::rules;
 use crate::error::Error;
@@ -44,6 +45,44 @@ impl<'a, C: SchemaCacheLookup> Catalog<'a, C> {
             v1_imported_defs: Vec::new(),
             attributes: BTreeSet::new(),
         }
+    }
+
+    /// Returns the dependency collection backing this catalog.
+    #[must_use]
+    pub fn deps(&self) -> &'a V2Dependencies {
+        self.deps
+    }
+
+    /// Returns the schema cache lookup context backing this catalog.
+    #[must_use]
+    pub fn cache_lookup(&self) -> &'a C {
+        self.cache_lookup
+    }
+
+    /// Looks up a non-excluded public attribute group across dependencies.
+    pub fn lookup_dep_attribute_group(
+        &self,
+        id: &str,
+    ) -> Result<Option<DepImportedAttributeGroup>, Error> {
+        self.deps.lookup_attribute_group(id, self.cache_lookup)
+    }
+
+    /// Resolves an expanded group attribute item, preserving dependency provenance and applying
+    /// any local inline overrides on top of dependency attribute-group definitions.
+    pub fn resolve_group_item(
+        &mut self,
+        item: &GroupAttributeItem,
+        consumer_id: &str,
+        consumer_excluded: bool,
+        provenance: Option<&SemconvProvenance>,
+    ) -> Result<Attribute, Error> {
+        if let Some((dep_attr, dep_origin)) = &item.dep_base {
+            let upgraded = self.register_inherited_dep_attribute(dep_attr.clone(), dep_origin)?;
+            let resolved = rules::apply_attribute_ref_overrides(&upgraded, &item.aref);
+            self.register_attribute(resolved.clone());
+            return Ok(resolved);
+        }
+        self.resolve_attribute_ref(&item.aref, consumer_id, consumer_excluded, provenance)
     }
 
     /// Registers all local attribute definitions from the symbol table.
