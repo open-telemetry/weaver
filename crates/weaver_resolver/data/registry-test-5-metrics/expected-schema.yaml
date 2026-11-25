@@ -1,0 +1,243 @@
+file_format: resolved/2.0
+schema_url: https://default/0.1.0
+attribute_catalog:
+- key: faas.invoked_name
+  type: string
+  examples: my-function
+  brief: |
+    The name of the invoked function.
+  note: |
+    SHOULD be equal to the `faas.name` resource attribute of the invoked function.
+  stability: stable
+- key: faas.invoked_provider
+  type:
+    members:
+    - id: alibaba_cloud
+      value: alibaba_cloud
+      brief: Alibaba Cloud
+      stability: stable
+    - id: aws
+      value: aws
+      brief: Amazon Web Services
+      stability: stable
+    - id: azure
+      value: azure
+      brief: Microsoft Azure
+      stability: stable
+    - id: gcp
+      value: gcp
+      brief: Google Cloud Platform
+      stability: stable
+    - id: tencent_cloud
+      value: tencent_cloud
+      brief: Tencent Cloud
+      stability: stable
+  brief: |
+    The cloud provider of the invoked function.
+  note: |
+    SHOULD be equal to the `cloud.provider` resource attribute of the invoked function.
+  stability: stable
+- key: faas.invoked_region
+  type: string
+  examples: eu-central-1
+  brief: |
+    The cloud region of the invoked function.
+  note: |
+    SHOULD be equal to the `cloud.region` resource attribute of the invoked function.
+  stability: stable
+- key: faas.trigger
+  type:
+    members:
+    - id: datasource
+      value: datasource
+      brief: >-
+        A response to some data source operation such as a database or filesystem
+        read/write
+      stability: stable
+    - id: http
+      value: http
+      brief: To provide an answer to an inbound HTTP request
+      stability: stable
+    - id: pubsub
+      value: pubsub
+      brief: A function is set to be executed when messages are sent to a messaging system
+      stability: stable
+    - id: timer
+      value: timer
+      brief: A function is scheduled to be executed regularly
+      stability: stable
+    - id: other
+      value: other
+      brief: If none of the others apply
+      stability: stable
+  brief: Type of the trigger which caused this function invocation.
+  stability: stable
+registry:
+  attributes:
+  - 0
+  - 1
+  - 2
+  - 3
+  attribute_groups: []
+  spans: []
+  metrics:
+  - name: faas.coldstarts
+    instrument: counter
+    unit: "{coldstart}"
+    attributes:
+    - base: 3
+      requirement_level: recommended
+    brief: Number of invocation cold starts
+    stability: development
+  - name: faas.cpu_usage
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 3
+      requirement_level: recommended
+    brief: Distribution of CPU usage per invocation
+    stability: development
+  - name: faas.errors
+    instrument: counter
+    unit: "{error}"
+    attributes:
+    - base: 3
+      requirement_level: recommended
+    brief: Number of invocation errors
+    stability: development
+  - name: faas.init_duration
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 3
+      requirement_level: recommended
+    brief: Measures the duration of the function's initialization, such as a cold start
+    stability: development
+  - name: faas.invocations
+    instrument: counter
+    unit: "{invocation}"
+    attributes:
+    - base: 3
+      requirement_level: recommended
+    brief: Number of successful invocations
+    stability: development
+  - name: faas.invoke_duration
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 3
+      requirement_level: recommended
+    brief: Measures the duration of the function's logic execution
+    stability: development
+  - name: faas.mem_usage
+    instrument: histogram
+    unit: By
+    attributes:
+    - base: 3
+      requirement_level: recommended
+    brief: Distribution of max memory usage per invocation
+    stability: development
+  - name: faas.net_io
+    instrument: histogram
+    unit: By
+    attributes:
+    - base: 3
+      requirement_level: recommended
+    brief: Distribution of net I/O usage per invocation
+    stability: development
+  - name: faas.timeouts
+    instrument: counter
+    unit: "{timeout}"
+    attributes:
+    - base: 3
+      requirement_level: recommended
+    brief: Number of invocation timeouts
+    stability: development
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics:
+  - id: faas.coldstarts
+    name: faas.coldstarts
+    instrument: counter
+    unit: "{coldstart}"
+    attributes:
+    - base: 3
+      requirement_level: recommended
+    brief: Number of invocation cold starts
+    stability: development
+  - id: faas.cpu_usage
+    name: faas.cpu_usage
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 3
+      requirement_level: recommended
+    brief: Distribution of CPU usage per invocation
+    stability: development
+  - id: faas.errors
+    name: faas.errors
+    instrument: counter
+    unit: "{error}"
+    attributes:
+    - base: 3
+      requirement_level: recommended
+    brief: Number of invocation errors
+    stability: development
+  - id: faas.init_duration
+    name: faas.init_duration
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 3
+      requirement_level: recommended
+    brief: Measures the duration of the function's initialization, such as a cold start
+    stability: development
+  - id: faas.invocations
+    name: faas.invocations
+    instrument: counter
+    unit: "{invocation}"
+    attributes:
+    - base: 3
+      requirement_level: recommended
+    brief: Number of successful invocations
+    stability: development
+  - id: faas.invoke_duration
+    name: faas.invoke_duration
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 3
+      requirement_level: recommended
+    brief: Measures the duration of the function's logic execution
+    stability: development
+  - id: faas.mem_usage
+    name: faas.mem_usage
+    instrument: histogram
+    unit: By
+    attributes:
+    - base: 3
+      requirement_level: recommended
+    brief: Distribution of max memory usage per invocation
+    stability: development
+  - id: faas.net_io
+    name: faas.net_io
+    instrument: histogram
+    unit: By
+    attributes:
+    - base: 3
+      requirement_level: recommended
+    brief: Distribution of net I/O usage per invocation
+    stability: development
+  - id: faas.timeouts
+    name: faas.timeouts
+    instrument: counter
+    unit: "{timeout}"
+    attributes:
+    - base: 3
+      requirement_level: recommended
+    brief: Number of invocation timeouts
+    stability: development
+  events: []
+  entities: []

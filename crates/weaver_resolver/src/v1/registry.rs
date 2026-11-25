@@ -1,0 +1,2453 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! Functions to resolve a semantic convention registry.
+
+use crate::graph::chosen_versions::SchemaCacheLookup;
+use crate::graph::entity_lookup::{resolve_entity, EntityResolution};
+use crate::graph::exclusion::is_excluded;
+use crate::graph::merge::merge_annotations;
+use crate::graph::refinement_rules::{
+    validate_attribute_unrefs, validate_entity_identity_refinements,
+};
+use crate::v1::attribute::{AttributeCatalog, AttributeLookup};
+use crate::v1::dependency::{GroupSource, GroupSummary, ResolvedDependency};
+use crate::v1::exclusion::is_group_excluded;
+use crate::v1::imports::{unmatched_import_errors, GroupWithProvenance, ImportableDependency};
+use crate::v1::upgrade::{upgrade_entity_origin, upgrade_refinement_parent};
+use crate::Error;
+use crate::Error::{DuplicateGroupId, DuplicateGroupName, DuplicateMetricName};
+use globset::Glob;
+use itertools::Itertools;
+use serde::Deserialize;
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::fmt::Display;
+use std::hash::Hash;
+use weaver_common::result::WResult;
+use weaver_resolved_schema::convert::v2_namespace_id;
+use weaver_resolved_schema::v1::attribute::{AttributeRef, UnresolvedAttribute};
+use weaver_resolved_schema::v1::lineage::{AttributeLineage, GroupLineage};
+use weaver_resolved_schema::v1::registry::{EntityAssociationOrigins, Group, Registry};
+use weaver_semconv::provenance::Provenance;
+use weaver_semconv::registry_repo::RegistryRepo;
+use weaver_semconv::schema_url::SchemaUrl;
+use weaver_semconv::semconv::SemConvSpecV1WithProvenance;
+use weaver_semconv::v1::attribute::{AttributeRole, AttributeSpec};
+use weaver_semconv::v1::group::{
+    AttributeGroupVisibilitySpec, GroupSpecWithProvenance, GroupType, GroupWildcard,
+    ImportsWithProvenance,
+};
+use weaver_semconv::v1::semconv::Imports;
+
+/// A registry containing unresolved groups.
+#[derive(Debug)]
+pub struct UnresolvedRegistry {
+    /// The semantic convention registry containing resolved groups.
+    pub registry: Registry,
+
+    /// List of unresolved groups that belong to the registry.
+    /// The resolution process will progressively move the unresolved groups
+    /// into the registry field once they are resolved.
+    pub groups: Vec<UnresolvedGroup>,
+
+    /// List of unresolved imports that belong to the semantic convention
+    pub imports: Vec<ImportsWithProvenance>,
+
+    /// List of dependencies we may use when resolving this registry.
+    pub(crate) dependencies: Vec<ResolvedDependency>,
+}
+
+/// A group containing unresolved attributes.
+#[derive(Debug, Deserialize)]
+pub struct UnresolvedGroup {
+    /// The group specification containing resolved attributes and signals.
+    pub group: Group,
+
+    /// List of unresolved attributes that belong to the semantic convention
+    /// group.
+    /// The resolution process will progressively move the unresolved attributes,
+    /// and other signals, into the group field once they are resolved.
+    pub attributes: Vec<UnresolvedAttribute>,
+
+    /// List of groups to include in the semantic convention group.
+    pub include_groups: Vec<String>,
+
+    /// Inherited attributes to unreference before merging local references.
+    #[serde(default)]
+    pub attribute_unrefs: Vec<String>,
+
+    /// Visibility of the group.
+    pub visibility: Option<AttributeGroupVisibilitySpec>,
+
+    /// True if the group was defined using the v2 syntax.
+    pub is_v2: bool,
+
+    /// The provenance of the group (URL or path).
+    pub provenance: Option<Provenance>,
+}
+
+/// Resolves attribute prefixes, `extends` and `include_groups` inheritance, attribute references,
+/// dependency imports, and entity associations into a validated `Registry`.
+pub(crate) fn resolve_registry_with_dependencies<C: SchemaCacheLookup>(
+    attr_catalog: &mut AttributeCatalog,
+    repo: RegistryRepo,
+    specs: Vec<SemConvSpecV1WithProvenance>,
+    imports: Vec<ImportsWithProvenance>,
+    dependencies: Vec<ResolvedDependency>,
+    include_unreferenced: bool,
+    cache_lookup: &C,
+) -> WResult<Registry, Error> {
+    let mut groups = Vec::new();
+    for SemConvSpecV1WithProvenance { spec, provenance } in specs {
+        for group in spec.groups() {
+            groups.push(group_from_spec(GroupSpecWithProvenance {
+                spec: group.clone(),
+                provenance: provenance.clone(),
+            }));
+        }
+    }
+    let mut ureg = UnresolvedRegistry {
+        registry: Registry::new(repo.registry_path_repr()),
+        groups,
+        imports,
+        dependencies,
+    };
+
+    let mut errors = vec![];
+
+    if include_unreferenced {
+        errors.push(Error::DeprecatedIncludeUnreferencedWarning {});
+        let glob = match Glob::new("*") {
+            Ok(g) => g,
+            Err(e) => {
+                return WResult::FatalErr(Error::InvalidWildcard {
+                    error: e.to_string(),
+                });
+            }
+        };
+        let wildcard = GroupWildcard(glob);
+        let glob_imports = Imports {
+            metrics: Some(vec![wildcard.clone()]),
+            events: Some(vec![wildcard.clone()]),
+            entities: Some(vec![wildcard.clone()]),
+            spans: Some(vec![wildcard.clone()]),
+            attribute_groups: Some(vec![wildcard.clone()]),
+        };
+        ureg.imports.push(ImportsWithProvenance {
+            imports: glob_imports,
+            provenance: Provenance::new(repo.schema_url().clone(), "--include-unreferenced"),
+        });
+    }
+
+    // Now we do the resolution.
+    if let Err(e) = resolve_prefix_on_attributes(&mut ureg) {
+        return WResult::FatalErr(e);
+    }
+
+    if let Err(e) = resolve_extends_references(&mut ureg, cache_lookup, &mut errors) {
+        return WResult::FatalErr(e);
+    }
+
+    if let Err(e) = resolve_attribute_references(&mut ureg, attr_catalog, cache_lookup) {
+        return WResult::FatalErr(e);
+    }
+
+    // We need to *import* objects from the dependencies as required.
+    if let Err(e) = resolve_dependency_imports(&mut ureg, attr_catalog, cache_lookup, &mut errors) {
+        return WResult::FatalErr(e);
+    }
+
+    // After the imports, because a signal can arrive from a dependency with
+    // associations of its own, and because an import satisfies an association.
+    if let Err(e) = resolve_entity_associations(&mut ureg, cache_lookup) {
+        return WResult::FatalErr(e);
+    }
+
+    // Upgrade recorded association origins from dependencies superseded in this graph.
+    for origins in ureg.registry.entity_association_origins.values_mut() {
+        for (entity_name, origin) in origins.iter_mut() {
+            match upgrade_entity_origin(entity_name, origin, cache_lookup) {
+                Ok(upgraded) => *origin = upgraded,
+                Err(e) => return WResult::FatalErr(e),
+            }
+        }
+    }
+
+    // Now we do validations.
+
+    // Note: this will remove all the `groups` from UnresolvedRegistry and create
+    // a complete `Registry` that is returned.
+    //
+    // This will also "taint" that attribute catalog so it cannot be used for creating new attribute refs.
+    let result = cleanup_and_stabilize_catalog_and_registry(attr_catalog, ureg);
+    let attr_name_index = attr_catalog.attribute_name_index();
+
+    // Other complementary checks.
+    // Check for duplicate group IDs.
+    check_uniqueness(
+        &result,
+        &mut errors,
+        |group| Some(group.id.clone()),
+        |group_id, provenances| DuplicateGroupId {
+            group_id,
+            provenances,
+        },
+    );
+    // Check for duplicate metric names.
+    check_uniqueness(
+        &result,
+        &mut errors,
+        |group| {
+            // Ignore refinement duplicates, as they namespace differently.
+            if group.is_v2_refinement() {
+                None
+            } else {
+                group.metric_name.clone()
+            }
+        },
+        |metric_name, provenances| DuplicateMetricName {
+            metric_name,
+            provenances,
+        },
+    );
+    // Check for duplicate group names.
+    check_uniqueness(
+        &result,
+        &mut errors,
+        |group| {
+            // Ignore refinement duplicates, as they namespace differently.
+            if group.is_v2_refinement() {
+                None
+            } else {
+                group.name.clone()
+            }
+        },
+        |group_name, provenances| DuplicateGroupName {
+            group_name,
+            provenances,
+        },
+    );
+    check_root_attribute_id_duplicates(&result, &attr_name_index, &mut errors);
+    check_v2_signal_id_collisions(&result, &mut errors);
+    check_span_name_attributes(&result, &attr_name_index, &mut errors);
+
+    WResult::OkWithNFEs(result, errors)
+}
+
+/// Reports distinct group IDs of the same signal type that map to the same prefix-stripped V2 signal ID.
+fn check_v2_signal_id_collisions(registry: &Registry, errors: &mut Vec<Error>) {
+    // Keyed on the signal type as well as the id: each type has a namespace of
+    // its own in v2, so a span and an entity may share a name.
+    // A `BTreeMap` keeps the reports in a stable order.
+    let mut by_signal: BTreeMap<(String, String), Vec<&Group>> = BTreeMap::new();
+    for group in registry.groups.iter() {
+        if let Some(signal_id) = v2_namespace_id(group) {
+            by_signal
+                .entry((group.r#type.to_string(), signal_id.to_string()))
+                .or_default()
+                .push(group);
+        }
+    }
+
+    for ((_, signal_id), groups) in by_signal {
+        let group_ids: Vec<String> = groups.iter().map(|g| g.id.clone()).unique().collect();
+        if group_ids.len() < 2 {
+            continue;
+        }
+        errors.push(Error::CollidingV2SignalId {
+            signal_id,
+            group_ids,
+            provenances: groups
+                .iter()
+                .filter_map(|g| g.provenance())
+                .unique()
+                .collect(),
+        });
+    }
+}
+
+/// Checks that every attribute referenced in a span's name templates is present
+/// on the span itself (either declared directly or inherited).
+fn check_span_name_attributes(
+    registry: &Registry,
+    attr_name_index: &[String],
+    errors: &mut Vec<Error>,
+) {
+    for group in registry.groups.iter() {
+        if group.r#type != GroupType::Span {
+            continue;
+        }
+
+        let Some(span_name) = &group.span_name else {
+            continue;
+        };
+
+        if span_name.templates.is_empty() {
+            continue;
+        }
+
+        // Collect all attribute names present on this span
+        let span_attr_names: HashSet<&str> = group
+            .attributes
+            .iter()
+            .filter_map(|attr_ref| attr_name_index.get(attr_ref.0 as usize).map(String::as_str))
+            .collect();
+
+        let mut missing_attrs = HashSet::new();
+        for template in &span_name.templates {
+            for attr in &template.attributes {
+                if !span_attr_names.contains(attr.as_str()) {
+                    let _ = missing_attrs.insert(attr.as_str());
+                }
+            }
+        }
+
+        for attr in missing_attrs {
+            errors.push(Error::SpanNameAttributeNotOnSpan {
+                span_id: group.id.clone(),
+                attribute_key: attr.to_owned(),
+                provenance: group.provenance().map(Box::new),
+            });
+        }
+    }
+}
+
+/// Appends a duplicate error produced by `error_fn` for each key extracted by `key_fn` that appears with multiple provenances.
+fn check_uniqueness<K, KF, EF>(
+    registry: &Registry,
+    errors: &mut Vec<Error>,
+    key_fn: KF,
+    error_fn: EF,
+) where
+    K: Eq + Display + Hash,
+    KF: Fn(&Group) -> Option<K>,
+    EF: Fn(String, Vec<Provenance>) -> Error,
+{
+    let mut keys: HashMap<K, Vec<Provenance>> = HashMap::new();
+
+    for group in registry.groups.iter() {
+        if let Some(key) = key_fn(group) {
+            let provenances = keys.entry(key).or_default();
+            if let Some(p) = group.provenance() {
+                provenances.push(p);
+            }
+        }
+    }
+
+    for (key, provenances) in keys {
+        if provenances.len() > 1 {
+            let provenances: HashSet<Provenance> = provenances.into_iter().unique().collect();
+            errors.push(error_fn(key.to_string(), provenances.into_iter().collect()));
+        }
+    }
+}
+
+/// Appends `Error::DuplicateAttributeId` to `errors` for any root attribute defined in more than one `AttributeGroup`.
+pub fn check_root_attribute_id_duplicates(
+    registry: &Registry,
+    attr_name_index: &[String],
+    errors: &mut Vec<Error>,
+) {
+    // Map to track groups by their root attribute ID.
+    let mut groups_by_root_attr_id = HashMap::new();
+    // Iterate over all groups in the registry that are of type `AttributeGroup`.
+    registry
+        .groups
+        .iter()
+        .filter(|group| group.r#type == GroupType::AttributeGroup)
+        .for_each(|group| {
+            // Iterate over all attribute references in the group.
+            for attr_ref in group.attributes.iter() {
+                // Get the attribute ID from the attribute name index.
+                let attr_id = &attr_name_index[attr_ref.0 as usize];
+                // Check if the group has a lineage and if the lineage does not already have the attribute.
+                if let Some(lineage) = group.lineage.as_ref() {
+                    if !lineage.has_attribute(attr_id) {
+                        // Add the group ID to the map entry for the attribute ID.
+                        groups_by_root_attr_id
+                            .entry(attr_id.clone())
+                            .or_insert_with(Vec::new)
+                            .push(group.id.clone());
+                    }
+                }
+            }
+        });
+    // Collect errors for attribute IDs that are found in multiple groups.
+    let local_errors: Vec<_> = groups_by_root_attr_id
+        .into_iter()
+        .filter(|(_, group_ids)| group_ids.len() > 1)
+        .map(|(attr_id, group_ids)| Error::DuplicateAttributeId {
+            attribute_id: attr_id,
+            group_ids,
+        })
+        .collect();
+    errors.extend(local_errors);
+}
+
+/// Converts a parsed `GroupSpecWithProvenance` into an `UnresolvedGroup` prior to reference resolution.
+fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
+    let attrs = group
+        .spec
+        .attributes
+        .into_iter()
+        .map(|attr| UnresolvedAttribute {
+            spec: attr,
+            origin: None,
+        })
+        .collect::<Vec<UnresolvedAttribute>>();
+
+    UnresolvedGroup {
+        group: Group {
+            id: group.spec.id,
+            r#type: group.spec.r#type,
+            brief: group.spec.brief,
+            note: group.spec.note,
+            prefix: group.spec.prefix,
+            extends: group.spec.extends,
+            stability: group.spec.stability,
+            deprecated: group.spec.deprecated,
+            attributes: vec![],
+            span_kind: group.spec.span_kind,
+            events: group.spec.events,
+            metric_name: group.spec.metric_name,
+            instrument: group.spec.instrument,
+            unit: group.spec.unit,
+            requirement_level: group.spec.requirement_level,
+            name: group.spec.name,
+            lineage: Some(GroupLineage::new(group.provenance.clone())),
+            display_name: group.spec.display_name,
+            body: group.spec.body,
+            annotations: group.spec.annotations,
+            entity_associations: group.spec.entity_associations,
+            visibility: group.spec.visibility.clone(),
+            is_v2: group.spec.is_v2,
+            span_name: group.spec.span_name,
+        },
+        attributes: attrs,
+        provenance: Some(group.provenance),
+        include_groups: group.spec.include_groups,
+        attribute_unrefs: group.spec.attribute_unrefs,
+        visibility: group.spec.visibility,
+        is_v2: group.spec.is_v2,
+    }
+}
+
+/// Prepends each group's non-empty `prefix` to its `AttributeSpec::Id` attribute names.
+fn resolve_prefix_on_attributes(ureg: &mut UnresolvedRegistry) -> Result<(), Error> {
+    for unresolved_group in ureg.groups.iter_mut() {
+        if !unresolved_group.group.prefix.is_empty() {
+            for attribute in unresolved_group.attributes.iter_mut() {
+                if let AttributeSpec::Id { id, .. } = &mut attribute.spec {
+                    *id = format!("{}.{id}", unresolved_group.group.prefix);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Imports matching groups from `ureg.dependencies`, upgrades their entity association origins, and records unmatched pattern errors.
+fn resolve_dependency_imports<C: SchemaCacheLookup>(
+    ureg: &mut UnresolvedRegistry,
+    attribute_catalog: &mut AttributeCatalog,
+    cache_lookup: &C,
+    errors: &mut Vec<Error>,
+) -> Result<(), Error> {
+    let imports = &ureg.imports;
+    let dependencies = &ureg.dependencies;
+    let groups = dependencies.import_groups(imports, attribute_catalog, cache_lookup)?;
+    errors.extend(unmatched_import_errors(imports, &groups)?);
+    for GroupWithProvenance {
+        group,
+        schema_url,
+        mut association_origins,
+    } in groups
+    {
+        let is_v2 = group.is_v2();
+        for (entity_name, origin) in association_origins.iter_mut() {
+            *origin = upgrade_entity_origin(entity_name, origin, cache_lookup)?;
+        }
+        if !association_origins.is_empty() {
+            _ = ureg
+                .registry
+                .entity_association_origins
+                .insert(group.id.clone(), association_origins);
+        }
+        let prov_url = if let Some(prov) = group.provenance() {
+            prov.schema_url.clone()
+        } else {
+            schema_url
+        };
+        let path = group
+            .provenance()
+            .map(|p| p.path.clone())
+            .unwrap_or_default();
+        let provenance = Some(Provenance {
+            schema_url: prov_url.clone(),
+            path,
+        });
+        ureg.groups.push(UnresolvedGroup {
+            group,
+            attributes: vec![],
+            include_groups: vec![],
+            attribute_unrefs: vec![],
+            visibility: None,
+            is_v2,
+            provenance,
+        });
+    }
+    Ok(())
+}
+
+/// Resolves entity associations for local signals against local and dependency entities,
+/// recording dependency entity origins for V2 conversion while preserving pre-resolved origins on imported signals.
+fn resolve_entity_associations<C: SchemaCacheLookup>(
+    ureg: &mut UnresolvedRegistry,
+    cache_lookup: &C,
+) -> Result<(), Error> {
+    if ureg
+        .groups
+        .iter()
+        .all(|g| g.group.entity_associations.is_empty())
+    {
+        return Ok(());
+    }
+
+    // Map local entities by V2 namespace ID to their exclusion status.
+    let local: HashMap<String, bool> = ureg
+        .groups
+        .iter()
+        .filter(|g| g.group.r#type == GroupType::Entity)
+        .filter_map(|g| {
+            let excluded =
+                is_group_excluded(&g.group.annotations, g.visibility.as_ref(), &g.group.r#type);
+            v2_namespace_id(&g.group).map(|id| (id.to_string(), excluded))
+        })
+        .collect();
+
+    let mut origins: EntityAssociationOrigins = BTreeMap::new();
+    let mut errors = vec![];
+    let mut found: HashMap<String, SchemaUrl> = HashMap::new();
+    for g in ureg.groups.iter() {
+        let imported = ureg.registry.entity_association_origins.get(&g.group.id);
+        let group_excluded =
+            is_group_excluded(&g.group.annotations, g.visibility.as_ref(), &g.group.r#type);
+        for name in g
+            .group
+            .entity_associations
+            .iter()
+            .flat_map(|assoc| assoc.referenced_entities())
+            .unique()
+        {
+            // Preserve entity origins already resolved when the signal was imported.
+            if imported.is_some_and(|m| m.contains_key(name)) {
+                continue;
+            }
+            match local.get(name) {
+                Some(false) => continue,
+                Some(true) if group_excluded => continue,
+                Some(true) => {
+                    errors.push(Error::ExcludedFromDependencyResolution {
+                        id: name.to_owned(),
+                        r#type: GroupType::Entity.to_string(),
+                        used_in: g.group.id.clone(),
+                        provenance: g.provenance.clone().map(Box::new),
+                    });
+                    continue;
+                }
+                None => {}
+            }
+            if let Some(origin) = found.get(name) {
+                _ = origins
+                    .entry(g.group.id.clone())
+                    .or_default()
+                    .insert(name.to_owned(), origin.clone());
+                continue;
+            }
+            match resolve_entity(&ureg.dependencies, name) {
+                EntityResolution::Found(origin) => {
+                    let origin = upgrade_entity_origin(name, &origin, cache_lookup)?;
+                    _ = origins
+                        .entry(g.group.id.clone())
+                        .or_default()
+                        .insert(name.to_owned(), origin.clone());
+                    _ = found.insert(name.to_owned(), origin);
+                }
+                EntityResolution::Private => {
+                    errors.push(Error::ExcludedFromDependencyResolution {
+                        id: name.to_owned(),
+                        r#type: GroupType::Entity.to_string(),
+                        used_in: g.group.id.clone(),
+                        provenance: g.provenance.clone().map(Box::new),
+                    });
+                }
+                EntityResolution::Ambiguous(registries) => {
+                    errors.push(Error::AmbiguousEntityAssociation {
+                        group_id: g.group.id.clone(),
+                        entity_type: name.to_owned(),
+                        registries: registries.iter().map(|url| url.to_string()).collect(),
+                    });
+                }
+                EntityResolution::Unknown => errors.push(Error::UnresolvedEntityAssociation {
+                    group_id: g.group.id.clone(),
+                    entity_type: name.to_owned(),
+                    provenance: g.provenance.clone().map(Box::new),
+                }),
+            }
+        }
+    }
+
+    if !errors.is_empty() {
+        return Err(Error::CompoundError(errors));
+    }
+    for (group_id, group_origins) in origins {
+        ureg.registry
+            .entity_association_origins
+            .entry(group_id)
+            .or_default()
+            .extend(group_origins);
+    }
+    Ok(())
+}
+
+/// Iteratively resolves all local and inherited attribute definitions and `ref`s in `ureg` against `attr_catalog` and dependencies.
+fn resolve_attribute_references<C: SchemaCacheLookup>(
+    ureg: &mut UnresolvedRegistry,
+    attr_catalog: &mut AttributeCatalog,
+    cache_lookup: &C,
+) -> Result<(), Error> {
+    // First, resolve all attribute definitions (AttributeSpec::Id) across all groups.
+    // This populates the catalog with all local and refinement attribute definitions
+    // before resolving attribute references (AttributeSpec::Ref), preventing dependency
+    // lookups from preempting local definitions.
+    let mut init_errors = vec![];
+    for unresolved_group in ureg.groups.iter_mut() {
+        let mut resolved_attr = vec![];
+        let mut still_unresolved = vec![];
+        let group_excluded = is_group_excluded(
+            &unresolved_group.group.annotations,
+            unresolved_group.visibility.as_ref(),
+            &unresolved_group.group.r#type,
+        );
+        for attr in unresolved_group.attributes.drain(..) {
+            if matches!(attr.spec, AttributeSpec::Id { .. }) {
+                match attr_catalog.resolve(
+                    &unresolved_group.group.id,
+                    &unresolved_group.group.prefix,
+                    group_excluded,
+                    &attr.spec,
+                    attr.origin.as_ref(),
+                    unresolved_group.group.lineage.as_mut(),
+                    &ureg.dependencies,
+                    cache_lookup,
+                ) {
+                    Ok(Some(attr_ref)) => {
+                        resolved_attr.push(attr_ref);
+                    }
+                    Ok(None) => still_unresolved.push(attr),
+                    Err(e @ Error::ExcludedFromDependencyResolution { .. }) => {
+                        init_errors.push(e);
+                        still_unresolved.push(attr);
+                    }
+                    Err(e) => return Err(e),
+                }
+            } else {
+                still_unresolved.push(attr);
+            }
+        }
+        unresolved_group.attributes = still_unresolved;
+        unresolved_group.group.attributes.extend(resolved_attr);
+    }
+
+    loop {
+        let mut errors = init_errors.clone();
+        let mut resolved_attr_count = 0;
+
+        // Iterate over all groups and resolve the attributes.
+        for unresolved_group in ureg.groups.iter_mut() {
+            // TODO - we need to look up attributes from dependencies in needed here.
+            let mut resolved_attr = vec![];
+
+            // Remove attributes that are resolved and keep unresolved attributes
+            // in the group for the next iteration.
+            let mut still_unresolved = vec![];
+            let group_excluded = is_group_excluded(
+                &unresolved_group.group.annotations,
+                unresolved_group.visibility.as_ref(),
+                &unresolved_group.group.r#type,
+            );
+            for attr in unresolved_group.attributes.clone() {
+                match attr_catalog.resolve(
+                    &unresolved_group.group.id,
+                    &unresolved_group.group.prefix,
+                    group_excluded,
+                    &attr.spec,
+                    attr.origin.as_ref(),
+                    unresolved_group.group.lineage.as_mut(),
+                    &ureg.dependencies,
+                    cache_lookup,
+                ) {
+                    Ok(Some(attr_ref)) => {
+                        resolved_attr.push(attr_ref);
+                        resolved_attr_count += 1;
+                    }
+                    Ok(None) => {
+                        if let AttributeSpec::Ref { r#ref, .. } = &attr.spec {
+                            errors.push(Error::UnresolvedAttributeRef {
+                                group_id: unresolved_group.group.id.clone(),
+                                attribute_ref: r#ref.clone(),
+                                provenance: unresolved_group.provenance.clone().map(Box::new),
+                            });
+                        }
+                        still_unresolved.push(attr);
+                    }
+                    Err(e @ Error::ExcludedFromDependencyResolution { .. }) => {
+                        errors.push(e);
+                        still_unresolved.push(attr);
+                    }
+                    Err(e) => return Err(e),
+                }
+            }
+            unresolved_group.attributes = still_unresolved;
+
+            unresolved_group.group.attributes.extend(resolved_attr);
+        }
+
+        if errors.is_empty() {
+            break;
+        }
+
+        // If we still have unresolved attributes but we did not resolve any
+        // attributes in the last iteration, we are stuck in an infinite loop.
+        // It means that we have an issue with the semantic convention
+        // specifications.
+        if resolved_attr_count == 0 {
+            return Err(Error::CompoundError(errors));
+        }
+    }
+
+    Ok(())
+}
+
+/// Clears pending inheritance fields on `unresolved_group` and inserts its `GroupSummary` into `group_index`.
+fn add_resolved_group_to_index(
+    group_index: &mut HashMap<String, GroupSummary>,
+    unresolved_group: &mut UnresolvedGroup,
+    resolved_group_count: &mut usize,
+    association_origins: BTreeMap<String, SchemaUrl>,
+) {
+    log::debug!(
+        "Adding group {} to index with attribute ids: {:#?}",
+        unresolved_group.group.id,
+        unresolved_group
+            .attributes
+            .iter()
+            .map(|a| a.spec.id().clone())
+            .collect::<Vec<_>>()
+    );
+    _ = unresolved_group.group.extends.take();
+    unresolved_group.include_groups.clear();
+    unresolved_group.attribute_unrefs.clear();
+    let mut summary =
+        GroupSummary::from_without_attributes(&unresolved_group.group, GroupSource::Local);
+    summary.attributes = unresolved_group.attributes.clone();
+    summary.association_origins = association_origins;
+    _ = group_index.insert(unresolved_group.group.id.clone(), summary);
+    *resolved_group_count += 1;
+}
+
+/// Collects attribute slices from `group.include_groups` in declaration order, returning `None`
+/// if any target is unresolved, excluded, or introduces duplicate attribute IDs.
+fn collect_included_group_attrs<'a>(
+    group: &UnresolvedGroup,
+    group_index: &'a HashMap<String, GroupSummary>,
+    errors: &mut Vec<Error>,
+    warnings: &mut Vec<Error>,
+) -> Option<Vec<(String, &'a [UnresolvedAttribute])>> {
+    let mut seen_attr_ids = HashSet::new();
+    let mut included = Vec::new();
+    let mut all_resolved = true;
+    let mut pending_warnings = Vec::new();
+
+    for include_group in group.include_groups.iter() {
+        let Some(summary) = group_index.get(include_group) else {
+            errors.push(Error::UnresolvedIncludeRef {
+                group_id: group.group.id.clone(),
+                include_ref: include_group.clone(),
+                provenance: group.provenance.clone().map(Box::new),
+            });
+            all_resolved = false;
+            continue;
+        };
+        if let Some(err) = excluded_parent_error(group, include_group, summary) {
+            errors.push(err);
+            all_resolved = false;
+            continue;
+        }
+        if group.is_v2 && summary.r#type != GroupType::AttributeGroup {
+            let signal_type = match summary.r#type {
+                GroupType::Span => "span",
+                GroupType::Metric => "metric",
+                GroupType::Event => "event",
+                _ => "signal",
+            };
+            pending_warnings.push(Error::DeprecatedSignalRefGroup {
+                used_in: group.group.id.clone(),
+                ref_group: include_group.clone(),
+                signal_type: signal_type.to_owned(),
+                provenance: group.provenance.clone().map(Box::new),
+            });
+        }
+        for attr in &summary.attributes {
+            if !seen_attr_ids.insert(attr.spec.id()) {
+                errors.push(Error::DuplicateAttributeId {
+                    group_ids: group.include_groups.clone(),
+                    attribute_id: attr.spec.id().clone(),
+                });
+                all_resolved = false;
+            }
+        }
+        included.push((include_group.clone(), summary.attributes.as_slice()));
+    }
+
+    if all_resolved {
+        warnings.extend(pending_warnings);
+        Some(included)
+    } else {
+        None
+    }
+}
+
+/// Resolves `extends` against local groups and dependencies, applies V2 refinement field inheritance,
+/// and returns `Ok(None)` when a recoverable error prevents finalizing `group` in this iteration.
+fn resolve_refinement_parent<C: SchemaCacheLookup>(
+    group: &mut UnresolvedGroup,
+    extends: &str,
+    group_index: &HashMap<String, GroupSummary>,
+    dependencies: &[ResolvedDependency],
+    cache_lookup: &C,
+    errors: &mut Vec<Error>,
+) -> Result<Option<(Vec<UnresolvedAttribute>, BTreeMap<String, SchemaUrl>)>, Error> {
+    let parent = match lookup_group_with_dependencies(
+        dependencies,
+        group_index,
+        extends,
+        &group.group.id,
+        cache_lookup,
+    ) {
+        Ok(Some(s)) => s,
+        // TODO - first check imports.
+        Ok(None) => {
+            errors.push(Error::UnresolvedExtendsRef {
+                group_id: group.group.id.clone(),
+                extends_ref: extends.to_owned(),
+                provenance: group.provenance.clone().map(Box::new),
+            });
+            return Ok(None);
+        }
+        Err(e @ Error::ExcludedFromDependencyResolution { .. }) => {
+            errors.push(e);
+            return Ok(None);
+        }
+        Err(e) => return Err(e),
+    };
+    if let Some(err) = excluded_parent_error(group, extends, &parent) {
+        errors.push(err);
+        return Ok(None);
+    }
+    if let Some(lineage) = group.group.lineage.as_mut() {
+        lineage.extends(extends, parent.r#type.clone());
+    }
+    let inherited_origins = if group.is_v2 {
+        inherit_v2_refinement_fields(group, extends, &parent, errors)
+    } else {
+        BTreeMap::new()
+    };
+    Ok(Some((parent.attributes, inherited_origins)))
+}
+
+/// Copies required signal fields and unset optional fields from `parent` onto a V2 `refinement`,
+/// returning inherited entity association origins.
+fn inherit_v2_refinement_fields(
+    refinement: &mut UnresolvedGroup,
+    extends: &str,
+    parent: &GroupSummary,
+    errors: &mut Vec<Error>,
+) -> BTreeMap<String, SchemaUrl> {
+    if refinement.group.r#type != parent.r#type {
+        errors.push(Error::InvalidRefinement {
+            refinement_id: refinement.group.id.clone(),
+            r#ref: extends.to_owned(),
+            refinement_type: format!("{:?}", refinement.group.r#type),
+            signal_type: format!("{:?}", parent.r#type),
+        });
+    }
+
+    refinement.group.instrument = parent.instrument.clone();
+    refinement.group.unit = parent.unit.clone();
+    refinement.group.span_kind = parent.span_kind.clone();
+    refinement.group.metric_name = parent.metric_name.clone();
+    if refinement.group.r#type == GroupType::Event {
+        refinement.group.name = parent.name.clone();
+    }
+    refinement.group.requirement_level = parent.requirement_level.clone();
+
+    if refinement.group.stability.is_none() {
+        refinement.group.stability = parent.stability.clone();
+        // TODO: Validate that the refinement cannot be more stable than the definition.
+    }
+    if refinement.group.deprecated.is_none() {
+        refinement.group.deprecated = parent.deprecated.clone();
+    }
+    if refinement.group.brief.is_empty() {
+        refinement.group.brief = parent.brief.clone();
+    }
+    if refinement.group.note.is_none() {
+        refinement.group.note = parent.note.clone();
+    }
+    if refinement.group.span_name.is_none() {
+        refinement.group.span_name = parent.span_name.clone();
+    }
+
+    let mut merged_annotations = parent.annotations.clone().unwrap_or_default();
+    if let Some(child_annotations) = &refinement.group.annotations {
+        merged_annotations = merge_annotations(merged_annotations, child_annotations);
+    }
+    refinement.group.annotations = (!merged_annotations.is_empty()).then_some(merged_annotations);
+
+    if refinement.group.r#type != GroupType::Entity
+        && refinement.group.entity_associations.is_empty()
+    {
+        refinement.group.entity_associations = parent.entity_associations.clone();
+        return parent.association_origins.clone();
+    }
+    BTreeMap::new()
+}
+
+/// Iteratively resolves `extends` and `include_groups` inheritance across all groups in `ureg`.
+fn resolve_extends_references<C: SchemaCacheLookup>(
+    ureg: &mut UnresolvedRegistry,
+    cache_lookup: &C,
+    warnings: &mut Vec<Error>,
+) -> Result<(), Error> {
+    let mut fatal_errors: Vec<Error> = vec![];
+    let defined_roles = AttributeRoles::new(&ureg.groups, &ureg.dependencies);
+    loop {
+        let mut errors = vec![];
+        let mut resolved_group_count = 0;
+        let mut inherited_origins_to_record = Vec::new();
+
+        let mut group_index = HashMap::new();
+        let dependencies = &ureg.dependencies;
+        // TODO - we need to add in the *dependencies* registry here for lookups.
+        for group in ureg.groups.iter() {
+            if group.group.extends.is_none() && group.include_groups.is_empty() {
+                log::debug!(
+                    "Adding group {} to index with attribute ids: {:#?}",
+                    group.group.id,
+                    group
+                        .attributes
+                        .iter()
+                        .map(|a| a.spec.id().clone())
+                        .collect::<Vec<_>>()
+                );
+                let mut summary =
+                    GroupSummary::from_without_attributes(&group.group, GroupSource::Local);
+                summary.attributes = group.attributes.clone();
+                if let Some(origins) = ureg
+                    .registry
+                    .entity_association_origins
+                    .get(&group.group.id)
+                {
+                    summary.association_origins = origins.clone();
+                }
+                _ = group_index.insert(group.group.id.clone(), summary);
+            }
+        }
+        // Resolve every group's `extends` (parent signal) and `include_groups`
+        // (`ref_group`s). A group is finalized only once all of its parents and
+        // included groups are available in `group_index`; until then it is left
+        // untouched and retried on a later iteration.
+        for unresolved_group in ureg.groups.iter_mut() {
+            if unresolved_group.group.extends.is_none()
+                && unresolved_group.include_groups.is_empty()
+            {
+                continue;
+            }
+
+            // Attribute priority, low to high: parent (`extends`), included (`ref_group`), own (`ref`)
+            let included = match collect_included_group_attrs(
+                unresolved_group,
+                &group_index,
+                &mut errors,
+                warnings,
+            ) {
+                Some(included) => included,
+                None => continue,
+            };
+            let mut parent = match unresolved_group.group.extends.clone() {
+                Some(parent_ref) => match resolve_refinement_parent(
+                    unresolved_group,
+                    &parent_ref,
+                    &group_index,
+                    dependencies,
+                    cache_lookup,
+                    &mut errors,
+                )? {
+                    Some((parent_attrs, inherited_origins)) => {
+                        if !inherited_origins.is_empty() {
+                            inherited_origins_to_record.push((
+                                unresolved_group.group.id.clone(),
+                                inherited_origins.clone(),
+                            ));
+                        }
+                        if unresolved_group.is_v2
+                            && unresolved_group.group.r#type == GroupType::Entity
+                        {
+                            let parent_type = group_index
+                                .get(&parent_ref)
+                                .map(|s| s.r#type.clone())
+                                .or_else(|| {
+                                    lookup_group_with_dependencies(
+                                        dependencies,
+                                        &group_index,
+                                        &parent_ref,
+                                        &unresolved_group.group.id,
+                                        cache_lookup,
+                                    )
+                                    .ok()
+                                    .flatten()
+                                    .map(|s| s.r#type.clone())
+                                });
+                            if parent_type == Some(GroupType::Entity) {
+                                fatal_errors.extend(entity_identity_refinement_errors(
+                                    unresolved_group,
+                                    &parent_ref,
+                                    &parent_attrs,
+                                    &defined_roles,
+                                ));
+                            }
+                        }
+                        Some((parent_ref, parent_attrs, inherited_origins))
+                    }
+                    None => continue,
+                },
+                None => None,
+            };
+
+            if !unresolved_group.attribute_unrefs.is_empty() {
+                if let Some((parent_ref, parent_attrs, _)) = &mut parent {
+                    fatal_errors.extend(attribute_unref_errors(
+                        unresolved_group,
+                        parent_ref,
+                        parent_attrs,
+                        &included,
+                        &defined_roles,
+                    ));
+                    let unrefs: HashSet<_> = unresolved_group.attribute_unrefs.iter().collect();
+                    parent_attrs.retain(|attr| !unrefs.contains(&attr.spec.id()));
+                }
+            }
+
+            // Help V2 mapping reverse-engineer private groups
+            if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
+                for include_ref in &unresolved_group.include_groups {
+                    lineage.includes_group(include_ref);
+                }
+            }
+
+            // Each source is (label, attributes); the label feeds attribute lineage.
+            // Lowest priority first: parent, then included groups. Inline `ref:`
+            // attributes are applied as overrides by `resolve_inheritance_attrs_unified`.
+            let mut bases: Vec<(&str, &[UnresolvedAttribute])> = Vec::new();
+            if let Some((parent_ref, parent_attrs, _)) = &parent {
+                bases.push((parent_ref.as_str(), parent_attrs.as_slice()));
+            }
+            bases.extend(
+                included
+                    .iter()
+                    .map(|(group_ref, attrs)| (group_ref.as_str(), *attrs)),
+            );
+            unresolved_group.attributes = resolve_inheritance_attrs_unified(
+                &unresolved_group.group.id,
+                &unresolved_group.attributes,
+                bases,
+                unresolved_group.group.lineage.as_mut(),
+            );
+            let summary_origins = parent
+                .as_ref()
+                .map(|(_, _, origins)| origins.clone())
+                .unwrap_or_default();
+            add_resolved_group_to_index(
+                &mut group_index,
+                unresolved_group,
+                &mut resolved_group_count,
+                summary_origins,
+            );
+        }
+
+        for (group_id, origins) in inherited_origins_to_record {
+            ureg.registry
+                .entity_association_origins
+                .entry(group_id)
+                .or_default()
+                .extend(origins);
+        }
+
+        if errors.is_empty() {
+            break;
+        }
+
+        log::debug!(
+            "Resolved {resolved_group_count} extends in this iteration, found errors {errors:#?}"
+        );
+        // If we still have unresolved `extends` but we did not resolve any
+        // `extends` in the last iteration, we are stuck in an infinite loop.
+        // It means that we have an issue with the semantic convention
+        // specifications.
+        if resolved_group_count == 0 {
+            fatal_errors.extend(errors);
+            return Err(Error::CompoundError(fatal_errors));
+        }
+    }
+    if fatal_errors.is_empty() {
+        Ok(())
+    } else {
+        Err(Error::CompoundError(fatal_errors))
+    }
+}
+
+/// Lookup table of `AttributeRole`s for local and dependency attribute definitions prior to catalog resolution.
+struct AttributeRoles<'a> {
+    /// Roles of attributes defined in this registry, including `None` when unset so local definitions shadow dependencies.
+    local: HashMap<String, Option<AttributeRole>>,
+    /// Dependencies queried when an attribute is not defined locally.
+    dependencies: &'a Vec<ResolvedDependency>,
+}
+
+impl<'a> AttributeRoles<'a> {
+    /// Indexes `AttributeRole` declarations from local `AttributeSpec::Id` definitions alongside `dependencies`.
+    fn new(groups: &[UnresolvedGroup], dependencies: &'a Vec<ResolvedDependency>) -> Self {
+        let local = groups
+            .iter()
+            .flat_map(|g| g.attributes.iter())
+            .filter_map(|a| match &a.spec {
+                AttributeSpec::Id { id, role, .. } => Some((id.clone(), role.clone())),
+                AttributeSpec::Ref { .. } => None,
+            })
+            .collect();
+        Self {
+            local,
+            dependencies,
+        }
+    }
+
+    /// Returns the explicit role on `spec`, falling back to its local or dependency definition.
+    fn of(&self, spec: &AttributeSpec) -> Option<AttributeRole> {
+        match spec {
+            AttributeSpec::Ref { role: Some(r), .. } | AttributeSpec::Id { role: Some(r), .. } => {
+                Some(r.clone())
+            }
+            AttributeSpec::Ref {
+                r#ref, role: None, ..
+            } => match self.local.get(r#ref) {
+                Some(role) => role.clone(),
+                None => self
+                    .dependencies
+                    .lookup_attribute(r#ref)
+                    .ok()
+                    .flatten()
+                    .and_then(|a| a.attribute.role),
+            },
+            AttributeSpec::Id { role: None, .. } => None,
+        }
+    }
+}
+
+/// Validates `group.attribute_unrefs` against inherited, local, and included attributes,
+/// returning `Error::InvalidAttributeUnref` diagnostics.
+fn attribute_unref_errors(
+    group: &UnresolvedGroup,
+    parent_ref: &str,
+    parent_attrs: &[UnresolvedAttribute],
+    included: &[(String, &[UnresolvedAttribute])],
+    defined_roles: &AttributeRoles<'_>,
+) -> Vec<Error> {
+    let parent_attr_keys: HashSet<String> = parent_attrs.iter().map(|a| a.spec.id()).collect();
+    let parent_required_keys: HashSet<String> = parent_attrs
+        .iter()
+        .filter(|a| a.spec.is_required())
+        .map(|a| a.spec.id())
+        .collect();
+    let parent_identifying_keys: HashSet<String> = if group.group.r#type == GroupType::Entity {
+        parent_attrs
+            .iter()
+            .filter(|a| defined_roles.of(&a.spec) == Some(AttributeRole::Identifying))
+            .map(|a| a.spec.id())
+            .collect()
+    } else {
+        HashSet::new()
+    };
+    let local_attr_keys: HashSet<String> = group.attributes.iter().map(|a| a.spec.id()).collect();
+    let included_group_attrs: HashMap<String, String> = included
+        .iter()
+        .flat_map(|(source, attrs)| {
+            attrs
+                .iter()
+                .map(move |attr| (attr.spec.id(), source.clone()))
+        })
+        .collect();
+
+    validate_attribute_unrefs(
+        &group.group.id,
+        parent_ref,
+        group.attribute_unrefs.iter().map(String::as_str),
+        &parent_attr_keys,
+        &parent_required_keys,
+        &parent_identifying_keys,
+        &local_attr_keys,
+        &included_group_attrs,
+        group.provenance.as_ref(),
+    )
+}
+
+/// Errors when an entity refinement alters the identity of the base entity
+/// (demoting, promoting, or adding an identity attribute) or refines an entity
+/// that does not declare any identity attributes.
+fn entity_identity_refinement_errors(
+    group: &UnresolvedGroup,
+    extends: &str,
+    parent_attrs: &[UnresolvedAttribute],
+    defined_roles: &AttributeRoles<'_>,
+) -> Vec<Error> {
+    let parent_identifying_keys: HashSet<String> = parent_attrs
+        .iter()
+        .filter(|p| defined_roles.of(&p.spec) == Some(AttributeRole::Identifying))
+        .map(|p| p.spec.id())
+        .collect();
+
+    let refined_roles = group.attributes.iter().filter_map(|attr| {
+        let AttributeSpec::Ref { r#ref, role, .. } = &attr.spec else {
+            return None;
+        };
+        role.as_ref().map(|r| (r#ref.as_str(), r.clone()))
+    });
+
+    validate_entity_identity_refinements(
+        &group.group.id,
+        extends,
+        &parent_identifying_keys,
+        refined_roles,
+        group.provenance.as_ref(),
+    )
+}
+
+/// Merges attributes from `include_groups` in priority order, applies overrides from `attrs_group`, and records attribute lineage.
+fn resolve_inheritance_attrs_unified(
+    group_id: &str,
+    attrs_group: &[UnresolvedAttribute],
+    include_groups: Vec<(&str, &[UnresolvedAttribute])>,
+    group_lineage: Option<&mut GroupLineage>,
+) -> Vec<UnresolvedAttribute> {
+    struct AttrWithLineage {
+        spec: AttributeSpec,
+        lineage: AttributeLineage,
+        origin: Option<SchemaUrl>,
+    }
+
+    // `BTreeMap` keeps resolved attributes sorted deterministically by ID.
+    let mut inherited_attrs: BTreeMap<String, AttrWithLineage> = BTreeMap::new();
+    for (parent_group_id, included_group) in include_groups {
+        for parent_attr in included_group.iter() {
+            let attr_id = parent_attr.spec.id();
+            if let Some(existing) = inherited_attrs.get_mut(&attr_id) {
+                existing.spec = resolve_inheritance_attr(
+                    &parent_attr.spec,
+                    &existing.spec,
+                    &mut existing.lineage,
+                );
+                existing.lineage.source_group = parent_group_id.to_owned();
+                existing.origin = parent_attr.origin.clone();
+            } else {
+                let lineage = AttributeLineage::inherit_from(parent_group_id, &parent_attr.spec);
+                log::debug!(
+                    "Inheriting attribute {attr_id} from group {parent_group_id}, resolved to {:#?}",
+                    lineage.source_group
+                );
+                _ = inherited_attrs.insert(
+                    attr_id.clone(),
+                    AttrWithLineage {
+                        spec: parent_attr.spec.clone(),
+                        lineage,
+                        origin: parent_attr.origin.clone(),
+                    },
+                );
+            }
+        }
+    }
+
+    // Override the inherited attributes with the attributes from the group.
+    for attr in attrs_group.iter() {
+        match &attr.spec {
+            AttributeSpec::Ref { r#ref, .. } => {
+                if let Some(AttrWithLineage {
+                    spec: parent_attr,
+                    lineage,
+                    ..
+                }) = inherited_attrs.get_mut(r#ref)
+                {
+                    *parent_attr = resolve_inheritance_attr(&attr.spec, parent_attr, lineage);
+                } else {
+                    _ = inherited_attrs.insert(
+                        r#ref.clone(),
+                        AttrWithLineage {
+                            spec: attr.spec.clone(),
+                            lineage: AttributeLineage::new(group_id),
+                            origin: attr.origin.clone(),
+                        },
+                    );
+                }
+            }
+            AttributeSpec::Id { id, .. } => {
+                _ = inherited_attrs.insert(
+                    id.clone(),
+                    AttrWithLineage {
+                        spec: attr.spec.clone(),
+                        lineage: AttributeLineage::new(group_id),
+                        origin: attr.origin.clone(),
+                    },
+                );
+            }
+        }
+    }
+
+    let inherited_attrs = inherited_attrs.into_values();
+    if let Some(group_lineage) = group_lineage {
+        inherited_attrs
+            .map(|attr_with_lineage| {
+                if !attr_with_lineage.lineage.is_empty() {
+                    group_lineage.add_attribute_lineage(
+                        attr_with_lineage.spec.id(),
+                        attr_with_lineage.lineage,
+                    );
+                }
+                UnresolvedAttribute {
+                    spec: attr_with_lineage.spec,
+                    origin: attr_with_lineage.origin,
+                }
+            })
+            .collect()
+    } else {
+        inherited_attrs
+            .map(|attr_with_lineage| UnresolvedAttribute {
+                spec: attr_with_lineage.spec,
+                origin: attr_with_lineage.origin,
+            })
+            .collect()
+    }
+}
+
+/// Merges child attribute overrides in `attr` onto `parent_attr`, updating `lineage`.
+fn resolve_inheritance_attr(
+    attr: &AttributeSpec,
+    parent_attr: &AttributeSpec,
+    lineage: &mut AttributeLineage,
+) -> AttributeSpec {
+    match attr {
+        AttributeSpec::Ref {
+            r#ref,
+            brief,
+            examples,
+            tag,
+            requirement_level,
+            sampling_relevant,
+            note,
+            stability,
+            deprecated,
+            prefix,
+            annotations,
+            role,
+        } => {
+            match parent_attr {
+                AttributeSpec::Ref {
+                    brief: parent_brief,
+                    examples: parent_examples,
+                    tag: parent_tag,
+                    requirement_level: parent_requirement_level,
+                    sampling_relevant: parent_sampling_relevant,
+                    note: parent_note,
+                    stability: parent_stability,
+                    deprecated: parent_deprecated,
+                    prefix: parent_prefix,
+                    annotations: parent_annotations,
+                    role: parent_role,
+                    ..
+                } => {
+                    // attr and attr_parent are both references.
+                    AttributeSpec::Ref {
+                        r#ref: r#ref.clone(),
+                        brief: lineage.optional_brief(brief, parent_brief),
+                        examples: lineage.examples(examples, parent_examples),
+                        tag: lineage.tag(tag, parent_tag),
+                        requirement_level: lineage.optional_requirement_level(
+                            requirement_level,
+                            parent_requirement_level,
+                        ),
+                        sampling_relevant: lineage
+                            .sampling_relevant(sampling_relevant, parent_sampling_relevant),
+                        note: lineage.optional_note(note, parent_note),
+                        stability: lineage.stability(stability, parent_stability),
+                        deprecated: lineage.deprecated(deprecated, parent_deprecated),
+                        prefix: lineage.prefix(prefix, parent_prefix),
+                        annotations: lineage.annotations(annotations, parent_annotations),
+                        role: lineage.optional_role(role, parent_role),
+                    }
+                }
+                AttributeSpec::Id {
+                    r#type: parent_type,
+                    brief: parent_brief,
+                    examples: parent_examples,
+                    tag: parent_tag,
+                    requirement_level: parent_requirement_level,
+                    sampling_relevant: parent_sampling_relevant,
+                    note: parent_note,
+                    stability: parent_stability,
+                    deprecated: parent_deprecated,
+                    annotations: parent_annotations,
+                    role: parent_role,
+                    ..
+                } => {
+                    // attr is a reference and attr_parent is an id.
+                    // We need to override the reference with the id.
+                    AttributeSpec::Id {
+                        id: r#ref.clone(),
+                        r#type: parent_type.clone(),
+                        brief: lineage.optional_brief(brief, parent_brief),
+                        examples: lineage.examples(examples, parent_examples),
+                        tag: lineage.tag(tag, parent_tag),
+                        requirement_level: lineage
+                            .requirement_level(requirement_level, parent_requirement_level),
+                        sampling_relevant: lineage
+                            .sampling_relevant(sampling_relevant, parent_sampling_relevant),
+                        note: lineage.note(note, parent_note),
+                        stability: lineage.stability(stability, parent_stability),
+                        deprecated: lineage.deprecated(deprecated, parent_deprecated),
+                        annotations: lineage.annotations(annotations, parent_annotations),
+                        role: lineage.optional_role(role, parent_role),
+                    }
+                }
+            }
+        }
+        AttributeSpec::Id { .. } => attr.clone(),
+    }
+}
+
+/// Looks up group `id` in `local_index` then `dependencies`, upgrading superseded dependency matches
+/// and returning an error if only excluded dependency matches exist.
+fn lookup_group_with_dependencies<C: SchemaCacheLookup>(
+    dependencies: &[ResolvedDependency],
+    local_index: &HashMap<String, GroupSummary>,
+    id: &str,
+    used_in: &str,
+    cache_lookup: &C,
+) -> Result<Option<GroupSummary>, Error> {
+    if let Some(summary) = local_index.get(id) {
+        return Ok(Some(summary.clone()));
+    }
+    let mut excluded_match: Option<GroupSummary> = None;
+    for d in dependencies.iter() {
+        if let Some(summary) = d.lookup_group_summary(id) {
+            if summary.annotations.as_ref().is_some_and(is_excluded) {
+                _ = excluded_match.get_or_insert(summary);
+            } else {
+                let upgraded = upgrade_refinement_parent(summary, id, used_in, cache_lookup)?;
+                return Ok(Some(upgraded));
+            }
+        }
+    }
+    if let Some(summary) = excluded_match {
+        return Err(Error::ExcludedFromDependencyResolution {
+            id: id.to_owned(),
+            r#type: summary.r#type.to_string(),
+            used_in: used_in.to_owned(),
+            provenance: None,
+        });
+    }
+    Ok(None)
+}
+
+/// Returns `Error::ExcludedFromDependencyResolution` when a non-excluded group inherits from or includes an excluded local group.
+fn excluded_parent_error(
+    used_in: &UnresolvedGroup,
+    target_id: &str,
+    target: &GroupSummary,
+) -> Option<Error> {
+    if !matches!(target.source, GroupSource::Local) {
+        return None;
+    }
+    if !target.annotations.as_ref().is_some_and(is_excluded) {
+        return None;
+    }
+    let used_in_excluded = is_group_excluded(
+        &used_in.group.annotations,
+        used_in.visibility.as_ref(),
+        &used_in.group.r#type,
+    );
+    (!used_in_excluded).then(|| Error::ExcludedFromDependencyResolution {
+        id: target_id.to_owned(),
+        r#type: target.r#type.to_string(),
+        used_in: used_in.group.id.clone(),
+        provenance: used_in.provenance.clone().map(Box::new),
+    })
+}
+
+/// Garbage-collects unreferenced catalog attributes, filters internal attribute groups,
+/// and sorts groups and attribute references deterministically.
+pub(crate) fn cleanup_and_stabilize_catalog_and_registry(
+    attr_catalog: &mut AttributeCatalog,
+    mut ureg: UnresolvedRegistry,
+) -> Registry {
+    // Clean up the attribute registry and groups to have consistent ordering.
+    let attr_refs: HashSet<AttributeRef> = ureg
+        .groups
+        .iter()
+        .flat_map(|g| g.group.attributes.iter().cloned())
+        .collect();
+    let mapping = attr_catalog.gc_unreferenced_attribute_refs_and_sort(attr_refs);
+    for g in ureg.groups.iter_mut() {
+        for a in g.group.attributes.iter_mut() {
+            if let Some(ar) = mapping.get(a) {
+                *a = *ar;
+            }
+        }
+    }
+
+    // Sort groups by id.
+    ureg.groups.sort_by(|l, r| l.group.id.cmp(&r.group.id));
+
+    // Sort the attribute internal references in each group.
+    // This is needed to ensure that the resolved registry is easy to compare
+    // in unit tests.
+    ureg.registry.groups = ureg
+        .groups
+        .into_iter()
+        .filter(|g| g.visibility != Some(AttributeGroupVisibilitySpec::Internal))
+        .map(|mut g| {
+            g.group.attributes.sort();
+            g.group
+        })
+        .collect();
+    ureg.registry
+}
+
+#[cfg(test)]
+mod tests {
+    use rand::rng;
+    use rand::seq::SliceRandom;
+    use std::cmp::Ordering;
+    use std::collections::HashMap;
+    use std::error::Error;
+    use std::fs::OpenOptions;
+    use std::path::PathBuf;
+    use weaver_semconv::schema_url::SchemaUrl;
+
+    use glob::glob;
+    use serde::Serialize;
+    use weaver_common::result::WResult;
+    use weaver_common::vdir::VirtualDirectoryPath;
+    use weaver_diff::canonicalize_json_string;
+    use weaver_resolved_schema::v1::attribute::Attribute;
+    use weaver_resolved_schema::v1::attribute::UnresolvedAttribute;
+    use weaver_resolved_schema::v1::registry::Group;
+    use weaver_resolved_schema::v1::registry::Registry;
+    use weaver_semconv::provenance::Provenance;
+    use weaver_semconv::registry_repo::RegistryRepo;
+    use weaver_semconv::v1::attribute::{AttributeSpec, Examples, RequirementLevel};
+    use weaver_semconv::v1::group::GroupType;
+
+    use super::{
+        cleanup_and_stabilize_catalog_and_registry, resolve_inheritance_attrs_unified,
+        UnresolvedGroup, UnresolvedRegistry,
+    };
+    use crate::v1::attribute::{AttributeCatalog, AttributeSource};
+    use crate::{WeaverResolver, WeaverResolverConfig};
+    use std::sync::Arc;
+
+    /// A group for the collision check: only the id, the type and the
+    /// provenance path matter to it.
+    fn collision_group(id: &str, group_type: GroupType, path: &str) -> Group {
+        Group {
+            id: id.to_owned(),
+            r#type: group_type,
+            brief: Default::default(),
+            note: Default::default(),
+            prefix: Default::default(),
+            extends: Default::default(),
+            stability: Default::default(),
+            deprecated: Default::default(),
+            attributes: vec![],
+            span_kind: Default::default(),
+            events: Default::default(),
+            metric_name: Default::default(),
+            instrument: Default::default(),
+            unit: Default::default(),
+            requirement_level: Default::default(),
+            name: Default::default(),
+            lineage: Some(weaver_resolved_schema::v1::lineage::GroupLineage::new(
+                Provenance {
+                    schema_url: SchemaUrl::new_unknown(),
+                    path: path.to_owned(),
+                },
+            )),
+            display_name: Default::default(),
+            body: Default::default(),
+            annotations: Default::default(),
+            entity_associations: Default::default(),
+            visibility: Default::default(),
+            is_v2: true,
+            span_name: None,
+        }
+    }
+
+    fn collision_errors(groups: Vec<Group>) -> Vec<crate::Error> {
+        let registry = Registry {
+            registry_url: "test".to_owned(),
+            entity_association_origins: Default::default(),
+            groups,
+        };
+        let mut errors = vec![];
+        super::check_v2_signal_id_collisions(&registry, &mut errors);
+        errors
+    }
+
+    /// A v2 signal id drops the group-type prefix, so two groups whose ids
+    /// differ only by that prefix become one entry in the v2 output. The second
+    /// replaces the first, so this must not pass in silence.
+    #[test]
+    fn test_groups_that_take_one_v2_id_are_reported() {
+        let errors = collision_errors(vec![
+            collision_group("entity.host", GroupType::Entity, "base.yaml"),
+            collision_group("host", GroupType::Entity, "refinement.yaml"),
+        ]);
+        let [crate::Error::CollidingV2SignalId {
+            signal_id,
+            group_ids,
+            provenances,
+        }] = errors.as_slice()
+        else {
+            panic!("expected one collision, got {errors:?}");
+        };
+        assert_eq!(signal_id, "host");
+        assert_eq!(group_ids, &["entity.host".to_owned(), "host".to_owned()]);
+        assert_eq!(provenances.len(), 2, "both locations are named");
+    }
+
+    /// Each signal type has a namespace of its own in v2, so a span and an
+    /// entity that share a name do not collide.
+    #[test]
+    fn test_one_name_in_two_signal_types_is_not_a_collision() {
+        let errors = collision_errors(vec![
+            collision_group("entity.host", GroupType::Entity, "entity.yaml"),
+            collision_group("host", GroupType::Span, "span.yaml"),
+        ]);
+        assert!(errors.is_empty(), "unexpected collisions: {errors:?}");
+    }
+
+    /// Two groups that share a raw id are already reported as a duplicate
+    /// declaration. Reporting them here as well would say one fault twice.
+    #[test]
+    fn test_groups_that_share_a_raw_id_are_left_to_the_duplicate_check() {
+        let errors = collision_errors(vec![
+            collision_group("host", GroupType::Entity, "one.yaml"),
+            collision_group("host", GroupType::Entity, "two.yaml"),
+        ]);
+        assert!(errors.is_empty(), "unexpected collisions: {errors:?}");
+    }
+
+    const EXPECTED_ERRORS_FILE: &str = "expected-errors.json";
+    const EXPECTED_V1_CATALOG_FILE: &str = "expected-attribute-catalog.json";
+    const EXPECTED_V1_REGISTRY_FILE: &str = "expected-registry.json";
+    const OBSERVED_V1_CATALOG_FILE: &str = "attribute-catalog.json";
+    const OBSERVED_V1_REGISTRY_FILE: &str = "registry.json";
+
+    /// Test the resolution of semantic convention registries stored in the
+    /// data directory. The provided test cases cover the following resolution
+    /// scenarios:
+    /// - Attribute references.
+    /// - Extends references.
+    ///
+    /// Each test is stored in a directory named `registry-test-*` and contains
+    /// the following directory and files:
+    /// - directory `registry` containing the semantic convention specifications
+    ///   in YAML format.
+    /// - file `expected-attribute-catalog.json` containing the expected
+    ///   attribute catalog in JSON format.
+    /// - file `expected-registry.json` containing the expected registry in
+    ///   JSON format.
+    #[test]
+    #[allow(clippy::print_stdout)]
+    fn test_registry_resolution() {
+        let skip_tests: Vec<&str> = vec![
+            // "registry-test-10-prefix-refs",
+            // "registry-test-11-prefix-refs-extends",
+            // "registry-test-3-extends",
+            // "registry-test-4-events",
+            // "registry-test-6-resources",
+            // "registry-test-7-spans",
+            // "registry-test-8-http",
+            // "registry-test-v2-2-multifile",
+            "registry-test-v2-dep", // tested separately in v2_goldens.rs
+            "registry-test-dep-exclusion", // multi-registry; tested separately in lib.rs
+            "registry-test-v2-5-published", // tested in v2_goldens.rs
+        ];
+        // Iterate over all directories in the data directory and
+        // starting with registry-test-*
+        for test_entry in glob("data/registry-test-*").expect("Failed to read glob pattern") {
+            let path_buf = test_entry.expect("Failed to read test directory");
+            let test_dir_str = path_buf
+                .to_str()
+                .expect("Failed to convert test directory to string")
+                .replace('\\', "/");
+            let test_dir = test_dir_str.as_str();
+
+            if skip_tests.iter().any(|skip| test_dir.ends_with(skip)) {
+                // Skip the test for now as it is not yet supported.
+                continue;
+            }
+            println!("Testing `{test_dir}`");
+
+            // Delete all the files in the observed_output/target directory
+            // before generating the new files.
+            std::fs::remove_dir_all(format!("observed_output/{test_dir}")).unwrap_or_default();
+            let observed_output_dir = PathBuf::from(format!("observed_output/{test_dir}"));
+            std::fs::create_dir_all(observed_output_dir.clone())
+                .expect("Failed to create observed output directory");
+            let schema_url: SchemaUrl = "https://default/0.1.0"
+                .try_into()
+                .expect("Should be valid schema url");
+            let location: VirtualDirectoryPath = format!("{test_dir}/registry")
+                .try_into()
+                .expect("Failed to parse file directory");
+            let mut resolver = WeaverResolver::new(WeaverResolverConfig {
+                follow_symlinks: true,
+                ..Default::default()
+            });
+            let loaded = resolver
+                .load_repository(
+                    RegistryRepo::try_new(Some(schema_url), &location, &mut vec![])
+                        .expect("Failed to load registry"),
+                )
+                .ignore(|e| {
+                    // Ignore prefix errors on tests of prefix.
+                    test_dir.contains("prefix")
+                        && matches!(
+                            e,
+                            crate::Error::FailToResolveDefinition(
+                                weaver_semconv::Error::InvalidGroupUsesPrefix {
+                                    path_or_url: _,
+                                    group_id: _
+                                }
+                            )
+                        )
+                })
+                .ignore(|e| {
+                    matches!(
+                        e,
+                        crate::Error::FailToResolveDefinition(
+                            weaver_semconv::Error::UnstableFileFormat {
+                                file_format: _,
+                                provenance: _,
+                            }
+                        )
+                    )
+                })
+                .ignore(|e| {
+                    matches!(
+                        e,
+                        crate::Error::FailToResolveDefinition(
+                            weaver_semconv::Error::LegacyRegistryManifest { path: _ }
+                        )
+                    )
+                })
+                .ignore(|e| {
+                    matches!(
+                        e,
+                        crate::Error::FailToResolveDefinition(
+                            weaver_semconv::Error::DeprecatedVersionField { provenance: _ }
+                        )
+                    )
+                })
+                .ignore(|e| {
+                    matches!(
+                        e,
+                        crate::Error::FailToResolveDefinition(
+                            weaver_semconv::Error::MissingManifestFileFormat { .. }
+                        )
+                    )
+                })
+                .into_result_failing_non_fatal()
+                .expect("Failed to load semconv specs");
+
+            // We need to resolve dependencies.
+            let schema = resolver
+                .resolve_loaded(loaded)
+                .map(|arc| Arc::unwrap_or_clone(arc).into_v1().unwrap())
+                .into_result_failing_non_fatal();
+
+            // Check presence of an `expected-errors.json` file.
+            // If the file is present, the test is expected to fail with the errors in the file.
+            let expected_errors_file = format!("{test_dir}/{EXPECTED_ERRORS_FILE}");
+            if PathBuf::from(&expected_errors_file).exists() {
+                assert!(schema.is_err(), "This test is expected to fail");
+                let expected_errors: String = std::fs::read_to_string(&expected_errors_file)
+                    .expect("Failed to read expected errors file");
+                let observed_errors = serde_json::to_string(&schema.err())
+                    .expect("Failed to serialize schema error to JSON");
+                // Write observed errors.
+                assert_eq!(
+                    canonicalize_json_string(&observed_errors)
+                        .expect("Failed to canonicalize JSON string"),
+                    canonicalize_json_string(&expected_errors)
+                        .expect("Failed to canonicalize JSON string"),
+                    "Observed and expected errors don't match for `{}`.\n{}",
+                    test_dir,
+                    weaver_diff::diff_output(&expected_errors, &observed_errors)
+                );
+                continue;
+            }
+
+            let observed_schema = schema.expect("Failed to resolve the registry");
+            let observed_attr_catalog: Vec<_> =
+                observed_schema.catalog.attributes().cloned().collect();
+
+            // At this point, the normal behavior of this test is to pass.
+            let mut observed_registry = observed_schema.registry;
+            // Force registry URL to consistent string
+            observed_registry.registry_url = "https://127.0.0.1".to_owned();
+            // Now sort groups so we don't get flaky tests.
+            observed_registry.groups.sort_by_key(|g| g.id.to_owned());
+
+            // Write observed output.
+            let observed_attr_catalog_file = OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(true)
+                .open(observed_output_dir.join(OBSERVED_V1_CATALOG_FILE))
+                .expect("Failed to open observed output file");
+            serde_json::to_writer_pretty(observed_attr_catalog_file, &observed_attr_catalog)
+                .expect("Failed to write observed output.");
+
+            // Load the expected registry and attribute catalog.
+            let expected_attr_catalog_file = format!("{test_dir}/{EXPECTED_V1_CATALOG_FILE}");
+            let expected_attr_catalog_attrs: Vec<Attribute> = serde_json::from_reader(
+                std::fs::File::open(expected_attr_catalog_file)
+                    .expect("Failed to open expected attribute catalog"),
+            )
+            .expect("Failed to deserialize expected attribute catalog");
+
+            // Compare values
+            assert_eq!(
+                observed_attr_catalog, expected_attr_catalog_attrs,
+                "Observed and expected attribute catalogs don't match for `{}`.\nDiff from expected:\n{}",
+                test_dir, weaver_diff::diff_output(&to_json(&expected_attr_catalog_attrs), &to_json(&observed_attr_catalog))
+            );
+
+            // Check that the resolved registry matches the expected registry.
+            let expected_registry: Registry = serde_json::from_reader(
+                std::fs::File::open(format!("{test_dir}/{EXPECTED_V1_REGISTRY_FILE}"))
+                    .expect("Failed to open expected registry"),
+            )
+            .expect("Failed to deserialize expected registry");
+
+            // Write observed output.
+            let observed_registry_file = OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(true)
+                .open(observed_output_dir.join(OBSERVED_V1_REGISTRY_FILE))
+                .expect("Failed to open observed output file");
+            serde_json::to_writer_pretty(observed_registry_file, &observed_registry)
+                .expect("Failed to write observed output.");
+
+            assert_eq!(
+                to_json(&observed_registry),
+                to_json(&expected_registry),
+                "Expected and observed registry don't match for `{}`.\nDiff from expected:\n{}",
+                test_dir,
+                weaver_diff::diff_output(
+                    &to_json(&expected_registry),
+                    &to_json(&observed_registry)
+                )
+            );
+        }
+    }
+
+    fn create_registry_from_string(registry_spec: &str) -> WResult<Registry, crate::Error> {
+        let loaded = crate::graph::loader::LoadedSemconvRegistry::create_from_string(registry_spec)
+            .expect("Failed to load semconv spec");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default());
+        resolver
+            .resolve_loaded(loaded)
+            .map(|arc| Arc::unwrap_or_clone(arc).into_v1().unwrap().registry)
+    }
+
+    #[test]
+    fn test_registry_error_unresolved_extends() {
+        let result = create_registry_from_string(
+            "
+groups:
+    - id: group.one
+      type: attribute_group
+      brief: \"Group one\"
+      extends: group.non.existent.one
+    - id: group.two
+      type: attribute_group
+      brief: \"Group two\"
+      extends: group.non.existent.two",
+        )
+        .into_result_failing_non_fatal();
+
+        assert!(result.is_err());
+
+        if let crate::Error::CompoundError(errors) = result.unwrap_err() {
+            assert!(errors.len() == 2);
+        } else {
+            panic!("Expected a CompoundError");
+        }
+    }
+
+    #[test]
+    fn test_registry_error_unresolved_refs() {
+        let result = create_registry_from_string(
+            "
+groups:
+    - id: span.one
+      type: span
+      span_kind: internal
+      stability: stable
+      brief: 'Span one'
+      attributes:
+        - ref: non.existent.one
+          requirement_level: opt_in
+        - ref: non.existent.two
+          requirement_level: opt_in",
+        )
+        .into_result_failing_non_fatal();
+
+        assert!(result.is_err());
+
+        if let crate::Error::CompoundError(errors) = result.unwrap_err() {
+            assert!(errors.len() == 2);
+        } else {
+            panic!("Expected a CompoundError");
+        }
+    }
+
+    #[test]
+    fn test_api_usage() -> Result<(), Box<dyn Error>> {
+        // Load a semantic convention registry from a local directory.
+        // Note: A method is also available to load a registry from a git
+        // repository.
+        // TODO - registry path.
+        let path = VirtualDirectoryPath::LocalFolder {
+            path: "data/registry-test-7-spans/registry".to_owned(),
+        };
+
+        let schema_url: SchemaUrl = "https://local/registry/1.0.0"
+            .try_into()
+            .expect("Should be valid schema url");
+        let repo = RegistryRepo::try_new(Some(schema_url), &path, &mut vec![])
+            .expect("Failed to load registry");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig {
+            follow_symlinks: true,
+            ..Default::default()
+        });
+        let loaded = resolver
+            .load_repository(repo)
+            .into_result_failing_non_fatal()?;
+        let resolved_schema: weaver_resolved_schema::v1::ResolvedTelemetrySchema = resolver
+            .resolve_loaded(loaded)
+            .map(|arc| Arc::unwrap_or_clone(arc).into_v1().unwrap())
+            .into_result_failing_non_fatal()?;
+
+        // Get the resolved registry by its ID.
+        let resolved_registry = &resolved_schema.registry;
+
+        // Get the catalog of the resolved telemetry schema.
+        let catalog = &resolved_schema.catalog;
+        // Scan over all the metrics
+        let mut metric_count = 0;
+        for metric in resolved_registry.groups(GroupType::Metric) {
+            metric_count += 1;
+            let _resolved_attributes: Vec<&Attribute> = metric.attributes(catalog)?;
+            // Do something with the resolved attributes.
+        }
+        assert_eq!(
+            metric_count, 0,
+            "No metric in the resolved registry expected"
+        );
+
+        // Scan over all the spans
+        let mut span_count = 0;
+        for span in resolved_registry.groups(GroupType::Span) {
+            span_count += 1;
+            let _resolved_attributes: Vec<&Attribute> = span.attributes(catalog)?;
+            // Do something with the resolved attributes.
+        }
+        assert_eq!(span_count, 10, "10 spans in the resolved registry expected");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_drop_unused_attributes_in_catalog() -> Result<(), Box<dyn Error>> {
+        let mut catalog = AttributeCatalog::default();
+        // Create 26 attribute refs, and then randomize them.
+        let mut attr_refs = vec![];
+        for c in 'a'..='z' {
+            attr_refs.push(
+                catalog
+                    .attribute_ref_with_provenance(
+                        Attribute {
+                            name: format!("{c}"),
+                            r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                                weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String,
+                            ),
+                            brief: Default::default(),
+                            examples: Default::default(),
+                            tag: Default::default(),
+                            requirement_level: Default::default(),
+                            sampling_relevant: Default::default(),
+                            note: Default::default(),
+                            stability: Default::default(),
+                            deprecated: Default::default(),
+                            prefix: Default::default(),
+                            tags: Default::default(),
+                            annotations: Default::default(),
+                            value: Default::default(),
+                            role: Default::default(),
+                        },
+                        AttributeSource::Local {
+                            group_id: "test".to_owned(),
+                        },
+                        &crate::graph::chosen_versions::NullSchemaCacheLookup,
+                    )
+                    .expect("Failed to create attribute reference with provenance in test"),
+            );
+        }
+
+        // We only need to file out portions here.
+        let ureg = UnresolvedRegistry {
+            registry: Registry {
+                registry_url: "test".to_owned(),
+                entity_association_origins: Default::default(),
+                groups: vec![],
+            },
+            groups: vec![UnresolvedGroup {
+                group: Group {
+                    id: "b".to_owned(),
+                    r#type: GroupType::AttributeGroup,
+                    brief: Default::default(),
+                    note: Default::default(),
+                    prefix: Default::default(),
+                    extends: Default::default(),
+                    stability: Default::default(),
+                    deprecated: Default::default(),
+                    attributes: attr_refs.iter().take(10).cloned().collect(),
+                    span_kind: Default::default(),
+                    events: Default::default(),
+                    metric_name: Default::default(),
+                    instrument: Default::default(),
+                    unit: Default::default(),
+                    requirement_level: Default::default(),
+                    name: Default::default(),
+                    lineage: Default::default(),
+                    display_name: Default::default(),
+                    body: Default::default(),
+                    annotations: Default::default(),
+                    entity_associations: Default::default(),
+                    visibility: Default::default(),
+                    is_v2: false,
+                    span_name: None,
+                },
+                attributes: Default::default(),
+                include_groups: Default::default(),
+                attribute_unrefs: vec![],
+                visibility: Default::default(),
+                is_v2: false,
+                provenance: Some(Provenance {
+                    schema_url: SchemaUrl::new_unknown(),
+                    path: Default::default(),
+                }),
+            }],
+            imports: vec![],
+            dependencies: vec![],
+        };
+
+        let _ = cleanup_and_stabilize_catalog_and_registry(&mut catalog, ureg);
+        let attrs = catalog.drain_attributes();
+
+        // We should only have 10 attributes.
+        assert_eq!(attrs.len(), 10);
+
+        // Check catalog for sorting.
+        for (a, expected) in attrs.iter().zip('a'..='z') {
+            assert_eq!(a.name, format!("{expected}"));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_sort_result_catalog() -> Result<(), Box<dyn Error>> {
+        let mut catalog = AttributeCatalog::default();
+        // Create 26 attribute refs, and then randomize them.
+        let mut attr_refs = vec![];
+        for c in 'a'..='z' {
+            attr_refs.push(
+                catalog
+                    .attribute_ref_with_provenance(
+                        Attribute {
+                            name: format!("{c}"),
+                            r#type: weaver_semconv::v1::attribute::AttributeType::PrimitiveOrArray(
+                                weaver_semconv::v1::attribute::PrimitiveOrArrayTypeSpec::String,
+                            ),
+                            brief: Default::default(),
+                            examples: Default::default(),
+                            tag: Default::default(),
+                            requirement_level: Default::default(),
+                            sampling_relevant: Default::default(),
+                            note: Default::default(),
+                            stability: Default::default(),
+                            deprecated: Default::default(),
+                            prefix: Default::default(),
+                            tags: Default::default(),
+                            annotations: Default::default(),
+                            value: Default::default(),
+                            role: Default::default(),
+                        },
+                        AttributeSource::Local {
+                            group_id: "test".to_owned(),
+                        },
+                        &crate::graph::chosen_versions::NullSchemaCacheLookup,
+                    )
+                    .expect("Failed to create attribute reference with provenance in test"),
+            );
+        }
+        // 2. Get a thread-local random number generator (RNG)
+        let mut rng = rng();
+        attr_refs.shuffle(&mut rng);
+
+        // We only need to fill out the registry here.
+        let ureg = UnresolvedRegistry {
+            registry: Registry {
+                registry_url: "test".to_owned(),
+                entity_association_origins: Default::default(),
+                groups: vec![],
+            },
+            groups: vec![
+                UnresolvedGroup {
+                    group: Group {
+                        id: "b".to_owned(),
+                        r#type: GroupType::AttributeGroup,
+                        brief: Default::default(),
+                        note: Default::default(),
+                        prefix: Default::default(),
+                        extends: Default::default(),
+                        stability: Default::default(),
+                        deprecated: Default::default(),
+                        attributes: attr_refs.iter().take(10).cloned().collect(),
+                        span_kind: Default::default(),
+                        events: Default::default(),
+                        metric_name: Default::default(),
+                        instrument: Default::default(),
+                        unit: Default::default(),
+                        requirement_level: Default::default(),
+                        name: Default::default(),
+                        lineage: Default::default(),
+                        display_name: Default::default(),
+                        body: Default::default(),
+                        annotations: Default::default(),
+                        entity_associations: Default::default(),
+                        visibility: Default::default(),
+                        is_v2: false,
+                        span_name: None,
+                    },
+                    attributes: Default::default(),
+                    include_groups: Default::default(),
+                    attribute_unrefs: vec![],
+                    visibility: Default::default(),
+                    is_v2: false,
+                    provenance: Some(Provenance {
+                        schema_url: SchemaUrl::new_unknown(),
+                        path: Default::default(),
+                    }),
+                },
+                UnresolvedGroup {
+                    group: Group {
+                        id: "a".to_owned(),
+                        r#type: GroupType::AttributeGroup,
+                        brief: Default::default(),
+                        note: Default::default(),
+                        prefix: Default::default(),
+                        extends: Default::default(),
+                        stability: Default::default(),
+                        deprecated: Default::default(),
+                        attributes: attr_refs.iter().skip(10).take(10).cloned().collect(),
+                        span_kind: Default::default(),
+                        events: Default::default(),
+                        metric_name: Default::default(),
+                        instrument: Default::default(),
+                        unit: Default::default(),
+                        requirement_level: Default::default(),
+                        name: Default::default(),
+                        lineage: Default::default(),
+                        display_name: Default::default(),
+                        body: Default::default(),
+                        annotations: Default::default(),
+                        entity_associations: Default::default(),
+                        visibility: Default::default(),
+                        is_v2: false,
+                        span_name: None,
+                    },
+                    attributes: Default::default(),
+                    include_groups: Default::default(),
+                    attribute_unrefs: vec![],
+                    visibility: Default::default(),
+                    is_v2: false,
+                    provenance: Some(Provenance {
+                        schema_url: SchemaUrl::new_unknown(),
+                        path: Default::default(),
+                    }),
+                },
+                UnresolvedGroup {
+                    group: Group {
+                        id: "c".to_owned(),
+                        r#type: GroupType::AttributeGroup,
+                        brief: Default::default(),
+                        note: Default::default(),
+                        prefix: Default::default(),
+                        extends: Default::default(),
+                        stability: Default::default(),
+                        deprecated: Default::default(),
+                        attributes: attr_refs.iter().skip(20).take(6).cloned().collect(),
+                        span_kind: Default::default(),
+                        events: Default::default(),
+                        metric_name: Default::default(),
+                        instrument: Default::default(),
+                        unit: Default::default(),
+                        requirement_level: Default::default(),
+                        name: Default::default(),
+                        lineage: Default::default(),
+                        display_name: Default::default(),
+                        body: Default::default(),
+                        annotations: Default::default(),
+                        entity_associations: Default::default(),
+                        visibility: Default::default(),
+                        is_v2: false,
+                        span_name: None,
+                    },
+                    attributes: Default::default(),
+                    include_groups: Default::default(),
+                    attribute_unrefs: vec![],
+                    visibility: Default::default(),
+                    is_v2: false,
+                    provenance: Some(Provenance {
+                        schema_url: SchemaUrl::new_unknown(),
+                        path: Default::default(),
+                    }),
+                },
+            ],
+            imports: vec![],
+            dependencies: vec![],
+        };
+        // Group id to expected attribute names.
+        let lookups: HashMap<String, Vec<String>> = ureg
+            .groups
+            .iter()
+            .map(|g| {
+                let attr_names: Vec<String> = g
+                    .group
+                    .attributes
+                    .iter()
+                    .filter_map(|ar| catalog.attribute(ar))
+                    .map(|a| a.name.clone())
+                    .collect();
+                (g.group.id.clone(), attr_names)
+            })
+            .collect();
+        let registry = cleanup_and_stabilize_catalog_and_registry(&mut catalog, ureg);
+        let attrs = catalog.drain_attributes();
+
+        // Check catalog for sorting.
+        for (a, expected) in attrs.iter().zip('a'..='z') {
+            assert_eq!(a.name, format!("{expected}"));
+        }
+        // Now check registry for sorting.
+        for g in &registry.groups {
+            for (l, r) in g.attributes.iter().zip(g.attributes.iter().skip(1)) {
+                assert_eq!(l.0.cmp(&r.0), Ordering::Less);
+            }
+            let expected_names = lookups
+                .get(&g.id)
+                .expect("Expected to find same group output as input");
+            assert_eq!(
+                expected_names.len(),
+                g.attributes.len(),
+                "Wrong number of attributes for group: {}",
+                g.id
+            );
+            for ar in &g.attributes {
+                let a = &attrs[ar.0 as usize];
+                assert!(expected_names.contains(&a.name));
+            }
+        }
+        Ok(())
+    }
+
+    fn to_json<T: Serialize + ?Sized>(value: &T) -> String {
+        serde_json::to_string_pretty(value).unwrap()
+    }
+
+    fn bare_ref(
+        id: &str,
+        requirement_level: Option<RequirementLevel>,
+        examples: Option<Examples>,
+    ) -> UnresolvedAttribute {
+        UnresolvedAttribute {
+            origin: None,
+            spec: AttributeSpec::Ref {
+                r#ref: id.to_owned(),
+                brief: None,
+                examples,
+                tag: None,
+                requirement_level,
+                sampling_relevant: None,
+                note: None,
+                stability: None,
+                deprecated: None,
+                prefix: false,
+                annotations: None,
+                role: None,
+            },
+        }
+    }
+
+    /// A bare `ref` inside an included group (`ref_group`) that only narrows the
+    /// example must NOT reset the `requirement_level` inherited from a
+    /// lower-priority base (`extends`). It must behave the same as a bare inline
+    /// `ref`: unset fields inherit rather than replacing the whole spec.
+    #[test]
+    fn ref_group_bare_ref_preserves_inherited_requirement_level() {
+        let cond = RequirementLevel::ConditionallyRequired {
+            text: "If span describes operation on a single message.".to_owned(),
+        };
+
+        // Lowest priority base (parent `extends`): sets conditionally_required.
+        let parent = vec![bare_ref(
+            "messaging.destination.name",
+            Some(cond.clone()),
+            None,
+        )];
+        // Higher priority base (`ref_group`): only sets an example, no level.
+        let included = vec![bare_ref(
+            "messaging.destination.name",
+            None,
+            Some(Examples::String("MyTopic".to_owned())),
+        )];
+
+        let resolved = resolve_inheritance_attrs_unified(
+            "span.messaging.rocketmq.send.producer",
+            &[], // no inline `ref:` overrides on the refinement itself
+            vec![
+                ("messaging.attributes.common", parent.as_slice()),
+                ("messaging.rocketmq.attributes.common", included.as_slice()),
+            ],
+            None,
+        );
+
+        assert_eq!(resolved.len(), 1);
+        match &resolved[0].spec {
+            AttributeSpec::Ref {
+                requirement_level,
+                examples,
+                ..
+            } => {
+                assert_eq!(
+                    requirement_level.as_ref(),
+                    Some(&cond),
+                    "ref_group must not reset the inherited requirement_level"
+                );
+                assert!(
+                    matches!(examples, Some(Examples::String(s)) if s == "MyTopic"),
+                    "ref_group example override should still win"
+                );
+            }
+            other @ AttributeSpec::Id { .. } => {
+                panic!("expected a Ref attribute, got {other:?}")
+            }
+        }
+    }
+
+    #[test]
+    fn test_check_span_name_attributes_reports_missing_attribute() {
+        use super::check_span_name_attributes;
+        use crate::Error as ResolverError;
+        use std::collections::BTreeMap;
+        use weaver_resolved_schema::v1::attribute::AttributeRef;
+        use weaver_semconv::v1::group::{SpanName, SpanNameTemplate};
+
+        let attr_name_index = vec!["http.request.method".to_owned()];
+        let group = Group {
+            id: "span.http.client".to_owned(),
+            r#type: GroupType::Span,
+            brief: "".to_owned(),
+            note: None,
+            prefix: "".to_owned(),
+            extends: None,
+            stability: None,
+            deprecated: None,
+            attributes: vec![AttributeRef(0)], // only http.request.method
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            name: None,
+            lineage: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            visibility: None,
+            is_v2: true,
+            span_name: Some(SpanName {
+                templates: vec![
+                    SpanNameTemplate::parse("{http.request.method} {url.template}").unwrap(),
+                ],
+                note: None,
+            }),
+            requirement_level: None,
+        };
+
+        let registry = Registry {
+            registry_url: "test".to_owned(),
+            groups: vec![group],
+            entity_association_origins: BTreeMap::new(),
+        };
+
+        let mut errors = vec![];
+        check_span_name_attributes(&registry, &attr_name_index, &mut errors);
+
+        assert_eq!(errors.len(), 1);
+        match &errors[0] {
+            ResolverError::SpanNameAttributeNotOnSpan {
+                span_id,
+                attribute_key,
+                ..
+            } => {
+                assert_eq!(span_id, "span.http.client");
+                assert_eq!(attribute_key, "url.template");
+            }
+            other => panic!("expected SpanNameAttributeNotOnSpan, got {other:?}"),
+        }
+    }
+}

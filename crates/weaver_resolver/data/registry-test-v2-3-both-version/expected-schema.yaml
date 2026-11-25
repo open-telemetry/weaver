@@ -1,0 +1,82 @@
+file_format: resolved/2.0
+schema_url: https://default/0.1.0
+attribute_catalog:
+- key: network.protocol.name
+  type: string
+  examples:
+  - amqp
+  - http
+  - mqtt
+  brief: "[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent."
+  note: The value SHOULD be normalized to lowercase.
+  stability: stable
+- key: network.protocol.name
+  type: string
+  examples:
+  - http
+  - spdy
+  brief: "[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent."
+  note: The value SHOULD be normalized to lowercase.
+  stability: stable
+- key: server.port
+  type: int
+  examples:
+  - 80
+  - 8080
+  - 443
+  brief: Server port number.
+  note: |
+    See [Setting `server.address` and `server.port` attributes](/docs/http/http-spans.md#setting-serveraddress-and-serverport-attributes).
+    > **Warning**
+    > Since this attribute is based on HTTP headers, opting in to it may allow an attacker
+    > to trigger cardinality limits, degrading the usefulness of the metric.
+  stability: stable
+- key: server.port
+  type: int
+  examples:
+  - 80
+  - 8080
+  - 443
+  brief: Server port number.
+  note: |
+    When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
+  stability: stable
+registry:
+  attributes:
+  - 0
+  - 3
+  attribute_groups: []
+  spans: []
+  metrics:
+  - name: http.server.request.duration
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 1
+      requirement_level:
+        conditionally_required: If not `http` and `network.protocol.version` is set.
+    - base: 2
+      requirement_level: opt_in
+    requirement_level: recommended
+    brief: Duration of HTTP server requests.
+    stability: stable
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics:
+  - id: http.server.request.duration
+    name: http.server.request.duration
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 1
+      requirement_level:
+        conditionally_required: If not `http` and `network.protocol.version` is set.
+    - base: 2
+      requirement_level: opt_in
+    requirement_level: recommended
+    brief: Duration of HTTP server requests.
+    stability: stable
+  events: []
+  entities: []

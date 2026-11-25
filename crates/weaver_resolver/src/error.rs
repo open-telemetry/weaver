@@ -1,20 +1,33 @@
-//! Errors used in weaver_resolver crate.
+// SPDX-License-Identifier: Apache-2.0
+
+//! Errors emitted during telemetry schema resolution.
 
 use miette::Diagnostic;
 use serde::Serialize;
 use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
-use weaver_common::log_error;
+use weaver_common::{log_error, serialize_normalized_path};
 use weaver_semconv::provenance::Provenance;
-use weaver_semconv::v1::attribute::AttributeRole;
+use weaver_semconv::schema_url::SchemaUrl;
+pub use weaver_semconv::AttributeRole;
+
+use crate::graph::loader::SourceFormat;
+
+/// Formats an optional provenance suffix for error display messages.
+fn format_provenance(prov: &Option<Box<Provenance>>) -> String {
+    match prov {
+        Some(p) => format!("\nProvenance: {p}"),
+        None => String::new(),
+    }
+}
 
 /// An error that can occur while resolving a telemetry schema.
 #[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]
 #[must_use]
 #[non_exhaustive]
 pub enum Error {
-    /// There was an issue resolving definition schema.
+    /// Failed to resolve a semantic convention definition.
     #[error(transparent)]
     #[diagnostic(transparent)]
     FailToResolveDefinition(weaver_semconv::Error),
@@ -24,7 +37,7 @@ pub enum Error {
     #[diagnostic(transparent)]
     VirtualDirectoryError(#[from] weaver_common::Error),
 
-    /// We discovered a circular dependency we cannot resolve.
+    /// Circular dependency between registries.
     #[error("Circular dependency detected: registry '{registry_name}' depends on itself through the chain: {chain}")]
     CircularDependency {
         /// The registry that depends on itself.
@@ -34,7 +47,7 @@ pub enum Error {
         chain: String,
     },
 
-    /// We've reached the maximum dependency depth for this registry.
+    /// Dependency chain exceeded the maximum allowed depth.
     #[error("Maximum dependency depth reached for registry `{registry_name}`. Cannot load further dependencies.")]
     MaximumDependencyDepth {
         /// The registry which has too many dependencies.
@@ -44,6 +57,17 @@ pub enum Error {
     /// Failed to resolve the schema URL for a registry.
     #[error("Schema URL is missing in the manifest and cannot be constructed from the registry name and version.")]
     FailToResolveSchemaUrl {},
+
+    /// The schema is missing from the resolved schema cache.
+    #[error("Schema `{schema_url}` is not present in the resolved schema cache")]
+    #[diagnostic(
+        code(weaver_resolver::schema_not_in_cache),
+        help("The schema was not loaded during resolution and is unavailable in the snapshot.")
+    )]
+    SchemaNotInCache {
+        /// The schema URL that was not found in cache.
+        schema_url: SchemaUrl,
+    },
 
     /// A registry is declared more than once and at least one declaration has no version.
     #[error("Registry '{name}' is declared by more than one dependency, but at least one declaration is unversioned")]
@@ -100,7 +124,10 @@ pub enum Error {
     },
 
     /// An unresolved attribute reference.
-    #[error("The following attribute reference is not resolved for the group '{group_id}'.\nAttribute reference: {attribute_ref}\nProvenance: {provenance:?}")]
+    #[error("The following attribute reference is not resolved for the group '{group_id}'.\nAttribute reference: {attribute_ref}{provenance}", provenance = format_provenance(.provenance))]
+    #[diagnostic(help(
+        "Define the attribute in this registry, or import it from a dependency via `imports:`."
+    ))]
     UnresolvedAttributeRef {
         /// The id of the group containing the attribute reference.
         group_id: String,
@@ -110,21 +137,21 @@ pub enum Error {
         provenance: Option<Box<Provenance>>,
     },
 
-    /// An `entity_associations` entry that names an entity nothing defines.
-    #[error("The following entity association is not resolved for the group '{group_id}'.\nEntity association: {entity_type}\nProvenance: {provenance:?}")]
+    /// An `entity_associations` entry references an undefined entity.
+    #[error("The following entity association is not resolved for the group '{group_id}'.\nEntity association: {entity_type}{provenance}", provenance = format_provenance(.provenance))]
     #[diagnostic(help(
         "Check the spelling. Define the entity in this registry, or depend on a registry that defines it."
     ))]
     UnresolvedEntityAssociation {
         /// The id of the group that holds the association.
         group_id: String,
-        /// The entity type that nothing defines.
+        /// The undefined entity type.
         entity_type: String,
         /// The provenance of the group (URL or path).
         provenance: Option<Box<Provenance>>,
     },
 
-    /// An `entity_associations` entry that two dependencies both answer to.
+    /// An `entity_associations` entry matches entities declared by multiple dependencies.
     #[error("The entity association '{entity_type}' of group '{group_id}' is ambiguous.\nDeclared by: {}", registries.join(", "))]
     #[diagnostic(help(
         "These registries declare unrelated entities under one name. Import the one you mean, or define the entity in this registry."
@@ -132,14 +159,14 @@ pub enum Error {
     AmbiguousEntityAssociation {
         /// The id of the group that holds the association.
         group_id: String,
-        /// The entity type that more than one registry declares.
+        /// The entity type declared by multiple registries.
         entity_type: String,
         /// The registries that declare an entity under that name.
         registries: Vec<String>,
     },
 
     /// An unresolved `extends` clause reference.
-    #[error("The following `extends` clause reference is not resolved for the group '{group_id}'.\n`extends` clause reference: {extends_ref}\nProvenance: {provenance:?}")]
+    #[error("The following `extends` clause reference is not resolved for the group '{group_id}'.\n`extends` clause reference: {extends_ref}{provenance}", provenance = format_provenance(.provenance))]
     UnresolvedExtendsRef {
         /// The id of the group containing the `extends` clause reference.
         group_id: String,
@@ -149,8 +176,22 @@ pub enum Error {
         provenance: Option<Box<Provenance>>,
     },
 
+    /// An unresolved refinement parent reference.
+    #[error("Refinement `{refinement_id}` refers to `{ref}` which is not resolved.{provenance}", provenance = format_provenance(.provenance))]
+    #[diagnostic(help(
+        "Check that the parent `{r#ref}` is defined in this registry or in a declared dependency."
+    ))]
+    UnresolvedRefinementParent {
+        /// The id of the refinement with the issue.
+        refinement_id: String,
+        /// The unresolved parent reference.
+        r#ref: String,
+        /// The provenance of the reference (URL or path).
+        provenance: Option<Box<Provenance>>,
+    },
+
     /// An unresolved `include` reference.
-    #[error("The following `include` reference is not resolved for the group '{group_id}'.\n`include` reference: {include_ref}\nProvenance: {provenance:?}")]
+    #[error("The following `include` reference is not resolved for the group '{group_id}'.\n`include` reference: {include_ref}{provenance}", provenance = format_provenance(.provenance))]
     UnresolvedIncludeRef {
         /// The id of the group containing the `include` reference.
         group_id: String,
@@ -160,10 +201,55 @@ pub enum Error {
         provenance: Option<Box<Provenance>>,
     },
 
+    /// An unresolved `ref_group` reference in a group or signal.
+    #[error("The attribute group `{ref_group}` referenced by `{used_in}` is not resolved.{provenance}", provenance = format_provenance(.provenance))]
+    #[diagnostic(help(
+        "`ref_group` resolves local `attribute_groups` only. If `{ref_group}` comes from a dependency, import it via `imports:` first."
+    ))]
+    UnresolvedRefGroup {
+        /// The id of the group or signal containing the `ref_group` reference.
+        used_in: String,
+        /// The unresolved `ref_group` id.
+        ref_group: String,
+        /// The provenance of the reference.
+        provenance: Option<Box<Provenance>>,
+    },
+
+    /// A `ref_group` references a signal instead of an `attribute_group`.
+    #[error("`{used_in}` uses `ref_group: {ref_group}`, which references a `{signal_type}` signal rather than an `attribute_group`. Extract a shared `attribute_group` instead; referencing signals via `ref_group` is deprecated and will be removed in a future version.{provenance}", provenance = format_provenance(.provenance))]
+    #[diagnostic(severity(Warning))]
+    DeprecatedSignalRefGroup {
+        /// The signal, group, or refinement containing the `ref_group`.
+        used_in: String,
+        /// The `ref_group` target string (e.g. `span.gen_ai.client.inference`).
+        ref_group: String,
+        /// The kind of signal referenced (`span`, `metric`, or `event`).
+        signal_type: String,
+        /// Optional provenance of the referencing definition.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        provenance: Option<Box<Provenance>>,
+    },
+
+    /// A cycle was detected in attribute group references.
+    #[error("Cycle detected in attribute group references: {cycle}{provenance}", provenance = format_provenance(.provenance))]
+    #[diagnostic(help(
+        "Break the cycle by removing one of the `ref_group` references in the chain."
+    ))]
+    AttributeGroupCycle {
+        /// Description of the cycle.
+        cycle: String,
+        /// Optional provenance of the referencing group where the cycle was detected.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        provenance: Option<Box<Provenance>>,
+    },
+
     /// A reference targets an item marked `dependency_resolution.exclude: true`.
     /// Cross-registry references always fail; within the same registry, this
     /// only fires when the using item is not itself excluded.
-    #[error("{type} '{id}' is marked as excluded from dependency resolution and cannot be used by '{used_in}'")]
+    #[error("{type} '{id}' is marked as excluded from dependency resolution and cannot be used by '{used_in}'{provenance}", provenance = format_provenance(.provenance))]
+    #[diagnostic(help(
+        "Remove `dependency_resolution.exclude: true` from `{id}`, or mark `{used_in}` as excluded as well."
+    ))]
     ExcludedFromDependencyResolution {
         /// Id of the excluded attribute or group.
         id: String,
@@ -171,7 +257,9 @@ pub enum Error {
         r#type: String,
         /// Id of the group or signal using the excluded item, or `imports` for manifest imports.
         used_in: String,
-        // TODO: plumb provenance?
+        /// Optional provenance of the referencing group or signal.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        provenance: Option<Box<Provenance>>,
     },
 
     /// An import pattern that named nothing in any dependency.
@@ -191,6 +279,7 @@ pub enum Error {
     #[error("Invalid Schema path: {path}")]
     InvalidSchemaPath {
         /// The schema path.
+        #[serde(serialize_with = "serialize_normalized_path")]
         path: PathBuf,
     },
 
@@ -204,7 +293,7 @@ pub enum Error {
         provenances: Vec<Provenance>,
     },
 
-    /// Two groups with different ids that take one id in the v2 output.
+    /// Multiple groups with distinct V1 IDs map to the same V2 signal ID.
     #[error("The groups {group_ids:?} all become `{signal_id}` in the v2 output, so one of them replaces the others:\n{provenances:?}")]
     #[diagnostic(severity(Warning))]
     #[diagnostic(help(
@@ -219,7 +308,7 @@ pub enum Error {
         provenances: Vec<Provenance>,
     },
 
-    /// A duplicate group id error.
+    /// A duplicate group name warning.
     #[error("The group name `{group_name}` is declared multiple times in the following locations:\n{provenances:?}")]
     #[diagnostic(severity(Warning))]
     DuplicateGroupName {
@@ -229,7 +318,7 @@ pub enum Error {
         provenances: Vec<Provenance>,
     },
 
-    /// A duplicate group id error.
+    /// A duplicate metric name warning.
     #[error("The metric name `{metric_name}` is declared multiple times in the following locations:\n{provenances:?}")]
     #[diagnostic(severity(Warning))]
     DuplicateMetricName {
@@ -239,7 +328,7 @@ pub enum Error {
         provenances: Vec<Provenance>,
     },
 
-    /// An invalid `extends` clause type.
+    /// A refinement targets a signal of a different type.
     #[error("Refinement `{refinement_id}` of type `{refinement_type}` cannot refine signal `{ref}` of type `{signal_type}`.")]
     InvalidRefinement {
         /// The id of the refinement with the issue.
@@ -253,7 +342,10 @@ pub enum Error {
     },
 
     /// A refinement cannot remove the requested attribute.
-    #[error("Refinement `{refinement_id}` cannot unref attribute `{attribute_key}`: {reason}.\nProvenance: {provenance:?}")]
+    #[error("Refinement `{refinement_id}` cannot unref attribute `{attribute_key}`: {reason}.{provenance}", provenance = format_provenance(.provenance))]
+    #[diagnostic(help(
+        "Only optional, non-identifying attributes inherited from the parent signal may be removed via `unref:`."
+    ))]
     InvalidAttributeUnref {
         /// The refinement requesting the removal.
         refinement_id: String,
@@ -266,7 +358,7 @@ pub enum Error {
     },
 
     /// Entity refinement changes identity.
-    #[error("Entity refinement `{refinement_id}` changes the identity of `{ref}` by referencing `{attribute_id}` under `{role:?}`.\nProvenance: {provenance:?}")]
+    #[error("Entity refinement `{refinement_id}` changes the identity of `{ref}` by referencing `{attribute_id}` under `{role:?}`.{provenance}", provenance = format_provenance(.provenance))]
     #[diagnostic(help(
         "A refinement must preserve the base entity's identity: keep base attributes under the same section (`identity` or `description`) as the base, and do not add new `identity` attributes."
     ))]
@@ -285,7 +377,7 @@ pub enum Error {
     },
 
     /// Entity refinement whose base entity has no identity attributes.
-    #[error("Entity refinement `{refinement_id}` cannot refine `{ref}`: `{ref}` does not declare any `identity` attributes and is not valid under the v2 schema.\nProvenance: {provenance:?}")]
+    #[error("Entity refinement `{refinement_id}` cannot refine `{ref}`: `{ref}` does not declare any `identity` attributes and is not valid under the v2 schema.{provenance}", provenance = format_provenance(.provenance))]
     #[diagnostic(help(
         "The base entity must declare at least one `identity` attribute before it can be refined."
     ))]
@@ -295,6 +387,16 @@ pub enum Error {
         /// The entity being refined, as written in the refinement's `ref`.
         r#ref: String,
         /// The provenance of the refinement (URL or path).
+        provenance: Option<Box<Provenance>>,
+    },
+
+    /// An entity has no identity attributes.
+    #[error("Entity `{entity_type}` does not declare any `identity` attributes and is not valid under the v2 schema.{provenance}", provenance = format_provenance(.provenance))]
+    #[diagnostic(help("Add at least one `identity` attribute to entity `{entity_type}`."))]
+    EntityMissingIdentity {
+        /// Type of the entity.
+        entity_type: String,
+        /// Provenance.
         provenance: Option<Box<Provenance>>,
     },
 
@@ -308,7 +410,7 @@ pub enum Error {
     },
 
     /// An attribute used in a span name template is not referenced on the span.
-    #[error("Span `{span_id}` uses attribute `{attribute_key}` in its name templates, but the attribute is not declared or inherited on the span.\nProvenance: {provenance:?}")]
+    #[error("Span `{span_id}` uses attribute `{attribute_key}` in its name templates, but the attribute is not declared or inherited on the span.{provenance}", provenance = format_provenance(.provenance))]
     #[diagnostic(help(
         "Add `{attribute_key}` to the span's `attributes` list, or remove it from the name template."
     ))]
@@ -331,7 +433,7 @@ pub enum Error {
         error: String,
     },
 
-    /// We
+    /// An attribute reference index is out of bounds for the registry's attribute catalog.
     #[error(
         "Invalid registry: {registry_name}. Unable to find attribute by index: {attribute_ref}"
     )]
@@ -342,7 +444,7 @@ pub enum Error {
         attribute_ref: u32,
     },
 
-    /// We discovered duplicate dependencies with incompatible versions.
+    /// Dependencies declare incompatible versions of the same registry.
     #[error("Incompatible dependency versions for '{name}': {version1} and {version2}")]
     IncompatibleDependencyVersions {
         /// The name of the dependency.
@@ -355,6 +457,9 @@ pub enum Error {
 
     /// Attribute was removed or missing in an upgraded dependency version.
     #[error("Attribute '{attribute_name}' defined in '{original_url}' was not found in upgraded dependency schema '{upgraded_url}'.")]
+    #[diagnostic(help(
+        "Ensure that upgraded schema `{upgraded_url}` provides attribute `{attribute_name}`, or update the reference."
+    ))]
     AttributeNotFoundInUpgradedSchema {
         /// Name of the attribute.
         attribute_name: String,
@@ -362,6 +467,45 @@ pub enum Error {
         original_url: String,
         /// Chosen upgraded dependency schema URL.
         upgraded_url: String,
+    },
+
+    /// Group was removed or missing in an upgraded dependency version.
+    #[error("Group '{group_id}' defined in '{original_url}' was not found in upgraded dependency schema '{upgraded_url}'.")]
+    #[diagnostic(help(
+        "Ensure that upgraded schema `{upgraded_url}` provides group `{group_id}`, or update the reference."
+    ))]
+    GroupNotFoundInUpgradedSchema {
+        /// ID of the group/signal.
+        group_id: String,
+        /// Original dependency schema URL.
+        original_url: String,
+        /// Chosen upgraded dependency schema URL.
+        upgraded_url: String,
+    },
+
+    /// Entity was removed or missing in an upgraded dependency version.
+    #[error("Entity '{entity_name}' defined in '{original_url}' was not found in upgraded dependency schema '{upgraded_url}'.")]
+    #[diagnostic(help(
+        "Ensure that upgraded schema `{upgraded_url}` provides entity `{entity_name}`, or update the reference."
+    ))]
+    EntityNotFoundInUpgradedSchema {
+        /// Name of the entity.
+        entity_name: String,
+        /// Original dependency schema URL.
+        original_url: String,
+        /// Chosen upgraded dependency schema URL.
+        upgraded_url: String,
+    },
+
+    /// A chosen dependency schema should have been pre-resolved into cache, but was not.
+    #[error("Chosen schema `{schema_url}` was not loaded into cache prior to resolution. This is a bug in weaver.")]
+    #[diagnostic(
+        code(weaver_resolver::chosen_schema_not_in_cache),
+        help("This is an internal Weaver error. Please report it.")
+    )]
+    ChosenSchemaNotInCache {
+        /// The schema URL that was expected in cache.
+        schema_url: SchemaUrl,
     },
 
     /// Emitted when a dependency version resolved across the workspace differs from what was declared in main.
@@ -376,7 +520,7 @@ pub enum Error {
         selected_version: String,
     },
 
-    /// We found multiple matches for a reference in dependencies with different SchemaURLs.
+    /// A reference matches definitions in multiple dependencies with different schema URLs.
     #[error("Ambiguous reference '{ref}' found in multiple dependencies with different SchemaURLs: {schema_url1} and {schema_url2}")]
     AmbiguousReference {
         /// The reference that is ambiguous.
@@ -412,6 +556,27 @@ pub enum Error {
     /// A user-defined schema loading visitor hook aborted the resolution pass.
     #[error("Schema loading aborted by visitor hook")]
     LoadingAbortedByVisitor,
+
+    /// Registry mixes definition/1 and definition/2 files and falls back to V1 resolution.
+    #[error("Registry `{schema_url}` mixes definition/1 and definition/2 files; using the V1 resolution path")]
+    #[diagnostic(severity(Warning))]
+    #[diagnostic(help(
+        "Migrate all files in registry `{schema_url}` to definition/2 to use the native V2 resolution path."
+    ))]
+    MixedRegistryUsesV1Path {
+        /// The schema URL of the registry.
+        schema_url: String,
+    },
+
+    /// A dependency uses definition/1 or mixed format and falls back to V1 resolution.
+    #[error("Dependency `{schema_url}` uses {format} format; using the V1 resolution path")]
+    #[diagnostic(severity(Warning))]
+    V1DependencyUsesV1Path {
+        /// The schema URL of the dependency.
+        schema_url: String,
+        /// The source format of the dependency.
+        format: SourceFormat,
+    },
 }
 
 impl WeaverError<Error> for Error {
@@ -444,8 +609,7 @@ impl From<Error> for DiagnosticMessages {
 }
 
 impl Error {
-    /// Logs one or multiple errors (if current error is a 1CompoundError`)
-    /// using the given logger.
+    /// Logs this error, expanding `CompoundError` entries individually.
     pub fn log(&self) {
         match self {
             Error::CompoundError(errors) => {

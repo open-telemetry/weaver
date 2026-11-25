@@ -55,10 +55,10 @@ containing a string that represents the display name of the group.
    needs to be updated (most of the time, it's the addition of the new field in some struct or enum initialization).
 4. Update the `weaver_resolved_schema` crate to add the corresponding new field in the "resolved" view of the registry.
 This crate defines the data types used to represent the resolved view of the registry.
-   - Add the new field in [weaver_resolved_schema/src/registry.rs](/crates/weaver_resolved_schema/src/registry.rs).
+   - Add the new field in [weaver_resolved_schema/src/v1/registry.rs](/crates/weaver_resolved_schema/src/v1/registry.rs) and/or [weaver_resolved_schema/src/v2/registry.rs](/crates/weaver_resolved_schema/src/v2/registry.rs).
 5. Update the `weaver_resolver` crate to define the mapping between the "non-resolved" and "resolved" views of the
 registry.
-   - Define the mapping in [weaver_resolver/src/registry.rs](/crates/weaver_resolver/src/registry.rs).
+   - Define the mapping in [weaver_resolver/src/v1/registry.rs](/crates/weaver_resolver/src/v1/registry.rs) and/or [weaver_resolver/src/v2/](/crates/weaver_resolver/src/v2/).
    - Run the unit tests to test your changes: `cargo test --package weaver_resolver`.
 6. Update the `weaver_forge` crate to generate the new field in data structures used by the template engine.
    - Add the new field in [weaver_forge/src/registry.rs](/crates/weaver_forge/src/registry.rs).

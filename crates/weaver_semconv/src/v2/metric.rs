@@ -99,11 +99,14 @@ pub struct MetricRefinement {
     pub attributes: Vec<RefinementAttributeOrGroupRef>,
     /// Which resources this metric should be associated with.
     ///
+    /// When `None` (omitted), inherits the parent metric's entity associations.
+    /// When `Some(list)`, replaces the parent's entity associations (an empty list clears them).
+    ///
     /// The list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an
     /// entity reference or a nested `one_of`/`all_of` expression.
     #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub entity_associations: Vec<EntityAssociation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entity_associations: Option<Vec<EntityAssociation>>,
 
     /// Refines the brief description of the signal.
     #[serde(skip_serializing_if = "Option::is_none")]

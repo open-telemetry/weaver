@@ -31,7 +31,7 @@ refinements:
   metrics: []
   events:
   - id: refined.error
-    name: refined.error
+    name: server.error
     attributes:
     - base: 0
       requirement_level: required

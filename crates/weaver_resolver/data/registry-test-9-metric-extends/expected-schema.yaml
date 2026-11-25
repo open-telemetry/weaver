@@ -1,0 +1,64 @@
+file_format: resolved/2.0
+schema_url: https://default/0.1.0
+attribute_catalog:
+- key: jvm.memory.pool.name
+  type: string
+  examples:
+  - G1 Old Gen
+  - G1 Eden space
+  - G1 Survivor Space
+  brief: Name of the memory pool.
+  note: |
+    Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).
+  stability: stable
+- key: jvm.memory.type
+  type:
+    members:
+    - id: heap
+      value: heap
+      brief: Heap memory.
+      stability: stable
+    - id: non_heap
+      value: non_heap
+      brief: Non-heap memory
+      stability: stable
+  examples:
+  - heap
+  - non_heap
+  brief: The type of memory.
+  stability: stable
+registry:
+  attributes:
+  - 0
+  - 1
+  attribute_groups: []
+  spans: []
+  metrics:
+  - name: jvm.memory.used
+    instrument: updowncounter
+    unit: By
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    - base: 1
+      requirement_level: recommended
+    brief: Measure of memory used.
+    stability: stable
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics:
+  - id: jvm.memory.used
+    name: jvm.memory.used
+    instrument: updowncounter
+    unit: By
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    - base: 1
+      requirement_level: recommended
+    brief: Measure of memory used.
+    stability: stable
+  events: []
+  entities: []

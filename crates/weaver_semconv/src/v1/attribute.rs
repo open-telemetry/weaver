@@ -4,14 +4,15 @@
 
 //! Attribute specification.
 
-use crate::deprecated::Deprecated;
+pub use crate::attribute_role::AttributeRole;
+use crate::deprecated::{deserialize_option_deprecated, Deprecated};
 use crate::v1::any_value::AnyValueSpec;
 use crate::v1::stability::Stability;
 use crate::{Error, YamlValue};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::fmt::{Display, Formatter};
+use std::fmt::{self, Display, Formatter};
 use std::ops::Not;
 use weaver_common::ordered_float::OrderedF64;
 use weaver_common::result::WResult;
@@ -72,10 +73,7 @@ pub enum AttributeSpec {
         stability: Option<Stability>,
         /// Specifies if the attribute is deprecated.
         #[serde(skip_serializing_if = "Option::is_none")]
-        #[serde(
-            deserialize_with = "crate::deprecated::deserialize_option_deprecated",
-            default
-        )]
+        #[serde(deserialize_with = "deserialize_option_deprecated", default)]
         deprecated: Option<Deprecated>,
         /// Specifies the prefix of the attribute.
         /// If this parameter is set, the resolved id of the referenced attribute will
@@ -137,10 +135,7 @@ pub enum AttributeSpec {
         stability: Option<Stability>,
         /// Specifies if the attribute is deprecated.
         #[serde(skip_serializing_if = "Option::is_none")]
-        #[serde(
-            deserialize_with = "crate::deprecated::deserialize_option_deprecated",
-            default
-        )]
+        #[serde(deserialize_with = "deserialize_option_deprecated", default)]
         deprecated: Option<Deprecated>,
         /// Annotations for the attribute.
         annotations: Option<BTreeMap<String, YamlValue>>,
@@ -227,7 +222,7 @@ pub enum AttributeType {
 
 /// Implements a human readable display for AttributeType.
 impl Display for AttributeType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             PrimitiveOrArray(t) => write!(f, "{t}"),
             Template(t) => write!(f, "{t}"),
@@ -240,26 +235,6 @@ impl Display for AttributeType {
                 write!(f, "enum {{{entries}}}")
             }
         }
-    }
-}
-
-/// The different roles for attributes in groups.
-#[derive(
-    Serialize, Deserialize, Debug, Default, Clone, Eq, PartialEq, Hash, JsonSchema, PartialOrd, Ord,
-)]
-#[serde(rename_all = "snake_case")]
-pub enum AttributeRole {
-    /// The attribute is considered identifying for the signal it is associated with.
-    #[default]
-    Identifying,
-    /// The attribute is considered descriptive for the signal it is associated with.
-    Descriptive,
-}
-impl AttributeRole {
-    /// True if role is Identifying.
-    #[must_use]
-    pub fn is_identifying(&self) -> bool {
-        matches!(self, Self::Identifying)
     }
 }
 
@@ -297,7 +272,7 @@ pub enum PrimitiveOrArrayTypeSpec {
 
 /// Implements a human readable display for PrimitiveOrArrayType.
 impl Display for PrimitiveOrArrayTypeSpec {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             PrimitiveOrArrayTypeSpec::Boolean => write!(f, "boolean"),
             PrimitiveOrArrayTypeSpec::Int => write!(f, "int"),
@@ -368,7 +343,7 @@ pub enum TemplateTypeSpec {
 
 /// Implements a human readable display for TemplateType.
 impl Display for TemplateTypeSpec {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             TemplateTypeSpec::Boolean => write!(f, "template[boolean]"),
             TemplateTypeSpec::Int => write!(f, "template[int]"),
@@ -407,10 +382,7 @@ pub struct EnumEntriesSpec {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stability: Option<Stability>,
     /// Deprecation note.
-    #[serde(
-        deserialize_with = "crate::deprecated::deserialize_option_deprecated",
-        default
-    )]
+    #[serde(deserialize_with = "deserialize_option_deprecated", default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
     /// Annotations for the member.
@@ -439,10 +411,7 @@ struct EnumEntriesSpecDeserialize {
     /// Stability of this enum value.
     stability: Option<Stability>,
     /// Deprecation note.
-    #[serde(
-        deserialize_with = "crate::deprecated::deserialize_option_deprecated",
-        default
-    )]
+    #[serde(deserialize_with = "deserialize_option_deprecated", default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     deprecated: Option<Deprecated>,
     /// Annotations for the member.
@@ -467,7 +436,7 @@ impl From<EnumEntriesSpecDeserialize> for EnumEntriesSpec {
 
 /// Implements a human readable display for EnumEntries.
 impl Display for EnumEntriesSpec {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "id={}, type={}", self.id, self.value)
     }
 }
@@ -494,7 +463,7 @@ pub enum ValueSpec {
 /// Implements a human readable display for Value.
 impl Display for ValueSpec {
     /// Formats the value.
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             ValueSpec::Int(v) => write!(f, "{v}"),
             ValueSpec::Double(v) => write!(f, "{v}"),
@@ -578,7 +547,7 @@ pub enum Examples {
 }
 
 impl Examples {
-    /// Validation logic for the group.
+    /// Validates that example values match `attr_type`.
     pub(crate) fn validate(
         &self,
         attr_type: &AttributeType,
@@ -657,7 +626,7 @@ impl Examples {
         }
     }
 
-    /// Validation logic for the any_value.
+    /// Validates that example values match `any_value`.
     pub(crate) fn validate_any_value(
         &self,
         any_value: &AnyValueSpec,
@@ -759,7 +728,7 @@ pub enum RequirementLevel {
 
 /// Implements a human readable display for RequirementLevel.
 impl Display for RequirementLevel {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             RequirementLevel::Basic(brl) => write!(f, "{brl}"),
             RequirementLevel::ConditionallyRequired { text } => {
@@ -796,7 +765,7 @@ pub enum BasicRequirementLevelSpec {
 
 /// Implements a human readable display for BasicRequirementLevel.
 impl Display for BasicRequirementLevelSpec {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             BasicRequirementLevelSpec::Required => write!(f, "required"),
             BasicRequirementLevelSpec::Recommended => write!(f, "recommended"),

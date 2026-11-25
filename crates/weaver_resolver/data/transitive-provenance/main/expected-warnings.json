@@ -1,0 +1,10 @@
+[
+  {
+    "FailToResolveDefinition": {
+      "MissingRequirementLevelWarning": {
+        "path_or_url": "data/transitive-provenance/base/semconv.yaml",
+        "group_id": "metric.base.uptime"
+      }
+    }
+  }
+]

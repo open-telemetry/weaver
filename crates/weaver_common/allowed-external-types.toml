@@ -5,6 +5,7 @@
 allowed_external_types = [
     "miette::protocol::*",
     "serde_core::ser::Serialize",
+    "serde_core::ser::Serializer",
     "serde_core::de::Deserialize",
     "schemars::JsonSchema",
     "log::Log",
