@@ -486,7 +486,7 @@ pub struct GroupSpec {
     /// This parameter must not be provided in yaml, it's only used to
     /// convert v2 schema into v1 and back.
     #[serde(default)]
-    #[serde(skip_serializing)]
+    #[serde(skip_serializing, skip_deserializing)]
     #[schemars(skip)]
     pub span_links: Vec<SpanLink>,
 

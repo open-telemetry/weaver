@@ -196,7 +196,7 @@ pub struct Group {
     /// representation during resolution; they are omitted from v1
     /// serialization and the v1 json schema.
     #[serde(default)]
-    #[serde(skip_serializing)]
+    #[serde(skip_serializing, skip_deserializing)]
     #[schemars(skip)]
     pub span_links: Vec<weaver_semconv::v1::group::SpanLink>,
 
