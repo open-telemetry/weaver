@@ -190,8 +190,7 @@ pub struct EnumEntriesSpec {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     /// Stability of this enum value.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stability: Option<Stability>,
+    pub stability: Stability,
     /// Deprecation note.
     #[serde(
         deserialize_with = "crate::deprecated::deserialize_option_deprecated",
@@ -219,7 +218,7 @@ struct EnumEntriesSpecDeserialize {
     /// It defaults to an empty string.
     note: Option<String>,
     /// Stability of this enum value.
-    stability: Option<Stability>,
+    stability: Stability,
     /// Deprecation note.
     #[serde(
         deserialize_with = "crate::deprecated::deserialize_option_deprecated",
@@ -592,6 +591,19 @@ mod tests {
     }
 
     #[test]
+    fn test_enum_member_requires_stability() {
+        let err = serde_saphyr::from_str::<EnumEntriesSpec>("id: foo\nvalue: foo\n")
+            .expect_err("stability must be required on enum members");
+        assert!(
+            err.to_string().contains("missing field `stability`"),
+            "unexpected error: {err}"
+        );
+        let member =
+            serde_saphyr::from_str::<EnumEntriesSpec>("id: foo\nstability: stable\n").unwrap();
+        assert_eq!(member.stability, Stability::Stable);
+    }
+
+    #[test]
     fn test_display_implementations() {
         assert_eq!(PrimitiveOrArrayTypeSpec::Boolean.to_string(), "boolean");
         assert_eq!(PrimitiveOrArrayTypeSpec::Int.to_string(), "int");
@@ -667,7 +679,7 @@ mod tests {
             value: ValueSpec::Int(200),
             brief: None,
             note: None,
-            stability: None,
+            stability: Stability::Development,
             deprecated: None,
             annotations: Default::default(),
         };
@@ -729,6 +741,7 @@ mod tests {
         let yaml = r#"
 id: error_code
 brief: An error code
+stability: stable
 "#;
         let entry: EnumEntriesSpec =
             serde_saphyr::from_str(yaml).expect("Failed to deserialize EnumEntriesSpec");
