@@ -128,8 +128,8 @@ test.describe('attribute rendering', () => {
     // Deprecation alert with a link to the successor attribute.
     const alert = page.getByRole('alert').filter({ hasText: 'Deprecated' })
     await expect(alert).toBeVisible()
-    // The fixture omits the note, it is inferred from `renamed_to`.
-    await expect(alert.getByText('Replaced by `render.attr.string_single_example`.')).toBeVisible()
+    // The fixture omits the note, so only the generic text and the successor link show.
+    await expect(alert.getByText('This attribute is deprecated.')).toBeVisible()
     const successor = alert.getByRole('link', { name: 'render.attr.string_single_example' })
     await expect(successor).toBeVisible()
     await successor.click()
