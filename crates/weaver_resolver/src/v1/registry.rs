@@ -234,7 +234,7 @@ pub(crate) fn resolve_registry_with_dependencies<C: SchemaCacheLookup>(
 }
 
 /// Reports distinct group IDs of the same signal type that map to the same prefix-stripped V2 signal ID.
-fn check_v2_signal_id_collisions(registry: &Registry, errors: &mut Vec<Error>) {
+pub(crate) fn check_v2_signal_id_collisions(registry: &Registry, errors: &mut Vec<Error>) {
     // Keyed on the signal type as well as the id: each type has a namespace of
     // its own in v2, so a span and an entity may share a name.
     // A `BTreeMap` keeps the reports in a stable order.

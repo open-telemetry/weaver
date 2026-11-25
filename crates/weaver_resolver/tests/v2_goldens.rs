@@ -535,6 +535,10 @@ const SKIP_LIST: &[(&str, &str)] = &[
         "unversioned-conflict",
         "Duplicate unversioned dependency names are fatal",
     ),
+    (
+        "v2-entity-without-identity",
+        "Converting entities without identity is V2-target only, covered by unit tests",
+    ),
 ];
 
 #[test]

@@ -368,19 +368,30 @@ impl WeaverResolver {
         )
     }
 
-    /// Converts a V1 schema into V2 when resolving a root registry under [`ResolutionTarget::V2`].
+    /// Under [`ResolutionTarget::V2`], converts entities without identity to attribute groups
+    /// and, for a root registry, converts the V1 schema into V2.
     fn finalize_v1_bundle(
         &self,
-        schema: ResolvedTelemetrySchema,
+        mut schema: ResolvedTelemetrySchema,
         is_root: bool,
-    ) -> Result<WeaverResolvedSchema, Error> {
-        if is_root && self.config.target == ResolutionTarget::V2 {
-            WeaverResolvedSchema::V1(schema)
-                .into_v2()
-                .map(WeaverResolvedSchema::V2)
-        } else {
-            Ok(WeaverResolvedSchema::V1(schema))
+    ) -> WResult<WeaverResolvedSchema, Error> {
+        if self.config.target != ResolutionTarget::V2 {
+            return WResult::Ok(WeaverResolvedSchema::V1(schema));
         }
+        let nfes = match v1::entity_identity::convert_entities_without_identity(&mut schema) {
+            WResult::Ok(()) => vec![],
+            WResult::OkWithNFEs((), nfes) => nfes,
+            WResult::FatalErr(e) => return WResult::FatalErr(e),
+        };
+        let bundle = if is_root {
+            match WeaverResolvedSchema::V1(schema).into_v2() {
+                Ok(v2) => WeaverResolvedSchema::V2(v2),
+                Err(e) => return WResult::FatalErr(e),
+            }
+        } else {
+            WeaverResolvedSchema::V1(schema)
+        };
+        WResult::with_non_fatal_errors(bundle, nfes)
     }
 
     /// Inserts `arc` into both the active graph map and the LRU cache under `url`.
@@ -571,8 +582,12 @@ impl WeaverResolver {
                     };
 
                 let bundle = match self.finalize_v1_bundle(resolved, is_root) {
-                    Ok(b) => b,
-                    Err(e) => return WResult::FatalErr(e),
+                    WResult::Ok(b) => b,
+                    WResult::OkWithNFEs(b, nfes) => {
+                        all_nfes.extend(nfes);
+                        b
+                    }
+                    WResult::FatalErr(e) => return WResult::FatalErr(e),
                 };
                 let arc = Arc::new(bundle);
                 if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
@@ -585,16 +600,17 @@ impl WeaverResolver {
                 schema,
                 direct_dependencies,
             } => {
-                let bundle = match self.finalize_v1_bundle(schema, is_root) {
-                    Ok(b) => b,
-                    Err(e) => return WResult::FatalErr(e),
+                let (bundle, nfes) = match self.finalize_v1_bundle(schema, is_root) {
+                    WResult::Ok(b) => (b, vec![]),
+                    WResult::OkWithNFEs(b, nfes) => (b, nfes),
+                    WResult::FatalErr(e) => return WResult::FatalErr(e),
                 };
                 let arc = Arc::new(bundle);
                 if let Ok(url) = SchemaUrl::try_from(arc.schema_url_str()) {
                     self.record_direct_dependencies(&url, direct_dependencies);
                     self.record_cached_schema(url, arc.clone());
                 }
-                WResult::Ok(arc)
+                WResult::with_non_fatal_errors(arc, nfes)
             }
             LoadedSemconvRegistry::ResolvedV2 {
                 schema,
@@ -689,8 +705,8 @@ impl WeaverResolver {
                     if is_root && self.config.target == ResolutionTarget::V2 =>
                 {
                     match self.finalize_v1_bundle(v1.clone(), true) {
-                        Ok(bundle) => Arc::new(bundle),
-                        Err(e) => return WResult::FatalErr(e),
+                        WResult::Ok(bundle) | WResult::OkWithNFEs(bundle, _) => Arc::new(bundle),
+                        WResult::FatalErr(e) => return WResult::FatalErr(e),
                     }
                 }
                 _ => cached,
