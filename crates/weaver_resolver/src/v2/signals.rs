@@ -217,16 +217,23 @@ pub(crate) fn validate_span_link_targets(
 ) -> Result<(), Error> {
     let mut known: HashSet<SignalId> = index.spans().keys().cloned().collect();
     known.extend(imported_span_types);
-    let in_deps = |id: &SignalId| {
-        deps.adapters().iter().any(|d| {
-            d.lookup_signal(SignalKind::Span, id.as_ref())
-                .is_some_and(|s| !s.excluded)
-        })
-    };
+    // Base spans only: refinement ids are not link targets.
+    let mut dep_spans: Option<HashSet<SignalId>> = None;
     let mut errors = Vec::new();
     for span in &signals.spans {
         for link in &span.links {
-            if !known.contains(&link.r#ref) && !in_deps(&link.r#ref) {
+            if known.contains(&link.r#ref) {
+                continue;
+            }
+            let dep_spans = dep_spans.get_or_insert_with(|| {
+                deps.adapters()
+                    .iter()
+                    .flat_map(|d| d.importable_spans())
+                    .filter(|s| !s.excluded)
+                    .map(|s| s.r#type)
+                    .collect()
+            });
+            if !dep_spans.contains(&link.r#ref) {
                 errors.push(Error::SpanLinkTargetNotFound {
                     span_id: span.r#type.to_string(),
                     link_ref: link.r#ref.to_string(),

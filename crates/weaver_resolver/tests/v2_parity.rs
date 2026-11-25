@@ -1053,6 +1053,70 @@ spans:
 }
 
 #[test]
+fn test_span_link_target_cannot_be_dependency_refinement() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let dep_dir = dir.path().join("dep").join("registry");
+    let reg_dir = dir.path().join("root").join("registry");
+    std::fs::create_dir_all(&dep_dir).expect("create dep");
+    std::fs::create_dir_all(&reg_dir).expect("create root");
+    std::fs::write(
+        dep_dir.join("manifest.yaml"),
+        "file_format: definition_manifest/2.0\nschema_url: https://example.com/dep/1.0.0\n",
+    )
+    .expect("write dep manifest");
+    std::fs::write(
+        dep_dir.join("schema.yaml"),
+        r#"file_format: definition/2
+spans:
+  - type: dep.span
+    kind: producer
+    name:
+      note: dep
+    brief: Dependency span
+    stability: stable
+span_refinements:
+  - id: dep.span.refined
+    ref: dep.span
+"#,
+    )
+    .expect("write dep schema");
+    std::fs::write(
+        reg_dir.join("manifest.yaml"),
+        format!(
+            "file_format: definition_manifest/2.0\nschema_url: https://example.com/root/1.0.0\ndependencies:\n  - schema_url: https://example.com/dep/1.0.0\n    registry_path: {}\n",
+            dep_dir.display()
+        ),
+    )
+    .expect("write root manifest");
+    std::fs::write(
+        reg_dir.join("schema.yaml"),
+        r#"file_format: definition/2
+spans:
+  - type: my.span
+    kind: consumer
+    name:
+      note: my span
+    brief: Links to a dependency refinement id
+    stability: stable
+    links:
+      - ref: dep.span.refined
+"#,
+    )
+    .expect("write root schema");
+
+    match resolve_fixture_raw(
+        reg_dir.parent().unwrap().to_str().unwrap(),
+        ResolutionTarget::V2,
+    ) {
+        WResult::FatalErr(Error::SpanLinkTargetNotFound { link_ref, .. }) => {
+            assert_eq!(link_ref, "dep.span.refined");
+        }
+        WResult::FatalErr(other) => panic!("Expected SpanLinkTargetNotFound, got: {other}"),
+        WResult::Ok(_) | WResult::OkWithNFEs(..) => panic!("Expected FatalErr, got Ok"),
+    }
+}
+
+#[test]
 fn test_imported_span_link_attribute_upgraded() {
     let dir = tempfile::tempdir().expect("tempdir");
     let c1_dir = dir.path().join("c_1_1").join("registry");
