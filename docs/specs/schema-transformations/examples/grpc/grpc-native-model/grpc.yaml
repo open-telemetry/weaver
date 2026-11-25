@@ -1,0 +1,165 @@
+groups:
+  - id: registry.grpc
+    type: attribute_group
+    brief: Attributes of the gRPC OpenTelemetry metrics (A66).
+    attributes:
+      - id: grpc.method
+        type: string
+        stability: development
+        brief: Full gRPC method name, or `other` for methods the server doesn't know.
+        examples: ["foo.Bar/Baz", "other"]
+      - id: grpc.target
+        type: string
+        stability: development
+        brief: Canonicalized target URI the client channel was created with.
+        examples: ["dns:///example.com:443", "xds:///service"]
+      - id: grpc.status
+        stability: development
+        brief: gRPC status code name.
+        type:
+          members:
+            - {id: ok, value: OK, stability: development}
+            - {id: cancelled, value: CANCELLED, stability: development}
+            - {id: unknown, value: UNKNOWN, stability: development}
+            - {id: invalid_argument, value: INVALID_ARGUMENT, stability: development}
+            - {id: deadline_exceeded, value: DEADLINE_EXCEEDED, stability: development}
+            - {id: not_found, value: NOT_FOUND, stability: development}
+            - {id: already_exists, value: ALREADY_EXISTS, stability: development}
+            - {id: permission_denied, value: PERMISSION_DENIED, stability: development}
+            - {id: resource_exhausted, value: RESOURCE_EXHAUSTED, stability: development}
+            - {id: failed_precondition, value: FAILED_PRECONDITION, stability: development}
+            - {id: aborted, value: ABORTED, stability: development}
+            - {id: out_of_range, value: OUT_OF_RANGE, stability: development}
+            - {id: unimplemented, value: UNIMPLEMENTED, stability: development}
+            - {id: internal, value: INTERNAL, stability: development}
+            - {id: unavailable, value: UNAVAILABLE, stability: development}
+            - {id: data_loss, value: DATA_LOSS, stability: development}
+            - {id: unauthenticated, value: UNAUTHENTICATED, stability: development}
+
+  # --- Client metrics -------------------------------------------------------
+  - id: metric.grpc.client.call.duration
+    type: metric
+    metric_name: grpc.client.call.duration
+    instrument: histogram
+    unit: s
+    stability: development
+    brief: End-to-end time of a client call, including all attempts.
+    attributes:
+      - {ref: grpc.method, requirement_level: required}
+      - {ref: grpc.target, requirement_level: required}
+      - {ref: grpc.status, requirement_level: required}
+
+  - id: metric.grpc.client.attempt.started
+    type: metric
+    metric_name: grpc.client.attempt.started
+    instrument: counter
+    unit: "{attempt}"
+    stability: development
+    brief: Number of call attempts started.
+    attributes:
+      - {ref: grpc.method, requirement_level: required}
+      - {ref: grpc.target, requirement_level: required}
+
+  - id: metric.grpc.client.attempt.duration
+    type: metric
+    metric_name: grpc.client.attempt.duration
+    instrument: histogram
+    unit: s
+    stability: development
+    brief: End-to-end time of a call attempt.
+    attributes:
+      - {ref: grpc.method, requirement_level: required}
+      - {ref: grpc.target, requirement_level: required}
+      - {ref: grpc.status, requirement_level: required}
+
+  - id: metric.grpc.client.attempt.sent_total_compressed_message_size
+    type: metric
+    metric_name: grpc.client.attempt.sent_total_compressed_message_size
+    instrument: histogram
+    unit: By
+    stability: development
+    brief: Compressed size of all messages sent in a call attempt.
+    attributes:
+      - {ref: grpc.method, requirement_level: required}
+      - {ref: grpc.target, requirement_level: required}
+      - {ref: grpc.status, requirement_level: required}
+
+  - id: metric.grpc.client.attempt.rcvd_total_compressed_message_size
+    type: metric
+    metric_name: grpc.client.attempt.rcvd_total_compressed_message_size
+    instrument: histogram
+    unit: By
+    stability: development
+    brief: Compressed size of all messages received in a call attempt.
+    attributes:
+      - {ref: grpc.method, requirement_level: required}
+      - {ref: grpc.target, requirement_level: required}
+      - {ref: grpc.status, requirement_level: required}
+
+  # --- Server metrics -------------------------------------------------------
+  - id: metric.grpc.server.call.started
+    type: metric
+    metric_name: grpc.server.call.started
+    instrument: counter
+    unit: "{call}"
+    stability: development
+    brief: Number of calls started on the server.
+    attributes:
+      - {ref: grpc.method, requirement_level: required}
+
+  - id: metric.grpc.server.call.duration
+    type: metric
+    metric_name: grpc.server.call.duration
+    instrument: histogram
+    unit: s
+    stability: development
+    brief: End-to-end time of a call on the server.
+    attributes:
+      - {ref: grpc.method, requirement_level: required}
+      - {ref: grpc.status, requirement_level: required}
+
+  - id: metric.grpc.server.call.sent_total_compressed_message_size
+    type: metric
+    metric_name: grpc.server.call.sent_total_compressed_message_size
+    instrument: histogram
+    unit: By
+    stability: development
+    brief: Compressed size of all messages sent in a server call.
+    attributes:
+      - {ref: grpc.method, requirement_level: required}
+      - {ref: grpc.status, requirement_level: required}
+
+  - id: metric.grpc.server.call.rcvd_total_compressed_message_size
+    type: metric
+    metric_name: grpc.server.call.rcvd_total_compressed_message_size
+    instrument: histogram
+    unit: By
+    stability: development
+    brief: Compressed size of all messages received in a server call.
+    attributes:
+      - {ref: grpc.method, requirement_level: required}
+      - {ref: grpc.status, requirement_level: required}
+
+  # --- Spans (A72) ----------------------------------------------------------
+  # Span names: Sent.{method} for client spans, Recv.{method} for server spans.
+  # The method and status are in the span name and status, not in attributes.
+  - id: span.grpc.client.call
+    type: span
+    span_kind: client
+    stability: development
+    brief: Client call span, `Sent.{method}`. Covers all attempts.
+    attributes: []
+
+  - id: span.grpc.client.attempt
+    type: span
+    span_kind: client
+    stability: development
+    brief: Client attempt span, a child of the call span.
+    attributes: []
+
+  - id: span.grpc.server.call
+    type: span
+    span_kind: server
+    stability: development
+    brief: Server call span, `Recv.{method}`.
+    attributes: []

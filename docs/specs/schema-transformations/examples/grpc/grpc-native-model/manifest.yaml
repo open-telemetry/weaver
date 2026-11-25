@@ -1,0 +1,7 @@
+file_format: definition_manifest/2.0
+name: grpc-native
+description: >
+  Native gRPC OpenTelemetry conventions (gRPC A66 metrics, A72 tracing),
+  written as a Weaver registry for the transformation examples. gRPC doesn't
+  publish one; this is an illustration, not an official definition.
+schema_url: https://grpc.io/schemas/42.42.0
