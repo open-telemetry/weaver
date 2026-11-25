@@ -82,10 +82,6 @@ pub struct SpanLink {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<LinkAttributeRef>,
-    /// The provenance of the registry that declared the link.
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Provenance::is_empty")]
-    pub provenance: Provenance,
 }
 
 /// A resolved reference to an attribute expected on a span link.

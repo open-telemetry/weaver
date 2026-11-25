@@ -132,8 +132,6 @@ fn emit_span(cat: &FinalCatalog, s: ResolvedSpan) -> V2Span {
                     requirement_level,
                 },
             ),
-            // Links are declared on the span itself, so they share its provenance.
-            provenance: s.provenance.clone(),
         })
         .collect();
     V2Span {

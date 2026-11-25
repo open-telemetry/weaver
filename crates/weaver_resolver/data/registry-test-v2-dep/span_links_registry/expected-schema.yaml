@@ -34,8 +34,6 @@ registry:
       attributes:
       - base: 0
         requirement_level: required
-      provenance:
-        source: 0
     brief: A process span.
     stability: stable
     provenance:
@@ -85,8 +83,6 @@ refinements:
       attributes:
       - base: 0
         requirement_level: required
-      provenance:
-        source: 0
     brief: A process span.
     stability: stable
     provenance:

@@ -578,11 +578,6 @@ fn load_resolved_repository(
             }
         }
         for link in &span.links {
-            if let Some(src) = link.provenance.source {
-                if let Err(e) = check_dep_ref(src) {
-                    return WResult::FatalErr(e);
-                }
-            }
             for attr in &link.attributes {
                 if let Err(e) = check_attr_ref(attr.base.0) {
                     return WResult::FatalErr(e);
@@ -674,11 +669,6 @@ fn load_resolved_repository(
             }
         }
         for link in &span_ref.span.links {
-            if let Some(src) = link.provenance.source {
-                if let Err(e) = check_dep_ref(src) {
-                    return WResult::FatalErr(e);
-                }
-            }
             for attr in &link.attributes {
                 if let Err(e) = check_attr_ref(attr.base.0) {
                     return WResult::FatalErr(e);

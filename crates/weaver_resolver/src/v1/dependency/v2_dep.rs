@@ -341,7 +341,6 @@ pub(crate) fn example_v2_schema() -> V2Schema {
                             V2BasicRequirementLevelSpec::Required,
                         ),
                     }],
-                    provenance: Default::default(),
                 }],
                 requirement_level: None,
                 common: Default::default(),

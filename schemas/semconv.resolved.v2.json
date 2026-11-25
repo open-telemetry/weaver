@@ -1564,10 +1564,6 @@
             "null"
           ]
         },
-        "provenance": {
-          "description": "The provenance of the registry that declared the link.",
-          "$ref": "#/$defs/Provenance"
-        },
         "ref": {
           "description": "The type of the span this link points at (the link's target),\nnot the type of the span that declares the link.",
           "$ref": "#/$defs/SignalId"

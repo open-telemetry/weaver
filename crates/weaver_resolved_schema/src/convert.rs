@@ -305,7 +305,6 @@ fn convert_span_links(
     validate_targets: bool,
     c: &V1Catalog,
     v2_catalog: &V2CatalogBuilder,
-    provenance: &V2Provenance,
 ) -> Result<Vec<span::SpanLink>, crate::error::Error> {
     let mut links = Vec::new();
     for link in g.span_links.iter() {
@@ -326,7 +325,6 @@ fn convert_span_links(
             brief: link.brief.clone(),
             note: link.note.clone(),
             attributes,
-            provenance: provenance.clone(),
         });
     }
     Ok(links)
@@ -570,14 +568,8 @@ pub fn convert_v1_to_v2(
                 if !is_refinement {
                     let provenance = get_provenance(g);
                     let validate_targets = provenance.source.is_none();
-                    let links = convert_span_links(
-                        g,
-                        &span_types,
-                        validate_targets,
-                        &c,
-                        &v2_catalog,
-                        &provenance,
-                    )?;
+                    let links =
+                        convert_span_links(g, &span_types, validate_targets, &c, &v2_catalog)?;
                     let span = V2Span {
                         r#type: fix_span_group_id(&g.id),
                         kind: span_kind,
@@ -608,8 +600,7 @@ pub fn convert_v1_to_v2(
                     };
                     let span_type = fix_span_group_id(extends_group);
                     let provenance = get_provenance(g);
-                    let links =
-                        convert_span_links(g, &span_types, false, &c, &v2_catalog, &provenance)?;
+                    let links = convert_span_links(g, &span_types, false, &c, &v2_catalog)?;
                     span_refinements.push(V2SpanRefinement {
                         id: fix_span_group_id(&g.id),
                         span: V2Span {
