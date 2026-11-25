@@ -1,0 +1,4 @@
+file_format: definition_manifest/2.0
+name: dep
+description: Defines an entity without identity.
+schema_url: https://dep.example.com/schemas/1.0.0

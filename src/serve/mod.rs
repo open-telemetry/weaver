@@ -74,8 +74,10 @@ fn run_serve(
     // a new registry, and then the server would update its internal state to use the new registry.
     // A UI could be built to allow selecting a registry file, or specifying a git repo/branch.
 
-    let cmd_config = load_config(args, cfg)?;
+    let mut cmd_config = load_config(args, cfg)?;
     info!("Loading registry from `{}`", cmd_config.registry.registry);
+    // Always produces V2 output.
+    cmd_config.registry.v2 = true;
 
     let mut diag_msgs = DiagnosticMessages::empty();
 

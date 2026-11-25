@@ -98,8 +98,10 @@ pub(crate) fn command(
     cfg: Option<&WeaverConfig>,
     auth: &HttpAuthResolver,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    let cmd_config = load_config(args, cfg)?;
+    let mut cmd_config = load_config(args, cfg)?;
     info!("Loading semantic convention registry for MCP server");
+    // Always produces V2 output.
+    cmd_config.registry.v2 = true;
 
     let loader = CliRegistryLoader {
         registry: cmd_config.registry,
