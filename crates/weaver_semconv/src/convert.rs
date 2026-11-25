@@ -111,7 +111,7 @@ pub(crate) fn v2_enum_entry_to_v1(e: V2EnumEntriesSpec) -> V1EnumEntriesSpec {
         value: v2_value_to_v1(e.value),
         brief: e.brief,
         note: e.note,
-        stability: e.stability.map(v2_stability_to_v1),
+        stability: Some(v2_stability_to_v1(e.stability)),
         deprecated: e.deprecated,
         annotations: e.annotations,
     }
@@ -1177,7 +1177,7 @@ pub(crate) fn v1_enum_entry_to_v2(e: V1EnumEntriesSpec) -> V2EnumEntriesSpec {
         value: v1_value_to_v2(e.value),
         brief: e.brief,
         note: e.note,
-        stability,
+        stability: stability.unwrap_or_default(),
         deprecated,
         annotations: e.annotations,
     }
@@ -1571,7 +1571,7 @@ mod tests {
             value: V2ValueSpec::String("SUCCESS".to_owned()),
             brief: Some("Success status".to_owned()),
             note: Some("Detailed status note".to_owned()),
-            stability: Some(V2Stability::Stable),
+            stability: V2Stability::Stable,
             deprecated: Some(Deprecated::Renamed {
                 renamed_to: "new_ok".to_owned(),
                 note: Some("Use new_ok instead".to_owned()),
@@ -1624,7 +1624,7 @@ mod tests {
                 value: V2ValueSpec::Int(1),
                 brief: None,
                 note: None,
-                stability: None,
+                stability: V2Stability::Development,
                 deprecated: None,
                 annotations: Default::default(),
             }],
@@ -2443,7 +2443,21 @@ stability: stable
             annotations: None,
         };
         let v2_entry = v1_enum_entry_to_v2(v1_entry);
-        assert_eq!(v2_entry.stability, Some(V2Stability::Development));
+        assert_eq!(v2_entry.stability, V2Stability::Development);
+
+        let v1_entry_no_stability = V1EnumEntriesSpec {
+            id: "foo".to_owned(),
+            value: V1ValueSpec::String("bar".to_owned()),
+            brief: None,
+            note: None,
+            stability: None,
+            deprecated: None,
+            annotations: None,
+        };
+        assert_eq!(
+            v1_enum_entry_to_v2(v1_entry_no_stability).stability,
+            V2Stability::default()
+        );
         assert_eq!(
             v2_entry.deprecated,
             Some(Deprecated::Unspecified {
