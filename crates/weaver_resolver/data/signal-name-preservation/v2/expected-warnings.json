@@ -1,0 +1,34 @@
+[
+  {
+    "FailToResolveDefinition": {
+      "MissingRequirementLevelWarning": {
+        "path_or_url": "data/signal-name-preservation/v2/registry/registry.yaml",
+        "group_id": "metric.metric.test"
+      }
+    }
+  },
+  {
+    "FailToResolveDefinition": {
+      "MissingRequirementLevelWarning": {
+        "path_or_url": "data/signal-name-preservation/v2/registry/registry.yaml",
+        "group_id": "span.span.test"
+      }
+    }
+  },
+  {
+    "FailToResolveDefinition": {
+      "MissingRequirementLevelWarning": {
+        "path_or_url": "data/signal-name-preservation/v2/registry/registry.yaml",
+        "group_id": "event.event.test"
+      }
+    }
+  },
+  {
+    "FailToResolveDefinition": {
+      "MissingRequirementLevelWarning": {
+        "path_or_url": "data/signal-name-preservation/v2/registry/registry.yaml",
+        "group_id": "entity.entity.test"
+      }
+    }
+  }
+]

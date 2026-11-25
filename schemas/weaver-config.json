@@ -201,16 +201,15 @@
           "default": null
         },
         "advice_policies": {
-          "description": "Advice policies directory or virtual directory. Overrides the built-in default policies.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/VirtualDirectoryPath"
-            },
-            {
-              "type": "null"
-            }
+          "description": "Advice policies files, directories or virtual directories. Override the built-in default policies; `builtin://otel.rego` adds them back.",
+          "type": [
+            "array",
+            "null"
           ],
-          "default": null
+          "default": null,
+          "items": {
+            "$ref": "#/$defs/VirtualDirectoryPath"
+          }
         },
         "advice_preprocessor": {
           "description": "Advice preprocessor — a jq script run once over the registry data before\nbeing passed to rego policies.",
@@ -219,6 +218,10 @@
             "null"
           ],
           "default": null
+        },
+        "coverage": {
+          "description": "Which registry items count toward `registry_coverage`, and the\ncoverage below which the run fails. Requires a v2 registry.",
+          "$ref": "#/$defs/LiveCheckCoverageConfig"
         },
         "emit": {
           "description": "OTLP log emission settings.",
@@ -317,16 +320,15 @@
           "default": null
         },
         "advice_policies": {
-          "description": "Advice policies directory or virtual directory. Set this to override the default policies.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/VirtualDirectoryPath"
-            },
-            {
-              "type": "null"
-            }
+          "description": "Advice policies file, directory or virtual directory. Set this to override the default policies; `builtin://otel.rego` adds them back. Can be specified multiple times.",
+          "type": [
+            "array",
+            "null"
           ],
-          "default": null
+          "default": null,
+          "items": {
+            "$ref": "#/$defs/VirtualDirectoryPath"
+          }
         },
         "advice_preprocessor": {
           "description": "Advice preprocessor. A jq script to preprocess the registry data before passing to rego.",
@@ -725,7 +727,7 @@
           "minimum": 0
         },
         "grpc_address": {
-          "description": "Address used by the gRPC OTLP listener.",
+          "description": "Address used by the gRPC and HTTP OTLP listeners and the admin port.",
           "type": "string",
           "default": "127.0.0.1"
         },
@@ -737,12 +739,52 @@
           "maximum": 65535,
           "minimum": 0
         },
+        "http_port": {
+          "description": "Port used by the HTTP OTLP listener (binary protobuf).",
+          "type": "integer",
+          "format": "uint16",
+          "default": 4318,
+          "maximum": 65535,
+          "minimum": 0
+        },
         "inactivity_timeout": {
           "description": "Seconds of inactivity before auto-stop (0 = never).",
           "type": "integer",
           "format": "uint64",
           "default": 60,
           "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "LiveCheckCoverageConfig": {
+      "description": "Registry coverage settings for live-check.",
+      "type": "object",
+      "properties": {
+        "exclude": {
+          "description": "Do not count the names that match one of these patterns. Applied\nafter `include`.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "fail_below": {
+          "description": "Fail the run when `registry_coverage` is below this fraction (0 to 1).",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "float",
+          "default": null
+        },
+        "include": {
+          "description": "Count only the registry attributes, metrics, events and spans whose name\nmatches one of these patterns (supports glob wildcards, e.g.\n`\"http.*\"`). When empty, every name counts.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false
@@ -785,7 +827,7 @@
           "minimum": 0
         },
         "grpc_address": {
-          "description": "Address used by the gRPC OTLP listener.",
+          "description": "Address used by the gRPC and HTTP OTLP listeners and the admin port.",
           "type": "string",
           "default": "127.0.0.1"
         },
@@ -794,6 +836,14 @@
           "type": "integer",
           "format": "uint16",
           "default": 4317,
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "http_port": {
+          "description": "Port used by the HTTP OTLP listener (binary protobuf). `0` picks a free port.",
+          "type": "integer",
+          "format": "uint16",
+          "default": 4318,
           "maximum": 65535,
           "minimum": 0
         },

@@ -1,0 +1,95 @@
+file_format: resolved/2.0
+schema_url: https://example.com/legacy-resource/1.0.0
+attribute_catalog:
+- key: browser.brands
+  type: string[]
+  examples:
+  - - Not A;Brand 99
+  - - Chromium 99
+  brief: Array of brand name and version separated by a space.
+  stability: stable
+- key: browser.id
+  type: string
+  examples:
+  - browser-1
+  brief: A unique identifier for the browser instance.
+  stability: stable
+- key: device.id
+  type: string
+  examples:
+  - 2ab2916d-a51f-4ac8-80ee-45ac31a28092
+  brief: A unique identifier for the device.
+  stability: stable
+registry:
+  attributes:
+  - 0
+  - 1
+  - 2
+  attribute_groups: []
+  spans: []
+  metrics:
+  - name: legacy.device.count
+    instrument: counter
+    unit: "{device}"
+    entity_associations:
+    - type: device
+    brief: Count of devices.
+    stability: stable
+  - name: legacy.request.count
+    instrument: counter
+    unit: "{request}"
+    entity_associations:
+    - type: browser
+    brief: Count of requests.
+    stability: stable
+  events: []
+  entities:
+  - type: browser
+    identity:
+    - 1
+    description:
+    - base: 0
+      requirement_level: recommended
+    brief: The web browser in which the application is running.
+    stability: stable
+  - type: device
+    identity:
+    - 2
+    brief: The device on which the application runs.
+    stability: stable
+refinements:
+  spans: []
+  metrics:
+  - id: legacy.device.count
+    name: legacy.device.count
+    instrument: counter
+    unit: "{device}"
+    entity_associations:
+    - type: device
+    brief: Count of devices.
+    stability: stable
+  - id: legacy.request.count
+    name: legacy.request.count
+    instrument: counter
+    unit: "{request}"
+    entity_associations:
+    - type: browser
+    brief: Count of requests.
+    stability: stable
+  events: []
+  entities:
+  - id: browser
+    type: browser
+    identity:
+    - 1
+    description:
+    - base: 0
+      requirement_level: recommended
+    brief: The web browser in which the application is running.
+    stability: stable
+  - id: device
+    type: device
+    identity:
+    - 2
+    brief: The device on which the application runs.
+    stability: stable

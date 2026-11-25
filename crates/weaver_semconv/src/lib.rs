@@ -6,12 +6,17 @@ use crate::Error::CompoundError;
 use miette::{Diagnostic, NamedSource, SourceSpan};
 use schemars::{json_schema, JsonSchema, Schema, SchemaGenerator};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::borrow::Cow;
-use std::hash::Hasher;
+use std::cmp::Ordering;
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
+use weaver_common::serialize_normalized_path;
 
+pub mod attribute_role;
+pub use attribute_role::AttributeRole;
 pub mod convert;
 pub mod deprecated;
 pub mod json_schema;
@@ -22,10 +27,32 @@ pub mod semconv;
 pub mod v1;
 pub mod v2;
 
+/// Formats an optional provenance string as a trailing `Provenance: ...` line.
+fn format_provenance(provenance: &Option<String>) -> String {
+    match provenance {
+        Some(p) => format!("\nProvenance: {p}"),
+        None => String::new(),
+    }
+}
+
 /// An error that can occur while loading a semantic convention registry.
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
 #[non_exhaustive]
 pub enum Error {
+    /// An attribute reference is duplicated within the same signal, group, entity, or refinement.
+    #[error("Duplicate attribute ref `{attr}` in {context}{provenance}", provenance = format_provenance(.provenance))]
+    #[diagnostic(help(
+        "Remove the duplicate attribute reference `{attr}` or rename one of them."
+    ))]
+    DuplicateAttributeRef {
+        /// The duplicate attribute key.
+        attr: String,
+        /// Where the duplicate occurred (e.g. `span 'http.client'`).
+        context: String,
+        /// Optional provenance of the duplicate reference.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        provenance: Option<String>,
+    },
     /// The semantic convention registry path pattern is invalid.
     #[error("The semantic convention registry path pattern is invalid (path_pattern: {path_pattern:?}). {error}")]
     InvalidRegistryPathPattern {
@@ -305,6 +332,7 @@ pub enum Error {
     #[diagnostic(severity(Error))]
     RegistryManifestNotFound {
         /// The path to the registry manifest file.
+        #[serde(serialize_with = "serialize_normalized_path")]
         path: PathBuf,
     },
 
@@ -313,6 +341,7 @@ pub enum Error {
     #[diagnostic(severity(Error))]
     InvalidRegistryManifest {
         /// The path to the registry manifest file.
+        #[serde(serialize_with = "serialize_normalized_path")]
         path: PathBuf,
         /// The error that occurred.
         error: String,
@@ -379,6 +408,7 @@ pub enum Error {
     #[error("The registry manifest at {path:?} is using a legacy file name. Please rename it to `manifest.yaml`.")]
     LegacyRegistryManifest {
         /// The path to the registry manifest file.
+        #[serde(serialize_with = "serialize_normalized_path")]
         path: PathBuf,
     },
 
@@ -387,6 +417,7 @@ pub enum Error {
     #[error("The registry manifest at {path:?} is missing the 'file_format' field. It is assumed to be a V2 definition manifest ('{expected_format}'). Please add 'file_format: {expected_format}' to the manifest.")]
     MissingManifestFileFormat {
         /// The path to the registry manifest file.
+        #[serde(serialize_with = "serialize_normalized_path")]
         path: PathBuf,
         /// The expected file format string.
         expected_format: String,
@@ -397,6 +428,7 @@ pub enum Error {
     #[diagnostic(severity(Warning))]
     DeprecatedSyntaxInRegistryManifest {
         /// The path to the registry manifest file.
+        #[serde(serialize_with = "serialize_normalized_path")]
         path: PathBuf,
         /// The error that occurred.
         error: String,
@@ -407,6 +439,7 @@ pub enum Error {
     #[diagnostic(severity(Error))]
     InvalidPublicationManifest {
         /// The path to the publication manifest file.
+        #[serde(serialize_with = "serialize_normalized_path")]
         path: PathBuf,
         /// Details about what is wrong.
         details: String,
@@ -481,6 +514,7 @@ pub struct InvalidSemConvSpecError {
 }
 
 impl WeaverError<Error> for Error {
+    /// Flattens nested [`Error::CompoundError`] variants into a single compound error.
     fn compound(errors: Vec<Error>) -> Error {
         CompoundError(
             errors
@@ -513,100 +547,84 @@ impl From<Error> for DiagnosticMessages {
 /// JsonSchema for it.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(transparent)]
-pub struct YamlValue(pub serde_json::Value);
+pub struct YamlValue(pub Value);
 
 impl PartialOrd for YamlValue {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for YamlValue {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // TODO - Implement.
-        match (&self.0, &other.0) {
-            (serde_json::Value::Null, serde_json::Value::Null) => std::cmp::Ordering::Equal,
-            (serde_json::Value::Null, serde_json::Value::Bool(_)) => std::cmp::Ordering::Less,
-            (serde_json::Value::Null, serde_json::Value::Number(_)) => std::cmp::Ordering::Less,
-            (serde_json::Value::Null, serde_json::Value::String(_)) => std::cmp::Ordering::Less,
-            (serde_json::Value::Null, serde_json::Value::Array(_)) => std::cmp::Ordering::Less,
-            (serde_json::Value::Null, serde_json::Value::Object(_)) => std::cmp::Ordering::Less,
-            (serde_json::Value::Bool(_), serde_json::Value::Null) => std::cmp::Ordering::Greater,
-            (serde_json::Value::Bool(l), serde_json::Value::Bool(r)) => l.cmp(r),
-            (serde_json::Value::Bool(_), serde_json::Value::Number(_)) => std::cmp::Ordering::Less,
-            (serde_json::Value::Bool(_), serde_json::Value::String(_)) => std::cmp::Ordering::Less,
-            (serde_json::Value::Bool(_), serde_json::Value::Array(_)) => std::cmp::Ordering::Less,
-            (serde_json::Value::Bool(_), serde_json::Value::Object(_)) => std::cmp::Ordering::Less,
-            (serde_json::Value::Number(_), serde_json::Value::Null) => std::cmp::Ordering::Greater,
-            (serde_json::Value::Number(_), serde_json::Value::Bool(_)) => {
-                std::cmp::Ordering::Greater
+/// Defines a total ordering over [`Value`] consistent with `Eq` (sorting object keys).
+fn cmp_json_value(left: &Value, right: &Value) -> Ordering {
+    match (left, right) {
+        (Value::Null, Value::Null) => Ordering::Equal,
+        (Value::Null, _) => Ordering::Less,
+        (_, Value::Null) => Ordering::Greater,
+        (Value::Bool(l), Value::Bool(r)) => l.cmp(r),
+        (Value::Bool(_), _) => Ordering::Less,
+        (_, Value::Bool(_)) => Ordering::Greater,
+        (Value::Number(l), Value::Number(r)) => {
+            if l == r {
+                return Ordering::Equal;
             }
-            (serde_json::Value::Number(l), serde_json::Value::Number(r)) => {
-                match (l.as_i64(), r.as_i64()) {
-                    (Some(l), Some(r)) => l.cmp(&r),
-                    _ => match (l.as_u64(), r.as_u64()) {
-                        (Some(l), Some(r)) => l.cmp(&r),
-                        _ => l
-                            .as_f64()
-                            .and_then(|lf| r.as_f64().and_then(|rf| lf.partial_cmp(&rf)))
-                            .unwrap_or(std::cmp::Ordering::Less),
+            let ord = match (l.as_i64(), r.as_i64()) {
+                (Some(lv), Some(rv)) => lv.cmp(&rv),
+                _ => match (l.as_u64(), r.as_u64()) {
+                    (Some(lv), Some(rv)) => lv.cmp(&rv),
+                    _ => match (l.as_f64(), r.as_f64()) {
+                        (Some(lf), Some(rf)) => lf.total_cmp(&rf),
+                        _ => Ordering::Equal,
                     },
+                },
+            };
+            ord.then_with(|| (l.is_f64(), l.to_string()).cmp(&(r.is_f64(), r.to_string())))
+        }
+        (Value::Number(_), _) => Ordering::Less,
+        (_, Value::Number(_)) => Ordering::Greater,
+        (Value::String(l), Value::String(r)) => l.cmp(r),
+        (Value::String(_), _) => Ordering::Less,
+        (_, Value::String(_)) => Ordering::Greater,
+        (Value::Array(l), Value::Array(r)) => {
+            for (lv, rv) in l.iter().zip(r.iter()) {
+                let ord = cmp_json_value(lv, rv);
+                if ord != Ordering::Equal {
+                    return ord;
                 }
             }
-            (serde_json::Value::Number(_), serde_json::Value::String(_)) => {
-                std::cmp::Ordering::Less
-            }
-            (serde_json::Value::Number(_), serde_json::Value::Array(_)) => std::cmp::Ordering::Less,
-            (serde_json::Value::Number(_), serde_json::Value::Object(_)) => {
-                std::cmp::Ordering::Less
-            }
-            (serde_json::Value::String(_), serde_json::Value::Null) => std::cmp::Ordering::Greater,
-            (serde_json::Value::String(_), serde_json::Value::Bool(_)) => {
-                std::cmp::Ordering::Greater
-            }
-            (serde_json::Value::String(_), serde_json::Value::Number(_)) => {
-                std::cmp::Ordering::Greater
-            }
-            (serde_json::Value::String(l), serde_json::Value::String(r)) => l.cmp(r),
-            (serde_json::Value::String(_), serde_json::Value::Array(_)) => std::cmp::Ordering::Less,
-            (serde_json::Value::String(_), serde_json::Value::Object(_)) => {
-                std::cmp::Ordering::Less
-            }
-            (serde_json::Value::Array(_), serde_json::Value::Null) => std::cmp::Ordering::Greater,
-            (serde_json::Value::Array(_), serde_json::Value::Bool(_)) => {
-                std::cmp::Ordering::Greater
-            }
-            (serde_json::Value::Array(_), serde_json::Value::Number(_)) => {
-                std::cmp::Ordering::Greater
-            }
-            (serde_json::Value::Array(_), serde_json::Value::String(_)) => {
-                std::cmp::Ordering::Greater
-            }
-            (serde_json::Value::Array(_l), serde_json::Value::Array(_r)) => {
-                // TODO - actually implement a comparison.
-                // This is good enough for sorting attributes.
-                std::cmp::Ordering::Equal
-            }
-            (serde_json::Value::Array(_), serde_json::Value::Object(_)) => std::cmp::Ordering::Less,
-            (serde_json::Value::Object(_), serde_json::Value::Null) => std::cmp::Ordering::Greater,
-            (serde_json::Value::Object(_), serde_json::Value::Bool(_)) => {
-                std::cmp::Ordering::Greater
-            }
-            (serde_json::Value::Object(_), serde_json::Value::Number(_)) => {
-                std::cmp::Ordering::Greater
-            }
-            (serde_json::Value::Object(_), serde_json::Value::String(_)) => {
-                std::cmp::Ordering::Greater
-            }
-            (serde_json::Value::Object(_), serde_json::Value::Array(_)) => {
-                std::cmp::Ordering::Greater
-            }
-            (serde_json::Value::Object(_l), serde_json::Value::Object(_r)) => {
-                // TODO - actually implement a comparison.
-                // This is good enough for sorting attributes.
-                std::cmp::Ordering::Equal
-            }
+            l.len().cmp(&r.len())
         }
+        (Value::Array(_), Value::Object(_)) => Ordering::Less,
+        (Value::Object(_), Value::Array(_)) => Ordering::Greater,
+        (Value::Object(l), Value::Object(r)) => {
+            if l.len() <= 1 && r.len() <= 1 {
+                return match (l.iter().next(), r.iter().next()) {
+                    (None, None) => Ordering::Equal,
+                    (None, Some(_)) => Ordering::Less,
+                    (Some(_), None) => Ordering::Greater,
+                    (Some((lk, lv)), Some((rk, rv))) => {
+                        lk.cmp(rk).then_with(|| cmp_json_value(lv, rv))
+                    }
+                };
+            }
+            let mut l_entries: Vec<(&String, &Value)> = l.iter().collect();
+            let mut r_entries: Vec<(&String, &Value)> = r.iter().collect();
+            l_entries.sort_by_key(|(k, _)| *k);
+            r_entries.sort_by_key(|(k, _)| *k);
+            for ((lk, lv), (rk, rv)) in l_entries.iter().zip(r_entries.iter()) {
+                let ord = lk.cmp(rk).then_with(|| cmp_json_value(lv, rv));
+                if ord != Ordering::Equal {
+                    return ord;
+                }
+            }
+            l_entries.len().cmp(&r_entries.len())
+        }
+    }
+}
+
+impl Ord for YamlValue {
+    fn cmp(&self, other: &Self) -> Ordering {
+        cmp_json_value(&self.0, &other.0)
     }
 }
 
@@ -645,52 +663,57 @@ impl utoipa::ToSchema for YamlValue {
     }
 }
 
-/// Implement Hash for YamlValue.
-/// Keys are sorted for consistent hashing in the case of mappings/objects.
-impl std::hash::Hash for YamlValue {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        // Convert the YAML value to a string representation for hashing
-        // This is a simplification that works for most cases
-        match &self.0 {
-            serde_json::Value::Null => {
-                0_u8.hash(state);
-                "null".hash(state);
+/// Hashes a [`Value`] deterministically by sorting object keys.
+fn hash_json_value<H: Hasher>(val: &Value, state: &mut H) {
+    match val {
+        Value::Null => {
+            0_u8.hash(state);
+            "null".hash(state);
+        }
+        Value::Bool(b) => {
+            1_u8.hash(state);
+            b.hash(state);
+        }
+        Value::Number(n) => {
+            2_u8.hash(state);
+            // Convert number to string for hashing as Number itself doesn't implement Hash
+            n.to_string().hash(state);
+        }
+        Value::String(s) => {
+            3_u8.hash(state);
+            s.hash(state);
+        }
+        Value::Array(seq) => {
+            4_u8.hash(state);
+            for item in seq {
+                hash_json_value(item, state);
             }
-            serde_json::Value::Bool(b) => {
-                1_u8.hash(state);
-                b.hash(state);
-            }
-            serde_json::Value::Number(n) => {
-                2_u8.hash(state);
-                // Convert number to string for hashing as Number itself doesn't implement Hash
-                n.to_string().hash(state);
-            }
-            serde_json::Value::String(s) => {
-                3_u8.hash(state);
-                s.hash(state);
-            }
-            serde_json::Value::Array(seq) => {
-                4_u8.hash(state);
-                // Hash each element's representation
-                for item in seq {
-                    YamlValue(item.clone()).hash(state);
-                }
-            }
-            serde_json::Value::Object(map) => {
-                5_u8.hash(state);
-                // Sort keys for consistent hashing
-                let mut keys: Vec<_> = map.keys().collect();
-                keys.sort();
-
-                // Hash each key-value pair
-                for key in keys {
+        }
+        Value::Object(map) => {
+            5_u8.hash(state);
+            if map.len() <= 1 {
+                if let Some((key, value)) = map.iter().next() {
                     key.hash(state);
-                    if let Some(value) = map.get(key) {
-                        YamlValue(value.clone()).hash(state);
-                    }
+                    hash_json_value(value, state);
+                }
+            } else {
+                // Sort keys for consistent hashing
+                let mut entries: Vec<(&String, &Value)> = map.iter().collect();
+                entries.sort_by_key(|(k, _)| *k);
+                for (key, value) in entries {
+                    key.hash(state);
+                    hash_json_value(value, state);
                 }
             }
         }
+    }
+}
+
+/// Implement Hash for YamlValue.
+/// Keys are sorted for consistent hashing in the case of mappings/objects.
+impl Hash for YamlValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        hash_json_value(&self.0, state);
     }
 }
 
@@ -747,6 +770,50 @@ mod tests {
         ];
         values.sort();
         assert_eq!(values, vec![boolean, number, string, sequence, mapping]);
+
+        // Nested objects and arrays must satisfy `a == b` <=> `a.cmp(&b) == Equal`.
+        let map_catalog = YamlValue(serde_saphyr::from_str("acme:\n  source: catalog")?);
+        let map_group = YamlValue(serde_saphyr::from_str("acme:\n  source: group")?);
+        let map_span = YamlValue(serde_saphyr::from_str("acme:\n  source: span")?);
+        assert_ne!(map_catalog, map_span);
+        assert_eq!(map_catalog.cmp(&map_span), std::cmp::Ordering::Less);
+
+        let mut set = std::collections::BTreeSet::new();
+        assert!(set.insert(map_span.clone()));
+        assert!(set.insert(map_catalog.clone()));
+        assert!(set.insert(map_group.clone()));
+        assert!(!set.insert(map_span.clone()));
+        let ordered: Vec<_> = set.into_iter().collect();
+        assert_eq!(ordered, vec![map_catalog, map_group, map_span]);
+
+        let arr_a = YamlValue(serde_saphyr::from_str("[1, 2]")?);
+        let arr_b = YamlValue(serde_saphyr::from_str("[1, 3]")?);
+        assert_eq!(arr_a.cmp(&arr_b), std::cmp::Ordering::Less);
         Ok(())
+    }
+
+    #[test]
+    fn test_manifest_error_serializes_normalized_path() {
+        let deprecated = crate::Error::DeprecatedSyntaxInRegistryManifest {
+            path: std::path::PathBuf::from(
+                r"data\v1-dependency-syntax\main\registry\registry_manifest.yaml",
+            ),
+            error: "deprecated".to_owned(),
+        };
+        let json = serde_json::to_value(&deprecated).unwrap();
+        assert_eq!(
+            json["DeprecatedSyntaxInRegistryManifest"]["path"],
+            "data/v1-dependency-syntax/main/registry/registry_manifest.yaml"
+        );
+
+        let missing = crate::Error::MissingManifestFileFormat {
+            path: std::path::PathBuf::from(r"data\v2\manifest.yaml"),
+            expected_format: "definition_manifest/2.0".to_owned(),
+        };
+        let missing_json = serde_json::to_value(&missing).unwrap();
+        assert_eq!(
+            missing_json["MissingManifestFileFormat"]["path"],
+            "data/v2/manifest.yaml"
+        );
     }
 }

@@ -23,15 +23,24 @@ fn run_live_check(extra_args: &[&str]) -> Output {
 }
 
 fn run_live_check_on(registry: &str, extra_args: &[&str]) -> Output {
+    run_live_check_with(registry, INPUT, "text", extra_args)
+}
+
+fn run_live_check_with(
+    registry: &str,
+    input: &str,
+    input_format: &str,
+    extra_args: &[&str],
+) -> Output {
     let mut cmd = Command::cargo_bin("weaver").expect("weaver binary not found");
     cmd.arg("registry")
         .arg("live-check")
         .arg("-r")
         .arg(registry)
         .arg("--input-source")
-        .arg(INPUT)
+        .arg(input)
         .arg("--input-format")
-        .arg("text")
+        .arg(input_format)
         .arg("--output")
         .arg("none")
         .args(extra_args)
@@ -99,45 +108,22 @@ fn fail_on_invalid_value_is_rejected() {
     );
 }
 
-/// `--no-stats` disables the stats accumulator, so the severity gate can't be
-/// evaluated. Preserve the pre-#1473 behavior of always exiting 0 in that
-/// mode, but warn the user when they also configured a stats-dependent
-/// `--fail-on` value.
 #[test]
-fn no_stats_with_violation_threshold_warns_and_exits_zero() {
-    let out = run_live_check(&["--no-stats", "--fail-on", "violation"]);
-    assert_eq!(
-        exit_code(&out),
-        0,
-        "--no-stats must always exit 0 (preserves pre-#1473 behavior)"
-    );
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&out.stdout),
-        String::from_utf8_lossy(&out.stderr)
-    );
-    assert!(
-        combined.contains("--no-stats")
-            && combined.contains("--fail-on")
-            && combined.contains("cannot be enforced"),
-        "expected a warning explaining the --no-stats / --fail-on conflict, got: {combined}"
-    );
+fn no_stats_with_default_threshold_exits_one() {
+    let out = run_live_check(&["--no-stats"]);
+    assert_eq!(exit_code(&out), 1);
 }
 
-/// `--no-stats --fail-on=none` is the unambiguous, warning-free combination.
 #[test]
-fn no_stats_with_none_threshold_is_silent_and_exits_zero() {
+fn no_stats_with_violation_threshold_exits_one() {
+    let out = run_live_check(&["--no-stats", "--fail-on", "violation"]);
+    assert_eq!(exit_code(&out), 1);
+}
+
+#[test]
+fn no_stats_with_none_threshold_exits_zero() {
     let out = run_live_check(&["--no-stats", "--fail-on", "none"]);
     assert_eq!(exit_code(&out), 0);
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&out.stdout),
-        String::from_utf8_lossy(&out.stderr)
-    );
-    assert!(
-        !combined.contains("cannot be enforced"),
-        "should not warn when --fail-on=none, got: {combined}"
-    );
 }
 
 /// Advice policies and data can be loaded from a virtual directory archive (`.zip` with `[sub_folder]`).
@@ -216,6 +202,96 @@ fn live_check_archive_advice_policies_and_data() {
         exit_code(&out),
         1,
         "custom advice finding from archive should trigger violation failure"
+    );
+}
+
+/// Writes a policy to `dir` that gives every attribute an `advice_type` finding.
+fn write_advice_policy(dir: &std::path::Path, advice_type: &str) {
+    let rego = format!(
+        r#"
+        package live_check_advice
+
+        import rego.v1
+
+        deny contains {{
+            "type": "advice",
+            "advice_type": "{advice_type}",
+            "advice_level": "information",
+            "advice_context": {{}},
+            "message": "{advice_type}",
+        }} if {{
+            input.sample.attribute
+        }}
+    "#
+    );
+    std::fs::write(dir.join("custom.rego"), rego).expect("write policy");
+}
+
+/// Runs live-check on one attribute without a namespace and returns the JSON report.
+fn run_with_advice_policies(advice_policies: &[&str]) -> Output {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let input = dir.path().join("attributes.txt");
+    std::fs::write(&input, "nonamespace\n").expect("write input");
+    Command::cargo_bin("weaver")
+        .expect("weaver binary not found")
+        .args(["registry", "live-check", "-r", REGISTRY])
+        .args(["--input-source", input.to_str().expect("utf-8 path")])
+        .args(["--input-format", "text", "--format", "json"])
+        .args(["--fail-on", "none"])
+        .args(
+            advice_policies
+                .iter()
+                .flat_map(|policies| ["--advice-policies", policies]),
+        )
+        .timeout(std::time::Duration::from_secs(60))
+        .output()
+        .expect("failed to execute weaver binary")
+}
+
+#[test]
+fn advice_policies_can_be_passed_more_than_once() {
+    let first = tempfile::tempdir().expect("temp dir");
+    let second = tempfile::tempdir().expect("temp dir");
+    write_advice_policy(first.path(), "first_custom");
+    write_advice_policy(second.path(), "second_custom");
+
+    let out = run_with_advice_policies(&[
+        first.path().to_str().expect("utf-8 path"),
+        second.path().to_str().expect("utf-8 path"),
+    ]);
+
+    assert_eq!(exit_code(&out), 0);
+    let report = String::from_utf8_lossy(&out.stdout);
+    assert!(report.contains("first_custom"), "{report}");
+    assert!(report.contains("second_custom"), "{report}");
+    assert!(!report.contains("missing_namespace"), "{report}");
+}
+
+#[test]
+fn builtin_advice_policies_can_be_kept_with_custom_ones() {
+    let custom = tempfile::tempdir().expect("temp dir");
+    write_advice_policy(custom.path(), "first_custom");
+
+    let out = run_with_advice_policies(&[
+        "builtin://otel.rego",
+        custom.path().to_str().expect("utf-8 path"),
+    ]);
+
+    assert_eq!(exit_code(&out), 0);
+    let report = String::from_utf8_lossy(&out.stdout);
+    assert!(report.contains("first_custom"), "{report}");
+    assert!(report.contains("missing_namespace"), "{report}");
+}
+
+#[test]
+fn unknown_builtin_advice_policies_fail_at_startup() {
+    let out = run_with_advice_policies(&["builtin://unknown.rego"]);
+
+    assert_ne!(exit_code(&out), 0);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("Unknown built-in advice policies"),
+        "{stderr}"
     );
 }
 
@@ -326,6 +402,121 @@ sample_type = "span""#,
 fn a_v1_registry_without_matchers_still_runs() {
     let out = run_live_check_on(V1_REGISTRY, &["--fail-on", "none"]);
     assert_eq!(exit_code(&out), 0, "got: {}", combined(&out));
+}
+
+/// Four attributes and a metric. `COVERAGE_INPUT` holds `http.request.method`
+/// and `url.path`.
+const COVERAGE_REGISTRY: &str = "tests/live_check_coverage";
+const COVERAGE_INPUT: &str = "crates/weaver_live_check/data/coverage_attributes.txt";
+
+/// Writes a `.weaver.toml` holding the `coverage` section and runs live-check
+/// against it.
+fn run_with_coverage(coverage: &str, extra_args: &[&str]) -> (Output, tempfile::TempDir) {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let config = dir.path().join(".weaver.toml");
+    std::fs::write(&config, format!("[\"live-check\".coverage]\n{coverage}\n"))
+        .expect("write config");
+    let mut args = vec![
+        "--v2",
+        "--search-all-attributes",
+        "--config",
+        config.to_str().expect("utf-8 path"),
+    ];
+    args.extend_from_slice(extra_args);
+    (
+        run_live_check_with(COVERAGE_REGISTRY, COVERAGE_INPUT, "text", &args),
+        dir,
+    )
+}
+
+#[test]
+fn coverage_below_the_threshold_fails_and_lists_the_unseen_names() {
+    let (out, _dir) = run_with_coverage("", &["--fail-on-coverage-below", "0.5"]);
+    assert_eq!(exit_code(&out), 1);
+    let output = combined(&out);
+    assert!(
+        output.contains("0.400 is below 0.5") && output.contains("http.server.duration"),
+        "got: {output}"
+    );
+}
+
+#[test]
+fn coverage_at_the_threshold_passes() {
+    let (out, _dir) = run_with_coverage("", &["--fail-on-coverage-below", "0.4"]);
+    assert_eq!(exit_code(&out), 0, "got: {}", combined(&out));
+}
+
+#[test]
+fn the_coverage_scope_sets_what_the_threshold_counts() {
+    let (out, _dir) = run_with_coverage(
+        r#"include = ["http.*", "url.*"]
+exclude = ["http.response.*", "http.server.*"]
+fail_below = 1.0"#,
+        &[],
+    );
+    assert_eq!(exit_code(&out), 0, "got: {}", combined(&out));
+}
+
+#[test]
+fn the_coverage_flag_overrides_the_config_threshold() {
+    let (out, _dir) = run_with_coverage("fail_below = 1.0", &["--fail-on-coverage-below", "0.1"]);
+    assert_eq!(exit_code(&out), 0, "got: {}", combined(&out));
+}
+
+/// `V2_REGISTRY` declares one attribute and the span `myapp.checkout`.
+/// `SPAN_INPUT` holds one span carrying that attribute.
+fn run_span_coverage(config: &str) -> (Output, tempfile::TempDir) {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let path = dir.path().join(".weaver.toml");
+    std::fs::write(&path, config).expect("write config");
+    let args = [
+        "--v2",
+        "--fail-on",
+        "none",
+        "--fail-on-coverage-below",
+        "1.0",
+        "--config",
+        path.to_str().expect("utf-8 path"),
+    ];
+    (
+        run_live_check_with(V2_REGISTRY, SPAN_INPUT, "json", &args),
+        dir,
+    )
+}
+
+#[test]
+fn a_span_that_no_matcher_names_is_not_covered() {
+    let (out, _dir) = run_span_coverage("");
+    assert_eq!(exit_code(&out), 1);
+    let output = combined(&out);
+    assert!(output.contains("Not seen: myapp.checkout"), "got: {output}");
+}
+
+#[test]
+fn a_matched_span_is_covered() {
+    let (out, _dir) = run_span_coverage(
+        r#"[["live-check".matchers]]
+id = "myapp.checkout"
+sample_type = "span"
+signal = "myapp.checkout""#,
+    );
+    assert_eq!(exit_code(&out), 0, "got: {}", combined(&out));
+}
+
+#[test]
+fn a_coverage_threshold_without_statistics_fails_startup() {
+    let (out, _dir) = run_with_coverage("fail_below = 0.5", &["--no-stats"]);
+    assert_ne!(exit_code(&out), 0);
+    let output = combined(&out);
+    assert!(output.contains("needs statistics"), "got: {output}");
+}
+
+#[test]
+fn coverage_settings_against_a_v1_registry_fail_startup() {
+    let out = run_live_check_on(V1_REGISTRY, &["--fail-on-coverage-below", "0.5"]);
+    assert_ne!(exit_code(&out), 0);
+    let output = combined(&out);
+    assert!(output.contains("v2 registry"), "got: {output}");
 }
 
 /// One span sample, for the matcher tests.
@@ -534,6 +725,7 @@ fn run_emitting_live_check(
         "otlp",
     ])
     .args(["--otlp-grpc-port", &grpc_port.to_string()])
+    .args(["--otlp-http-port", "0"])
     .args(["--admin-port", &admin_port.to_string()])
     .args([
         "--inactivity-timeout",

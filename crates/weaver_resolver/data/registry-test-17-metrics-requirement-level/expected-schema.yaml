@@ -1,0 +1,26 @@
+file_format: resolved/2.0
+schema_url: https://default/0.1.0
+attribute_catalog: []
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics:
+  - name: some_metric
+    instrument: histogram
+    unit: s
+    brief: Measures something
+    stability: development
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics:
+  - id: some_metric
+    name: some_metric
+    instrument: histogram
+    unit: s
+    brief: Measures something
+    stability: development
+  events: []
+  entities: []

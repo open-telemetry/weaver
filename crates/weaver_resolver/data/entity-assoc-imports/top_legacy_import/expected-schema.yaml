@@ -1,0 +1,57 @@
+file_format: resolved/2.0
+schema_url: https://example.com/top-legacy-import/1.0.0
+attribute_catalog:
+- key: browser.brands
+  type: string[]
+  examples:
+  - - Not A;Brand 99
+  - - Chromium 99
+  brief: Array of brand name and version separated by a space.
+  stability: stable
+  provenance:
+    source: 0
+- key: browser.id
+  type: string
+  examples:
+  - browser-1
+  brief: A unique identifier for the browser instance.
+  stability: stable
+  provenance:
+    source: 0
+registry:
+  attributes:
+  - 0
+  - 1
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities:
+  - type: browser
+    identity:
+    - 1
+    description:
+    - base: 0
+      requirement_level: recommended
+    brief: The web browser in which the application is running.
+    stability: stable
+    provenance:
+      source: 0
+refinements:
+  spans: []
+  metrics: []
+  events: []
+  entities:
+  - id: browser
+    type: browser
+    identity:
+    - 1
+    description:
+    - base: 0
+      requirement_level: recommended
+    brief: The web browser in which the application is running.
+    stability: stable
+    provenance:
+      source: 0
+dependencies:
+- https://example.com/legacy-resource/1.0.0

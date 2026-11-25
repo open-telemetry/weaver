@@ -1,29 +1,33 @@
 //! Version two of registry specification.
 
-use crate::v2::{attribute_group::AttributeGroupAttribute, provenance::Provenance};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashSet, VecDeque};
-use weaver_common::result::WResult;
-use weaver_resolved_schema::v2::{
-    attribute::AttributeRef, catalog::AttributeCatalog, entity::EntityAttributeRef,
-};
-use weaver_resolver::SchemaResolver;
-use weaver_semconv::schema_url::SchemaUrl;
-
 use crate::{
     error::Error,
     v2::{
         attribute::Attribute,
-        attribute_group::AttributeGroup,
+        attribute_group::{AttributeGroup, AttributeGroupAttribute},
         entity::{
             from_resolved_associations, Entity, EntityAttribute, EntityRef, EntityRefinement,
         },
         event::{Event, EventAttribute, EventRefinement},
         metric::{Metric, MetricAttribute, MetricRefinement},
+        provenance::Provenance,
         span::{Span, SpanAttribute, SpanRefinement},
     },
 };
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
+use std::iter;
+use weaver_common::result::WResult;
+use weaver_resolved_schema::v2::{
+    attribute::AttributeRef,
+    catalog::AttributeCatalog,
+    entity::{EntityAssociation as ResolvedEntityAssociation, EntityAttributeRef},
+    provenance::Provenance as ResolvedProvenance,
+    ResolvedTelemetrySchema,
+};
+use weaver_resolver::{Error as ResolverError, SchemaResolver, WeaverResolvedSchema};
+use weaver_semconv::schema_url::SchemaUrl;
 
 /// A resolved semantic convention registry used in the context of the template and policy
 /// engines.
@@ -43,10 +47,67 @@ pub struct ForgeResolvedRegistry {
     /// schema url.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub dependencies: BTreeMap<SchemaUrl, ForgeDependency>,
-    /// The direct dependencies of each registry, this one included. A registry
+    /// The direct dependencies of each registry, this one included. Each edge
+    /// records the resolved (chosen) `schema_url` and, when dependency version
+    /// conflict resolution upgraded the declared version, `upgraded_from`. A registry
     /// with no entry has unknown dependencies, not none.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub dependency_graph: BTreeMap<SchemaUrl, Vec<SchemaUrl>>,
+    pub dependency_graph: BTreeMap<SchemaUrl, Vec<DependencyEdge>>,
+}
+
+/// A directed edge in [`ForgeResolvedRegistry::dependency_graph`].
+///
+/// `schema_url` is always the resolved (chosen) dependency URL after dependency
+/// version conflict resolution. When dependency version conflict resolution
+/// upgraded the originally declared version to a higher compatible version,
+/// `upgraded_from` records the declared URL before the upgrade.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DependencyEdge {
+    /// The resolved (chosen) schema URL of the direct dependency.
+    pub schema_url: SchemaUrl,
+    /// The originally declared schema URL when dependency resolution upgraded
+    /// it to `schema_url`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upgraded_from: Option<SchemaUrl>,
+}
+
+impl DependencyEdge {
+    /// Creates an edge whose resolved schema URL matches the declared URL.
+    #[must_use]
+    pub fn new(schema_url: SchemaUrl) -> Self {
+        Self {
+            schema_url,
+            upgraded_from: None,
+        }
+    }
+
+    /// Creates an edge recording that `upgraded_from` was upgraded to `schema_url`.
+    #[must_use]
+    pub fn upgraded(schema_url: SchemaUrl, upgraded_from: SchemaUrl) -> Self {
+        Self {
+            schema_url,
+            upgraded_from: Some(upgraded_from),
+        }
+    }
+
+    /// Returns the originally declared schema URL for this dependency edge.
+    #[must_use]
+    pub fn declared_schema_url(&self) -> &SchemaUrl {
+        self.upgraded_from.as_ref().unwrap_or(&self.schema_url)
+    }
+
+    /// Returns `true` when dependency resolution upgraded this edge from its declared version.
+    #[must_use]
+    pub fn is_upgraded(&self) -> bool {
+        self.upgraded_from.is_some()
+    }
+}
+
+impl From<SchemaUrl> for DependencyEdge {
+    fn from(schema_url: SchemaUrl) -> Self {
+        Self::new(schema_url)
+    }
 }
 
 /// A dependency of a [`ForgeResolvedRegistry`], stored under its schema url.
@@ -59,10 +120,8 @@ pub struct ForgeDependency {
     pub refinements: Refinements,
 }
 
-/// The entity a registry defines under `name`.
-///
-/// An association names an entity type or the id of an entity refinement, which
-/// share one namespace, so both lists answer.
+/// Finds the entity matching `name` across `registry.entities` and `refinements.entities`,
+/// since entity types and refinement IDs share a namespace.
 fn defined_entity<'a>(
     registry: &'a Registry,
     refinements: &'a Refinements,
@@ -117,35 +176,145 @@ pub struct Refinements {
     pub entities: Vec<EntityRefinement>,
 }
 
-impl ForgeResolvedRegistry {
-    /// Returns the entity definition that an association leaf names.
-    ///
-    /// A registry does not copy the entities of its dependencies, so an
-    /// association often names a registry other than this one.
-    pub fn lookup_entity(&self, entity_ref: &EntityRef) -> Result<&Entity, Error> {
-        let (registry, refinements) = match &entity_ref.provenance.source {
-            // Empty provenance: this registry defines it.
-            None => (&self.registry, &self.refinements),
-            Some(url) => self
-                .dependencies
-                .get(url)
-                .map(|dep| (&dep.registry, &dep.refinements))
-                .ok_or_else(|| Error::EntityNotFound {
-                    entity_type: entity_ref.r#type.to_string(),
-                    registry: Some(url.to_string()),
-                })?,
-        };
-        defined_entity(registry, refinements, &entity_ref.r#type).ok_or_else(|| {
-            Error::EntityNotFound {
-                entity_type: entity_ref.r#type.to_string(),
-                registry: entity_ref.provenance.source.as_ref().map(|u| u.to_string()),
+/// Returns the chosen URL from `chosen_by_major` when `declared` has a valid
+/// SemVer version in the same registry and major series that was superseded by
+/// a different chosen URL.
+fn find_upgraded_url<'a>(
+    declared: &SchemaUrl,
+    chosen_by_major: &'a HashMap<(String, u64), SchemaUrl>,
+) -> Option<&'a SchemaUrl> {
+    let declared_ver = declared.semver().ok()?;
+    let chosen = chosen_by_major.get(&(declared.name().to_owned(), declared_ver.major))?;
+    (chosen != declared).then_some(chosen)
+}
+
+/// Computes the shortest directed path length from `start` to `target` in `graph`.
+fn distance_in_dependency_graph(
+    graph: &BTreeMap<SchemaUrl, Vec<DependencyEdge>>,
+    start: &SchemaUrl,
+    target: &SchemaUrl,
+) -> Option<usize> {
+    if start == target {
+        return Some(0);
+    }
+    let mut queue = VecDeque::new();
+    let mut visited = HashSet::new();
+    queue.push_back((start, 0));
+    let _ = visited.insert(start);
+
+    while let Some((curr, dist)) = queue.pop_front() {
+        if let Some(directs) = graph.get(curr) {
+            for edge in directs {
+                if &edge.schema_url == target || edge.upgraded_from.as_ref() == Some(target) {
+                    return Some(dist + 1);
+                }
+                if visited.insert(&edge.schema_url) {
+                    queue.push_back((&edge.schema_url, dist + 1));
+                }
             }
+        }
+    }
+    None
+}
+
+impl ForgeResolvedRegistry {
+    /// Resolves `url` to the chosen dependency URL in this registry.
+    ///
+    /// If `url` is an originally declared version that was upgraded during
+    /// dependency resolution, returns the chosen `schema_url` from
+    /// [`Self::dependency_graph`]; otherwise returns `url` unchanged.
+    #[must_use]
+    pub fn resolve_dependency_url<'a>(&'a self, url: &'a SchemaUrl) -> &'a SchemaUrl {
+        if self.dependencies.contains_key(url) {
+            return url;
+        }
+        self.dependency_graph
+            .values()
+            .flatten()
+            .find(|edge| edge.upgraded_from.as_ref() == Some(url))
+            .map_or(url, |edge| &edge.schema_url)
+    }
+
+    /// Looks up a dependency by either its chosen [`SchemaUrl`] or an
+    /// originally declared URL that was upgraded during resolution.
+    #[must_use]
+    pub fn lookup_dependency(&self, url: &SchemaUrl) -> Option<&ForgeDependency> {
+        self.dependencies.get(self.resolve_dependency_url(url))
+    }
+
+    /// Returns dependencies that transitively depend on `target_url`, ordered nearest-first.
+    fn candidate_dependencies_for_target(
+        &self,
+        target_url: &SchemaUrl,
+    ) -> Vec<(&SchemaUrl, &ForgeDependency)> {
+        let mut candidates: Vec<(usize, usize, &SchemaUrl, &ForgeDependency)> = Vec::new();
+        let nearest = self.dependencies_nearest_first();
+
+        for (root_idx, (dep_url, dep)) in nearest.into_iter().enumerate() {
+            if let Some(dist) =
+                distance_in_dependency_graph(&self.dependency_graph, dep_url, target_url)
+            {
+                candidates.push((dist, root_idx, dep_url, dep));
+            }
+        }
+
+        candidates.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+        candidates
+            .into_iter()
+            .map(|(_, _, url, dep)| (url, dep))
+            .collect()
+    }
+
+    /// Resolves `entity_ref` to its [`Entity`] definition, following upgraded dependency URLs
+    /// and falling back to loaded dependencies in `dependency_graph` ordered nearest-first when
+    /// the source registry is not directly loaded.
+    pub fn lookup_entity(&self, entity_ref: &EntityRef) -> Result<&Entity, Error> {
+        let target_url = match &entity_ref.provenance.source {
+            None => {
+                return defined_entity(&self.registry, &self.refinements, &entity_ref.r#type)
+                    .ok_or_else(|| Error::EntityNotFound {
+                        entity_type: entity_ref.r#type.to_string(),
+                        registry: None,
+                    });
+            }
+            Some(url) => url,
+        };
+
+        let effective_url = self.resolve_dependency_url(target_url);
+
+        if let Some(dep) = self.dependencies.get(effective_url) {
+            if let Some(entity) =
+                defined_entity(&dep.registry, &dep.refinements, &entity_ref.r#type)
+            {
+                return Ok(entity);
+            }
+        }
+
+        let candidate_deps = self.candidate_dependencies_for_target(effective_url);
+
+        for (_dep_url, dep) in &candidate_deps {
+            if let Some(entity) =
+                defined_entity(&dep.registry, &dep.refinements, &entity_ref.r#type)
+            {
+                if entity
+                    .provenance
+                    .source
+                    .as_ref()
+                    .is_some_and(|s| s == effective_url || s == target_url)
+                {
+                    return Ok(entity);
+                }
+            }
+        }
+
+        Err(Error::EntityNotFound {
+            entity_type: entity_ref.r#type.to_string(),
+            registry: Some(target_url.to_string()),
         })
     }
 
-    /// Every registry this one depends on, nearest first. The order is a
-    /// breadth-first walk of `dependency_graph`. A registry the graph does not
-    /// reach comes last, in key order.
+    /// Returns dependencies in breadth-first order of `dependency_graph`, followed by any
+    /// unreachable entries in [`SchemaUrl`] order.
     #[must_use]
     pub fn dependencies_nearest_first(&self) -> Vec<(&SchemaUrl, &ForgeDependency)> {
         let mut ordered = Vec::with_capacity(self.dependencies.len());
@@ -154,7 +323,7 @@ impl ForgeResolvedRegistry {
         let mut queue: VecDeque<&SchemaUrl> = self
             .dependency_graph
             .get(&self.schema_url)
-            .map(|direct| direct.iter().collect())
+            .map(|direct| direct.iter().map(|edge| &edge.schema_url).collect())
             .unwrap_or_default();
 
         while let Some(url) = queue.pop_front() {
@@ -165,7 +334,7 @@ impl ForgeResolvedRegistry {
                 ordered.push(entry);
             }
             if let Some(direct) = self.dependency_graph.get(url) {
-                queue.extend(direct.iter());
+                queue.extend(direct.iter().map(|edge| &edge.schema_url));
             }
         }
 
@@ -177,18 +346,29 @@ impl ForgeResolvedRegistry {
         ordered
     }
 
-    /// Create a new template registry from a resolved schema registry, resolving
-    /// all dependencies via the provided schema resolver.
+    /// Builds a [`ForgeResolvedRegistry`] from a [`ResolvedTelemetrySchema`], resolving
+    /// dependencies via `resolver`.
     ///
     /// Note: Dependencies SHOULD be in cache, following normal resolution.
     pub fn try_from_resolved_schema<R: SchemaResolver>(
-        schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema,
+        schema: ResolvedTelemetrySchema,
         resolver: &mut R,
     ) -> WResult<Self, Error> {
         let mut non_fatal_errors = Vec::new();
         let schema_url = schema.schema_url.clone();
-        // Seeded with what the schema lists, extended by what each dependency
-        // names.
+        // The root schema's `dependencies` set holds the chosen version selected by
+        // dependency version conflict resolution for each `(registry_name, major_version)`.
+        // Seed `chosen_by_major` from it so superseded versions declared by intermediate
+        // dependencies are not materialized alongside the chosen one and are recorded as
+        // `upgraded_from` edges in `dependency_graph`.
+        let mut chosen_by_major: HashMap<(String, u64), SchemaUrl> = schema
+            .dependencies
+            .iter()
+            .filter_map(|url| {
+                let ver = url.semver().ok()?;
+                Some(((url.name().to_owned(), ver.major), url.clone()))
+            })
+            .collect();
         let mut pending: Vec<SchemaUrl> = schema.dependencies.iter().cloned().collect();
 
         let (registry, refinements) = match Self::materialize(schema) {
@@ -204,27 +384,43 @@ impl ForgeResolvedRegistry {
             let (resolved_bundle, dep_nfes) = match resolver.resolve_schema(&dep_url) {
                 WResult::Ok(bundle) => (bundle, vec![]),
                 WResult::OkWithNFEs(bundle, nfes) => (bundle, nfes),
+                WResult::FatalErr(ResolverError::SchemaNotInCache { schema_url }) => {
+                    // An offline cache may omit transitive dependencies of published packages;
+                    // warn instead of silently dropping them from materialized dependencies.
+                    non_fatal_errors.push(Error::MissingDependencyWarning {
+                        schema_url: schema_url.to_string(),
+                    });
+                    continue;
+                }
                 WResult::FatalErr(e) => return WResult::FatalErr(e.into()),
             };
             non_fatal_errors.extend(dep_nfes.into_iter().map(Error::from));
 
             let dep_schema = match &*resolved_bundle {
-                weaver_resolver::WeaverResolvedSchema::V2(v2) => v2.clone(),
-                weaver_resolver::WeaverResolvedSchema::V1(v1) => {
-                    match weaver_resolved_schema::v2::ResolvedTelemetrySchema::try_from(v1.clone())
-                    {
+                WeaverResolvedSchema::V2(v2) => v2.clone(),
+                WeaverResolvedSchema::V1(v1) => {
+                    match ResolvedTelemetrySchema::try_from(v1.clone()) {
                         Ok(v2) => v2,
                         Err(e) => return WResult::FatalErr(Error::from(e)),
                     }
                 }
             };
-            pending.extend(
-                dep_schema
-                    .dependencies
-                    .iter()
-                    .filter(|url| !dependencies.contains_key(*url))
-                    .cloned(),
-            );
+            for sub_url in &dep_schema.dependencies {
+                let effective_url =
+                    if let Some(chosen) = find_upgraded_url(sub_url, &chosen_by_major) {
+                        chosen.clone()
+                    } else {
+                        if let Ok(ver) = sub_url.semver() {
+                            let _ = chosen_by_major
+                                .entry((sub_url.name().to_owned(), ver.major))
+                                .or_insert_with(|| sub_url.clone());
+                        }
+                        sub_url.clone()
+                    };
+                if !dependencies.contains_key(&effective_url) {
+                    pending.push(effective_url);
+                }
+            }
 
             let (dep_registry, dep_refinements) = match Self::materialize(dep_schema) {
                 Ok(parts) => parts,
@@ -239,12 +435,23 @@ impl ForgeResolvedRegistry {
             );
         }
 
-        let dependency_graph = std::iter::once(&schema_url)
+        let resolve_edge = |declared: &SchemaUrl| -> DependencyEdge {
+            if dependencies.contains_key(declared) {
+                return DependencyEdge::new(declared.clone());
+            }
+            match find_upgraded_url(declared, &chosen_by_major) {
+                Some(chosen) => DependencyEdge::upgraded(chosen.clone(), declared.clone()),
+                None => DependencyEdge::new(declared.clone()),
+            }
+        };
+
+        let dependency_graph = iter::once(&schema_url)
             .chain(dependencies.keys())
             .filter_map(|url| {
-                resolver
-                    .direct_dependencies(url)
-                    .map(|direct| (url.clone(), direct.to_vec()))
+                resolver.direct_dependencies(url).map(|direct| {
+                    let edges = direct.iter().map(resolve_edge).collect();
+                    (url.clone(), edges)
+                })
             })
             .collect();
 
@@ -256,30 +463,20 @@ impl ForgeResolvedRegistry {
             dependency_graph,
         };
 
-        if non_fatal_errors.is_empty() {
-            WResult::Ok(forge_registry)
-        } else {
-            WResult::OkWithNFEs(forge_registry, non_fatal_errors)
-        }
+        WResult::with_non_fatal_errors(forge_registry, non_fatal_errors)
     }
 
-    /// Materializes the signals and refinements a resolved schema defines.
-    fn materialize(
-        schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema,
-    ) -> Result<(Registry, Refinements), Error> {
+    /// Converts a [`ResolvedTelemetrySchema`] into materialized [`Registry`] and [`Refinements`] models.
+    fn materialize(schema: ResolvedTelemetrySchema) -> Result<(Registry, Refinements), Error> {
         let mut errors = Vec::new();
 
         let deps_list: Vec<_> = schema.dependencies.iter().cloned().collect();
-        let resolve_provenance = |prov: &weaver_resolved_schema::v2::provenance::Provenance| {
-            Provenance::from_resolved(prov, &deps_list)
-        };
+        let resolve_provenance =
+            |prov: &ResolvedProvenance| Provenance::from_resolved(prov, &deps_list);
         let resolve_associations =
-            |assocs: &[weaver_resolved_schema::v2::entity::EntityAssociation]| {
-                from_resolved_associations(assocs, &deps_list)
-            };
+            |assocs: &[ResolvedEntityAssociation]| from_resolved_associations(assocs, &deps_list);
 
         let attribute_lookup = |r: &AttributeRef| schema.attribute_catalog.attribute(r);
-        // We create an attribute lookup map.
         let mut attributes: Vec<Attribute> = schema
             .registry
             .attributes
@@ -491,7 +688,6 @@ impl ForgeResolvedRegistry {
         }
         events.sort_by(|l, r| l.name.cmp(&r.name));
 
-        // convert event refinements.
         let mut event_refinements = Vec::new();
         for event in schema.refinements.events {
             let attributes = event
@@ -651,8 +847,6 @@ impl ForgeResolvedRegistry {
             });
         }
         attribute_groups.sort_by(|l, r| l.id.cmp(&r.id));
-
-        // Now we sort the attributes, since we aren't looking them up anymore.
         attributes.sort_by(|l, r| l.key.cmp(&r.key));
 
         if !errors.is_empty() {
@@ -712,11 +906,8 @@ pub(crate) mod tests {
     use super::*;
 
     enum MockResolution {
-        Ok(Arc<weaver_resolver::WeaverResolvedSchema>),
-        OkWithNFEs(
-            Arc<weaver_resolver::WeaverResolvedSchema>,
-            Vec<weaver_resolver::Error>,
-        ),
+        Ok(Arc<WeaverResolvedSchema>),
+        OkWithNFEs(Arc<WeaverResolvedSchema>, Vec<weaver_resolver::Error>),
         Fatal(weaver_resolver::Error),
     }
 
@@ -736,15 +927,11 @@ pub(crate) mod tests {
         fn add_v2_schema(&mut self, schema: ResolvedTelemetrySchema) {
             let _ = self.schemas.insert(
                 schema.schema_url.clone(),
-                MockResolution::Ok(Arc::new(weaver_resolver::WeaverResolvedSchema::V2(schema))),
+                MockResolution::Ok(Arc::new(WeaverResolvedSchema::V2(schema))),
             );
         }
 
-        pub(crate) fn add_resolved_schema(
-            &mut self,
-            url: SchemaUrl,
-            schema: weaver_resolver::WeaverResolvedSchema,
-        ) {
+        pub(crate) fn add_resolved_schema(&mut self, url: SchemaUrl, schema: WeaverResolvedSchema) {
             let _ = self
                 .schemas
                 .insert(url, MockResolution::Ok(Arc::new(schema)));
@@ -753,7 +940,7 @@ pub(crate) mod tests {
         fn add_with_nfes(
             &mut self,
             url: SchemaUrl,
-            schema: weaver_resolver::WeaverResolvedSchema,
+            schema: WeaverResolvedSchema,
             nfes: Vec<weaver_resolver::Error>,
         ) {
             let _ = self
@@ -774,7 +961,7 @@ pub(crate) mod tests {
         fn resolve_schema(
             &mut self,
             schema_url: &SchemaUrl,
-        ) -> WResult<Arc<weaver_resolver::WeaverResolvedSchema>, weaver_resolver::Error> {
+        ) -> WResult<Arc<WeaverResolvedSchema>, weaver_resolver::Error> {
             if let Some(res) = self.schemas.get(schema_url) {
                 match res {
                     MockResolution::Ok(s) => WResult::Ok(s.clone()),
@@ -1884,7 +2071,7 @@ pub(crate) mod tests {
         forge
             .dependency_graph
             .get(&url(of))
-            .map(|deps| deps.iter().map(SchemaUrl::to_string).collect())
+            .map(|deps| deps.iter().map(|e| e.schema_url.to_string()).collect())
     }
 
     /// Loads a `data/dependency_tree` registry and builds its forge registry.
@@ -2095,8 +2282,8 @@ pub(crate) mod tests {
         assert_eq!(
             forge.dependency_graph,
             BTreeMap::from([
-                (root_url, vec![middle_url.clone()]),
-                (middle_url, vec![leaf_url.clone()]),
+                (root_url, vec![DependencyEdge::new(middle_url.clone())]),
+                (middle_url, vec![DependencyEdge::new(leaf_url.clone())]),
                 (leaf_url, vec![]),
             ])
         );
@@ -2154,7 +2341,7 @@ pub(crate) mod tests {
         let mut mock_resolver = MockSchemaResolver::new();
         mock_resolver.add_with_nfes(
             dep_url,
-            weaver_resolver::WeaverResolvedSchema::V2(dep_schema),
+            WeaverResolvedSchema::V2(dep_schema),
             vec![weaver_resolver::Error::DeprecatedIncludeUnreferencedWarning {}],
         );
 
@@ -2467,8 +2654,14 @@ pub(crate) mod tests {
         assert_eq!(
             forge_registry.dependency_graph,
             BTreeMap::from([
-                (root_url.clone(), vec![dep_a_url.clone()]),
-                (dep_a_url.clone(), vec![dep_b_url.clone()]),
+                (
+                    root_url.clone(),
+                    vec![DependencyEdge::new(dep_a_url.clone())]
+                ),
+                (
+                    dep_a_url.clone(),
+                    vec![DependencyEdge::new(dep_b_url.clone())]
+                ),
             ])
         );
 
@@ -2549,8 +2742,11 @@ pub(crate) mod tests {
                 (base_url.clone(), test_dependency(&["host"])),
             ]),
             dependency_graph: BTreeMap::from([
-                (main_url, vec![middle_url.clone()]),
-                (middle_url.clone(), vec![base_url.clone()]),
+                (main_url, vec![DependencyEdge::new(middle_url.clone())]),
+                (
+                    middle_url.clone(),
+                    vec![DependencyEdge::new(base_url.clone())],
+                ),
             ]),
         };
         (middle_url, base_url, main)
@@ -2766,6 +2962,217 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn test_lookup_entity_fallback_transitive_absent_from_cache() {
+        let main_url: SchemaUrl = "https://example.com/main/1.0.0".try_into().unwrap();
+        let direct_url: SchemaUrl = "https://example.com/direct/1.0.0".try_into().unwrap();
+        let absent_transitive_url: SchemaUrl =
+            "https://example.com/absent/1.0.0".try_into().unwrap();
+
+        let mut direct_dep = test_dependency(&["host", "local_only"]);
+        direct_dep.registry.entities[0].provenance.source = Some(absent_transitive_url.clone());
+        direct_dep.refinements.entities[0].entity.provenance.source =
+            Some(absent_transitive_url.clone());
+
+        let main = ForgeResolvedRegistry {
+            schema_url: main_url.clone(),
+            registry: Registry {
+                attributes: vec![],
+                attribute_groups: vec![],
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+            refinements: Refinements {
+                metrics: vec![],
+                spans: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+            dependencies: BTreeMap::from([(direct_url.clone(), direct_dep)]),
+            dependency_graph: BTreeMap::from([
+                (main_url, vec![DependencyEdge::new(direct_url.clone())]),
+                (
+                    direct_url.clone(),
+                    vec![DependencyEdge::new(absent_transitive_url.clone())],
+                ),
+            ]),
+        };
+
+        let entity_ref = EntityRef {
+            r#type: "host".to_owned().into(),
+            provenance: Provenance {
+                source: Some(absent_transitive_url.clone()),
+                path: None,
+            },
+        };
+
+        let found = main
+            .lookup_entity(&entity_ref)
+            .expect("entity with matching provenance should be found via fallback");
+        assert_eq!(found.r#type, "host".to_owned().into());
+
+        // An entity defined locally in `direct_dep` (provenance.source == None) must not
+        // satisfy a reference targeting `absent_transitive_url`.
+        let wrong_provenance_ref = EntityRef {
+            r#type: "local_only".to_owned().into(),
+            provenance: Provenance {
+                source: Some(absent_transitive_url.clone()),
+                path: None,
+            },
+        };
+        let err = main
+            .lookup_entity(&wrong_provenance_ref)
+            .expect_err("entity with mismatched provenance must not be returned");
+        assert!(
+            matches!(err, Error::EntityNotFound { entity_type, .. } if entity_type == "local_only")
+        );
+
+        let unknown_ref = EntityRef {
+            r#type: "nonexistent".to_owned().into(),
+            provenance: Provenance {
+                source: Some(absent_transitive_url.clone()),
+                path: None,
+            },
+        };
+        let err = main
+            .lookup_entity(&unknown_ref)
+            .expect_err("nonexistent entity should not be found");
+        assert!(
+            matches!(err, Error::EntityNotFound { entity_type, .. } if entity_type == "nonexistent")
+        );
+    }
+
+    #[test]
+    fn test_lookup_entity_fallback_published_dep_e2e() {
+        let root_url: SchemaUrl = "https://example.com/root/1.0.0".try_into().unwrap();
+        let b_url: SchemaUrl = "https://example.com/b/1.0.0".try_into().unwrap();
+        let c_url: SchemaUrl = "https://example.com/c/1.0.0".try_into().unwrap();
+
+        let host_entity = entity::Entity {
+            r#type: "host".to_owned().into(),
+            identity: vec![],
+            description: vec![],
+            requirement_level: None,
+            common: CommonFields::default(),
+            provenance: provenance::Provenance {
+                source: Some(provenance::DependencyRef(0)),
+                path: String::new(),
+            },
+        };
+
+        let b_schema = ResolvedTelemetrySchema {
+            file_format: "2.0.0".to_owned(),
+            schema_url: b_url.clone(),
+            attribute_catalog: vec![],
+            dependencies: [c_url.clone()].into_iter().collect(),
+            registry: v2::registry::Registry {
+                attributes: vec![],
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![host_entity.clone()],
+                attribute_groups: vec![],
+            },
+            refinements: refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![entity::EntityRefinement {
+                    id: "host".to_owned().into(),
+                    entity: host_entity,
+                }],
+            },
+        };
+
+        let root_schema = ResolvedTelemetrySchema {
+            file_format: "2.0.0".to_owned(),
+            schema_url: root_url.clone(),
+            attribute_catalog: vec![],
+            dependencies: [b_url.clone(), c_url.clone()].into_iter().collect(),
+            registry: v2::registry::Registry {
+                attributes: vec![],
+                spans: vec![span::Span {
+                    links: vec![],
+                    r#type: "root-span".to_owned().into(),
+                    kind: SpanKindSpec::Internal,
+                    name: SpanName {
+                        note: Some("Root Span".to_owned()),
+                        ..Default::default()
+                    },
+                    attributes: vec![],
+                    entity_associations: vec![entity::EntityAssociation::Ref(entity::EntityRef {
+                        r#type: "host".to_owned().into(),
+                        provenance: provenance::Provenance {
+                            source: Some(provenance::DependencyRef(1)),
+                            path: String::new(),
+                        },
+                    })],
+                    requirement_level: None,
+                    common: CommonFields::default(),
+                    provenance: Default::default(),
+                }],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+                attribute_groups: vec![],
+            },
+            refinements: refinements::Refinements {
+                spans: vec![],
+                metrics: vec![],
+                events: vec![],
+                entities: vec![],
+            },
+        };
+
+        let mut mock_resolver = MockSchemaResolver::new();
+        mock_resolver.add_v2_schema(b_schema);
+        mock_resolver.add_fatal(
+            c_url.clone(),
+            weaver_resolver::Error::SchemaNotInCache {
+                schema_url: c_url.clone(),
+            },
+        );
+        mock_resolver.add_direct_dependencies(root_url.clone(), vec![b_url.clone()]);
+        mock_resolver.add_direct_dependencies(b_url.clone(), vec![c_url.clone()]);
+
+        let (forge_registry, nfes) = match ForgeResolvedRegistry::try_from_resolved_schema(
+            root_schema,
+            &mut mock_resolver,
+        ) {
+            WResult::Ok(r) => (r, vec![]),
+            WResult::OkWithNFEs(r, nfes) => (r, nfes),
+            WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
+        };
+
+        assert!(
+            nfes.iter().any(|e| matches!(
+                e,
+                Error::MissingDependencyWarning { schema_url } if schema_url == c_url.as_str()
+            )),
+            "expected MissingDependencyWarning for uncached transitive dep, got {nfes:?}"
+        );
+
+        assert!(!forge_registry.dependencies.contains_key(&c_url));
+        assert!(forge_registry.dependencies.contains_key(&b_url));
+        assert_eq!(
+            forge_registry.dependency_graph.get(&b_url),
+            Some(&vec![DependencyEdge::new(c_url.clone())])
+        );
+
+        let leaf = match &forge_registry.registry.spans[0].entity_associations[0] {
+            EntityAssociation::Ref(entity_ref) => entity_ref,
+            other => panic!("expected a reference, got {other:?}"),
+        };
+        assert_eq!(leaf.provenance.source.as_ref(), Some(&c_url));
+
+        let found = forge_registry
+            .lookup_entity(leaf)
+            .expect("entity should be resolved via fallback in published dependency b");
+        assert_eq!(found.r#type, "host".to_owned().into());
+    }
+
+    #[test]
     fn test_materialize_sorts_attribute_groups() {
         let schema = ResolvedTelemetrySchema {
             file_format: "2.0.0".to_owned(),
@@ -2820,5 +3227,166 @@ pub(crate) mod tests {
             forge_registry.registry.attribute_groups[1].id,
             "z_group".into()
         );
+    }
+
+    #[test]
+    fn test_dependency_graph_records_upgraded_edges_and_supports_lookups() {
+        let main_url = url("https://example.com/main/1.0.0");
+        let a_url = url("https://example.com/a/1.0.0");
+        let b_url = url("https://example.com/b/1.0.0");
+        let c_100 = url("https://example.com/c/1.0.0");
+        let c_110 = url("https://example.com/c/1.1.0");
+        let c_120 = url("https://example.com/c/1.2.0");
+
+        let c_120_entity = entity::Entity {
+            r#type: "host".to_owned().into(),
+            identity: vec![],
+            description: vec![],
+            requirement_level: None,
+            common: CommonFields {
+                brief: "host from c 1.2.0".to_owned(),
+                ..Default::default()
+            },
+            provenance: provenance::Provenance::default(),
+        };
+        let mut c_120_schema = empty_schema(&c_120, BTreeSet::new());
+        c_120_schema.registry.entities.push(c_120_entity);
+
+        let a_schema = empty_schema(&a_url, [c_110.clone()].into_iter().collect());
+        let b_schema = empty_schema(&b_url, [c_120.clone()].into_iter().collect());
+        let main_schema = empty_schema(
+            &main_url,
+            [a_url.clone(), b_url.clone(), c_120.clone()]
+                .into_iter()
+                .collect(),
+        );
+
+        let mut mock_resolver = MockSchemaResolver::new();
+        // Even if superseded versions remain in cache, only the chosen c@1.2.0 should be materialized.
+        mock_resolver.add_v2_schema(empty_schema(&c_100, BTreeSet::new()));
+        mock_resolver.add_v2_schema(empty_schema(&c_110, BTreeSet::new()));
+        mock_resolver.add_v2_schema(c_120_schema);
+        mock_resolver.add_v2_schema(a_schema);
+        mock_resolver.add_v2_schema(b_schema);
+        mock_resolver.add_direct_dependencies(
+            main_url.clone(),
+            vec![a_url.clone(), b_url.clone(), c_100.clone()],
+        );
+        mock_resolver.add_direct_dependencies(a_url.clone(), vec![c_110.clone()]);
+        mock_resolver.add_direct_dependencies(b_url.clone(), vec![c_120.clone()]);
+        mock_resolver.add_direct_dependencies(c_120.clone(), vec![]);
+
+        let forge = match ForgeResolvedRegistry::try_from_resolved_schema(
+            main_schema,
+            &mut mock_resolver,
+        ) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
+        };
+
+        assert_eq!(
+            forge.dependencies.keys().cloned().collect::<Vec<_>>(),
+            vec![a_url.clone(), b_url.clone(), c_120.clone()]
+        );
+
+        assert_eq!(
+            forge.dependency_graph,
+            BTreeMap::from([
+                (
+                    main_url.clone(),
+                    vec![
+                        DependencyEdge::new(a_url.clone()),
+                        DependencyEdge::new(b_url.clone()),
+                        DependencyEdge::upgraded(c_120.clone(), c_100.clone()),
+                    ],
+                ),
+                (
+                    a_url.clone(),
+                    vec![DependencyEdge::upgraded(c_120.clone(), c_110.clone())],
+                ),
+                (b_url.clone(), vec![DependencyEdge::new(c_120.clone())]),
+                (c_120.clone(), vec![]),
+            ])
+        );
+
+        // Nearest-first traversal follows resolved edges without dangling on c@1.0.0.
+        assert_eq!(
+            nearest_first(&forge),
+            vec![a_url.to_string(), b_url.to_string(), c_120.to_string()]
+        );
+
+        // Dependency and entity lookups work with both chosen and pre-upgrade declared URLs.
+        assert_eq!(forge.resolve_dependency_url(&c_120), &c_120);
+        assert_eq!(forge.resolve_dependency_url(&c_110), &c_120);
+        assert_eq!(forge.resolve_dependency_url(&c_100), &c_120);
+        assert!(forge.lookup_dependency(&c_120).is_some());
+        assert!(forge.lookup_dependency(&c_110).is_some());
+        assert!(forge.lookup_dependency(&c_100).is_some());
+
+        for source in [&c_120, &c_110, &c_100] {
+            let entity_ref = EntityRef {
+                r#type: "host".to_owned().into(),
+                provenance: Provenance {
+                    source: Some(source.clone()),
+                    path: None,
+                },
+            };
+            let found = forge
+                .lookup_entity(&entity_ref)
+                .expect("entity should resolve through chosen or declared URL");
+            assert_eq!(found.common.brief, "host from c 1.2.0");
+        }
+
+        // Verify JSON serialization omits `upgraded_from` on non-upgraded edges and includes it on upgraded ones.
+        let json_val = serde_json::to_value(&forge).expect("serialize");
+        let main_edges = json_val["dependency_graph"][main_url.as_str()]
+            .as_array()
+            .expect("main edges array");
+        assert!(main_edges[0].get("upgraded_from").is_none());
+        assert_eq!(main_edges[2]["schema_url"], c_120.as_str());
+        assert_eq!(main_edges[2]["upgraded_from"], c_100.as_str());
+
+        let round_trip: ForgeResolvedRegistry =
+            serde_json::from_value(json_val).expect("deserialize");
+        assert_eq!(round_trip, forge);
+    }
+
+    #[test]
+    fn test_dependency_graph_records_cross_scheme_upgrade() {
+        let main_url = url("https://example.com/main/1.0.0");
+        let a_url = url("https://example.com/a/1.0.0");
+        let c_https = url("https://example.com/c/1.0.0");
+        let c_http = url("http://example.com/c/1.1.0");
+
+        let main_schema = empty_schema(
+            &main_url,
+            [a_url.clone(), c_http.clone()].into_iter().collect(),
+        );
+        let a_schema = empty_schema(&a_url, [c_http.clone()].into_iter().collect());
+
+        let mut mock_resolver = MockSchemaResolver::new();
+        mock_resolver.add_v2_schema(a_schema);
+        mock_resolver.add_v2_schema(empty_schema(&c_http, BTreeSet::new()));
+        mock_resolver
+            .add_direct_dependencies(main_url.clone(), vec![a_url.clone(), c_https.clone()]);
+        mock_resolver.add_direct_dependencies(a_url.clone(), vec![c_http.clone()]);
+        mock_resolver.add_direct_dependencies(c_http.clone(), vec![]);
+
+        let forge = match ForgeResolvedRegistry::try_from_resolved_schema(
+            main_schema,
+            &mut mock_resolver,
+        ) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+            WResult::FatalErr(e) => panic!("Conversion failed: {e:?}"),
+        };
+
+        assert_eq!(
+            forge.dependency_graph.get(&main_url),
+            Some(&vec![
+                DependencyEdge::new(a_url),
+                DependencyEdge::upgraded(c_http.clone(), c_https.clone()),
+            ])
+        );
+        assert_eq!(forge.resolve_dependency_url(&c_https), &c_http);
     }
 }

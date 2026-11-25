@@ -6,6 +6,7 @@ allowed_external_types = [
     "serde_core::ser::Serialize",
     "miette::protocol::Diagnostic",
     "weaver_forge::v2::registry::ForgeResolvedRegistry",
+    "weaver_live_check::advice::rego_advisor::AdvicePolicySource",
     "rmcp::model::tool::Tool",
     "rmcp::handler::server::ServerHandler",
 ]

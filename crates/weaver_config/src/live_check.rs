@@ -134,8 +134,8 @@ pub struct LiveCheckConfig {
     /// `http` serves the report at `GET /report` on the admin port until `POST /shutdown`.
     pub output: Option<PathBuf>,
 
-    /// Advice policies directory or virtual directory. Overrides the built-in default policies.
-    pub advice_policies: Option<VirtualDirectoryPath>,
+    /// Advice policies files, directories or virtual directories. Override the built-in default policies; `builtin://otel.rego` adds them back.
+    pub advice_policies: Option<Vec<VirtualDirectoryPath>>,
 
     /// Virtual directory, file, or glob pattern pointing to additional JSON/YAML files to load into OPA rego data.
     /// Files are nested in OPA data using their relative path inside the glob base directory (e.g. schemas/user.json is loaded at data.user).
@@ -150,6 +150,10 @@ pub struct LiveCheckConfig {
 
     /// OTLP log emission settings.
     pub emit: LiveCheckEmitConfig,
+
+    /// Which registry items count toward `registry_coverage`, and the
+    /// coverage below which the run fails. Requires a v2 registry.
+    pub coverage: LiveCheckCoverageConfig,
 }
 
 impl Default for LiveCheckConfig {
@@ -172,18 +176,36 @@ impl Default for LiveCheckConfig {
             advice_preprocessor: None,
             otlp: LiveCheckOtlpConfig::default(),
             emit: LiveCheckEmitConfig::default(),
+            coverage: LiveCheckCoverageConfig::default(),
         }
     }
+}
+
+/// Registry coverage settings for live-check.
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, JsonSchema)]
+#[serde(default, deny_unknown_fields)]
+pub struct LiveCheckCoverageConfig {
+    /// Count only the registry attributes, metrics, events and spans whose name
+    /// matches one of these patterns (supports glob wildcards, e.g.
+    /// `"http.*"`). When empty, every name counts.
+    pub include: Vec<String>,
+    /// Do not count the names that match one of these patterns. Applied
+    /// after `include`.
+    pub exclude: Vec<String>,
+    /// Fail the run when `registry_coverage` is below this fraction (0 to 1).
+    pub fail_below: Option<f32>,
 }
 
 /// OTLP listener settings for live-check.
 #[derive(Debug, Clone, Deserialize, PartialEq, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct LiveCheckOtlpConfig {
-    /// Address used by the gRPC OTLP listener.
+    /// Address used by the gRPC and HTTP OTLP listeners and the admin port.
     pub grpc_address: String,
     /// Port used by the gRPC OTLP listener. `0` picks a free port.
     pub grpc_port: u16,
+    /// Port used by the HTTP OTLP listener (binary protobuf). `0` picks a free port.
+    pub http_port: u16,
     /// Port used by the HTTP admin port (endpoints: `/health`, `/stop`, `/report`, `/shutdown`).
     pub admin_port: u16,
     /// Max inactivity time in seconds before stopping the listener.
@@ -195,6 +217,7 @@ impl Default for LiveCheckOtlpConfig {
         Self {
             grpc_address: "127.0.0.1".to_owned(),
             grpc_port: 4317,
+            http_port: 4318,
             admin_port: 4320,
             inactivity_timeout: 10,
         }
@@ -387,6 +410,27 @@ attribute_groups = ["myapp.common"]
     }
 
     #[test]
+    fn coverage_is_read_from_its_section() {
+        let toml = r#"
+["live-check".coverage]
+include = ["http.*", "url.*"]
+exclude = ["http.response.*"]
+fail_below = 0.8
+"#;
+        let config: WeaverConfig = toml::from_str(toml).expect("Failed to parse TOML");
+        let coverage = live_check(&config).coverage;
+        assert_eq!(coverage.include, ["http.*", "url.*"]);
+        assert_eq!(coverage.exclude, ["http.response.*"]);
+        assert_eq!(coverage.fail_below, Some(0.8));
+
+        let config: WeaverConfig = toml::from_str("").expect("Failed to parse TOML");
+        assert_eq!(
+            live_check(&config).coverage,
+            LiveCheckCoverageConfig::default()
+        );
+    }
+
+    #[test]
     fn matchers_default_to_empty() {
         let config: WeaverConfig = toml::from_str("").expect("Failed to parse TOML");
         assert!(live_check(&config).matchers.is_empty());
@@ -573,13 +617,14 @@ no_stream = false
 no_stats = true
 fail_on = "improvement"
 output = "reports"
-advice_policies = "policies"
+advice_policies = ["policies", "more_policies"]
 advice_data = "data"
 advice_preprocessor = "pre.jq"
 
 ["live-check".otlp]
 grpc_address = "127.0.0.1"
 grpc_port = 4317
+http_port = 5318
 admin_port = 4320
 inactivity_timeout = 30
 
@@ -600,9 +645,14 @@ otlp_logs_stdout = false
         assert_eq!(lc.output.as_deref(), Some(Path::new("reports")));
         assert_eq!(
             lc.advice_policies,
-            Some(VirtualDirectoryPath::LocalFolder {
-                path: "policies".to_owned()
-            })
+            Some(vec![
+                VirtualDirectoryPath::LocalFolder {
+                    path: "policies".to_owned()
+                },
+                VirtualDirectoryPath::LocalFolder {
+                    path: "more_policies".to_owned()
+                },
+            ])
         );
         assert_eq!(
             lc.advice_data,
@@ -614,6 +664,7 @@ otlp_logs_stdout = false
 
         assert_eq!(lc.otlp.grpc_address, "127.0.0.1");
         assert_eq!(lc.otlp.grpc_port, 4317);
+        assert_eq!(lc.otlp.http_port, 5318);
         assert_eq!(lc.otlp.admin_port, 4320);
         assert_eq!(lc.otlp.inactivity_timeout, 30);
 
@@ -635,6 +686,7 @@ grpc_port = 9999
         let lc = live_check(&config);
         assert_eq!(lc.otlp.grpc_port, 9999);
         assert_eq!(lc.otlp.grpc_address, "127.0.0.1");
+        assert_eq!(lc.otlp.http_port, 4318);
         assert_eq!(lc.otlp.admin_port, 4320);
         assert_eq!(lc.format, "ansi");
         assert!(!lc.emit.otlp_logs);

@@ -1,0 +1,63 @@
+file_format: resolved/2.0
+schema_url: https://example.com/top-rebind/1.0.0
+attribute_catalog:
+- key: top.host.uid
+  type: string
+  examples:
+  - xyz789
+  brief: Host identifier, defined independently in top_rebind.
+  stability: stable
+registry:
+  attributes:
+  - 0
+  attribute_groups: []
+  spans: []
+  metrics:
+  - name: middle.request.count
+    instrument: counter
+    unit: "{request}"
+    entity_associations:
+    - type: host
+      provenance:
+        source: 0
+    requirement_level: recommended
+    brief: Count of requests, defined in middle.
+    stability: stable
+    provenance:
+      source: 1
+  events: []
+  entities:
+  - type: host
+    identity:
+    - 0
+    requirement_level: recommended
+    brief: A host, defined independently in top_rebind.
+    stability: stable
+refinements:
+  spans: []
+  metrics:
+  - id: middle.request.count
+    name: middle.request.count
+    instrument: counter
+    unit: "{request}"
+    entity_associations:
+    - type: host
+      provenance:
+        source: 0
+    requirement_level: recommended
+    brief: Count of requests, defined in middle.
+    stability: stable
+    provenance:
+      source: 1
+  events: []
+  entities:
+  - id: host
+    type: host
+    identity:
+    - 0
+    requirement_level: recommended
+    brief: A host, defined independently in top_rebind.
+    stability: stable
+dependencies:
+- https://example.com/base/1.0.0
+- https://example.com/middle/1.0.0

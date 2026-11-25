@@ -285,7 +285,8 @@ dependencies:
     refinements: ...
 dependency_graph:
   https://opentelemetry.io/schemas/semconv/1.{future}.0:
-    - https://opentelemetry.io/schemas/semconv/1.29.0
+    - schema_url: https://opentelemetry.io/schemas/semconv/1.29.0
+      # upgraded_from: https://opentelemetry.io/schemas/semconv/1.28.0  # present only if dependency version conflict resolution upgraded this edge
   https://opentelemetry.io/schemas/semconv/1.29.0: []
 registry:
   attributes:
@@ -334,7 +335,9 @@ refinements:
 - **dependencies**: Every registry this one depends on, directly or indirectly, keyed by schema
   url. Each holds a `registry` and a `refinements` of the same structure as this schema.
 - **dependency_graph**: The direct dependencies of each registry, keyed by schema url and including
-  this one. Schema urls only. A registry with no entry has unknown dependencies, not none.
+  this one. Each edge is an object with `schema_url` (the resolved/chosen version) and an optional
+  `upgraded_from` (the originally declared version when dependency version conflict resolution upgraded it).
+  A registry with no entry has unknown dependencies, not none.
 - **registry**: Same structure as in the *resolved* schema, but all attribute references are replaced
   by complete attribute definitions. This applies to all signal types (metrics, spans, events, entities)
   and to `attribute_groups`. An [entity association](#entity-associations) leaf keeps its reference,

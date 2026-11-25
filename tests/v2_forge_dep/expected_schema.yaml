@@ -155,4 +155,4 @@ dependencies:
 dependency_graph:
   https://dep.example.com/schemas/1.0.0: []
   https://root.example.com/schemas/1.0.0:
-  - https://dep.example.com/schemas/1.0.0
+  - schema_url: https://dep.example.com/schemas/1.0.0

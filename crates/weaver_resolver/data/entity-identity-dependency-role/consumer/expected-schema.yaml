@@ -1,0 +1,42 @@
+file_format: resolved/2.0
+schema_url: https://consumer.example.com/schemas/1.0.0
+attribute_catalog:
+- key: dep.id
+  type: string
+  examples:
+  - x
+  brief: Dep identifier.
+  stability: development
+  provenance:
+    source: 0
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities:
+  - type: local
+    identity:
+    - 0
+    brief: Local entity.
+    stability: development
+refinements:
+  spans: []
+  metrics: []
+  events: []
+  entities:
+  - id: local
+    type: local
+    identity:
+    - 0
+    brief: Local entity.
+    stability: development
+  - id: refined.local
+    type: local
+    identity:
+    - 0
+    brief: Refined local.
+    stability: development
+dependencies:
+- https://dep.example.com/schemas/1.0.0

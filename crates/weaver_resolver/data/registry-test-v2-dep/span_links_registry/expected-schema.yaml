@@ -48,18 +48,19 @@ registry:
     stability: stable
     provenance:
       source: 0
-  - type: consumer.batch
+  - type: worker.batch
     kind: internal
     name:
       note: Batch span name.
     brief: A local batch span.
     stability: stable
-  - type: consumer.op
+    requirement_level: recommended
+  - type: worker.op
     kind: consumer
     name:
       note: Op span name.
     links:
-    - ref: consumer.batch
+    - ref: worker.batch
       brief: The batch this op belongs to.
     - ref: linkserver.produce
       attributes:
@@ -67,6 +68,7 @@ registry:
         requirement_level: required
     brief: A local op span with links.
     stability: stable
+    requirement_level: recommended
   metrics: []
   events: []
   entities: []
@@ -99,12 +101,12 @@ refinements:
     provenance:
       source: 0
   - id: refined.op
-    type: consumer.op
+    type: worker.op
     kind: consumer
     name:
       note: Op span name.
     links:
-    - ref: consumer.batch
+    - ref: worker.batch
       brief: The batch this op belongs to.
     - ref: linkserver.produce
       attributes:
@@ -112,20 +114,22 @@ refinements:
         requirement_level: required
     brief: Refined op span.
     stability: stable
-  - id: consumer.batch
-    type: consumer.batch
+    requirement_level: recommended
+  - id: worker.batch
+    type: worker.batch
     kind: internal
     name:
       note: Batch span name.
     brief: A local batch span.
     stability: stable
-  - id: consumer.op
-    type: consumer.op
+    requirement_level: recommended
+  - id: worker.op
+    type: worker.op
     kind: consumer
     name:
       note: Op span name.
     links:
-    - ref: consumer.batch
+    - ref: worker.batch
       brief: The batch this op belongs to.
     - ref: linkserver.produce
       attributes:
@@ -133,6 +137,7 @@ refinements:
         requirement_level: required
     brief: A local op span with links.
     stability: stable
+    requirement_level: recommended
   metrics: []
   events: []
   entities: []

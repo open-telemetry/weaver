@@ -674,6 +674,7 @@ pub(crate) fn v2_metric_refinement_to_v1(r: MetricRefinement) -> V1GroupSpec {
         },
         entity_associations: r
             .entity_associations
+            .unwrap_or_default()
             .into_iter()
             .map(v2_entity_association_to_v1)
             .collect(),
@@ -761,6 +762,7 @@ pub(crate) fn v2_span_refinement_to_v1(r: SpanRefinement) -> V1GroupSpec {
         },
         entity_associations: r
             .entity_associations
+            .unwrap_or_default()
             .into_iter()
             .map(v2_entity_association_to_v1)
             .collect(),
@@ -848,6 +850,7 @@ pub(crate) fn v2_event_refinement_to_v1(r: EventRefinement) -> V1GroupSpec {
         },
         entity_associations: r
             .entity_associations
+            .unwrap_or_default()
             .into_iter()
             .map(v2_entity_association_to_v1)
             .collect(),
@@ -1990,7 +1993,7 @@ attributes:
                 annotations: Default::default(),
             })],
             annotations: Default::default(),
-            entity_associations: vec![],
+            entity_associations: None,
         };
 
         let v1_group = v2_metric_refinement_to_v1(refinement);
@@ -2064,7 +2067,7 @@ attributes:
             deprecated: None,
             attributes: vec![],
             annotations: Default::default(),
-            entity_associations: vec![],
+            entity_associations: None,
         };
 
         let v1_group = v2_span_refinement_to_v1(refinement);
@@ -2149,7 +2152,7 @@ attributes:
             deprecated: None,
             attributes: vec![],
             annotations: Default::default(),
-            entity_associations: vec![],
+            entity_associations: None,
         };
 
         let v1_group = v2_event_refinement_to_v1(refinement);

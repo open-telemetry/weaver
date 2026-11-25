@@ -1,0 +1,36 @@
+file_format: resolved/2.0
+schema_url: https://default/0.1.0
+attribute_catalog:
+- key: test.any
+  type: any
+  examples:
+  - zero
+  - 1
+  - 2.0
+  - true
+  brief: any attribute
+  note: |
+    any attribute.
+  stability: stable
+- key: test.template.any
+  type: template[any]
+  examples:
+  - test.template.any.my-custom-metadata-attribute=["zero", 1, 2.0, true]
+  brief: template[any] attribute
+  note: |
+    template[any] attribute.
+  stability: stable
+registry:
+  attributes:
+  - 0
+  - 1
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []
+  entities: []

@@ -54,6 +54,8 @@ fn run_emit_with_live_check_test(use_v2: bool) {
         "8".to_owned(),
         "--otlp-grpc-port".to_owned(),
         otlp_grpc_port.to_string(),
+        "--otlp-http-port".to_owned(),
+        "0".to_owned(),
         "--admin-port".to_owned(),
         admin_port.to_string(),
     ];
@@ -140,7 +142,10 @@ fn run_emit_with_live_check_test(use_v2: bool) {
     assert_eq!(no_advice_count, no_advice);
     assert_eq!(total_advisories, advisories);
     assert_eq!(total_entities, 76);
-    assert!(registry_coverage > 0.7);
+    // v2 coverage also counts the registry's spans, and without matchers no
+    // span sample is matched to one.
+    let min_coverage = if use_v2 { 0.6 } else { 0.7 };
+    assert!(registry_coverage > min_coverage);
 
     // The temporary directory will be automatically cleaned up when temp_dir goes out of scope
 }
@@ -189,6 +194,8 @@ fn test_emit_with_resource_attributes() {
             "8",
             "--otlp-grpc-port",
             &w3_grpc_port.to_string(),
+            "--otlp-http-port",
+            "0",
             "--admin-port",
             &w3_admin_port.to_string(),
         ])
@@ -216,6 +223,8 @@ fn test_emit_with_resource_attributes() {
             "4",
             "--otlp-grpc-port",
             &w2_grpc_port.to_string(),
+            "--otlp-http-port",
+            "0",
             "--admin-port",
             &w2_admin_port.to_string(),
             "--emit-otlp-logs",

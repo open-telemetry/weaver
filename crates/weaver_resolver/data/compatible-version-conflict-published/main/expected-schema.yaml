@@ -1,0 +1,75 @@
+file_format: resolved/2.0
+schema_url: https://example.com/main/0.1.0
+attribute_catalog:
+- key: c.attr1
+  type: string
+  brief: Attribute 1 from C v1.2 (updated)
+  stability: stable
+  provenance:
+    source: 2
+- key: c.attr2
+  type: string
+  brief: Attribute 2 from C v1.2 (new)
+  stability: stable
+  provenance:
+    source: 2
+registry:
+  attributes: []
+  attribute_groups: []
+  spans:
+  - type: c.span.2
+    kind: client
+    name:
+      note: c.span.2
+    attributes:
+    - base: 1
+      requirement_level: recommended
+    brief: Span 2 in C v1.2 (new)
+    stability: stable
+    provenance:
+      source: 2
+  metrics:
+  - name: c.metric.1
+    instrument: counter
+    unit: "1"
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    brief: Metric 1 in C v1.2 (updated)
+    stability: stable
+    provenance:
+      source: 2
+  events: []
+  entities: []
+refinements:
+  spans:
+  - id: c.span.2
+    type: c.span.2
+    kind: client
+    name:
+      note: c.span.2
+    attributes:
+    - base: 1
+      requirement_level: recommended
+    brief: Span 2 in C v1.2 (new)
+    stability: stable
+    provenance:
+      source: 2
+  metrics:
+  - id: c.metric.1
+    name: c.metric.1
+    instrument: counter
+    unit: "1"
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    brief: Metric 1 in C v1.2 (updated)
+    stability: stable
+    provenance:
+      source: 2
+  events: []
+  entities: []
+dependencies:
+- https://example.com/a/0.1.0
+- https://example.com/b/0.1.0
+- https://example.com/c/1.2.0

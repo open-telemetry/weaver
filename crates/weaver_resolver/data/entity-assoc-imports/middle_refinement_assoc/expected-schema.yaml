@@ -1,0 +1,38 @@
+file_format: resolved/2.0
+schema_url: https://example.com/middle/1.0.0
+attribute_catalog: []
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics:
+  - name: middle.request.count
+    instrument: counter
+    unit: "{request}"
+    entity_associations:
+    - type: host.windows
+      provenance:
+        source: 0
+    requirement_level: recommended
+    brief: Count of requests, defined in middle.
+    stability: stable
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics:
+  - id: middle.request.count
+    name: middle.request.count
+    instrument: counter
+    unit: "{request}"
+    entity_associations:
+    - type: host.windows
+      provenance:
+        source: 0
+    requirement_level: recommended
+    brief: Count of requests, defined in middle.
+    stability: stable
+  events: []
+  entities: []
+dependencies:
+- https://example.com/base/1.0.0

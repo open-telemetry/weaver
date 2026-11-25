@@ -1,0 +1,64 @@
+file_format: resolved/2.0
+schema_url: https://default/0.1.0
+attribute_catalog:
+- key: network.protocol.name
+  type: string
+  examples:
+  - http
+  - spdy
+  brief: Network protocol name (registry)
+  stability: stable
+- key: network.protocol.name2
+  type: string
+  examples:
+  - http
+  - spdy
+  brief: Network protocol name
+  stability: stable
+- key: network.protocol.version
+  type: string
+  examples:
+  - "1.0"
+  - "2.0"
+  brief: Network protocol version (registry)
+  stability: stable
+- key: network.type
+  type: string
+  examples:
+  - ipv4
+  - ipv6
+  brief: Network type (registry)
+  stability: stable
+- key: server.port
+  type: string
+  examples:
+  - 80
+  - 8080
+  - 443
+  brief: Brief of the top level
+  stability: stable
+- key: server.port
+  type: string
+  examples:
+  - "80"
+  - "8080"
+  - "443"
+  brief: Server port
+  stability: stable
+registry:
+  attributes:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 5
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []
+  entities: []

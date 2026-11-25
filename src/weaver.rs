@@ -1,5 +1,6 @@
-//! A module containing all the "process" of running weaver as components.
+//! High-level registry loading, resolution, diffing, and policy evaluation components.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use miette::Diagnostic;
@@ -7,24 +8,26 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::Serialize;
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, FindingMatcher, PolicyStage, SEMCONV_REGO};
-use weaver_common::diagnostic::DiagnosticMessage;
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::log_success;
+use weaver_common::result::WResult;
 use weaver_common::vdir::VirtualDirectory;
-use weaver_common::{diagnostic::DiagnosticMessages, result::WResult};
-use weaver_forge::v1::registry::ResolvedRegistry;
-use weaver_resolved_schema::v1::ResolvedTelemetrySchema;
-use weaver_resolver::{
-    DefaultSchemaVisitor, LoadedSemconvRegistry, SchemaLoadingVisitor, WeaverResolvedSchema,
-    WeaverResolver, WeaverResolverConfig,
-};
-use weaver_semconv::semconv::Versioned;
-use weaver_semconv::{registry_repo::RegistryRepo, semconv::SemConvSpecWithProvenance};
-use weaver_version::schema_changes::SchemaChanges;
-
 use weaver_config::{
     EffectivePolicyConfig, EffectiveRegistryConfig, EffectiveResolveConfig, PolicyFindingFilter,
 };
+use weaver_forge::v1::registry::ResolvedRegistry;
+use weaver_forge::v2::registry::ForgeResolvedRegistry;
+use weaver_resolved_schema::v1::ResolvedTelemetrySchema as ResolvedTelemetrySchemaV1;
+use weaver_resolved_schema::v2::ResolvedTelemetrySchema as ResolvedTelemetrySchemaV2;
+use weaver_resolver::{
+    DefaultSchemaVisitor, LoadedSemconvRegistry, ResolutionTarget, ResolvedSchemaCache,
+    SchemaLoadingVisitor, WeaverResolvedSchema, WeaverResolver, WeaverResolverConfig,
+};
+use weaver_semconv::registry_repo::RegistryRepo;
+use weaver_semconv::semconv::{SemConvSpecWithProvenance, Versioned};
+use weaver_version::schema_changes::SchemaChanges as SchemaChangesV1;
+use weaver_version::v2::{SchemaChanges as SchemaChangesV2, SchemaItemChange};
 
 /// Visitor that runs Rego policy evaluation during semantic convention loading.
 struct PolicyVisitor<'a> {
@@ -34,6 +37,7 @@ struct PolicyVisitor<'a> {
 }
 
 impl<'a> SchemaLoadingVisitor for PolicyVisitor<'a> {
+    /// Evaluates `before_resolution` Rego policies on raw loaded semantic convention specs, aborting on fatal errors.
     fn check_raw_loaded_schema_files(&mut self, loaded: &LoadedSemconvRegistry) -> bool {
         if let LoadedSemconvRegistry::Unresolved { specs, .. } = loaded {
             let mut local_diags = DiagnosticMessages::empty();
@@ -56,9 +60,9 @@ pub struct WeaverEngine<'a> {
     /// Per-URL HTTP credential resolver built from `.weaver.toml` (`[[auth]]`).
     auth: &'a HttpAuthResolver,
 }
+
 impl<'a> WeaverEngine<'a> {
-    /// Engine that resolves credentials for remote registry / dependency /
-    /// policy fetches through `auth`.
+    /// Creates a [`WeaverEngine`] from effective registry, policy, resolution, and HTTP auth configurations.
     pub fn new(
         registry: &'a EffectiveRegistryConfig,
         policy: &'a EffectivePolicyConfig,
@@ -73,7 +77,7 @@ impl<'a> WeaverEngine<'a> {
         }
     }
 
-    /// Loads previously resolved schemas or loads and resolves "raw" definitions, executing all policies there-in.
+    /// Loads and resolves the main configured registry repository, running any `before_resolution` policies.
     pub fn load_and_resolve_main(
         &self,
         diag_msgs: &mut DiagnosticMessages,
@@ -96,13 +100,16 @@ impl<'a> WeaverEngine<'a> {
         let registry_path_repr: String = repo.registry_path_repr().to_owned();
         let policy_engine = prepare_policy_engine(self.policy_config, &repo, self.auth)?;
 
-        let config = WeaverResolverConfig {
-            follow_symlinks: self.registry_config.follow_symlinks,
-            include_unreferenced: self.registry_config.include_unreferenced,
-            auth: self.auth.clone(),
-            schema_url_overrides: self.resolve_config.schema_url_overrides.clone(),
-            ..Default::default()
-        };
+        let config = WeaverResolverConfig::default()
+            .with_follow_symlinks(self.registry_config.follow_symlinks)
+            .with_include_unreferenced(self.registry_config.include_unreferenced)
+            .with_auth(self.auth.clone())
+            .with_schema_url_overrides(self.resolve_config.schema_url_overrides.clone())
+            .with_target(if self.registry_config.v2 {
+                ResolutionTarget::V2
+            } else {
+                ResolutionTarget::V1
+            });
         let mut resolver = WeaverResolver::new(config);
 
         let mut fatal_err = None;
@@ -150,81 +157,57 @@ impl<'a> WeaverEngine<'a> {
             }
         };
 
-        let res_v1 = match resolved_bundle {
-            WeaverResolvedSchema::V1(resolved) => {
-                if self.registry_config.v2 {
-                    let v2_resolved: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
-                        resolved.try_into()?;
-                    let template = match weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
-                        v2_resolved.clone(),
-                        &mut resolver,
-                    ) {
-                        WResult::Ok(t) => t,
-                        WResult::OkWithNFEs(t, nfes) => {
-                            diag_msgs.extend_from_vec(
-                                nfes.into_iter().map(DiagnosticMessage::new).collect(),
-                            );
-                            t
-                        }
-                        WResult::FatalErr(e) => return Err(Error::Forge(e)),
-                    };
-                    return Ok(Resolved::V2(ResolvedV2 {
-                        resolved_schema: v2_resolved,
-                        template_schema: template,
-                        registry_path_repr,
-                        policy_engine,
-                    }));
-                }
-                let template = ResolvedRegistry::try_from_resolved_registry(
-                    &resolved.registry,
-                    resolved.catalog(),
-                )?;
-                Resolved::V1(ResolvedV1 {
-                    resolved_schema: resolved,
-                    template_schema: template,
-                    registry_path_repr,
-                    policy_engine,
-                })
+        if self.registry_config.v2 || matches!(resolved_bundle, WeaverResolvedSchema::V2(_)) {
+            if !self.registry_config.v2 {
+                diag_msgs.extend(Error::V2FlagMissingWarning.into());
             }
-            WeaverResolvedSchema::V2(resolved) => {
-                if !self.registry_config.v2 {
-                    diag_msgs.extend(Error::V2FlagMissingWarning.into());
+            let v2_resolved = resolved_bundle.into_v2()?;
+            let template = match ForgeResolvedRegistry::try_from_resolved_schema(
+                v2_resolved.clone(),
+                &mut resolver,
+            ) {
+                WResult::Ok(t) => t,
+                WResult::OkWithNFEs(t, nfes) => {
+                    diag_msgs
+                        .extend_from_vec(nfes.into_iter().map(DiagnosticMessage::new).collect());
+                    t
                 }
-                let template = match weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
-                    resolved.clone(),
-                    &mut resolver,
-                ) {
-                    WResult::Ok(t) => t,
-                    WResult::OkWithNFEs(t, nfes) => {
-                        diag_msgs.extend_from_vec(
-                            nfes.into_iter().map(DiagnosticMessage::new).collect(),
-                        );
-                        t
-                    }
-                    WResult::FatalErr(e) => return Err(Error::Forge(e)),
-                };
-                return Ok(Resolved::V2(ResolvedV2 {
-                    resolved_schema: resolved,
-                    template_schema: template,
-                    registry_path_repr,
-                    policy_engine,
-                }));
-            }
-        };
+                WResult::FatalErr(e) => return Err(Error::Forge(e)),
+            };
+            return Ok(Resolved::V2(ResolvedV2 {
+                resolved_schema: v2_resolved,
+                template_schema: template,
+                registry_path_repr,
+                policy_engine,
+            }));
+        }
 
-        Ok(res_v1)
+        let schema_cache = resolver
+            .schema_cache_for(&resolved_bundle)
+            .capture_non_fatal_errors(diag_msgs)?;
+        let resolved = resolved_bundle.into_v1()?;
+        let template =
+            ResolvedRegistry::try_from_resolved_registry(&resolved.registry, resolved.catalog())?;
+        Ok(Resolved::V1(ResolvedV1 {
+            resolved_schema: resolved,
+            template_schema: template,
+            registry_path_repr,
+            policy_engine,
+            schema_cache,
+        }))
     }
 }
 
-/// A resolved weaver repository. Could have been derived from raw definitions or loaded directly.
-///
-/// Contains the optimised schema, a template schema and optional policy engine.
+/// A resolved Weaver repository, either loaded from a published schema or resolved from raw definitions.
 pub enum Resolved {
+    /// Version 1 resolved repository.
     V1(ResolvedV1),
+    /// Version 2 resolved repository.
     V2(ResolvedV2),
 }
 
 impl Resolved {
+    /// Evaluates `after_resolution` Rego policies against the resolved registry.
     pub fn check_after_resolution_policy(
         &self,
         diag_msgs: &mut DiagnosticMessages,
@@ -235,6 +218,7 @@ impl Resolved {
         }
     }
 
+    /// Computes schema changes between `self` (head) and `baseline`, returning an error if versions differ.
     pub fn diff(&self, baseline: &Resolved) -> Result<DiffResult, Error> {
         match (self, baseline) {
             (Resolved::V1(h), Resolved::V1(b)) => Ok(DiffResult::V1(h.diff(b))),
@@ -243,6 +227,7 @@ impl Resolved {
         }
     }
 
+    /// Evaluates `comparison_after_resolution` Rego policies between `self` and `baseline`.
     pub fn check_comparison_after_resolution(
         &self,
         baseline: &Resolved,
@@ -256,32 +241,36 @@ impl Resolved {
     }
 }
 
+/// Schema diff result for either V1 or V2 registries.
 #[allow(
     clippy::large_enum_variant,
     reason = "We plan to remove the variant in the future, and want DiffV2 (largest) to remain on stack."
 )]
 pub enum DiffResult {
+    /// Version 1 schema diff.
     V1(Diff),
+    /// Version 2 schema diff.
     V2(DiffV2),
 }
 
-/// A resolved weaver repository. Could have been derived from raw definitions or loaded directly.
-///
-/// Contains the optimised schema, a template schema and optional policy engine.
+/// A resolved V1 repository containing the resolved schema, template schema, and optional policy engine.
 pub struct ResolvedV1 {
-    resolved_schema: ResolvedTelemetrySchema,
+    resolved_schema: ResolvedTelemetrySchemaV1,
     template_schema: ResolvedRegistry,
     registry_path_repr: String,
     policy_engine: Option<Engine>,
+    /// Cached dependency schemas from resolution, used when converting to `ResolvedV2` offline.
+    schema_cache: ResolvedSchemaCache,
 }
+
 impl ResolvedV1 {
     /// Returns a reference to the resolved schema.
-    pub fn resolved_schema(&self) -> &ResolvedTelemetrySchema {
+    pub fn resolved_schema(&self) -> &ResolvedTelemetrySchemaV1 {
         &self.resolved_schema
     }
 
-    /// Drops resolved and just gives the resolved schema.
-    pub fn into_resolved_schema(self) -> ResolvedTelemetrySchema {
+    /// Consumes `self` and returns the resolved schema.
+    pub fn into_resolved_schema(self) -> ResolvedTelemetrySchemaV1 {
         self.resolved_schema
     }
 
@@ -290,12 +279,12 @@ impl ResolvedV1 {
         &self.template_schema
     }
 
-    /// Drops resolved and just gives the template schema.
+    /// Consumes `self` and returns the template schema.
     pub fn into_template_schema(self) -> ResolvedRegistry {
         self.template_schema
     }
 
-    /// Checks after resolution policies.
+    /// Evaluates `after_resolution` Rego policies against this V1 registry.
     pub fn check_after_resolution_policy(
         &self,
         diag_msgs: &mut DiagnosticMessages,
@@ -324,7 +313,7 @@ impl ResolvedV1 {
         Ok(())
     }
 
-    /// Compares this resolved vs. a baseline.
+    /// Evaluates `comparison_after_resolution` Rego policies against `baseline`.
     pub fn check_comparison_after_resolution(
         &self,
         baseline: &ResolvedV1,
@@ -354,49 +343,50 @@ impl ResolvedV1 {
         Ok(())
     }
 
-    /// Differences two repositories.
+    /// Computes schema changes between `self` and `other`.
     pub fn diff(&self, other: &Self) -> Diff {
         let changes = self.resolved_schema.diff(&other.resolved_schema);
         Diff { changes }
     }
 }
 
+/// A resolved V2 repository containing the resolved schema, template schema, and optional policy engine.
 pub struct ResolvedV2 {
-    resolved_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema,
-    template_schema: weaver_forge::v2::registry::ForgeResolvedRegistry,
+    resolved_schema: ResolvedTelemetrySchemaV2,
+    template_schema: ForgeResolvedRegistry,
     registry_path_repr: String,
     policy_engine: Option<Engine>,
 }
 
 impl ResolvedV2 {
-    /// Returns the resolved schema.
-    pub fn resolved_schema(&self) -> &weaver_resolved_schema::v2::ResolvedTelemetrySchema {
+    /// Returns a reference to the resolved V2 schema.
+    pub fn resolved_schema(&self) -> &ResolvedTelemetrySchemaV2 {
         &self.resolved_schema
     }
 
-    /// Drops resolved and just gives the template schema.
-    pub fn into_resolved_schema(self) -> weaver_resolved_schema::v2::ResolvedTelemetrySchema {
+    /// Consumes `self` and returns the resolved V2 schema.
+    pub fn into_resolved_schema(self) -> ResolvedTelemetrySchemaV2 {
         self.resolved_schema
     }
 
-    /// Returns the schema available for templating.
-    pub fn template_schema(&self) -> &weaver_forge::v2::registry::ForgeResolvedRegistry {
+    /// Returns the V2 schema available for templating.
+    pub fn template_schema(&self) -> &ForgeResolvedRegistry {
         &self.template_schema
     }
 
-    /// Drops resolved and just gives the template schema.
-    pub fn into_template_schema(self) -> weaver_forge::v2::registry::ForgeResolvedRegistry {
+    /// Consumes `self` and returns the V2 template schema.
+    pub fn into_template_schema(self) -> ForgeResolvedRegistry {
         self.template_schema
     }
 
-    /// Checks after resolution policies.
+    /// Evaluates `after_resolution` Rego policies against this V2 registry.
     pub fn check_after_resolution_policy(
         &self,
         diag_msgs: &mut DiagnosticMessages,
     ) -> Result<(), Error> {
         if let Some(engine) = self.policy_engine.as_ref() {
             let mut e = engine.clone();
-            check_policy_stage::<weaver_forge::v2::registry::ForgeResolvedRegistry, ()>(
+            check_policy_stage::<ForgeResolvedRegistry, ()>(
                 &mut e,
                 PolicyStage::AfterResolution,
                 &self.registry_path_repr,
@@ -418,7 +408,7 @@ impl ResolvedV2 {
         Ok(())
     }
 
-    /// Compares this resolved vs. a baseline.
+    /// Evaluates `comparison_after_resolution` Rego policies against `baseline`.
     pub fn check_comparison_after_resolution(
         &self,
         baseline: &ResolvedV2,
@@ -448,7 +438,7 @@ impl ResolvedV2 {
         Ok(())
     }
 
-    /// Calculates the difference between this and another schema.
+    /// Computes schema changes between `self` and `other`.
     pub fn diff(&self, other: &ResolvedV2) -> DiffV2 {
         let changes = self.resolved_schema.diff(&other.resolved_schema);
         DiffV2 {
@@ -459,22 +449,21 @@ impl ResolvedV2 {
     }
 }
 
+/// Converts a resolved V1 repository into V2 offline using its cached dependency schemas.
 impl TryFrom<ResolvedV1> for ResolvedV2 {
     type Error = Error;
 
-    fn try_from(value: ResolvedV1) -> Result<Self, Self::Error> {
-        let resolved_schema: weaver_resolved_schema::v2::ResolvedTelemetrySchema =
-            value.resolved_schema.try_into()?;
-        let mut null_resolver = weaver_resolver::NullSchemaResolver;
-        let template_schema =
-            match weaver_forge::v2::registry::ForgeResolvedRegistry::try_from_resolved_schema(
-                resolved_schema.clone(),
-                &mut null_resolver,
-            ) {
-                WResult::Ok(t) => t,
-                WResult::OkWithNFEs(t, _) => t,
-                WResult::FatalErr(e) => return Err(Error::Forge(e)),
-            };
+    /// Converts `value` into a [`ResolvedV2`] using its cached dependency schemas.
+    fn try_from(mut value: ResolvedV1) -> Result<Self, Self::Error> {
+        let resolved_schema: ResolvedTelemetrySchemaV2 = value.resolved_schema.try_into()?;
+        let template_schema = match ForgeResolvedRegistry::try_from_resolved_schema(
+            resolved_schema.clone(),
+            &mut value.schema_cache,
+        ) {
+            WResult::Ok(t) => t,
+            WResult::OkWithNFEs(t, _) => t,
+            WResult::FatalErr(e) => return Err(Error::Forge(e)),
+        };
         Ok(Self {
             resolved_schema,
             template_schema,
@@ -484,41 +473,47 @@ impl TryFrom<ResolvedV1> for ResolvedV2 {
     }
 }
 
-/// The difference between two resolved repositories.
+/// The difference between two resolved V1 repositories.
 pub struct Diff {
-    changes: SchemaChanges,
+    changes: SchemaChangesV1,
 }
 
 impl Diff {
-    /// Returns the context we'll use to render diffs.
-    pub fn as_template_context(&self) -> &SchemaChanges {
+    /// Returns the schema changes context for diff template rendering.
+    pub fn as_template_context(&self) -> &SchemaChangesV1 {
         &self.changes
     }
 }
 
-#[derive(serde::Serialize)]
+/// Serializable template context for rendering V2 schema diffs.
+#[derive(Serialize)]
 pub struct DiffV2Context<'a> {
-    pub changes: std::collections::HashMap<String, &'a Vec<weaver_version::v2::SchemaItemChange>>,
+    /// Schema item changes grouped by signal category.
+    pub changes: HashMap<String, &'a Vec<SchemaItemChange>>,
+    /// Metadata for the head registry.
     pub head: DiffManifest,
+    /// Metadata for the baseline registry.
     pub baseline: DiffManifest,
 }
 
-#[derive(serde::Serialize)]
+/// Version metadata for one side of a V2 schema diff.
+#[derive(Serialize)]
 pub struct DiffManifest {
+    /// Semantic convention version string.
     pub semconv_version: String,
 }
 
-/// The difference between two resolved v2 repositories.
+/// The difference between two resolved V2 repositories.
 pub struct DiffV2 {
-    changes: weaver_version::v2::SchemaChanges,
+    changes: SchemaChangesV2,
     head_semconv_version: String,
     baseline_semconv_version: String,
 }
 
 impl DiffV2 {
-    /// Returns the context we'll use to render diffs.
+    /// Builds the template rendering context for V2 schema diffs.
     pub fn as_template_context(&self) -> DiffV2Context<'_> {
-        let mut changes_map = std::collections::HashMap::new();
+        let mut changes_map = HashMap::new();
         let _ = changes_map.insert(
             "registry_attributes".to_owned(),
             &self.changes.registry.attribute_changes,
@@ -547,28 +542,37 @@ impl DiffV2 {
     }
 }
 
-/// Errors we expect from the weaver engine.
+/// Errors returned by [`WeaverEngine`] and resolved registry operations.
 #[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]
 #[non_exhaustive]
 pub enum Error {
+    /// Error from `weaver_common`.
     #[error(transparent)]
     Common(#[from] weaver_common::Error),
+    /// Error from `weaver_checker`.
     #[error(transparent)]
     Checker(#[from] weaver_checker::Error),
+    /// Error from `weaver_semconv`.
     #[error(transparent)]
     Semconv(#[from] weaver_semconv::Error),
+    /// Error from `weaver_resolver`.
     #[error(transparent)]
     Resolver(#[from] weaver_resolver::Error),
+    /// Error from `weaver_forge`.
     #[error(transparent)]
     Forge(#[from] weaver_forge::error::Error),
+    /// Error from `weaver_resolved_schema`.
     #[error(transparent)]
     ResolvedSchema(#[from] weaver_resolved_schema::error::Error),
+    /// Attempted to diff or compare a V1 registry against a V2 registry.
     #[error("Cannot compare or diff a V1 registry with a V2 registry")]
     IncompatibleRegistries,
+    /// Warning emitted when a V2 resolved registry is loaded without `--v2`.
     #[error("Loaded a V2 resolved registry without the `--v2` flag. The V2 schema will be used.")]
     #[diagnostic(severity(warning))]
     V2FlagMissingWarning,
 }
+
 // TODO - transparently convert to diagnostic messages.
 impl From<Error> for DiagnosticMessages {
     fn from(value: Error) -> Self {
@@ -607,19 +611,7 @@ fn prepare_policy_engine(
     }
 }
 
-/// Initializes the policy engine with policies from the registry and command line.
-///
-/// # Arguments
-///
-/// * `registry_path` - The path to the semantic convention registry.
-/// * `cache` - The cache for loading the registry.
-/// * `policies` - A list of paths to policy files.
-/// * `policy_coverage` - A flag to enable policy coverage.
-///
-/// # Returns
-///
-/// A `Result` containing the initialized `Engine` on success, or `DiagnosticMessages`
-/// on failure.
+/// Initializes a Rego [`Engine`] with built-in, registry, and user-provided policies.
 fn init_policy_engine(
     registry_repo: &RegistryRepo,
     policies: &[PathBuf],
@@ -639,8 +631,7 @@ fn init_policy_engine(
 
     // TODO(jsuereth) - Only include standard policies in legacy mode.
 
-    // Add the standard semconv policies
-    // Note: `add_policy` the package name, we ignore it here as we don't need it
+    // Add the standard semconv policies (`add_policy` returns the package name, ignored here).
     _ = engine.add_policy("defaults/rego/semconv.rego", SEMCONV_REGO)?;
 
     // Add policies from the registry
@@ -654,17 +645,7 @@ fn init_policy_engine(
     Ok(engine)
 }
 
-/// Checks the policies of a semantic convention registry.
-///
-/// # Arguments
-///
-/// * `policy_engine` - The pre-configured policy engine for checking policies.
-/// * `semconv_specs` - The semantic convention specifications to check.
-///
-/// # Returns
-///
-/// A `Result` which is `Ok` if all policies are checked successfully, or an `Error`
-/// if any policy violations occur.
+/// Evaluates `before_resolution` Rego policies in parallel across `semconv_specs`.
 pub(crate) fn check_policy(
     policy_engine: &Engine,
     semconv_specs: &[SemConvSpecWithProvenance],
@@ -699,15 +680,7 @@ pub(crate) fn check_policy(
     WResult::with_non_fatal_errors((), nfes)
 }
 
-/// Runs the policy engine on a serializable input and returns
-/// a list of policy violations represented as errors.
-///
-/// # Arguments
-///
-/// * `policy_engine` - The policy engine.
-/// * `policy_stage` - The policy stage to check.
-/// * `policy_file` - The policy file to check.
-/// * `input` - The input to check.
+/// Evaluates `policy_stage` policies against `input` with optional `data` documents.
 pub(crate) fn check_policy_stage<T: Serialize, U: Serialize>(
     policy_engine: &mut Engine,
     policy_stage: PolicyStage,
@@ -780,7 +753,7 @@ mod tests {
     use weaver_common::vdir::VirtualDirectoryPath;
     use weaver_config::{EffectivePolicyConfig, EffectiveRegistryConfig, EffectiveResolveConfig};
 
-    use super::{Resolved, WeaverEngine};
+    use super::{Resolved, ResolvedV2, WeaverEngine};
 
     fn assert_rendered_forge_schema(registry_dir: &str, expected_schema_file: &str) {
         let registry_config = EffectiveRegistryConfig {
@@ -934,6 +907,108 @@ mod tests {
         assert_eq!(
             v2.resolved_schema().schema_url.as_str(),
             "https://root.example.com/schemas/1.0.0"
+        );
+    }
+
+    #[test]
+    fn test_try_from_resolved_v1_to_resolved_v2_with_dependencies() {
+        let registry_config = EffectiveRegistryConfig {
+            registry: VirtualDirectoryPath::LocalFolder {
+                path: "tests/v2_forge_dep/root".to_owned(),
+            },
+            v2: false,
+            follow_symlinks: false,
+            include_unreferenced: false,
+        };
+        let policy_config = EffectivePolicyConfig::skip_all();
+        let resolve_config = EffectiveResolveConfig::default();
+        let auth = HttpAuthResolver::default();
+        let engine = WeaverEngine::new(&registry_config, &policy_config, &resolve_config, &auth);
+        let mut diag_msgs = DiagnosticMessages::empty();
+
+        let resolved = engine
+            .load_and_resolve_main(&mut diag_msgs)
+            .expect("Failed to load and resolve registry with v2=false");
+
+        let Resolved::V1(v1) = resolved else {
+            panic!("Expected Resolved::V1 when v2=false");
+        };
+
+        let resolved_v2 = ResolvedV2::try_from(v1)
+            .expect("ResolvedV2::try_from(ResolvedV1) failed for registry with dependencies");
+
+        assert_eq!(
+            resolved_v2.resolved_schema().schema_url.as_str(),
+            "https://root.example.com/schemas/1.0.0"
+        );
+    }
+
+    #[test]
+    fn test_published_v2_root_loads_dependencies_for_forge() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let manifest = r#"
+file_format: manifest/2.0
+schema_url: https://root.example.com/schemas/1.0.0
+description: Test published root registry.
+stability: stable
+resolved_registry_uri: resolved.yaml
+dependencies:
+  - schema_url: https://dep.example.com/schemas/1.0.0
+"#;
+        let resolved_yaml = r#"
+file_format: resolved/2.0
+schema_url: https://root.example.com/schemas/1.0.0
+attribute_catalog: []
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+dependencies:
+  - https://dep.example.com/schemas/1.0.0
+"#;
+        std::fs::write(dir.path().join("manifest.yaml"), manifest).expect("write manifest");
+        std::fs::write(dir.path().join("resolved.yaml"), resolved_yaml).expect("write resolved");
+
+        let registry_config = EffectiveRegistryConfig {
+            registry: VirtualDirectoryPath::LocalFolder {
+                path: dir.path().display().to_string(),
+            },
+            v2: true,
+            follow_symlinks: false,
+            include_unreferenced: false,
+        };
+        let policy_config = EffectivePolicyConfig::skip_all();
+        let mut resolve_config = EffectiveResolveConfig::default();
+        _ = resolve_config.schema_url_overrides.insert(
+            "https://dep.example.com/schemas/1.0.0".try_into().unwrap(),
+            VirtualDirectoryPath::LocalFolder {
+                path: "tests/v2_forge_dep/dep".to_owned(),
+            },
+        );
+        let auth = HttpAuthResolver::default();
+        let engine = WeaverEngine::new(&registry_config, &policy_config, &resolve_config, &auth);
+        let mut diag_msgs = DiagnosticMessages::empty();
+
+        let resolved = engine
+            .load_and_resolve_main(&mut diag_msgs)
+            .expect("Failed to load published V2 registry with dependency override");
+
+        let Resolved::V2(v2) = resolved else {
+            panic!("Expected Resolved::V2");
+        };
+        let dep_url: weaver_semconv::schema_url::SchemaUrl =
+            "https://dep.example.com/schemas/1.0.0".try_into().unwrap();
+        assert!(
+            v2.template_schema().dependencies.contains_key(&dep_url),
+            "published V2 root should load its dependencies into ForgeResolvedRegistry"
         );
     }
 }

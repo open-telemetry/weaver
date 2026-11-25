@@ -2,6 +2,8 @@ package live_check_advice
 
 import rego.v1
 
+import data.live_check_advice.builtin
+
 # Use pre-computed sets from jq
 attributes_set := data.attributes_set
 
@@ -21,7 +23,7 @@ concat(".", array.slice(parts, 0, i)) |
 ]
 
 # checks attribute has a namespace
-deny contains make_advice(advice_type, advice_level, advice_context, message) if {
+deny contains builtin.make_advice(advice_type, advice_level, advice_context, message) if {
 	input.sample.attribute
 	not contains(input.sample.attribute.name, ".")
 	advice_type := "missing_namespace"
@@ -31,7 +33,7 @@ deny contains make_advice(advice_type, advice_level, advice_context, message) if
 }
 
 # checks attribute name format
-deny contains make_advice(advice_type, advice_level, advice_context, message) if {
+deny contains builtin.make_advice(advice_type, advice_level, advice_context, message) if {
 	input.sample.attribute
 	not resolves_to_template
 	not regex.match(name_regex, input.sample.attribute.name)
@@ -42,7 +44,7 @@ deny contains make_advice(advice_type, advice_level, advice_context, message) if
 }
 
 # checks metric name format
-deny contains make_advice_with_signal_info(advice_type, advice_level, advice_context, signal_name, signal_type, message) if {
+deny contains builtin.make_advice_with_signal_info(advice_type, advice_level, advice_context, signal_name, signal_type, message) if {
 	input.sample.metric
 	not regex.match(name_regex, input.sample.metric.name)
 	advice_type := "invalid_format"
@@ -54,7 +56,7 @@ deny contains make_advice_with_signal_info(advice_type, advice_level, advice_con
 }
 
 # checks attribute namespace doesn't collide with existing attributes
-deny contains make_advice(advice_type, advice_level, advice_context, message) if {
+deny contains builtin.make_advice(advice_type, advice_level, advice_context, message) if {
 	input.sample.attribute
 
 	# Skip if no namespace
@@ -75,7 +77,7 @@ deny contains make_advice(advice_type, advice_level, advice_context, message) if
 }
 
 # provides advice if the attribute extends an existing namespace
-deny contains make_advice(advice_type, advice_level, advice_context, message) if {
+deny contains builtin.make_advice(advice_type, advice_level, advice_context, message) if {
 	input.sample.attribute
 
 	# Skip checks first (fail fast)
@@ -96,24 +98,6 @@ deny contains make_advice(advice_type, advice_level, advice_context, message) if
 	advice_level := "information"
 	advice_context := {"attribute_key": input.sample.attribute.name, "namespace": namespace}
 	message := sprintf("Attribute key '%s' collides with existing namespace '%s'", [input.sample.attribute.name, namespace])
-}
-
-make_advice(advice_type, advice_level, advice_context, message) := {
-	"type": "advice",
-	"advice_type": advice_type,
-	"advice_level": advice_level,
-	"advice_context": advice_context,
-	"message": message,
-}
-
-make_advice_with_signal_info(advice_type, advice_level, advice_context, signal_name, signal_type, message) := {
-	"type": "advice",
-	"advice_type": advice_type,
-	"advice_level": advice_level,
-	"advice_context": advice_context,
-	"signal_name": signal_name,
-	"signal_type": signal_type,
-	"message": message,
 }
 
 # Whether the sample's attribute resolves to a template definition

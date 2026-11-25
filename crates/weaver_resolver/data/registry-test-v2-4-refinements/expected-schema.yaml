@@ -1,0 +1,180 @@
+file_format: resolved/2.0
+schema_url: https://default/0.1.0
+attribute_catalog:
+- key: test.attr
+  type: int
+  brief: Refined identity attribute
+  stability: stable
+- key: test.attr
+  type: int
+  brief: Test attribute
+  stability: stable
+- key: test.attr
+  type: int
+  examples:
+  - 42
+  brief: Test attribute
+  stability: stable
+- key: test.attr2
+  type: string
+  brief: Refined description attribute
+  stability: stable
+- key: test.attr2
+  type: string
+  brief: Test attribute 2
+  stability: stable
+- key: test.attr3
+  type: string
+  brief: Added description attribute
+  stability: stable
+- key: test.attr3
+  type: string
+  brief: Test attribute 3
+  stability: stable
+registry:
+  attributes:
+  - 1
+  - 4
+  - 6
+  attribute_groups:
+  - id: test.group
+    attributes:
+    - base: 1
+      requirement_level:
+        conditionally_required: on the base signal
+    brief: Test group
+    stability: stable
+  spans:
+  - type: base.span
+    kind: client
+    name:
+      note: base span
+    requirement_level: recommended
+    brief: Base span
+    stability: stable
+  metrics:
+  - name: base.metric
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 1
+      requirement_level:
+        conditionally_required: on the base signal
+    requirement_level: recommended
+    brief: Base metric
+    stability: stable
+    annotations:
+      config:
+        enabled: true
+        mode: fast
+        nested:
+          a: 1
+          b: 2
+  events:
+  - name: base.event
+    requirement_level: recommended
+    brief: Base event
+    stability: stable
+  entities:
+  - type: base.entity
+    identity:
+    - 1
+    description:
+    - base: 4
+      requirement_level: recommended
+    requirement_level: recommended
+    brief: Base entity
+    stability: stable
+refinements:
+  spans:
+  - id: base.span
+    type: base.span
+    kind: client
+    name:
+      note: base span
+    requirement_level: recommended
+    brief: Base span
+    stability: stable
+  - id: refined.span
+    type: base.span
+    kind: client
+    name:
+      note: base span
+    requirement_level: recommended
+    brief: Refined span
+    stability: stable
+  metrics:
+  - id: base.metric
+    name: base.metric
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 1
+      requirement_level:
+        conditionally_required: on the base signal
+    requirement_level: recommended
+    brief: Base metric
+    stability: stable
+    annotations:
+      config:
+        enabled: true
+        mode: fast
+        nested:
+          a: 1
+          b: 2
+  - id: refined.metric
+    name: base.metric
+    instrument: histogram
+    unit: s
+    attributes:
+    - base: 2
+      requirement_level:
+        conditionally_required: on the base signal
+    - base: 6
+      requirement_level: recommended
+    requirement_level: recommended
+    brief: Refined metric
+    stability: stable
+    annotations:
+      config:
+        enabled: true
+        mode: slow
+        nested:
+          a: 1
+          b: 99
+          c: 3
+        timeout: 500
+  events:
+  - id: base.event
+    name: base.event
+    requirement_level: recommended
+    brief: Base event
+    stability: stable
+  - id: refined.event
+    name: base.event
+    requirement_level: recommended
+    brief: Refined event
+    stability: stable
+  entities:
+  - id: base.entity
+    type: base.entity
+    identity:
+    - 1
+    description:
+    - base: 4
+      requirement_level: recommended
+    requirement_level: recommended
+    brief: Base entity
+    stability: stable
+  - id: refined.entity
+    type: base.entity
+    identity:
+    - 0
+    description:
+    - base: 3
+      requirement_level: recommended
+    - base: 5
+      requirement_level: recommended
+    requirement_level: recommended
+    brief: Refined entity
+    stability: stable

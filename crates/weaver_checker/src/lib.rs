@@ -3,7 +3,7 @@
 #![allow(rustdoc::broken_intra_doc_links)]
 #![doc = include_str!("../README.md")]
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::{Display, Formatter};
 use std::fs::metadata;
 use std::path::{Path, PathBuf};
@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use globset::Glob;
 use miette::Diagnostic;
 use serde::Serialize;
-use serde_json::to_value;
+use serde_json::{to_value, Value};
 use walkdir::DirEntry;
 
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
@@ -196,6 +196,37 @@ pub struct Engine {
     finding_modifier: Option<FindingModifier>,
 }
 
+/// A value converted to the policy engine's representation. A clone shares the converted data.
+#[derive(Debug, Clone)]
+pub struct InputValue(regorus::Value);
+
+impl InputValue {
+    /// The null value.
+    #[must_use]
+    pub fn null() -> Self {
+        Self(regorus::Value::Null)
+    }
+
+    /// Converts a JSON value.
+    pub fn from_json(json: Value) -> Result<Self, Error> {
+        serde_json::from_value(json)
+            .map(Self)
+            .map_err(|e| Error::InvalidInput {
+                error: e.to_string(),
+            })
+    }
+
+    /// Builds an object from named fields.
+    #[must_use]
+    pub fn object<'a>(fields: impl IntoIterator<Item = (&'a str, InputValue)>) -> Self {
+        let object: BTreeMap<regorus::Value, regorus::Value> = fields
+            .into_iter()
+            .map(|(name, value)| (regorus::Value::from(name), value.0))
+            .collect();
+        Self(regorus::Value::from(object))
+    }
+}
+
 impl Engine {
     /// Creates a new policy engine.
     #[must_use]
@@ -366,7 +397,7 @@ impl Engine {
 
         // OPA Rego requires data documents to be structured values. We deserialize the
         // content here to validate the structure and pass it to the engine.
-        let parsed_value: serde_json::Value = match extension {
+        let parsed_value: Value = match extension {
             "json" => {
                 log::debug!("Including JSON data file {}", file_path.display());
                 serde_json::from_str(&content).map_err(|e| Error::InvalidData {
@@ -404,7 +435,7 @@ impl Engine {
         for key in components.into_iter().rev() {
             let mut map = serde_json::Map::new();
             let _ = map.insert(key, wrapped);
-            wrapped = serde_json::Value::Object(map);
+            wrapped = Value::Object(map);
         }
 
         self.add_data(&wrapped)?;
@@ -539,13 +570,13 @@ impl Engine {
         let json_input = to_value(input).map_err(|e| Error::InvalidInput {
             error: e.to_string(),
         })?;
-
-        let value: regorus::Value =
-            serde_json::from_value(json_input).map_err(|e| Error::InvalidInput {
-                error: e.to_string(),
-            })?;
-        self.engine.set_input(value);
+        self.set_input_value(InputValue::from_json(json_input)?);
         Ok(())
+    }
+
+    /// Sets an already converted input document.
+    pub fn set_input_value(&mut self, input: InputValue) {
+        self.engine.set_input(input.0);
     }
 
     /// Returns true if there are any policy packages for a given stage.
@@ -755,8 +786,15 @@ mod tests {
                 },
             },
             "dependency_graph": {
-                "https://example.com/main/1.0.0": ["https://example.com/dep/1.0.0"],
-                "https://example.com/dep/1.0.0": ["https://example.com/core/1.0.0"],
+                "https://example.com/main/1.0.0": [
+                    {"schema_url": "https://example.com/dep/1.0.0"},
+                ],
+                "https://example.com/dep/1.0.0": [
+                    {
+                        "schema_url": "https://example.com/core/1.0.0",
+                        "upgraded_from": "https://example.com/core/0.9.0",
+                    },
+                ],
             },
         })
     }
@@ -835,6 +873,19 @@ mod tests {
         let associations = serde_json::json!([core_ref("service")]);
         assert_eq!(
             resolved_entities(&entity_input(associations)),
+            vec!["service -> core service"]
+        );
+    }
+
+    /// A leaf naming a pre-upgrade declared URL resolves to the upgraded dependency.
+    #[test]
+    fn test_lookup_entity_from_an_upgraded_dependency_url() {
+        let upgraded_ref = serde_json::json!({
+            "type": "service",
+            "provenance": {"source": "https://example.com/core/0.9.0"},
+        });
+        assert_eq!(
+            resolved_entities(&entity_input(serde_json::json!([upgraded_ref]))),
             vec!["service -> core service"]
         );
     }
