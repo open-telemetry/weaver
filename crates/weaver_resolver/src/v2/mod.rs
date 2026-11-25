@@ -154,6 +154,7 @@ pub(crate) fn resolve(
         &local_index,
         &resolved_signals,
         imported_items.spans.iter().map(|s| s.item.r#type.clone()),
+        &v2_deps,
     ) {
         return WResult::FatalErr(e);
     }

@@ -1001,6 +1001,58 @@ span_refinements:
 }
 
 #[test]
+fn test_span_link_target_in_dependency_without_import() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let reg_dir = dir.path().join("registry");
+    std::fs::create_dir_all(&reg_dir).expect("create_dir");
+    let published = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("data/registry-test-v2-dep/span_links_registry/published");
+    std::fs::write(
+        reg_dir.join("manifest.yaml"),
+        format!(
+            "file_format: definition_manifest/2.0\nschema_url: https://consumer.example.com/schemas/1.0.0\ndependencies:\n  - schema_url: https://linkserver.example.com/schemas/1.0.0\n    registry_path: {}\n",
+            published.display()
+        ),
+    )
+    .expect("write manifest");
+    std::fs::write(
+        reg_dir.join("registry.yaml"),
+        r#"file_format: definition/2
+spans:
+  - type: worker.op
+    kind: consumer
+    name:
+      note: Op span name.
+    brief: Links to a dependency span that is not imported.
+    stability: stable
+    links:
+      - ref: linkserver.produce
+        attributes:
+          - ref: linkserver.job.id
+"#,
+    )
+    .expect("write registry");
+
+    let native = resolve_fixture(dir.path().to_str().unwrap(), ResolutionTarget::V2)
+        .expect("V2 resolution succeeded");
+    let span = native
+        .registry
+        .spans
+        .iter()
+        .find(|s| &*s.r#type == "worker.op")
+        .expect("worker.op");
+    assert_eq!(&*span.links[0].r#ref, "linkserver.produce");
+    assert!(
+        native
+            .registry
+            .spans
+            .iter()
+            .all(|s| &*s.r#type != "linkserver.produce"),
+        "the link target must not be re-exported"
+    );
+}
+
+#[test]
 fn test_imported_span_link_attribute_upgraded() {
     let dir = tempfile::tempdir().expect("tempdir");
     let c1_dir = dir.path().join("c_1_1").join("registry");

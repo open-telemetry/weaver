@@ -19,6 +19,7 @@ use weaver_semconv::v2::span::{SpanKindSpec, SpanName};
 use weaver_semconv::v2::CommonFields;
 
 use super::attributes::Catalog;
+use super::dependency::V2Dependencies;
 use super::groups::{ExpandKey, ExpandedGroups, GroupAttributeItem};
 use super::index::Index;
 use super::rules;
@@ -205,20 +206,27 @@ fn resolve_expanded_attributes<C: SchemaCacheLookup>(
     Ok(attributes)
 }
 
-/// Checks that every link on a locally defined span targets a local or imported span type.
+/// Checks that every link on a locally defined span targets a local, imported, or dependency span type.
 ///
-/// Imported spans are not checked: their targets may live in a dependency that was not imported.
+/// Imported spans are not checked: their targets may live in a transitive dependency.
 pub(crate) fn validate_span_link_targets(
     index: &Index,
     signals: &ResolvedSignals,
     imported_span_types: impl IntoIterator<Item = SignalId>,
+    deps: &V2Dependencies,
 ) -> Result<(), Error> {
     let mut known: HashSet<SignalId> = index.spans().keys().cloned().collect();
     known.extend(imported_span_types);
+    let in_deps = |id: &SignalId| {
+        deps.adapters().iter().any(|d| {
+            d.lookup_signal(SignalKind::Span, id.as_ref())
+                .is_some_and(|s| !s.excluded)
+        })
+    };
     let mut errors = Vec::new();
     for span in &signals.spans {
         for link in &span.links {
-            if !known.contains(&link.r#ref) {
+            if !known.contains(&link.r#ref) && !in_deps(&link.r#ref) {
                 errors.push(Error::SpanLinkTargetNotFound {
                     span_id: span.r#type.to_string(),
                     link_ref: link.r#ref.to_string(),

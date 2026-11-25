@@ -412,7 +412,7 @@ For enum attributes, `_OTHER` is treated in the same way as a missing value.
 
 The `links` field lists the links expected on spans of this type. Each entry consists of the following properties:
 
-- `ref` - Required. The span type the link points to. The target must be a span defined in or imported into the registry.
+- `ref` - Required. The span type the link points to. The target must be a span defined in the registry or one of its dependencies.
 - `brief` - Optional. A short description of the link.
 - `note` - Optional. A more elaborate description of the link.
 - `attributes` - Optional. List of attributes expected on the link itself. Each entry is a single [attribute reference](#attribute-reference) and supports the same overrides. Attribute group references are not supported on links. `requirement_level` defaults to `recommended`.
