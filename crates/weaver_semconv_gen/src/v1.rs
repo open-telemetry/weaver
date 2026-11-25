@@ -65,11 +65,9 @@ impl ResolvedSemconvRegistry {
         follow_symlinks: bool,
         include_unreferenced: bool,
     ) -> Result<ResolvedSemconvRegistry, Error> {
-        let config = WeaverResolverConfig {
-            follow_symlinks,
-            include_unreferenced,
-            ..Default::default()
-        };
+        let config = WeaverResolverConfig::default()
+            .with_follow_symlinks(follow_symlinks)
+            .with_include_unreferenced(include_unreferenced);
         let mut resolver = WeaverResolver::new(config);
         let schema = match resolver
             .load_and_resolve_schema(registry_repo.clone(), DefaultSchemaVisitor)

@@ -1,0 +1,133 @@
+file_format: resolved/2.0
+schema_url: https://example.com/local-shapes/1.0.0
+attribute_catalog:
+- key: host.id
+  type: string
+  examples:
+  - abc123
+  brief: Unique host ID.
+  stability: stable
+- key: host.os.build
+  type: string
+  examples:
+  - "22621"
+  brief: Build of the host operating system.
+  stability: stable
+- key: service.name
+  type: string
+  examples:
+  - cart
+  brief: Service name.
+  stability: stable
+registry:
+  attributes:
+  - 0
+  - 1
+  - 2
+  attribute_groups: []
+  spans:
+  - type: shapes.request
+    kind: client
+    name:
+      note: The request span.
+    entity_associations:
+    - one_of:
+      - type: service
+      - type: host
+    requirement_level: recommended
+    brief: A span carries associations too.
+    stability: stable
+  metrics:
+  - name: shapes.request.count
+    instrument: counter
+    unit: "{request}"
+    entity_associations:
+    - all_of:
+      - type: service
+      - one_of:
+        - type: host
+        - type: host.windows
+    requirement_level: recommended
+    brief: A nested expression over local entities.
+    stability: stable
+  events:
+  - name: shapes.started
+    entity_associations:
+    - type: service
+    requirement_level: recommended
+    brief: An event carries associations too.
+    stability: stable
+  entities:
+  - type: host
+    identity:
+    - 0
+    requirement_level: recommended
+    brief: A host.
+    stability: stable
+  - type: service
+    identity:
+    - 2
+    requirement_level: recommended
+    brief: A service.
+    stability: stable
+refinements:
+  spans:
+  - id: shapes.request
+    type: shapes.request
+    kind: client
+    name:
+      note: The request span.
+    entity_associations:
+    - one_of:
+      - type: service
+      - type: host
+    requirement_level: recommended
+    brief: A span carries associations too.
+    stability: stable
+  metrics:
+  - id: shapes.request.count
+    name: shapes.request.count
+    instrument: counter
+    unit: "{request}"
+    entity_associations:
+    - all_of:
+      - type: service
+      - one_of:
+        - type: host
+        - type: host.windows
+    requirement_level: recommended
+    brief: A nested expression over local entities.
+    stability: stable
+  events:
+  - id: shapes.started
+    name: shapes.started
+    entity_associations:
+    - type: service
+    requirement_level: recommended
+    brief: An event carries associations too.
+    stability: stable
+  entities:
+  - id: host
+    type: host
+    identity:
+    - 0
+    requirement_level: recommended
+    brief: A host.
+    stability: stable
+  - id: host.windows
+    type: host
+    identity:
+    - 0
+    description:
+    - base: 1
+      requirement_level: recommended
+    requirement_level: recommended
+    brief: A host running Windows.
+    stability: stable
+  - id: service
+    type: service
+    identity:
+    - 2
+    requirement_level: recommended
+    brief: A service.
+    stability: stable

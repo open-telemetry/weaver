@@ -853,8 +853,11 @@
           ]
         },
         "entity_associations": {
-          "description": "Which resources this event should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
-          "type": "array",
+          "description": "Which resources this event should be associated with.\n\nWhen `None` (omitted), inherits the parent event's entity associations.\nWhen `Some(list)`, replaces the parent's entity associations (an empty list clears them).\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
+          "type": [
+            "array",
+            "null"
+          ],
           "items": {
             "$ref": "#/$defs/EntityAssociation"
           }
@@ -1276,8 +1279,11 @@
           ]
         },
         "entity_associations": {
-          "description": "Which resources this metric should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
-          "type": "array",
+          "description": "Which resources this metric should be associated with.\n\nWhen `None` (omitted), inherits the parent metric's entity associations.\nWhen `Some(list)`, replaces the parent's entity associations (an empty list clears them).\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
+          "type": [
+            "array",
+            "null"
+          ],
           "items": {
             "$ref": "#/$defs/EntityAssociation"
           }
@@ -1737,8 +1743,11 @@
           ]
         },
         "entity_associations": {
-          "description": "Which resources this span should be associated with.\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.\nNote: This field is currently not propagated during resolution.",
-          "type": "array",
+          "description": "Which resources this span should be associated with.\n\nWhen `None` (omitted), inherits the parent span's entity associations.\nWhen `Some(list)`, replaces the parent's entity associations (an empty list clears them).\n\nThe list is an implicit `one_of` (telemetry must satisfy at least one entry); each entry is an\nentity reference or a nested `one_of`/`all_of` expression.",
+          "type": [
+            "array",
+            "null"
+          ],
           "items": {
             "$ref": "#/$defs/EntityAssociation"
           }

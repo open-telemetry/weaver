@@ -1,0 +1,84 @@
+file_format: resolved/2.0
+schema_url: https://example.com/top/1.0.0
+attribute_catalog:
+- key: host.id
+  type: string
+  examples:
+  - abc123
+  brief: Unique host ID, defined in base.
+  stability: stable
+  provenance:
+    source: 0
+- key: host.name
+  type: string
+  examples:
+  - myhost
+  brief: Host name, defined in base.
+  stability: stable
+  provenance:
+    source: 0
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics:
+  - name: middle.request.count
+    instrument: counter
+    unit: "{request}"
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    entity_associations:
+    - type: host
+    requirement_level: recommended
+    brief: Count of requests, defined in middle.
+    stability: stable
+    provenance:
+      source: 1
+  events: []
+  entities:
+  - type: host
+    identity:
+    - 0
+    description:
+    - base: 1
+      requirement_level: recommended
+    requirement_level: recommended
+    brief: A host, defined in base.
+    stability: stable
+    provenance:
+      source: 0
+refinements:
+  spans: []
+  metrics:
+  - id: middle.request.count
+    name: middle.request.count
+    instrument: counter
+    unit: "{request}"
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    entity_associations:
+    - type: host
+    requirement_level: recommended
+    brief: Count of requests, defined in middle.
+    stability: stable
+    provenance:
+      source: 1
+  events: []
+  entities:
+  - id: host
+    type: host
+    identity:
+    - 0
+    description:
+    - base: 1
+      requirement_level: recommended
+    requirement_level: recommended
+    brief: A host, defined in base.
+    stability: stable
+    provenance:
+      source: 0
+dependencies:
+- https://example.com/base/1.0.0
+- https://example.com/middle/1.0.0

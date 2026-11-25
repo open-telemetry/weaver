@@ -1,0 +1,26 @@
+[
+  {
+    "FailToResolveDefinition": {
+      "MissingRequirementLevelWarning": {
+        "path_or_url": "data/correct-provenance/middle/semconv.yaml",
+        "group_id": "metric.middle.throughput"
+      }
+    }
+  },
+  {
+    "FailToResolveDefinition": {
+      "MissingRequirementLevelWarning": {
+        "path_or_url": "data/correct-provenance/base/semconv.yaml",
+        "group_id": "metric.base.uptime"
+      }
+    }
+  },
+  {
+    "FailToResolveDefinition": {
+      "MissingRequirementLevelWarning": {
+        "path_or_url": "data/correct-provenance/base/semconv.yaml",
+        "group_id": "metric.base.uptime"
+      }
+    }
+  }
+]

@@ -2,7 +2,6 @@
 
 //! A Semantic Convention Repository abstraction for OTel Weaver.
 
-use std::default::Default;
 use std::path::{Path, PathBuf};
 
 use crate::convert::{v1_dependency_to_v2, v1_manifest_to_v2, v2_manifest_to_v1};
@@ -15,7 +14,7 @@ use crate::v2::manifest::{
 use crate::Error;
 use weaver_common::http_auth::HttpAuthResolver;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
-use weaver_common::{get_path_type, log_info};
+use weaver_common::{get_path_type, log_info, PathType};
 
 /// The name of the legacy registry manifest file.
 #[deprecated(note = "The registry manifest file is renamed to `manifest.yaml`.")]
@@ -172,9 +171,7 @@ impl ManifestPath {
 /// - `registry_manifest.yaml` in the given directory (`LegacyPath`), or
 /// - `None` otherwise.
 fn find_manifest_path(registry_path: &Path) -> ManifestPath {
-    // First check to see if we're pointing at a manifest directly.
     if registry_path.is_file() {
-        // Check if the file itself has the legacy filename.
         #[allow(deprecated)]
         let is_legacy = registry_path
             .file_name()
@@ -219,17 +216,17 @@ fn find_manifest_path(registry_path: &Path) -> ManifestPath {
 ///   that denotes where to find aspects of the registry.
 #[derive(Debug, Clone)]
 pub struct RegistryRepo {
-    /// The schema URL associated with the registry
+    /// The schema URL associated with the registry.
     /// May be derived from the manifest or the registry name and version if the manifest is not present.
     schema_url: SchemaUrl,
 
-    // A virtual directory containing the registry.
+    /// Virtual directory containing the registry files.
     registry: VirtualDirectory,
 
-    // The registry manifest definition.
+    /// Parsed registry manifest, if present.
     manifest: Option<VersionedManifest>,
 
-    // Cached path to the manifest file (if it exists).
+    /// Path to the manifest file on disk, if present.
     manifest_path: Option<PathBuf>,
 }
 
@@ -326,6 +323,13 @@ impl RegistryRepo {
         self.registry.vdir_path_str()
     }
 
+    /// Maps a local file path inside this repository onto its logical provenance path with
+    /// forward-slash (`/`) separators.
+    #[must_use]
+    pub fn map_entry_path<P: AsRef<Path>>(&self, entry_path: P) -> String {
+        self.registry.map_local_path(entry_path)
+    }
+
     /// Returns the registry manifest specified in the registry repo.
     #[must_use]
     pub fn manifest(&self) -> Option<&VersionedManifest> {
@@ -373,16 +377,20 @@ impl RegistryRepo {
             }
         };
         match get_path_type(registry_uri) {
-            weaver_common::PathType::RelativePath => {
-                // We need to understand if the manifest URI is the same as the registry URI.
+            PathType::RelativePath => {
+                // Resolve relative to the parent directory when the virtual directory points directly at the manifest file.
                 let vdir_was_manifest_file = self
                     .manifest_path
                     .clone()
                     .is_some_and(|mp| mp == self.registry.path());
                 Some(self.registry.vdir_path().map_sub_folder(|path| {
+                    let path = path.replace('\\', "/");
                     if vdir_was_manifest_file {
                         match Path::new(&path).parent() {
-                            Some(parent) => format!("{}/{registry_uri}", parent.display()),
+                            Some(parent) => {
+                                let parent_str = parent.display().to_string().replace('\\', "/");
+                                format!("{parent_str}/{registry_uri}")
+                            }
                             None => "".to_owned(),
                         }
                     } else {

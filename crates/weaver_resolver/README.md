@@ -2,56 +2,151 @@
 
 Resolution Process Status:
 
-- Semantic Convention Registry: **Fully Implemented**, **Partially Tested**
+- Semantic Convention Registry: **Fully Implemented**
 - Application Telemetry Schema: **Partially Implemented**
 
-This crate describes the resolution process for the OpenTelemetry telemetry
-schema. The resolution process takes a telemetry schema and/or a semantic
-convention registry and produces a resolved telemetry schema. The resolved
-telemetry schema is a self-contained and consistent schema that can be used to
-validate telemetry data, generate documentation and code, and perform other
-tasks.
+This crate implements the resolution process for OpenTelemetry telemetry schemas and
+semantic convention registries. Resolution takes unresolved semantic convention specifications
+and/or application telemetry schemas and produces an optimized, self-contained, and consistent
+resolved schema (`WeaverResolvedSchema`, either V1 or V2).
 
-Important Note: Currently, 2 versions of the resolution process are present in
-the `weaver_resolver` crate. The first version of the resolution process is
-incomplete and still used by the `weaver` CLI (feature 'experimental'). A
-second version is under active development and is expected to replace the first
-version in the near future.
+Resolved schemas are used to validate live telemetry data, generate documentation and code, and
+perform consistency and policy checks.
 
-## Semantic Conventions - Parsing, Resolution and Validation
+## Architecture
 
-The parsing is implemented using the serde library. A collection of
-serde-annotated Rust structures is used to represent semantic convention
-entities. Optional fields are represented as `Option` types.
+The crate is structured into three primary submodules with strict separation of concerns:
 
-The attribute macro `#[serde(deny_unknown_fields)]` is used to ensure that
-unknown fields are not allowed in the semantic convention entities. This,
-combined with the distinction between optional and required fields in the
-entities, ensures that the semantic conventions are validated in terms of
-structure during the parsing process.
+- **`graph/` (Shared, Version-Neutral)**:
+  Handles version-agnostic loading and dependency-graph operations:
+  - `loader.rs`: File and manifest loading, registry `SourceFormat` detection (`V1`, `V2`, or `Mixed`).
+  - `conflict_strategy.rs`: SemVer conflict resolution policies across transitive dependencies.
+  - `chosen_versions.rs`: Chosen-version linearization and `SchemaLookupContext`.
+  - `entity_lookup.rs`: Version-neutral entity location and resolution tracking.
+  - `exclusion.rs` and `merge.rs`: Dependency exclusion checks and annotation deep-merging.
 
-The resolution process for semantic conventions is a multistep process that
-involves the following steps:
+- **`v1/` (Legacy Iterative Resolution Engine)**:
+  An iterative resolution engine that resolves registries by repeatedly expanding `extends` and
+  attribute `ref` clauses until a fixed point is reached.
+  - Resolves all pure-V1 registries and mixed V1+V2 registries, returning `WeaverResolvedSchema::V1`.
+  - Supports dependency reading via traits in `v1/dependency/`, adapting both V1 dependencies
+    (`v1_dep.rs`) and V2 dependencies (`v2_dep.rs`).
+  - When `--v2` is requested on a mixed or V1 registry, `weaver_resolver` resolves through V1 and converts the resulting root schema to `WeaverResolvedSchema::V2` (`WeaverResolvedSchema::into_v2` is also available when converting a `ResolutionTarget::V1` result).
 
-- Load all semantic conventions from the registry
-- Resolve iteratively all semantic conventions. This involves the maintenance
-  of an unresolved semantic convention list and a resolved semantic convention
-  list. The resolution process involves the following steps:
-    - Resolve iteratively all `extends` parent/child clauses until no more
-      resolvable `extends` are found. The extended entity inherits attributes
-      from the parent entity.
-    - Resolve iteratively all attributes `ref` until no more resolvable `ref`are
-      found.
-- In the case of a registry importing another registry, the imports section is
-  used to import the metric, event, and entity groups specified by referencing
-  the names of these groups or by using a wildcard expression.
-- Validate the resolved semantic conventions
-    - No more unresolved `ref` or `extends` clauses. The unresolved list should
-      be empty.
+- **`v2/` (Native V2 Resolution Engine)**:
+  The resolution engine used when resolving pure `definition/2` registries with `--v2`
+  (`ResolutionTarget::V2`).
+  - Emits `weaver_resolved_schema::v2::ResolvedTelemetrySchema` directly without V1 intermediate lowering.
+  - Pure-V2 dependency graphs execute zero V1 code.
+  - Interacts with dependencies exclusively through the traits defined in `v2/dependency/`.
 
-## Lineage (experimental)
+For a comprehensive specification of V2 resolution semantics, lookup and visibility rules, refinement inheritance, and dependency upgrade behaviors, see [`docs/v2-resolution.md`](docs/v2-resolution.md).
 
-> **Note**: The lineage feature is experimental and has not yet been fully
+### Resolution Dispatch and V2 Pipeline
+
+```mermaid
+flowchart LR
+  subgraph Dispatch["Registry Dispatch (WeaverResolver)"]
+    direction TB
+    L["LoadedSemconvRegistry"] --> C{"Target & Format"}
+    C -->|"Target::V2 + Pure V2"| V2Native["v2::resolve (Native)"]
+    C -->|"Target::V2 + V1 or Mixed"| V1ToV2["v1::resolve + into_v2"]
+    C -->|"Target::V1"| V1Legacy["v1::resolve (Legacy)"]
+    V1Legacy --> OutV1["WeaverResolvedSchema::V1"]
+    V1ToV2 --> OutV2["WeaverResolvedSchema::V2"]
+    V2Native --> OutV2
+  end
+
+  subgraph V2Pipeline["8-Stage Native V2 Pipeline"]
+    direction LR
+    P1["1. index"] --> P2["2. attributes"]
+    P2 --> P3["3. groups"]
+    P3 --> P4["4. signals"]
+    P4 --> P5["5. refinements"]
+    P5 --> P6["6. imports"]
+    P6 --> P7["7. entities"]
+    P7 --> P8["8. emit"]
+  end
+
+  V2Native -.-> P1
+```
+
+### Native V2 Resolution Pipeline
+
+The native V2 engine executes a deterministic, numbered multi-stage pipeline:
+
+1. **`index` (`v2::index`)**: Builds per-namespace symbol tables for local attributes, attribute groups,
+   spans, metrics, events, and entities, validating against duplicate definitions and normalized ID collisions.
+2. **`attributes` (`v2::attributes`)**: Resolves local attribute definitions into the catalog and constructs
+   the native attribute catalog against linearized dependencies.
+3. **`groups` (`v2::groups`)**: Expands attribute groups and resolves nested `ref_group` DAG inclusions.
+4. **`signals` (`v2::signals`)**: Resolves base signals (spans, metrics, events, entities), their attribute
+   references, span name templates, and entity identity requirements.
+5. **`refinements` (`v2::refinements`)**: Resolves signal and entity refinements against local or dependency
+   parents, evaluating inheritance, overrides, `unref` removals, span templates, and identity invariance per `v2::rules`.
+6. **`imports` (`v2::imports`)**: Resolves explicit and wildcard imports from dependencies, handling diamond
+   deduplication, checked upgrades, and `--include-unreferenced`.
+7. **`entities` (`v2::entities`)**: Resolves entity associations on signals and refinements, tracking provenance
+   origins across dependency boundaries.
+8. **`emit` (`v2::emit`)**: Infallibly assembles and sorts the final
+   `weaver_resolved_schema::v2::ResolvedTelemetrySchema`.
+
+### Dependency Adapter Boundaries
+
+Each engine accesses dependencies through adapter traits:
+- `v1/dependency/v2_dep.rs` allows the V1 resolver to read resolved V2 dependency schemas.
+- `v2/dependency/v1_dep.rs` allows the native V2 resolver to read resolved V1 dependency schemas.
+  This file is the **sole file** in `src/v2/` permitted to reference external V1 types (`weaver_semconv::v1`
+  or `weaver_resolved_schema::v1`), enforced by automated boundary lint tests.
+
+## Golden V2 snapshots
+
+The integration tests [`tests/v2_goldens.rs`](tests/v2_goldens.rs) and [`tests/v2_parity.rs`](tests/v2_parity.rs)
+verify schema correctness and engine parity:
+- `test_v2_goldens` resolves fixtures using `ResolutionTarget::V1` (legacy engine converted to V2) and compares output semantically against golden snapshot files.
+- `test_v2_goldens_native_engine` resolves fixtures using `ResolutionTarget::V2` (native V2 engine) against the same golden snapshots.
+- `tests/v2_parity.rs` performs exhaustive end-to-end parity assertions between `ResolutionTarget::V1` and `ResolutionTarget::V2` across all test fixtures and error conditions.
+
+- **Golden files**:
+  - `expected-schema.yaml`: Serde-saphyr YAML representation of the resolved V2 `ResolvedTelemetrySchema`.
+  - `expected-errors.json`: Expected fatal resolution error (compared via canonicalized JSON string equality).
+  - `expected-warnings.json`: Optional per-fixture non-fatal warnings that are intentionally emitted during resolution.
+- **Discovery by convention**: Any directory under `data/` containing either `expected-schema.yaml` or
+  `expected-errors.json` is automatically discovered as a test case. The registry path to resolve is
+  `<test_dir>/registry`.
+- **Coverage guard**: A guard test verifies that every top-level directory in `data/` is either covered
+  by a discovered test case or explicitly listed in a `SKIP_LIST` with a documented reason.
+- **Semantic comparison**: Schema comparison deserializes the expected YAML into `ResolvedTelemetrySchema`
+  and compares `serde_json::to_value(expected) == serde_json::to_value(observed)`. Key ordering in objects
+  is irrelevant, but array order remains significant (e.g. span name template evaluation order, attribute
+  catalog indices, enum member order). On mismatch, the test prints a colored unified diff.
+- **Warnings policy**: By default, unexpected non-fatal errors fail the test. The harness ignores a fixed set
+  of known non-fatal warnings (`UnstableFileFormat`, `LegacyRegistryManifest`, `DeprecatedVersionField`,
+  `MissingManifestFileFormat`, and `InvalidGroupUsesPrefix` for prefix fixtures). Any additional non-fatal
+  warnings must be captured in `expected-warnings.json`.
+- **Per-fixture settings**: An optional `settings.yaml` can be placed in any test directory to configure:
+  - `schema_url`: Fixed schema URL for the registry.
+  - `schema_url_overrides`: Map of schema URLs to local directory paths.
+- **Fixture intent documentation**: Each fixture directory maintains a `README.md` explaining the tested
+  behavior, invariants, and purpose of the fixture.
+- **Observed output**: Each test run writes observed schemas to `observed_output/<test_dir>/schema.yaml`
+  (legacy path) and `observed_output_native/<test_dir>/schema.yaml` (native V2 path), both gitignored, for inspection.
+- **Snapshot regeneration**: When a change intentionally alters resolved schemas or warnings, regenerate
+  snapshots with:
+
+```bash
+cargo test -p weaver_resolver --test v2_goldens -- --ignored regenerate_v2_goldens
+```
+
+Regeneration is an explicit, ignored test rather than an environment variable, so normal `cargo test` runs
+never rewrite snapshots. Existing golden schemas that already match are never overwritten. See also
+[CONTRIBUTING.md](../../CONTRIBUTING.md#how-to-build-and-test-a-change).
+
+## Lineage (experimental, V1 only)
+
+> **Note**: `GroupLineage` (`lineage`) applies only to V1 resolved schemas (`weaver_resolved_schema::v1`);
+> V2 resolved schemas (`weaver_resolved_schema::v2`) record definition origins via `Provenance`.
+> The lineage feature is experimental and has not yet been fully
 > discussed with the OpenTelemetry community.
 > The intent is to include the lineage information in the resolved application
 > telemetry schema to provide a way to trace the origin of each field in the

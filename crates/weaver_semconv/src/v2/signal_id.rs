@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! The new path forward for parsing identifiers for signals.
+//! Signal identifier type for version 2 semantic conventions.
 
-use std::{fmt, ops::Deref};
+use std::fmt::{self, Display, Formatter};
+use std::ops::Deref;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
 
-#[derive(Serialize, JsonSchema, Clone, Debug, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 /// An identifier for a signal.  Should be `.` separated namespaces and names.
+#[derive(Serialize, JsonSchema, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct SignalId(String);
 
 impl SignalId {
@@ -32,7 +33,6 @@ impl From<&str> for SignalId {
     }
 }
 
-// Allow `&SignalId` to be used for getting `&str`.
 impl Deref for SignalId {
     type Target = str;
 
@@ -41,14 +41,13 @@ impl Deref for SignalId {
     }
 }
 
-// Allow pretty printing.
-impl fmt::Display for SignalId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Display for SignalId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-// Custom deserializer we can use to, eventually, require a format for SignalId.
+// Custom deserializer reserved for future SignalId format validation.
 impl<'de> Deserialize<'de> for SignalId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

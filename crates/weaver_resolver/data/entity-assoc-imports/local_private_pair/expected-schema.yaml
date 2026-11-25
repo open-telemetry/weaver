@@ -1,0 +1,64 @@
+file_format: resolved/2.0
+schema_url: https://example.com/local-private-pair/1.0.0
+attribute_catalog:
+- key: host.id
+  type: string
+  examples:
+  - abc123
+  brief: Unique host ID.
+  stability: stable
+registry:
+  attributes:
+  - 0
+  attribute_groups: []
+  spans: []
+  metrics:
+  - name: private.request.count
+    instrument: counter
+    unit: "{request}"
+    entity_associations:
+    - type: host
+    requirement_level: recommended
+    brief: Count of requests, kept private to this registry.
+    stability: stable
+    annotations:
+      dependency_resolution:
+        exclude: true
+  events: []
+  entities:
+  - type: host
+    identity:
+    - 0
+    requirement_level: recommended
+    brief: A host, kept private to this registry.
+    stability: stable
+    annotations:
+      dependency_resolution:
+        exclude: true
+refinements:
+  spans: []
+  metrics:
+  - id: private.request.count
+    name: private.request.count
+    instrument: counter
+    unit: "{request}"
+    entity_associations:
+    - type: host
+    requirement_level: recommended
+    brief: Count of requests, kept private to this registry.
+    stability: stable
+    annotations:
+      dependency_resolution:
+        exclude: true
+  events: []
+  entities:
+  - id: host
+    type: host
+    identity:
+    - 0
+    requirement_level: recommended
+    brief: A host, kept private to this registry.
+    stability: stable
+    annotations:
+      dependency_resolution:
+        exclude: true

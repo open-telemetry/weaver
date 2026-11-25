@@ -1,0 +1,32 @@
+[
+  {
+    "DuplicateGroupId": {
+      "group_id": "entity.host",
+      "provenances": [
+        {
+          "schema_url": "https://example.com/base/1.0.0",
+          "path": "data/entity-assoc-imports/base/registry.yaml"
+        },
+        {
+          "schema_url": "https://rival.example.com/rival/1.0.0",
+          "path": "data/entity-assoc-imports/rival_base/registry.yaml"
+        }
+      ]
+    }
+  },
+  {
+    "DuplicateGroupName": {
+      "group_name": "host",
+      "provenances": [
+        {
+          "schema_url": "https://example.com/base/1.0.0",
+          "path": "data/entity-assoc-imports/base/registry.yaml"
+        },
+        {
+          "schema_url": "https://rival.example.com/rival/1.0.0",
+          "path": "data/entity-assoc-imports/rival_base/registry.yaml"
+        }
+      ]
+    }
+  }
+]

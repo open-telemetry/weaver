@@ -66,6 +66,8 @@ impl SemConvSpecV1 {
 
     /// Validates the groups in the semantic convention spec.
     pub fn validate(self, provenance: &str) -> WResult<Self, Error> {
+        let normalized_provenance = provenance.replace('\\', "/");
+        let provenance = normalized_provenance.as_str();
         let mut errors: Vec<Error> = vec![];
 
         for group in &self.groups {

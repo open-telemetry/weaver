@@ -1,0 +1,76 @@
+file_format: resolved/2.0
+schema_url: https://example.com/middle/1.0.0
+attribute_catalog:
+- key: host.id
+  type: string
+  examples:
+  - abc123
+  brief: Unique host ID, defined in base.
+  stability: stable
+  provenance:
+    source: 0
+- key: service.name
+  type: string
+  examples:
+  - cart
+  brief: Service name, defined in middle.
+  stability: stable
+registry:
+  attributes:
+  - 1
+  attribute_groups: []
+  spans: []
+  metrics:
+  - name: middle.request.count
+    instrument: counter
+    unit: "{request}"
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    entity_associations:
+    - all_of:
+      - type: service
+      - type: host
+        provenance:
+          source: 0
+    requirement_level: recommended
+    brief: Count of requests, defined in middle.
+    stability: stable
+  events: []
+  entities:
+  - type: service
+    identity:
+    - 1
+    requirement_level: recommended
+    brief: A service, defined in middle.
+    stability: stable
+refinements:
+  spans: []
+  metrics:
+  - id: middle.request.count
+    name: middle.request.count
+    instrument: counter
+    unit: "{request}"
+    attributes:
+    - base: 0
+      requirement_level: recommended
+    entity_associations:
+    - all_of:
+      - type: service
+      - type: host
+        provenance:
+          source: 0
+    requirement_level: recommended
+    brief: Count of requests, defined in middle.
+    stability: stable
+  events: []
+  entities:
+  - id: service
+    type: service
+    identity:
+    - 1
+    requirement_level: recommended
+    brief: A service, defined in middle.
+    stability: stable
+dependencies:
+- https://example.com/base/1.0.0

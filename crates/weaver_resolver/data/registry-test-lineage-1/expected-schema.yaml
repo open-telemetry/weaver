@@ -1,0 +1,22 @@
+file_format: resolved/2.0
+schema_url: https://default/0.1.0
+attribute_catalog:
+- key: server.port
+  type: string
+  examples:
+  - "8080"
+  brief: Server port
+  stability: stable
+registry:
+  attributes:
+  - 0
+  attribute_groups: []
+  spans: []
+  metrics: []
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics: []
+  events: []
+  entities: []

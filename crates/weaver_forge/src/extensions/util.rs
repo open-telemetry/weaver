@@ -257,7 +257,9 @@ mod tests {
     use crate::v2::attribute::Attribute;
     use crate::v2::entity::{Entity, EntityRefinement};
     use crate::v2::provenance::Provenance;
-    use crate::v2::registry::{ForgeDependency, ForgeResolvedRegistry, Refinements, Registry};
+    use crate::v2::registry::{
+        DependencyEdge, ForgeDependency, ForgeResolvedRegistry, Refinements, Registry,
+    };
     use minijinja::{Environment, ErrorKind};
     use serde_json::json;
     use weaver_semconv::schema_url::SchemaUrl;
@@ -353,8 +355,14 @@ mod tests {
                 ),
             ]),
             dependency_graph: BTreeMap::from([
-                (url(MAIN_URL), vec![url(BASE_URL)]),
-                (url(BASE_URL), vec![url(CORE_URL)]),
+                (url(MAIN_URL), vec![DependencyEdge::new(url(BASE_URL))]),
+                (
+                    url(BASE_URL),
+                    vec![DependencyEdge::upgraded(
+                        url(CORE_URL),
+                        url("https://example.com/core/0.9.0"),
+                    )],
+                ),
             ]),
         }
     }
@@ -414,6 +422,24 @@ mod tests {
             env_with_registry()
                 .render_str(IDENTITY, &ctx)
                 .expect("the entity of the transitive dependency"),
+            "core.service.name"
+        );
+    }
+
+    /// A leaf naming a pre-upgrade declared URL resolves through `dependency_graph`
+    /// to the chosen version in `dependencies`.
+    #[test]
+    fn test_lookup_entity_from_an_upgraded_dependency_url() {
+        let ctx = serde_json::json!({
+            "ctx": {
+                "type": "service",
+                "provenance": {"source": "https://example.com/core/0.9.0"},
+            }
+        });
+        assert_eq!(
+            env_with_registry()
+                .render_str(IDENTITY, &ctx)
+                .expect("the entity of the upgraded dependency"),
             "core.service.name"
         );
     }

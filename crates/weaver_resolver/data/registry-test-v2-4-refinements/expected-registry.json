@@ -119,7 +119,7 @@
       "type": "event",
       "brief": "Refined event",
       "stability": "stable",
-      "name": "event.refined.event",
+      "name": "base.event",
       "lineage": {
         "provenance": {
           "schema_url": "https://default/0.1.0",

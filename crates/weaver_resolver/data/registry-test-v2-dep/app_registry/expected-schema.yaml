@@ -1,0 +1,58 @@
+file_format: resolved/2.0
+schema_url: https://app.example.com/schemas/1.0.0
+attribute_catalog:
+- key: server.address
+  type: string
+  examples:
+  - example.com
+  brief: Server address.
+  stability: stable
+  provenance:
+    source: 1
+- key: server.port
+  type: int
+  examples:
+  - 80
+  - 443
+  brief: Server port.
+  stability: stable
+  provenance:
+    source: 1
+registry:
+  attributes: []
+  attribute_groups: []
+  spans: []
+  metrics:
+  - name: app.request.count
+    instrument: counter
+    unit: "{request}"
+    attributes:
+    - base: 0
+      requirement_level: required
+    - base: 1
+      requirement_level: recommended
+    requirement_level: recommended
+    brief: Count of app requests.
+    stability: stable
+  events: []
+  entities: []
+refinements:
+  spans: []
+  metrics:
+  - id: app.request.count
+    name: app.request.count
+    instrument: counter
+    unit: "{request}"
+    attributes:
+    - base: 0
+      requirement_level: required
+    - base: 1
+      requirement_level: recommended
+    requirement_level: recommended
+    brief: Count of app requests.
+    stability: stable
+  events: []
+  entities: []
+dependencies:
+- https://consumer.example.com/schemas/1.0.0
+- https://server.example.com/schemas/1.0.0

@@ -786,8 +786,15 @@ mod tests {
                 },
             },
             "dependency_graph": {
-                "https://example.com/main/1.0.0": ["https://example.com/dep/1.0.0"],
-                "https://example.com/dep/1.0.0": ["https://example.com/core/1.0.0"],
+                "https://example.com/main/1.0.0": [
+                    {"schema_url": "https://example.com/dep/1.0.0"},
+                ],
+                "https://example.com/dep/1.0.0": [
+                    {
+                        "schema_url": "https://example.com/core/1.0.0",
+                        "upgraded_from": "https://example.com/core/0.9.0",
+                    },
+                ],
             },
         })
     }
@@ -866,6 +873,19 @@ mod tests {
         let associations = serde_json::json!([core_ref("service")]);
         assert_eq!(
             resolved_entities(&entity_input(associations)),
+            vec!["service -> core service"]
+        );
+    }
+
+    /// A leaf naming a pre-upgrade declared URL resolves to the upgraded dependency.
+    #[test]
+    fn test_lookup_entity_from_an_upgraded_dependency_url() {
+        let upgraded_ref = serde_json::json!({
+            "type": "service",
+            "provenance": {"source": "https://example.com/core/0.9.0"},
+        });
+        assert_eq!(
+            resolved_entities(&entity_input(serde_json::json!([upgraded_ref]))),
             vec!["service -> core service"]
         );
     }

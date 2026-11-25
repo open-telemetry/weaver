@@ -1,24 +1,26 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! The new way we want to define data going forward.
+//! Version 2 semantic convention schema definitions.
 
-use std::collections::BTreeMap;
-use std::fmt::{Display, Formatter};
+use std::collections::{BTreeMap, HashSet};
+use std::fmt::{self, Display, Formatter};
 
 use globset::Glob;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use schemars::{schema_for, JsonSchema, Schema};
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use serde_json::json;
 
 use weaver_common::result::WResult;
 
 use crate::{
     deprecated::Deprecated,
     v2::{
-        attribute::AttributeDef, attribute::AttributeRef, attribute_group::AttributeGroup,
-        entity::Entity, entity::EntityAttributeRefinement, entity::EntityRefinement,
-        entity::IdentityAttributeRef, event::Event, event::EventRefinement, metric::Metric,
-        metric::MetricRefinement, signal_id::SignalId, span::Span, span::SpanRefinement,
-        stability::Stability,
+        attribute::AttributeDef, attribute::AttributeOrGroupRef, attribute::AttributeRef,
+        attribute::RefinementAttributeOrGroupRef, attribute_group::AttributeGroup, entity::Entity,
+        entity::EntityAttributeRefinement, entity::EntityRefinement, entity::IdentityAttributeRef,
+        event::Event, event::EventRefinement, metric::Metric, metric::MetricRefinement,
+        signal_id::SignalId, span::Span, span::SpanAttributeOrGroupRef, span::SpanRefinement,
+        span::SpanRefinementAttributeOrGroupRef, stability::Stability,
     },
     Error, YamlValue,
 };
@@ -60,6 +62,7 @@ pub struct CommonFields {
     pub annotations: BTreeMap<String, YamlValue>,
 }
 
+/// Returns `true` when `note` is `None` or an empty string, used to skip serializing empty notes.
 fn is_empty_note(note: &Option<String>) -> bool {
     note.as_ref().is_none_or(String::is_empty)
 }
@@ -72,7 +75,7 @@ pub struct GroupWildcard(#[schemars(with = "String")] pub Glob);
 impl Serialize for GroupWildcard {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer,
+        S: Serializer,
     {
         self.0.glob().serialize(serializer)
     }
@@ -81,17 +84,15 @@ impl Serialize for GroupWildcard {
 impl<'de> Deserialize<'de> for GroupWildcard {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>,
+        D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Glob::new(&s)
-            .map(GroupWildcard)
-            .map_err(serde::de::Error::custom)
+        Glob::new(&s).map(GroupWildcard).map_err(de::Error::custom)
     }
 }
 
 impl Display for GroupWildcard {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0.glob())
     }
 }
@@ -256,13 +257,13 @@ impl SemConvSpecV2 {
 
     /// Returns the JSON schema for `SemConvSpecV2` including the injected `file_format` field.
     #[must_use]
-    pub fn output_schema() -> schemars::Schema {
+    pub fn output_schema() -> Schema {
         let mut schema =
-            serde_json::to_value(schemars::schema_for!(Self)).expect("Failed to serialize schema");
+            serde_json::to_value(schema_for!(Self)).expect("Failed to serialize schema");
         if let Some(props) = schema.get_mut("properties").and_then(|p| p.as_object_mut()) {
             let _ = props.insert(
                 "file_format".to_owned(),
-                serde_json::json!({
+                json!({
                     "description": "The file format version.",
                     "type": "string",
                     "const": "definition/2"
@@ -274,6 +275,8 @@ impl SemConvSpecV2 {
 
     /// Validates invariants on the model.
     pub fn validate(self, provenance: &str) -> WResult<Self, Error> {
+        let normalized_provenance = provenance.replace('\\', "/");
+        let provenance = normalized_provenance.as_str();
         let mut errors: Vec<Error> = vec![];
         let mut fatal_errors: Vec<Error> = vec![];
 
@@ -362,6 +365,129 @@ impl SemConvSpecV2 {
             check_identity_requirement_level(&r.identity, r.id.to_string());
         }
 
+        for ag in &self.attribute_groups {
+            let refs = ag.attributes().iter().filter_map(|a| match a {
+                AttributeOrGroupRef::Attribute(r) => Some(r.r#ref.as_str()),
+                AttributeOrGroupRef::Group(_) => None,
+            });
+            check_duplicate_inline_refs(
+                refs,
+                &format!("attribute_group '{}'", ag.id()),
+                provenance,
+                &mut fatal_errors,
+            );
+        }
+        for m in &self.metrics {
+            let refs = m.attributes.iter().filter_map(|a| match a {
+                AttributeOrGroupRef::Attribute(r) => Some(r.r#ref.as_str()),
+                AttributeOrGroupRef::Group(_) => None,
+            });
+            check_duplicate_inline_refs(
+                refs,
+                &format!("metric '{}'", m.name),
+                provenance,
+                &mut fatal_errors,
+            );
+        }
+        for s in &self.spans {
+            let refs = s.attributes.iter().filter_map(|a| match a {
+                SpanAttributeOrGroupRef::Attribute(r) => Some(r.base.r#ref.as_str()),
+                SpanAttributeOrGroupRef::Group(_) => None,
+            });
+            check_duplicate_inline_refs(
+                refs,
+                &format!("span '{}'", s.r#type),
+                provenance,
+                &mut fatal_errors,
+            );
+        }
+        for e in &self.events {
+            let refs = e.attributes.iter().filter_map(|a| match a {
+                AttributeOrGroupRef::Attribute(r) => Some(r.r#ref.as_str()),
+                AttributeOrGroupRef::Group(_) => None,
+            });
+            check_duplicate_inline_refs(
+                refs,
+                &format!("event '{}'", e.name),
+                provenance,
+                &mut fatal_errors,
+            );
+        }
+        for e in &self.entities {
+            let id_refs = e.identity.iter().map(|r| r.r#ref.as_str());
+            check_duplicate_inline_refs(
+                id_refs,
+                &format!("entity '{}' identity", e.r#type),
+                provenance,
+                &mut fatal_errors,
+            );
+            let desc_refs = e.description.iter().map(|r| r.r#ref.as_str());
+            check_duplicate_inline_refs(
+                desc_refs,
+                &format!("entity '{}' description", e.r#type),
+                provenance,
+                &mut fatal_errors,
+            );
+        }
+        for mr in &self.metric_refinements {
+            let refs = mr.attributes.iter().filter_map(|a| match a {
+                RefinementAttributeOrGroupRef::Attribute(r) => Some(r.r#ref.as_str()),
+                RefinementAttributeOrGroupRef::Group(_)
+                | RefinementAttributeOrGroupRef::Unref(_) => None,
+            });
+            check_duplicate_inline_refs(
+                refs,
+                &format!("metric refinement '{}'", mr.id),
+                provenance,
+                &mut fatal_errors,
+            );
+        }
+        for sr in &self.span_refinements {
+            let refs = sr.attributes.iter().filter_map(|a| match a {
+                SpanRefinementAttributeOrGroupRef::Attribute(r) => Some(r.base.r#ref.as_str()),
+                SpanRefinementAttributeOrGroupRef::Group(_)
+                | SpanRefinementAttributeOrGroupRef::Unref(_) => None,
+            });
+            check_duplicate_inline_refs(
+                refs,
+                &format!("span refinement '{}'", sr.id),
+                provenance,
+                &mut fatal_errors,
+            );
+        }
+        for er in &self.event_refinements {
+            let refs = er.attributes.iter().filter_map(|a| match a {
+                RefinementAttributeOrGroupRef::Attribute(r) => Some(r.r#ref.as_str()),
+                RefinementAttributeOrGroupRef::Group(_)
+                | RefinementAttributeOrGroupRef::Unref(_) => None,
+            });
+            check_duplicate_inline_refs(
+                refs,
+                &format!("event refinement '{}'", er.id),
+                provenance,
+                &mut fatal_errors,
+            );
+        }
+        for er in &self.entity_refinements {
+            let id_refs = er.identity.iter().map(|r| r.r#ref.as_str());
+            check_duplicate_inline_refs(
+                id_refs,
+                &format!("entity refinement '{}' identity", er.id),
+                provenance,
+                &mut fatal_errors,
+            );
+            let desc_refs = er.description.iter().filter_map(|a| match a {
+                EntityAttributeRefinement::Ref(r) => Some(r.r#ref.as_str()),
+                EntityAttributeRefinement::Unref(_) => None,
+            });
+            check_duplicate_inline_refs(
+                desc_refs,
+                &format!("entity refinement '{}' description", er.id),
+                provenance,
+                &mut fatal_errors,
+            );
+        }
+
         if !fatal_errors.is_empty() {
             return WResult::FatalErr(Error::CompoundError(fatal_errors));
         }
@@ -384,6 +510,7 @@ impl SemConvSpecV2 {
     }
 }
 
+/// Returns errors for any attributes present in both `identity` and `description`.
 fn check_identity_overlap<'a>(
     identity: &[IdentityAttributeRef],
     description: impl Iterator<Item = &'a AttributeRef>,
@@ -398,6 +525,25 @@ fn check_identity_overlap<'a>(
             attribute_id: attr.r#ref.clone(),
         })
         .collect()
+}
+
+/// Appends an [`Error::DuplicateAttributeRef`] to `fatal_errors` for each repeated attribute key in `refs`.
+fn check_duplicate_inline_refs<'a>(
+    refs: impl IntoIterator<Item = &'a str>,
+    context: &str,
+    provenance: &str,
+    fatal_errors: &mut Vec<Error>,
+) {
+    let mut seen = HashSet::new();
+    for r in refs {
+        if !seen.insert(r) {
+            fatal_errors.push(Error::DuplicateAttributeRef {
+                attr: r.to_owned(),
+                context: context.to_owned(),
+                provenance: Some(provenance.to_owned()),
+            });
+        }
+    }
 }
 
 #[cfg(test)]
@@ -597,7 +743,7 @@ mod tests {
                 id: "custom.user.login".into(),
                 r#ref: "user.login".into(),
                 attributes: vec![],
-                entity_associations: vec![],
+                entity_associations: None,
                 brief: Some("Custom user login refinement".to_owned()),
                 note: None,
                 stability: None,
@@ -608,7 +754,7 @@ mod tests {
                 id: "custom.http.server.request.duration".into(),
                 r#ref: "http.server.request.duration".into(),
                 attributes: vec![],
-                entity_associations: vec![],
+                entity_associations: None,
                 brief: Some("Custom metric refinement".to_owned()),
                 note: None,
                 stability: None,
@@ -620,7 +766,7 @@ mod tests {
                 r#ref: "http.server".into(),
                 name: None,
                 attributes: vec![],
-                entity_associations: vec![],
+                entity_associations: None,
                 brief: Some("Custom span refinement".to_owned()),
                 note: None,
                 stability: None,
@@ -962,7 +1108,7 @@ mod tests {
                     note: None,
                 }),
                 attributes: vec![],
-                entity_associations: vec![],
+                entity_associations: None,
                 brief: None,
                 note: None,
                 stability: None,
@@ -974,6 +1120,75 @@ mod tests {
 
         let result = spec.validate("test_prov");
         assert!(matches!(result, WResult::FatalErr(_)));
+    }
+
+    #[test]
+    fn test_validate_duplicate_inline_attribute_refs() {
+        use crate::v2::attribute::AttributeRef;
+
+        let duplicate_attr_ref = AttributeRef {
+            r#ref: "duplicate.key".to_owned(),
+            brief: None,
+            examples: None,
+            requirement_level: None,
+            note: None,
+            annotations: Default::default(),
+        };
+
+        let spec_metric = SemConvSpecV2 {
+            metrics: vec![Metric {
+                name: "test.metric".into(),
+                instrument: metric::InstrumentSpec::Counter,
+                unit: "1".into(),
+                attributes: vec![
+                    AttributeOrGroupRef::Attribute(duplicate_attr_ref.clone()),
+                    AttributeOrGroupRef::Attribute(duplicate_attr_ref.clone()),
+                ],
+                entity_associations: vec![],
+                requirement_level: None,
+                common: Default::default(),
+            }],
+            ..SemConvSpecV2::new(vec![], vec![], vec![], vec![], vec![])
+        };
+        let res = spec_metric.validate("test_metric_prov");
+        match res {
+            WResult::FatalErr(Error::CompoundError(errs)) => {
+                assert!(errs.iter().any(|e| matches!(
+                    e,
+                    Error::DuplicateAttributeRef { attr, context, provenance }
+                        if attr == "duplicate.key"
+                            && context == "metric 'test.metric'"
+                            && provenance.as_deref() == Some("test_metric_prov")
+                )));
+            }
+            WResult::FatalErr(e) => panic!("Expected CompoundError, got: {e}"),
+            WResult::Ok(_) | WResult::OkWithNFEs(..) => panic!("Expected FatalErr, got Ok"),
+        }
+
+        let spec_ag = SemConvSpecV2 {
+            attribute_groups: vec![AttributeGroup::Internal(
+                attribute_group::InternalAttributeGroup {
+                    id: "test.group".into(),
+                    attributes: vec![
+                        AttributeOrGroupRef::Attribute(duplicate_attr_ref.clone()),
+                        AttributeOrGroupRef::Attribute(duplicate_attr_ref.clone()),
+                    ],
+                },
+            )],
+            ..SemConvSpecV2::new(vec![], vec![], vec![], vec![], vec![])
+        };
+        let res = spec_ag.validate("test_ag_prov");
+        match res {
+            WResult::FatalErr(Error::CompoundError(errs)) => {
+                assert!(errs.iter().any(|e| matches!(
+                    e,
+                    Error::DuplicateAttributeRef { attr, context, .. }
+                        if attr == "duplicate.key" && context == "attribute_group 'test.group'"
+                )));
+            }
+            WResult::FatalErr(e) => panic!("Expected CompoundError, got: {e}"),
+            WResult::Ok(_) | WResult::OkWithNFEs(..) => panic!("Expected FatalErr, got Ok"),
+        }
     }
 }
 

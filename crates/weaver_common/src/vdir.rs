@@ -1192,6 +1192,13 @@ impl VirtualDirectory {
             .expect("VirtualDirectory should not have invalid `vdir_path`.")
     }
 
+    /// Maps a local entry path inside this virtual directory onto its logical representation
+    /// with forward-slash (`/`) separators.
+    #[must_use]
+    pub fn map_local_path<P: AsRef<Path>>(&self, entry_path: P) -> String {
+        crate::map_relative_path(&self.vdir_path, &self.path, entry_path)
+    }
+
     /// Creates and returns a new temporary directory within `.weaver/vdir_cache`.
     ///
     /// The created directory and its contents are automatically deleted when dropped.
