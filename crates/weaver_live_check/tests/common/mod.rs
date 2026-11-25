@@ -7,6 +7,8 @@
 // Each test binary compiles the whole module and uses part of it.
 #![allow(dead_code)]
 
+use std::env::{consts::EXE_SUFFIX, current_exe};
+use std::path::PathBuf;
 use std::process::{Child, Command as StdCommand};
 use std::thread::sleep;
 use std::time::Duration;
@@ -56,6 +58,19 @@ impl ChildGuard {
     }
 }
 
+/// Finds the `weaver` binary in the nearest directory above the test executable.
+/// Cargo sets `CARGO_BIN_EXE_weaver` only for tests in the binary's own package.
+fn weaver_bin() -> PathBuf {
+    let name = format!("weaver{EXE_SUFFIX}");
+    let test_exe = current_exe().expect("failed to get the test executable path");
+    test_exe
+        .ancestors()
+        .skip(1)
+        .map(|dir| dir.join(&name))
+        .find(|path| path.is_file())
+        .expect("weaver binary not found; build it with `cargo build`")
+}
+
 /// Starts `weaver registry live-check` reading OTLP on `grpc_port`, serving its
 /// JSON report on the admin port.
 pub fn start_live_check(
@@ -64,10 +79,8 @@ pub fn start_live_check(
     admin_port: u16,
     extra_args: &[&str],
 ) -> ChildGuard {
-    #[allow(deprecated)] // cargo_bin() is the only cross-crate way to find the binary
-    let weaver = assert_cmd::cargo::cargo_bin("weaver");
     ChildGuard(Some(
-        StdCommand::new(weaver)
+        StdCommand::new(weaver_bin())
             .args(["registry", "live-check", "-r", registry])
             .args(["--input-source", "otlp", "--format", "json"])
             .args(["--output", "http"])
