@@ -42,7 +42,6 @@ regorus = { version = "0.10.0", default-features = false, features = [
     "time",
     "uuid",
     "urlquery",
-    "yaml",
 ] }
 
 [dev-dependencies]
