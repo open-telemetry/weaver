@@ -413,10 +413,9 @@ For enum attributes, `_OTHER` is treated in the same way as a missing value.
 The `links` field lists the links expected on spans of this type. Each entry consists of the following properties:
 
 - `ref` - Required. The span type the link points to. The target must be a span defined in or imported into the registry.
-- `requirement_level` - Optional. The requirement level of the link. Links use the attribute requirement levels (`required`, `conditionally_required`, `recommended`, `opt_in`) because a link, unlike a signal, can be required. Defaults to `recommended`.
 - `brief` - Optional. A short description of the link.
 - `note` - Optional. A more elaborate description of the link.
-- `attributes` - Optional. List of attributes expected on the link itself. Each entry is a single [attribute reference](#attribute-reference); attribute group references are not supported on links. Only `requirement_level` and `sampling_relevant` may be set on a link attribute, and the referenced attribute must already be part of the registry catalog.
+- `attributes` - Optional. List of attributes expected on the link itself. Each entry is a single [attribute reference](#attribute-reference) and supports the same overrides. Attribute group references are not supported on links. `requirement_level` defaults to `recommended`.
 
 Example:
 
@@ -430,7 +429,6 @@ spans:
       note: "{messaging.operation.name}"
     links:
       - ref: messaging.produce
-        requirement_level: required
         brief: Links to the produce span that created each processed message.
         attributes:
           - ref: messaging.message.id
