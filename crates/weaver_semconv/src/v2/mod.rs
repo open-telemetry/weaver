@@ -13,7 +13,7 @@ use serde_json::json;
 use weaver_common::result::WResult;
 
 use crate::{
-    deprecated::Deprecated,
+    v2::deprecated::Deprecated,
     v2::{
         attribute::AttributeDef, attribute::AttributeOrGroupRef, attribute::AttributeRef,
         attribute::RefinementAttributeOrGroupRef, attribute_group::AttributeGroup, entity::Entity,
@@ -27,6 +27,7 @@ use crate::{
 
 pub mod attribute;
 pub mod attribute_group;
+pub mod deprecated;
 pub mod entity;
 pub mod entity_association;
 pub mod event;
@@ -52,9 +53,8 @@ pub struct CommonFields {
     pub note: Option<String>,
     /// Specifies the stability of the attribute or signal.
     pub stability: Stability,
-    /// Specifies if the semantic convention is deprecated. The string
-    /// provided as description MUST specify why it's deprecated and/or what
-    /// to use instead. See also stability.
+    /// Specifies if the semantic convention is deprecated and why.
+    /// See also stability.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
     /// Annotations for the attribute or signal.

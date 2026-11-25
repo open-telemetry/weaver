@@ -21,7 +21,7 @@ This document describes the entity semantic conventions.
 | Stability | {{ entity.stability | capitalize }} |
 > endif <
 > if entity.deprecated <
-| Deprecated | {{ entity.deprecated.note }} |
+| Deprecated | {{ macros.deprecated_note(entity.deprecated) }} |
 > endif <
 
 > if entity.attributes <

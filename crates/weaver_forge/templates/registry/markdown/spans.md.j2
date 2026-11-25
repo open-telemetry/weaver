@@ -21,7 +21,7 @@ This document describes the `{{ ctx.root_namespace }}` spans.
 | Stability | {{ span.stability | capitalize }} |
 > endif <
 > if span.deprecated <
-| Deprecated | {{ span.deprecated.note }} |
+| Deprecated | {{ macros.deprecated_note(span.deprecated) }} |
 > endif <
 
 > if span.attributes <

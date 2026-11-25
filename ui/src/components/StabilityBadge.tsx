@@ -65,13 +65,12 @@ export function DeprecatedBadge({ deprecated, size }: DeprecatedBadgeProps) {
   const sizeClass = size ? ` badge-${size}` : ''
   let title = 'Deprecated'
   if (typeof deprecated === 'object') {
-    if (deprecated.reason && deprecated.note) {
-      title = `Deprecated (${deprecated.reason}): ${deprecated.note}`
-    } else if (deprecated.note) {
-      title = `Deprecated: ${deprecated.note}`
-    } else if (deprecated.reason) {
-      title = `Deprecated (${deprecated.reason})`
-    }
+    if (deprecated.reason) title += ` (${deprecated.reason})`
+    const details = [
+      deprecated.note,
+      deprecated.renamed_to && `Use ${deprecated.renamed_to} instead.`,
+    ].filter(Boolean)
+    if (details.length) title += `: ${details.join(' ')}`
   }
 
   return (

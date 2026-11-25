@@ -10,7 +10,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    deprecated::Deprecated,
+    v2::deprecated::Deprecated,
     v2::{
         attribute::{AttributeRef, AttributeUnref},
         entity_association::EntityAssociation,

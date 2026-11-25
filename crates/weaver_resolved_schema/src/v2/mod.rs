@@ -6,7 +6,7 @@ use std::collections::{BTreeSet, HashMap};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_semconv::{deprecated::Deprecated, schema_url::SchemaUrl, v2::CommonFields};
+use weaver_semconv::{schema_url::SchemaUrl, v2::deprecated::Deprecated, v2::CommonFields};
 use weaver_version::v2::{RegistryChanges, SchemaChanges, SchemaItemChange};
 
 use crate::v2::{
@@ -148,12 +148,12 @@ fn diff_signals_by_hash<T: Signal>(
                 match deprecated {
                     Deprecated::Renamed {
                         renamed_to: rename_to,
-                        ..
+                        note,
                     } => {
                         changes.push(SchemaItemChange::Renamed {
                             old_name: signal_id.to_owned(),
                             new_name: rename_to.clone(),
-                            note: deprecated.note(),
+                            note: note.clone(),
                         });
                     }
                     Deprecated::Obsoleted { note } => {
@@ -162,7 +162,7 @@ fn diff_signals_by_hash<T: Signal>(
                             note: note.clone(),
                         });
                     }
-                    Deprecated::Unspecified { note } | Deprecated::Uncategorized { note } => {
+                    Deprecated::Uncategorized { note } => {
                         changes.push(SchemaItemChange::Uncategorized {
                             name: signal_id.to_owned(),
                             note: note.clone(),
@@ -216,6 +216,50 @@ mod tests {
         baseline.registry.attributes.push(AttributeRef(0));
         let changes = baseline.diff(&baseline);
         assert!(changes.is_empty());
+    }
+
+    #[test]
+    fn attribute_renamed_without_note_diff() {
+        let attr = |key: &str, deprecated: Option<Deprecated>| AttributeV2 {
+            key: key.to_owned(),
+            r#type: weaver_semconv::v2::attribute::AttributeType::PrimitiveOrArray(
+                weaver_semconv::v2::attribute::PrimitiveOrArrayTypeSpec::String,
+            ),
+            examples: None,
+            common: CommonFields {
+                brief: "test brief".to_owned(),
+                note: None,
+                stability: Stability::Stable,
+                deprecated,
+                annotations: Default::default(),
+            },
+            provenance: Default::default(),
+        };
+        let mut baseline = empty_v2_schema();
+        baseline.attribute_catalog.push(attr("test.key", None));
+        baseline.registry.attributes.push(AttributeRef(0));
+        let mut latest = empty_v2_schema();
+        latest.attribute_catalog.push(attr(
+            "test.key",
+            Some(Deprecated::Renamed {
+                renamed_to: "test.key.new".to_owned(),
+                note: None,
+            }),
+        ));
+        latest.registry.attributes.push(AttributeRef(0));
+
+        let diff = latest.diff(&baseline);
+        let [change] = diff.registry.attribute_changes.as_slice() else {
+            panic!("Expected one change: {diff:?}");
+        };
+        assert_eq!(
+            serde_json::to_value(change).unwrap(),
+            serde_json::json!({
+                "type": "renamed",
+                "old_name": "test.key",
+                "new_name": "test.key.new",
+            })
+        );
     }
 
     #[test]
@@ -284,7 +328,7 @@ mod tests {
                 } => {
                     assert_eq!(old_name, "test.key");
                     assert_eq!(new_name, "test.key.new");
-                    assert_eq!(note, "hated it");
+                    assert_eq!(note.as_deref(), Some("hated it"));
                 }
                 SchemaItemChange::Added { name } => {
                     assert_eq!(name, "test.key.new");
@@ -478,7 +522,7 @@ mod tests {
             } => {
                 assert_eq!(old_name, "http.client");
                 assert_eq!(new_name, "http.client.v2");
-                assert_eq!(note, "Use v2");
+                assert_eq!(note.as_deref(), Some("Use v2"));
             }
             c => panic!("Unexpected span change: {:?}", c),
         }

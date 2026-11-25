@@ -299,7 +299,7 @@ mod test {
                     brief: "enum test".to_owned(),
                     note: Some("enum note".to_owned()),
                     stability: Stability::Development,
-                    deprecated: Some(weaver_semconv::deprecated::Deprecated::Obsoleted {
+                    deprecated: Some(weaver_semconv::v2::deprecated::Deprecated::Obsoleted {
                         note: "old".to_owned(),
                     }),
                     annotations: BTreeMap::new(),
@@ -329,7 +329,7 @@ mod test {
                     brief: "test".to_owned(),
                     note: Some("span note".to_owned()),
                     stability: Stability::Stable,
-                    deprecated: Some(weaver_semconv::deprecated::Deprecated::Obsoleted {
+                    deprecated: Some(weaver_semconv::v2::deprecated::Deprecated::Obsoleted {
                         note: "old".to_owned(),
                     }),
                     annotations: BTreeMap::new(),
@@ -347,7 +347,7 @@ mod test {
                     brief: "test".to_owned(),
                     note: Some("metric note".to_owned()),
                     stability: Stability::Stable,
-                    deprecated: Some(weaver_semconv::deprecated::Deprecated::Obsoleted {
+                    deprecated: Some(weaver_semconv::v2::deprecated::Deprecated::Obsoleted {
                         note: "old".to_owned(),
                     }),
                     annotations: BTreeMap::new(),
@@ -363,7 +363,7 @@ mod test {
                     brief: "event brief".to_owned(),
                     note: Some("event note".to_owned()),
                     stability: Stability::Stable,
-                    deprecated: Some(weaver_semconv::deprecated::Deprecated::Obsoleted {
+                    deprecated: Some(weaver_semconv::v2::deprecated::Deprecated::Obsoleted {
                         note: "old".to_owned(),
                     }),
                     annotations: BTreeMap::new(),
@@ -379,7 +379,7 @@ mod test {
                     brief: "test".to_owned(),
                     note: Some("entity note".to_owned()),
                     stability: Stability::Stable,
-                    deprecated: Some(weaver_semconv::deprecated::Deprecated::Obsoleted {
+                    deprecated: Some(weaver_semconv::v2::deprecated::Deprecated::Obsoleted {
                         note: "old".to_owned(),
                     }),
                     annotations: BTreeMap::new(),

@@ -634,10 +634,10 @@ mod tests {
     use super::*;
     use std::collections::BTreeMap;
     use weaver_forge::v2::registry::{ForgeResolvedRegistry, Refinements, Registry};
-    use weaver_semconv::deprecated::Deprecated;
     use weaver_semconv::v2::attribute::{
         AttributeType, PrimitiveOrArrayTypeSpec, TemplateTypeSpec,
     };
+    use weaver_semconv::v2::deprecated::Deprecated;
     use weaver_semconv::v2::metric::InstrumentSpec;
     use weaver_semconv::v2::signal_requirement_level::SignalRequirementLevel;
     use weaver_semconv::v2::span::{SpanKindSpec, SpanName};

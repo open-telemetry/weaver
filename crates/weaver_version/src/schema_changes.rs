@@ -65,7 +65,9 @@ pub enum SchemaItemChange {
         /// The new name of the telemetry object that has been renamed.
         new_name: String,
         /// A note providing further context.
-        note: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(with = "String")]
+        note: Option<String>,
     },
     /// One or more fields in a top-level telemetry object have been updated in the head registry.
     /// Note: This is a placeholder for future use.

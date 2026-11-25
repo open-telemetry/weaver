@@ -8,7 +8,7 @@ use std::fmt::{Display, Formatter};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::deprecated::Deprecated;
+use crate::v2::deprecated::Deprecated;
 use crate::v2::stability::Stability;
 use crate::v2::{signal_id::SignalId, CommonFields};
 use crate::YamlValue;
@@ -192,10 +192,6 @@ pub struct EnumEntriesSpec {
     /// Stability of this enum value.
     pub stability: Stability,
     /// Deprecation note.
-    #[serde(
-        deserialize_with = "crate::deprecated::deserialize_option_deprecated",
-        default
-    )]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
     /// Annotations for the member.
@@ -220,10 +216,6 @@ struct EnumEntriesSpecDeserialize {
     /// Stability of this enum value.
     stability: Stability,
     /// Deprecation note.
-    #[serde(
-        deserialize_with = "crate::deprecated::deserialize_option_deprecated",
-        default
-    )]
     #[serde(skip_serializing_if = "Option::is_none")]
     deprecated: Option<Deprecated>,
     /// Annotations for the member.

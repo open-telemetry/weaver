@@ -789,7 +789,7 @@ mod tests {
         assert_eq!(
             all_advice[0].context,
             Some(
-                json!({"attribute_key": "test.deprecated", "deprecation_reason": "uncategorized", "deprecation_note": "note"})
+                json!({"attribute_key": "test.deprecated", "deprecated": {"reason": "uncategorized", "note": "note"}})
             )
         );
         assert_eq!(
@@ -1130,7 +1130,7 @@ mod tests {
                                 note: None,
                                 stability: Stability::Development,
                                 deprecated: Some(
-                                    weaver_semconv::deprecated::Deprecated::Uncategorized {
+                                    weaver_semconv::v2::deprecated::Deprecated::Uncategorized {
                                         note: "note".to_owned(),
                                     },
                                 ),
@@ -2168,7 +2168,7 @@ mod tests {
                                 note: None,
                                 stability: Stability::Development,
                                 deprecated: Some(
-                                    weaver_semconv::deprecated::Deprecated::Uncategorized {
+                                    weaver_semconv::v2::deprecated::Deprecated::Uncategorized {
                                         note: "Use session.initialized event instead".to_owned(),
                                     },
                                 ),
@@ -4257,7 +4257,7 @@ mod tests {
             V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
         );
         deprecated.common.deprecated =
-            Some(weaver_semconv::deprecated::Deprecated::Uncategorized {
+            Some(weaver_semconv::v2::deprecated::Deprecated::Uncategorized {
                 note: String::new(),
             });
         let mut dependency = v2_dependency(vec![], vec![]);

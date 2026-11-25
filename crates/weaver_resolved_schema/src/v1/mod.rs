@@ -371,7 +371,7 @@ impl ResolvedTelemetrySchema {
                                 SchemaItemChange::Renamed {
                                     old_name: baseline_attr.name.clone(),
                                     new_name: rename_to.clone(),
-                                    note: deprecated.note(),
+                                    note: Some(deprecated.note()),
                                 },
                             );
                         }
@@ -445,7 +445,7 @@ impl ResolvedTelemetrySchema {
                                 SchemaItemChange::Renamed {
                                     old_name: (*signal_name).to_owned(),
                                     new_name: rename_to.clone(),
-                                    note: deprecated.note(),
+                                    note: Some(deprecated.note()),
                                 },
                             );
                         }
@@ -792,7 +792,10 @@ mod tests {
         };
         assert_eq!(old_name, "cpu.time");
         assert_eq!(new_name, "system.cpu.time");
-        assert_eq!(note, "Replaced by `system.cpu.utilization`");
+        assert_eq!(
+            note.as_deref(),
+            Some("Replaced by `system.cpu.utilization`")
+        );
 
         let Some(SchemaItemChange::Added { name }) = mcs
             .iter()

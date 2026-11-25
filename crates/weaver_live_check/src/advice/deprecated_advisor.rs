@@ -5,25 +5,28 @@
 use serde_json::json;
 use std::rc::Rc;
 use weaver_checker::{FindingLevel, PolicyFinding};
-use weaver_semconv::deprecated::Deprecated;
+use weaver_semconv::v2::deprecated::Deprecated;
 
 use super::{Advisor, FindingBuilder};
 use crate::{
     otlp_logger::OtlpEmitter, Error, FindingId, Sample, SampleRef, VersionedAttribute,
-    VersionedSignal, ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY, DEPRECATION_NOTE_ADVICE_CONTEXT_KEY,
-    DEPRECATION_REASON_ADVICE_CONTEXT_KEY, EVENT_NAME_ADVICE_CONTEXT_KEY,
-    METRIC_NAME_ADVICE_CONTEXT_KEY,
+    VersionedSignal, ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY, DEPRECATED_ADVICE_CONTEXT_KEY,
+    EVENT_NAME_ADVICE_CONTEXT_KEY, METRIC_NAME_ADVICE_CONTEXT_KEY,
 };
 
-/// Convert a Deprecated value to a reason string
-fn deprecated_to_reason(deprecated: &Deprecated) -> String {
+fn deprecated_to_reason(deprecated: &Deprecated) -> &'static str {
     match deprecated {
-        Deprecated::Renamed { .. } => "renamed".to_owned(),
-        Deprecated::Obsoleted { .. } => "obsoleted".to_owned(),
-        Deprecated::Uncategorized { .. } | Deprecated::Unspecified { .. } => {
-            "uncategorized".to_owned()
-        }
+        Deprecated::Renamed { .. } => "renamed",
+        Deprecated::Obsoleted { .. } => "obsoleted",
+        Deprecated::Uncategorized { .. } => "uncategorized",
     }
+}
+
+fn deprecation_context(name_key: &str, name: &str, deprecated: &Deprecated) -> serde_json::Value {
+    json!({
+        name_key: name,
+        DEPRECATED_ADVICE_CONTEXT_KEY: deprecated,
+    })
 }
 
 /// Format a consistent deprecation message
@@ -60,11 +63,11 @@ impl Advisor for DeprecatedAdvisor {
                     if let Some(deprecated) = &attribute.deprecated() {
                         let name = &sample_attribute.name;
                         let finding = FindingBuilder::new(FindingId::Deprecated)
-                            .context(json!({
-                                ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: name,
-                                DEPRECATION_REASON_ADVICE_CONTEXT_KEY: deprecated_to_reason(deprecated),
-                                DEPRECATION_NOTE_ADVICE_CONTEXT_KEY: deprecated.to_string(),
-                            }))
+                            .context(deprecation_context(
+                                ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY,
+                                name,
+                                deprecated,
+                            ))
                             .message(format_deprecation_message("Attribute", name, deprecated))
                             .level(FindingLevel::Violation)
                             .signal(signal)
@@ -81,11 +84,11 @@ impl Advisor for DeprecatedAdvisor {
                     if let Some(deprecated) = &group.deprecated() {
                         let name = &sample_metric.name;
                         let finding = FindingBuilder::new(FindingId::Deprecated)
-                            .context(json!({
-                                METRIC_NAME_ADVICE_CONTEXT_KEY: name,
-                                DEPRECATION_REASON_ADVICE_CONTEXT_KEY: deprecated_to_reason(deprecated),
-                                DEPRECATION_NOTE_ADVICE_CONTEXT_KEY: deprecated.to_string(),
-                            }))
+                            .context(deprecation_context(
+                                METRIC_NAME_ADVICE_CONTEXT_KEY,
+                                name,
+                                deprecated,
+                            ))
                             .message(format_deprecation_message("Metric", name, deprecated))
                             .level(FindingLevel::Violation)
                             .signal(signal)
@@ -102,11 +105,11 @@ impl Advisor for DeprecatedAdvisor {
                     if let Some(deprecated) = &group.deprecated() {
                         let name = &sample_log.event_name;
                         let finding = FindingBuilder::new(FindingId::Deprecated)
-                            .context(json!({
-                                EVENT_NAME_ADVICE_CONTEXT_KEY: name,
-                                DEPRECATION_REASON_ADVICE_CONTEXT_KEY: deprecated_to_reason(deprecated),
-                                DEPRECATION_NOTE_ADVICE_CONTEXT_KEY: deprecated.to_string(),
-                            }))
+                            .context(deprecation_context(
+                                EVENT_NAME_ADVICE_CONTEXT_KEY,
+                                name,
+                                deprecated,
+                            ))
                             .message(format_deprecation_message("Event", name, deprecated))
                             .level(FindingLevel::Violation)
                             .signal(signal)
@@ -119,5 +122,29 @@ impl Advisor for DeprecatedAdvisor {
             }
             _ => Ok(Vec::new()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_renamed_without_note_context_and_message() {
+        let deprecated = Deprecated::Renamed {
+            renamed_to: "new.attr".to_owned(),
+            note: None,
+        };
+        assert_eq!(
+            deprecation_context(ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY, "old.attr", &deprecated),
+            json!({
+                "attribute_key": "old.attr",
+                "deprecated": {"reason": "renamed", "renamed_to": "new.attr"},
+            })
+        );
+        assert_eq!(
+            format_deprecation_message("Attribute", "old.attr", &deprecated),
+            "Attribute 'old.attr' is deprecated; reason = 'renamed', note = 'Replaced by `new.attr`.'."
+        );
     }
 }
