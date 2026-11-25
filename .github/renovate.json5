@@ -75,14 +75,40 @@
       automerge: true,
     },
     {
-      // cargo check-external-types only works on this pinned nightly — don't let Renovate bump it
+      // Disable built-in github-actions rust-version bumps on the pinned nightly used by
+      // cargo-check-external-types; it is tracked via customDatasources below so it stays
+      // compatible with awslabs/cargo-check-external-types.
+      matchManagers: [
+        'github-actions',
+      ],
       matchFileNames: [
         '.github/workflows/ci.yml',
       ],
       matchCurrentValue: '/^nightly-/',
       enabled: false,
     },
+    {
+      groupName: 'cargo-check-external-types',
+      matchPackageNames: [
+        'cargo-check-external-types',
+        'cargo-check-external-types-nightly',
+      ],
+      schedule: [
+        'before 8am on Monday',
+      ],
+    },
   ],
+  customDatasources: {
+    'cargo-check-external-types-nightly': {
+      // Pinned to an immutable release commit SHA (updated by Renovate in its own PR before
+      // the cargo-check-external-types + nightly PR picks up the new toolchain).
+      defaultRegistryUrlTemplate: 'https://raw.githubusercontent.com/awslabs/cargo-check-external-types/61d284da26e8bbaca386a5b9f34bee30e82aaa0e/rust-toolchain.toml', // v0.5.0
+      format: 'toml',
+      transformTemplates: [
+        '{"releases": [{"version": toolchain.channel}], "sourceUrl": "https://github.com/awslabs/cargo-check-external-types"}',
+      ],
+    },
+  },
   customManagers: [
     {
       customType: "regex",
@@ -162,12 +188,13 @@
     },
     {
       customType: "regex",
-      description: "Update Just file",
+      description: "Update pinned cargo install tools (justfile and CI)",
       managerFilePatterns: [
         "justfile",
+        ".github/workflows/ci.yml",
       ],
       matchStrings: [
-        "cargo install (?<packageName>.+\/?)@(?<depVersion>[0-9.]+)",
+        "cargo install (?<packageName>[^@\\s]+)@(?<depVersion>[0-9.]+)",
       ],
       datasourceTemplate: "crate",
       versioningTemplate: "semver",
@@ -176,23 +203,48 @@
     },
     {
       customType: "regex",
-      description: "Update Rust toolchain version",
+      description: "Update pinned commit SHA for cargo-check-external-types upstream rust-toolchain.toml",
       managerFilePatterns: [
-        "rust-toolchain.toml",
+        ".github/renovate.json5",
+      ],
+      matchStrings: [
+        "defaultRegistryUrlTemplate: 'https://raw\\.githubusercontent\\.com/(?<packageName>awslabs/cargo-check-external-types)/(?<currentDigest>[a-f0-9]{40})/rust-toolchain\\.toml', // v(?<depVersion>[0-9.]+)",
+      ],
+      datasourceTemplate: "github-tags",
+      versioningTemplate: "semver",
+      currentValueTemplate: "{{depVersion}}",
+      extractVersionTemplate: "^v(?<version>.*)$",
+      autoReplaceStringTemplate: "defaultRegistryUrlTemplate: 'https://raw.githubusercontent.com/{{depName}}/{{newDigest}}/rust-toolchain.toml', // v{{newVersion}}",
+    },
+    {
+      customType: "regex",
+      description: "Update cargo-check-external-types nightly toolchain from upstream rust-toolchain.toml",
+      managerFilePatterns: [
+        ".github/workflows/ci.yml",
+        "scripts/check_external_types.sh",
         "justfile",
       ],
       matchStrings: [
-        "channel\\s*=\\s*\"(?<depVersion>[0-9.]+)\"",
-        "rustup install (?<depVersion>[0-9.]+)",
-        "rustup update (?<depVersion>[0-9.]+)",
+        "toolchain:\\s*\"?(?<currentValue>nightly-\\d{4}-\\d{2}-\\d{2})\"?",
+        "cargo \\+(?<currentValue>nightly-\\d{4}-\\d{2}-\\d{2}) check-external-types",
+        "rustup toolchain install (?<currentValue>nightly-\\d{4}-\\d{2}-\\d{2})",
       ],
-      datasourceTemplate: "github-releases",
+      depNameTemplate: "cargo-check-external-types-nightly",
+      datasourceTemplate: "custom.cargo-check-external-types-nightly",
+      versioningTemplate: "regex:^nightly-(?<major>\\d{4})-(?<minor>\\d{2})-(?<patch>\\d{2})$",
+    },
+    {
+      customType: "regex",
+      description: "Update Rust toolchain version in justfile",
+      managerFilePatterns: [
+        "justfile",
+      ],
+      matchStrings: [
+        "rustup (?:install|update) (?<currentValue>[0-9.]+)",
+      ],
+      datasourceTemplate: "rust-version",
       depNameTemplate: "rust",
-      versioningTemplate: "semver",
-      extractVersionTemplate: "^v(?<version>.*)$",
-      currentValueTemplate: "{{depVersion}}",
-      packageNameTemplate: "rust-lang/rust",
-      depTypeTemplate: "SDK",
+      depTypeTemplate: "toolchain",
     },
     {
       customType: "regex",
