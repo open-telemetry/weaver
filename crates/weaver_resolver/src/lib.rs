@@ -3504,31 +3504,45 @@ groups:
             let error = resolve_without_identity_fixture(name, ResolutionTarget::V2)
                 .into_result_with_non_fatal()
                 .expect_err("association to a converted entity must fail");
+            // A local association fails when converting to V2, a dependency one during resolution.
             let message = format!("{error:?}");
             assert!(
-                message.contains("UnresolvedEntityAssociation") && message.contains("legacy"),
+                (message.contains("UnresolvedEntityAssociation")
+                    || message.contains("is associated with entity legacy"))
+                    && message.contains("legacy"),
                 "{name}: {message}"
             );
         }
     }
 
-    /// An entity that keeps its identity can't refine one that was converted.
+    /// Refining a converted entity fails, whether resolved from source or from a pre-resolved
+    /// registry.
     #[test]
     fn test_entity_without_identity_cannot_be_refined() {
-        assert!(
-            resolve_without_identity_fixture("refinement", ResolutionTarget::V1)
-                .into_result_failing_non_fatal()
-                .is_ok()
-        );
-        let error = resolve_without_identity_fixture("refinement", ResolutionTarget::V2)
+        let v1 = resolve_without_identity_fixture("refinement", ResolutionTarget::V1)
+            .into_result_failing_non_fatal()
+            .expect("Failed to resolve")
+            .as_v1()
+            .unwrap()
+            .clone();
+        let mut resolver =
+            WeaverResolver::new(WeaverResolverConfig::default().with_target(ResolutionTarget::V2));
+        let pre_resolved = resolver
+            .resolve_loaded(LoadedSemconvRegistry::Resolved {
+                schema: v1,
+                direct_dependencies: vec![],
+            })
             .into_result_with_non_fatal()
-            .expect_err("refining a converted entity must fail");
-        let message = format!("{error:?}");
-        assert!(
-            message.contains("EntityRefinementWithoutIdentity")
-                && message.contains("entity.legacy.child"),
-            "{message}"
-        );
+            .map(|_| ());
+        let from_source = resolve_without_identity_fixture("refinement", ResolutionTarget::V2)
+            .into_result_with_non_fatal()
+            .map(|_| ());
+        for result in [pre_resolved, from_source] {
+            let message = result
+                .expect_err("refining a converted entity must fail")
+                .to_string();
+            assert!(message.contains("entity.legacy.child"), "{message}");
+        }
     }
 
     /// A converted entity takes its group id in the attribute group namespace,
