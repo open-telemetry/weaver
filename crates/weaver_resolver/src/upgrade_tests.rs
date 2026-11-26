@@ -192,6 +192,7 @@ fn test_refinement_parent_upgrade() {
         visibility: None,
         is_v2: false,
         span_name: None,
+        span_links: Vec::new(),
         requirement_level: Default::default(),
     };
 

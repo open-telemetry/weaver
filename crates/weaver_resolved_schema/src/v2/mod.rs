@@ -413,6 +413,7 @@ mod tests {
     fn v2_detect_span_and_attribute_group_diff() {
         let mut baseline = empty_v2_schema();
         baseline.registry.spans.push(span::Span {
+            links: vec![],
             r#type: "http.client".to_owned().into(),
             kind: weaver_semconv::v2::span::SpanKindSpec::Client,
             name: weaver_semconv::v2::span::SpanName {
@@ -437,6 +438,7 @@ mod tests {
 
         let mut latest = empty_v2_schema();
         latest.registry.spans.push(span::Span {
+            links: vec![],
             r#type: "http.client".to_owned().into(),
             kind: weaver_semconv::v2::span::SpanKindSpec::Client,
             name: weaver_semconv::v2::span::SpanName {
@@ -551,7 +553,7 @@ mod tests {
                             value: ValueSpec::String("GET".to_owned()),
                             brief: None,
                             note: None,
-                            stability: None,
+                            stability: Stability::Development,
                             deprecated: None,
                             annotations: None,
                         },
@@ -560,7 +562,7 @@ mod tests {
                             value: ValueSpec::String("POST".to_owned()),
                             brief: None,
                             note: None,
-                            stability: None,
+                            stability: Stability::Development,
                             deprecated: None,
                             annotations: None,
                         },
@@ -569,7 +571,7 @@ mod tests {
                             value: ValueSpec::String("DELETE".to_owned()),
                             brief: None,
                             note: None,
-                            stability: None,
+                            stability: Stability::Development,
                             deprecated: None,
                             annotations: None,
                         },
@@ -644,6 +646,7 @@ mod tests {
                 ],
                 spans: vec![
                     span::Span {
+                        links: vec![],
                         r#type: "http.server.request".to_owned().into(),
                         kind: SpanKindSpec::Server,
                         name: SpanName {
@@ -669,6 +672,7 @@ mod tests {
                         provenance: Default::default(),
                     },
                     span::Span {
+                        links: vec![],
                         r#type: "internal.processing".to_owned().into(),
                         kind: SpanKindSpec::Internal,
                         name: SpanName {
@@ -823,6 +827,7 @@ mod tests {
                 spans: vec![span::SpanRefinement {
                     id: "http.server.request".to_owned().into(),
                     span: span::Span {
+                        links: vec![],
                         r#type: "http.server.request".to_owned().into(),
                         kind: SpanKindSpec::Server,
                         name: SpanName {

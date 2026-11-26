@@ -409,6 +409,20 @@ pub enum Error {
         attribute_id: String,
     },
 
+    /// A span link targets a span type that is neither defined in nor imported into the registry.
+    #[error("Span '{link_ref}' (linked by {span_id}) not found among span definitions.{provenance}", provenance = format_provenance(.provenance))]
+    #[diagnostic(help(
+        "Define the span `{link_ref}` in this registry or import it from a dependency."
+    ))]
+    SpanLinkTargetNotFound {
+        /// The type of the span declaring the link.
+        span_id: String,
+        /// The span type the link points at.
+        link_ref: String,
+        /// The provenance of the span declaring the link.
+        provenance: Option<Box<Provenance>>,
+    },
+
     /// An attribute used in a span name template is not referenced on the span.
     #[error("Span `{span_id}` uses attribute `{attribute_key}` in its name templates, but the attribute is not declared or inherited on the span.{provenance}", provenance = format_provenance(.provenance))]
     #[diagnostic(help(

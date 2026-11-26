@@ -39,6 +39,12 @@ An introduction to Weaver and Observability by Design is presented in the offici
 
 Linux, Windows and Mac installers on the [releases](https://github.com/open-telemetry/weaver/releases) page.
 
+**[mise](https://mise.jdx.dev):**
+
+```bash
+mise use -g github:open-telemetry/weaver
+```
+
 **Docker:**
 
 ```bash

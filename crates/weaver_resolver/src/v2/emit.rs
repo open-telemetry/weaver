@@ -17,7 +17,9 @@ use weaver_resolved_schema::v2::metric::{
 };
 use weaver_resolved_schema::v2::refinements::Refinements;
 use weaver_resolved_schema::v2::registry::Registry as V2Registry;
-use weaver_resolved_schema::v2::span::{Span as V2Span, SpanAttributeRef, SpanRefinement};
+use weaver_resolved_schema::v2::span::{
+    LinkAttributeRef, Span as V2Span, SpanAttributeRef, SpanLink, SpanRefinement,
+};
 use weaver_resolved_schema::v2::{ResolvedTelemetrySchema as V2Schema, V2_RESOLVED_FILE_FORMAT};
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v2::attribute::RequirementLevel;
@@ -115,12 +117,30 @@ fn emit_span(cat: &FinalCatalog, s: ResolvedSpan) -> V2Span {
         s.attributes.iter().map(|(a, req, samp)| (a, req, *samp)),
     );
     let entity_associations = emit_resolved_associations(&s.entity_associations);
+    let links = s
+        .links
+        .into_iter()
+        .map(|l| SpanLink {
+            r#ref: l.r#ref,
+            brief: l.brief,
+            note: l.note,
+            attributes: emit_attribute_refs(
+                cat,
+                l.attributes.iter().map(|(a, req)| (a, req)),
+                |base, requirement_level| LinkAttributeRef {
+                    base,
+                    requirement_level,
+                },
+            ),
+        })
+        .collect();
     V2Span {
         r#type: s.r#type,
         kind: s.kind,
         name: s.name,
         attributes,
         entity_associations,
+        links,
         requirement_level: s.requirement_level,
         common: s.common,
         provenance: s.provenance,

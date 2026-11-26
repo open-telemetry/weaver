@@ -851,6 +851,521 @@ fn test_parity_registry_test_v2_dep_span_registry() {
 }
 
 #[test]
+fn test_parity_registry_test_v2_dep_span_links_registry() {
+    let legacy = resolve_fixture(
+        "data/registry-test-v2-dep/span_links_registry",
+        ResolutionTarget::V1,
+    )
+    .expect("Legacy resolution succeeded");
+    let native = resolve_fixture(
+        "data/registry-test-v2-dep/span_links_registry",
+        ResolutionTarget::V2,
+    )
+    .expect("Native resolution succeeded");
+
+    assert_v2_schema_eq(&native, &legacy);
+}
+
+#[test]
+fn test_span_link_target_not_found() {
+    let yaml = r#"file_format: definition/2
+spans:
+  - type: my.span
+    brief: my span
+    stability: stable
+    kind: client
+    name:
+      note: my span
+    links:
+      - ref: missing.span
+"#;
+    match resolve_from_yaml(yaml, ResolutionTarget::V2) {
+        WResult::FatalErr(Error::SpanLinkTargetNotFound {
+            span_id, link_ref, ..
+        }) => {
+            assert_eq!(span_id, "my.span");
+            assert_eq!(link_ref, "missing.span");
+        }
+        WResult::FatalErr(other) => panic!("Expected SpanLinkTargetNotFound, got: {other}"),
+        WResult::Ok(_) | WResult::OkWithNFEs(..) => panic!("Expected FatalErr, got Ok"),
+    }
+}
+
+#[test]
+fn test_parity_span_link_attributes_and_refinement() {
+    let yaml = r#"file_format: definition/2
+attributes:
+  - key: link.id
+    type: string
+    stability: stable
+    brief: original brief
+spans:
+  - type: target.span
+    brief: target
+    stability: stable
+    kind: producer
+    name:
+      note: target
+  - type: my.span
+    brief: my span
+    stability: stable
+    kind: consumer
+    name:
+      note: my span
+    links:
+      - ref: target.span
+        brief: the link
+        attributes:
+          - ref: link.id
+            requirement_level: required
+            brief: overridden on the link
+span_refinements:
+  - id: my.span.refined
+    ref: my.span
+    brief: refined
+"#;
+    let dir = tempfile::tempdir().expect("tempdir");
+    let reg_dir = dir.path().join("registry");
+    std::fs::create_dir_all(&reg_dir).expect("create_dir");
+    std::fs::write(reg_dir.join("schema.yaml"), yaml).expect("write");
+    let resolve = |target| {
+        let location = VirtualDirectoryPath::LocalFolder {
+            path: reg_dir.display().to_string(),
+        };
+        let repo = RegistryRepo::try_new(None, &location, &mut Vec::new()).expect("repo");
+        let mut resolver = WeaverResolver::new(WeaverResolverConfig::default().with_target(target));
+        match resolver.load_and_resolve_schema(repo, DefaultSchemaVisitor) {
+            WResult::Ok(r) | WResult::OkWithNFEs(r, _) => into_v2(&r),
+            WResult::FatalErr(e) => panic!("Resolution failed: {e}"),
+        }
+    };
+    let mut native = resolve(ResolutionTarget::V2);
+    let mut legacy = resolve(ResolutionTarget::V1);
+    // The engines order explicit refinements differently; only content matters here.
+    native.refinements.spans.sort_by(|a, b| a.id.cmp(&b.id));
+    legacy.refinements.spans.sort_by(|a, b| a.id.cmp(&b.id));
+    assert_v2_schema_eq(&native, &legacy);
+
+    let span = native
+        .registry
+        .spans
+        .iter()
+        .find(|s| &*s.r#type == "my.span")
+        .expect("my.span");
+    assert_eq!(span.links.len(), 1);
+    let link_attr = &span.links[0].attributes[0];
+    assert_eq!(
+        native.attribute_catalog[link_attr.base.0 as usize]
+            .common
+            .brief,
+        "overridden on the link"
+    );
+    let refined = native
+        .refinements
+        .spans
+        .iter()
+        .find(|r| &*r.id == "my.span.refined")
+        .expect("refinement");
+    assert_eq!(refined.span.links, span.links);
+}
+
+#[test]
+fn test_span_link_target_cannot_be_refinement() {
+    let yaml = r#"file_format: definition/2
+spans:
+  - type: base.span
+    brief: base
+    stability: stable
+    kind: producer
+    name:
+      note: base
+  - type: my.span
+    brief: my span
+    stability: stable
+    kind: consumer
+    name:
+      note: my span
+    links:
+      - ref: refined.span
+span_refinements:
+  - id: refined.span
+    ref: base.span
+"#;
+    match resolve_from_yaml(yaml, ResolutionTarget::V2) {
+        WResult::FatalErr(Error::SpanLinkTargetNotFound { link_ref, .. }) => {
+            assert_eq!(link_ref, "refined.span");
+        }
+        WResult::FatalErr(other) => panic!("Expected SpanLinkTargetNotFound, got: {other}"),
+        WResult::Ok(_) | WResult::OkWithNFEs(..) => panic!("Expected FatalErr, got Ok"),
+    }
+}
+
+#[test]
+fn test_span_link_target_in_dependency_without_import() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let reg_dir = dir.path().join("registry");
+    std::fs::create_dir_all(&reg_dir).expect("create_dir");
+    let published = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("data/registry-test-v2-dep/span_links_registry/published");
+    std::fs::write(
+        reg_dir.join("manifest.yaml"),
+        format!(
+            "file_format: definition_manifest/2.0\nschema_url: https://consumer.example.com/schemas/1.0.0\ndependencies:\n  - schema_url: https://linkserver.example.com/schemas/1.0.0\n    registry_path: {}\n",
+            published.display()
+        ),
+    )
+    .expect("write manifest");
+    std::fs::write(
+        reg_dir.join("registry.yaml"),
+        r#"file_format: definition/2
+spans:
+  - type: worker.op
+    kind: consumer
+    name:
+      note: Op span name.
+    brief: Links to a dependency span that is not imported.
+    stability: stable
+    links:
+      - ref: linkserver.produce
+        attributes:
+          - ref: linkserver.job.id
+"#,
+    )
+    .expect("write registry");
+
+    let native = resolve_fixture(dir.path().to_str().unwrap(), ResolutionTarget::V2)
+        .expect("V2 resolution succeeded");
+    let span = native
+        .registry
+        .spans
+        .iter()
+        .find(|s| &*s.r#type == "worker.op")
+        .expect("worker.op");
+    assert_eq!(&*span.links[0].r#ref, "linkserver.produce");
+    assert!(
+        native
+            .registry
+            .spans
+            .iter()
+            .all(|s| &*s.r#type != "linkserver.produce"),
+        "the link target must not be re-exported"
+    );
+}
+
+#[test]
+fn test_span_link_target_cannot_be_dependency_refinement() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let dep_dir = dir.path().join("dep").join("registry");
+    let reg_dir = dir.path().join("root").join("registry");
+    std::fs::create_dir_all(&dep_dir).expect("create dep");
+    std::fs::create_dir_all(&reg_dir).expect("create root");
+    std::fs::write(
+        dep_dir.join("manifest.yaml"),
+        "file_format: definition_manifest/2.0\nschema_url: https://example.com/dep/1.0.0\n",
+    )
+    .expect("write dep manifest");
+    std::fs::write(
+        dep_dir.join("schema.yaml"),
+        r#"file_format: definition/2
+spans:
+  - type: dep.span
+    kind: producer
+    name:
+      note: dep
+    brief: Dependency span
+    stability: stable
+span_refinements:
+  - id: dep.span.refined
+    ref: dep.span
+"#,
+    )
+    .expect("write dep schema");
+    std::fs::write(
+        reg_dir.join("manifest.yaml"),
+        format!(
+            "file_format: definition_manifest/2.0\nschema_url: https://example.com/root/1.0.0\ndependencies:\n  - schema_url: https://example.com/dep/1.0.0\n    registry_path: {}\n",
+            dep_dir.display()
+        ),
+    )
+    .expect("write root manifest");
+    std::fs::write(
+        reg_dir.join("schema.yaml"),
+        r#"file_format: definition/2
+spans:
+  - type: my.span
+    kind: consumer
+    name:
+      note: my span
+    brief: Links to a dependency refinement id
+    stability: stable
+    links:
+      - ref: dep.span.refined
+"#,
+    )
+    .expect("write root schema");
+
+    match resolve_fixture_raw(
+        reg_dir.parent().unwrap().to_str().unwrap(),
+        ResolutionTarget::V2,
+    ) {
+        WResult::FatalErr(Error::SpanLinkTargetNotFound { link_ref, .. }) => {
+            assert_eq!(link_ref, "dep.span.refined");
+        }
+        WResult::FatalErr(other) => panic!("Expected SpanLinkTargetNotFound, got: {other}"),
+        WResult::Ok(_) | WResult::OkWithNFEs(..) => panic!("Expected FatalErr, got Ok"),
+    }
+}
+
+#[test]
+fn test_span_link_to_excluded_span() {
+    let yaml = |source_excluded: bool| {
+        let source_annotations = if source_excluded {
+            "\n    annotations:\n      dependency_resolution:\n        exclude: true"
+        } else {
+            ""
+        };
+        format!(
+            r#"file_format: definition/2
+spans:
+  - type: internal.batch
+    kind: internal
+    name:
+      note: batch
+    brief: Internal batching span.
+    stability: development
+    annotations:
+      dependency_resolution:
+        exclude: true
+  - type: messaging.process
+    kind: consumer
+    name:
+      note: process
+    brief: Processes messages.
+    stability: stable{source_annotations}
+    links:
+      - ref: internal.batch
+"#
+        )
+    };
+    match resolve_from_yaml(&yaml(false), ResolutionTarget::V2) {
+        WResult::FatalErr(Error::ExcludedFromDependencyResolution { id, used_in, .. }) => {
+            assert_eq!(id, "internal.batch");
+            assert_eq!(used_in, "messaging.process");
+        }
+        WResult::FatalErr(other) => {
+            panic!("Expected ExcludedFromDependencyResolution, got: {other}")
+        }
+        WResult::Ok(_) | WResult::OkWithNFEs(..) => panic!("Expected FatalErr, got Ok"),
+    }
+    assert!(matches!(
+        resolve_from_yaml(&yaml(true), ResolutionTarget::V2),
+        WResult::Ok(_) | WResult::OkWithNFEs(..)
+    ));
+}
+
+#[test]
+fn test_span_link_target_removed_in_chosen_dependency_version() {
+    // A re-exports c.target from C 1.1.0; root selects C 1.2.0, which dropped it.
+    let dir = tempfile::tempdir().expect("tempdir");
+    let c1 = dir.path().join("c1").join("registry");
+    let c2 = dir.path().join("c2").join("registry");
+    let a = dir.path().join("a").join("registry");
+    let root = dir.path().join("root").join("registry");
+    for d in [&c1, &c2, &a, &root] {
+        std::fs::create_dir_all(d).expect("create dir");
+    }
+    let span = |ty: &str| {
+        format!(
+            "file_format: definition/2\nspans:\n  - type: {ty}\n    kind: producer\n    name:\n      note: {ty}\n    brief: {ty}\n    stability: stable\n"
+        )
+    };
+    let manifest = |url: &str, deps: &[(&str, &Path)]| {
+        let mut m = format!("file_format: definition_manifest/2.0\nschema_url: {url}\n");
+        if !deps.is_empty() {
+            m.push_str("dependencies:\n");
+            for (dep_url, path) in deps {
+                m.push_str(&format!(
+                    "  - schema_url: {dep_url}\n    registry_path: {}\n",
+                    path.display()
+                ));
+            }
+        }
+        m
+    };
+    let c1_url = "https://example.com/c/1.1.0";
+    let c2_url = "https://example.com/c/1.2.0";
+    let a_url = "https://example.com/a/0.1.0";
+    std::fs::write(c1.join("manifest.yaml"), manifest(c1_url, &[])).expect("write");
+    std::fs::write(c1.join("schema.yaml"), span("c.target")).expect("write");
+    std::fs::write(c2.join("manifest.yaml"), manifest(c2_url, &[])).expect("write");
+    std::fs::write(c2.join("schema.yaml"), span("c.other")).expect("write");
+    std::fs::write(a.join("manifest.yaml"), manifest(a_url, &[(c1_url, &c1)])).expect("write");
+    std::fs::write(
+        a.join("schema.yaml"),
+        "file_format: definition/2\nimports:\n  spans:\n    - c.target\n",
+    )
+    .expect("write");
+    std::fs::write(
+        root.join("manifest.yaml"),
+        manifest(
+            "https://example.com/root/0.1.0",
+            &[(a_url, &a), (c2_url, &c2)],
+        ),
+    )
+    .expect("write");
+    std::fs::write(
+        root.join("schema.yaml"),
+        r#"file_format: definition/2
+spans:
+  - type: my.span
+    kind: consumer
+    name:
+      note: my span
+    brief: Links to c.target
+    stability: stable
+    links:
+      - ref: c.target
+"#,
+    )
+    .expect("write");
+
+    match resolve_fixture_raw(
+        root.parent().unwrap().to_str().unwrap(),
+        ResolutionTarget::V2,
+    ) {
+        WResult::FatalErr(Error::GroupNotFoundInUpgradedSchema {
+            group_id,
+            original_url,
+            upgraded_url,
+        }) => {
+            assert_eq!(group_id, "c.target");
+            assert_eq!(original_url, c1_url);
+            assert_eq!(upgraded_url, c2_url);
+        }
+        WResult::FatalErr(other) => {
+            panic!("Expected GroupNotFoundInUpgradedSchema, got: {other}")
+        }
+        WResult::Ok(_) | WResult::OkWithNFEs(..) => panic!("Expected FatalErr, got Ok"),
+    }
+}
+
+#[test]
+fn test_imported_span_link_attribute_upgraded() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let c1_dir = dir.path().join("c_1_1").join("registry");
+    let c2_dir = dir.path().join("c_1_2").join("registry");
+    let a_dir = dir.path().join("a").join("registry");
+    let root_dir = dir.path().join("root").join("registry");
+    for d in [&c1_dir, &c2_dir, &a_dir, &root_dir] {
+        std::fs::create_dir_all(d).expect("create dir");
+    }
+
+    let c_schema = |brief: &str, stability: &str| {
+        format!(
+            "file_format: definition/2\nattributes:\n  - key: c.attr\n    type: string\n    brief: {brief}\n    stability: {stability}\n"
+        )
+    };
+    std::fs::write(
+        c1_dir.join("manifest.yaml"),
+        "file_format: definition_manifest/2.0\nschema_url: https://example.com/c/1.1.0\n",
+    )
+    .expect("write c1 manifest");
+    std::fs::write(
+        c1_dir.join("schema.yaml"),
+        c_schema("Attribute c in v1.1.0", "experimental"),
+    )
+    .expect("write c1 schema");
+    std::fs::write(
+        c2_dir.join("manifest.yaml"),
+        "file_format: definition_manifest/2.0\nschema_url: https://example.com/c/1.2.0\n",
+    )
+    .expect("write c2 manifest");
+    std::fs::write(
+        c2_dir.join("schema.yaml"),
+        c_schema("Attribute c in v1.2.0", "stable"),
+    )
+    .expect("write c2 schema");
+
+    // A 0.1.0 (depends on C 1.1.0) declares a span whose link carries c.attr.
+    std::fs::write(
+        a_dir.join("manifest.yaml"),
+        format!(
+            "file_format: definition_manifest/2.0\nschema_url: https://example.com/a/0.1.0\ndependencies:\n  - schema_url: https://example.com/c/1.1.0\n    registry_path: {}\n",
+            c1_dir.display()
+        ),
+    )
+    .expect("write a manifest");
+    std::fs::write(
+        a_dir.join("schema.yaml"),
+        r#"file_format: definition/2
+spans:
+  - type: a.target
+    kind: producer
+    name:
+      note: target
+    brief: Target span in A
+    stability: stable
+  - type: a.span
+    kind: consumer
+    name:
+      note: span
+    brief: Span in A
+    stability: stable
+    links:
+      - ref: a.target
+        attributes:
+          - ref: c.attr
+            requirement_level: required
+"#,
+    )
+    .expect("write a schema");
+
+    // Root 0.1.0 (depends on A 0.1.0 and C 1.2.0) imports A's spans.
+    std::fs::write(
+        root_dir.join("manifest.yaml"),
+        format!(
+            "file_format: definition_manifest/2.0\nschema_url: https://example.com/root/0.1.0\ndependencies:\n  - schema_url: https://example.com/a/0.1.0\n    registry_path: {}\n  - schema_url: https://example.com/c/1.2.0\n    registry_path: {}\n",
+            a_dir.display(),
+            c2_dir.display()
+        ),
+    )
+    .expect("write root manifest");
+    std::fs::write(
+        root_dir.join("schema.yaml"),
+        "file_format: definition/2\nimports:\n  spans:\n    - a.*\n",
+    )
+    .expect("write root schema");
+
+    let native = resolve_fixture(
+        root_dir.parent().unwrap().to_str().unwrap(),
+        ResolutionTarget::V2,
+    )
+    .expect("V2 resolution succeeded");
+
+    let span = native
+        .registry
+        .spans
+        .iter()
+        .find(|s| &*s.r#type == "a.span")
+        .expect("a.span");
+    assert_eq!(span.links.len(), 1);
+    let link_attr = &span.links[0].attributes[0];
+    assert_eq!(
+        link_attr.requirement_level,
+        weaver_semconv::v2::attribute::RequirementLevel::Basic(
+            weaver_semconv::v2::attribute::BasicRequirementLevelSpec::Required
+        )
+    );
+    let cat_attr = &native.attribute_catalog[link_attr.base.0 as usize];
+    assert_eq!(cat_attr.key, "c.attr");
+    assert_eq!(cat_attr.common.brief, "Attribute c in v1.2.0");
+    assert_eq!(
+        cat_attr.common.stability,
+        weaver_semconv::v2::stability::Stability::Stable
+    );
+}
+
+#[test]
 fn test_parity_registry_test_v2_dep_event_registry() {
     let legacy = resolve_fixture(
         "data/registry-test-v2-dep/event_registry",

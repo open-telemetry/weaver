@@ -3314,6 +3314,7 @@ groups:
             visibility: None,
             is_v2: false,
             span_name: None,
+            span_links: Vec::new(),
             requirement_level: Default::default(),
         };
 
@@ -3382,6 +3383,7 @@ groups:
             "data/registry-test-v2-dep/metric_registry",
             "data/registry-test-v2-dep/signal_import_registry",
             "data/registry-test-v2-dep/span_import_registry",
+            "data/registry-test-v2-dep/span_links_registry",
             "data/registry-test-v2-dep/span_registry",
             "data/entity-assoc-imports/local_shapes",
             "data/entity-assoc-imports/local_private_pair",

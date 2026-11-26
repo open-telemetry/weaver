@@ -400,6 +400,14 @@ impl SemConvSpecV2 {
                 provenance,
                 &mut fatal_errors,
             );
+            for link in &s.links {
+                check_duplicate_inline_refs(
+                    link.attributes.iter().map(|a| a.base.r#ref.as_str()),
+                    &format!("span '{}' link to '{}'", s.r#type, link.r#ref),
+                    provenance,
+                    &mut fatal_errors,
+                );
+            }
         }
         for e in &self.events {
             let refs = e.attributes.iter().filter_map(|a| match a {
@@ -706,6 +714,7 @@ mod tests {
                 },
                 attributes: vec![],
                 entity_associations: vec![],
+                links: vec![],
                 requirement_level: None,
                 common: CommonFields {
                     brief: "HTTP server span".to_owned(),
@@ -1080,6 +1089,7 @@ mod tests {
                 },
                 attributes: vec![],
                 entity_associations: vec![],
+                links: vec![],
                 requirement_level: None,
                 common: Default::default(),
             }],
@@ -1160,6 +1170,44 @@ mod tests {
                             && context == "metric 'test.metric'"
                             && provenance.as_deref() == Some("test_metric_prov")
                 )));
+            }
+            WResult::FatalErr(e) => panic!("Expected CompoundError, got: {e}"),
+            WResult::Ok(_) | WResult::OkWithNFEs(..) => panic!("Expected FatalErr, got Ok"),
+        }
+
+        // The same key on different links is fine; only repeats within one link fail.
+        let span: Span = serde_saphyr::from_str(
+            r#"type: test.span
+kind: consumer
+name:
+  note: test
+brief: test
+stability: stable
+links:
+  - ref: a.span
+    attributes:
+      - ref: duplicate.key
+        requirement_level: required
+      - ref: duplicate.key
+        requirement_level: opt_in
+  - ref: b.span
+    attributes:
+      - ref: duplicate.key
+"#,
+        )
+        .expect("parse span");
+        let spec_span = SemConvSpecV2 {
+            spans: vec![span],
+            ..SemConvSpecV2::new(vec![], vec![], vec![], vec![], vec![])
+        };
+        match spec_span.validate("test_span_prov") {
+            WResult::FatalErr(Error::CompoundError(errs)) => {
+                assert_eq!(errs.len(), 1);
+                assert!(matches!(
+                    &errs[0],
+                    Error::DuplicateAttributeRef { attr, context, .. }
+                        if attr == "duplicate.key" && context == "span 'test.span' link to 'a.span'"
+                ));
             }
             WResult::FatalErr(e) => panic!("Expected CompoundError, got: {e}"),
             WResult::Ok(_) | WResult::OkWithNFEs(..) => panic!("Expected FatalErr, got Ok"),

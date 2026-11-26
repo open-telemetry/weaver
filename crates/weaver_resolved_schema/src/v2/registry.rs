@@ -289,7 +289,7 @@ mod test {
                         value: weaver_semconv::v2::attribute::ValueSpec::String("m1".to_owned()),
                         brief: None,
                         note: None,
-                        stability: None,
+                        stability: Stability::Development,
                         deprecated: None,
                         annotations: None,
                     }],
@@ -323,6 +323,7 @@ mod test {
                 },
                 attributes: vec![],
                 entity_associations: vec![],
+                links: vec![],
                 requirement_level: None,
                 common: CommonFields {
                     brief: "test".to_owned(),
