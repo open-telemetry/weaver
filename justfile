@@ -1,7 +1,8 @@
 default: pre-push
 
 install:
-    rustup update 1.93.0
+    rustup update 1.100.0
+    rustup toolchain install nightly-2026-03-20
     cargo install cargo-machete@0.10.1 --locked
     cargo install cargo-depgraph@1.6.0 --locked
     cargo install cargo-edit@0.13.14 --locked

@@ -270,12 +270,12 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
-          # cargo check-external-types is only available on this specific nightly
+          # Must match the nightly toolchain in awslabs/cargo-check-external-types and scripts/check_external_types.sh
           toolchain: nightly-2026-03-20
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: check-external-types
         run: |
-          cargo install cargo-check-external-types
+          cargo install cargo-check-external-types@0.5.0 --locked
           ./scripts/check_external_types.sh
   clippy:
     name: Clippy
@@ -307,9 +307,9 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Install SARIF tools
-        run: cargo install clippy-sarif --locked
+        run: cargo install clippy-sarif@0.8.0 --locked
       - name: Install SARIF tools
-        run: cargo install sarif-fmt --locked
+        run: cargo install sarif-fmt@0.8.0 --locked
       - name: Install protoc
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
       - name: Install UI dependencies
@@ -484,7 +484,7 @@ jobs:
           toolchain: stable
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin@0.37.6 --locked
       - name: Install UI dependencies
         run: pnpm install --frozen-lockfile
         working-directory: ./ui
