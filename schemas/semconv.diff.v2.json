@@ -124,8 +124,7 @@
           "required": [
             "type",
             "old_name",
-            "new_name",
-            "note"
+            "new_name"
           ]
         },
         {

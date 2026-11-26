@@ -188,7 +188,7 @@ fn convert_v1_stability_and_deprecated(
     deprecated: &Option<weaver_semconv::deprecated::Deprecated>,
 ) -> (
     weaver_semconv::v2::stability::Stability,
-    Option<weaver_semconv::deprecated::Deprecated>,
+    Option<weaver_semconv::v2::deprecated::Deprecated>,
 ) {
     let (stab, dep) = weaver_semconv::convert::v1_stability_and_deprecated_to_v2(
         stability.clone(),
@@ -2723,7 +2723,7 @@ mod tests {
         assert_eq!(v2_latest.registry.metrics.len(), 1);
         assert!(matches!(
             &v2_latest.registry.metrics[0].common.deprecated,
-            Some(Deprecated::Renamed { renamed_to, .. }) if renamed_to == "http.server.request.duration"
+            Some(weaver_semconv::v2::deprecated::Deprecated::Renamed { renamed_to, .. }) if renamed_to == "http.server.request.duration"
         ));
 
         // Diffing converted V2 schemas detects the rename
@@ -3050,7 +3050,7 @@ mod tests {
         );
         assert_eq!(
             attr.common.deprecated,
-            Some(weaver_semconv::deprecated::Deprecated::Unspecified {
+            Some(weaver_semconv::v2::deprecated::Deprecated::Uncategorized {
                 note: "converted from no-note legacy V1 deprecation".to_owned(),
             })
         );
@@ -3063,7 +3063,7 @@ mod tests {
         );
         assert_eq!(
             span.common.deprecated,
-            Some(weaver_semconv::deprecated::Deprecated::Unspecified {
+            Some(weaver_semconv::v2::deprecated::Deprecated::Uncategorized {
                 note: "converted from no-note legacy V1 deprecation".to_owned(),
             })
         );

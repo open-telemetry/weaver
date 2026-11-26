@@ -21,7 +21,7 @@ This document describes the `{{ ctx.root_namespace }}` events.
 | Stability | {{ event.stability | capitalize }} |
 > endif <
 > if event.deprecated <
-| Deprecated | {{ event.deprecated.note }} |
+| Deprecated | {{ macros.deprecated_note(event.deprecated) }} |
 > endif <
 
 > if event.attributes <

@@ -624,7 +624,7 @@ impl AttributeLookup for V2Schema {
                 sampling_relevant: None,
                 note: attr.common.note.clone().unwrap_or_default(),
                 stability: Some(attr.common.stability.clone().into()),
-                deprecated: attr.common.deprecated.clone(),
+                deprecated: attr.common.deprecated.clone().map(Into::into),
                 prefix: false,
                 tags: None,
                 annotations: Some(attr.common.annotations.clone()),

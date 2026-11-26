@@ -6,13 +6,13 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use weaver_common::error::handle_errors;
 use weaver_resolved_schema::v2::attribute::Attribute;
 use weaver_resolved_schema::v2::provenance::Provenance as SchemaProvenance;
-use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::provenance::Provenance as SemconvProvenance;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v2::attribute::{
     AttributeRef, AttributeUnref, BasicRequirementLevelSpec, RefinementAttributeOrGroupRef,
     RequirementLevel,
 };
+use weaver_semconv::v2::deprecated::Deprecated;
 use weaver_semconv::v2::entity::{EntityAttributeRefinement, EntityRefinement};
 use weaver_semconv::v2::entity_association::EntityAssociation as SemconvEntityAssociation;
 use weaver_semconv::v2::event::EventRefinement;

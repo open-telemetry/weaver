@@ -4,11 +4,11 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use weaver_resolved_schema::v2::attribute::Attribute;
-use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::v2::attribute::{
     AttributeRef, AttributeUnref, BasicRequirementLevelSpec, RequirementLevel,
 };
+use weaver_semconv::v2::deprecated::Deprecated;
 use weaver_semconv::v2::signal_id::SignalId;
 use weaver_semconv::v2::span::SpanName;
 use weaver_semconv::v2::stability::Stability;
@@ -216,8 +216,8 @@ mod tests {
     use super::*;
     use std::collections::BTreeMap;
     use weaver_resolved_schema::v2::provenance::{DependencyRef, Provenance};
-    use weaver_semconv::deprecated::Deprecated;
     use weaver_semconv::v2::attribute::{AttributeType, Examples, PrimitiveOrArrayTypeSpec};
+    use weaver_semconv::v2::deprecated::Deprecated;
     use weaver_semconv::v2::stability::Stability;
     use weaver_semconv::v2::CommonFields;
     use weaver_semconv::YamlValue;

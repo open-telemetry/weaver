@@ -17,7 +17,7 @@
 {% if attributes -%}    
 {{ ("Renamed " ~ (item_type | title_case) ~ ":") | ansi_bold | ansi_green }}
     {% for renamed in attributes %}
-  - Rename {{ renamed.old_name | ansi_bright_white }} to {{ renamed.new_name | ansi_bright_white }} (Note: {{ renamed.note }})
+  - Rename {{ renamed.old_name | ansi_bright_white }} to {{ renamed.new_name | ansi_bright_white }}{{ " (Note: " ~ renamed.note ~ ")" if renamed.note else "" }}
     {% endfor %}
 
 {% endif %}

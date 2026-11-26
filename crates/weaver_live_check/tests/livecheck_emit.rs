@@ -287,7 +287,7 @@ async fn test_livecheck_emit_roundtrip() {
             FindingLevel::Improvement,
             Some("span"),
             Some("db.query"),
-            json!({"attribute_key": "db.statement", "deprecation_reason": "Use db.query.text"}),
+            json!({"attribute_key": "db.statement", "deprecated": {"reason": "renamed", "renamed_to": "db.query.text"}}),
         );
         emitter.emit_finding(&finding, &sample_ref, &parent);
     }

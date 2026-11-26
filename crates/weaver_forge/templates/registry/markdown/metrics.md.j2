@@ -22,7 +22,7 @@ This document describes the `{{ ctx.root_namespace }}` metrics.
 | Stability | {{ metric.stability | capitalize }} |
 > endif <
 > if metric.deprecated <
-| Deprecated | {{ metric.deprecated.note }} |
+| Deprecated | {{ macros.deprecated_note(metric.deprecated) }} |
 > endif <
 
 > if metric.attributes <

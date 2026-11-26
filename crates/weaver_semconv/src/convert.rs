@@ -28,6 +28,7 @@ use crate::v1::{
     signal_requirement_level::SignalRequirementLevel as V1SignalRequirementLevel,
     stability::Stability as V1Stability,
 };
+use crate::v2::deprecated::Deprecated as V2Deprecated;
 use crate::v2::{
     attribute::{
         AttributeDef, AttributeOrGroupRef, AttributeRef, AttributeType as V2AttributeType,
@@ -112,7 +113,7 @@ pub(crate) fn v2_enum_entry_to_v1(e: V2EnumEntriesSpec) -> V1EnumEntriesSpec {
         brief: e.brief,
         note: e.note,
         stability: Some(v2_stability_to_v1(e.stability)),
-        deprecated: e.deprecated,
+        deprecated: e.deprecated.map(Into::into),
         annotations: e.annotations,
     }
 }
@@ -192,7 +193,7 @@ pub(crate) fn v2_attribute_to_v1(attr: AttributeDef) -> V1AttributeSpec {
         sampling_relevant: None,
         note: attr.common.note.unwrap_or_default(),
         stability: Some(v2_stability_to_v1(attr.common.stability)),
-        deprecated: attr.common.deprecated,
+        deprecated: attr.common.deprecated.map(Into::into),
         annotations: if attr.common.annotations.is_empty() {
             None
         } else {
@@ -612,7 +613,7 @@ pub(crate) fn v2_metric_to_v1(metric: Metric) -> V1GroupSpec {
         include_groups,
         attribute_unrefs: vec![],
         stability: Some(v2_stability_to_v1(metric.common.stability)),
-        deprecated: metric.common.deprecated,
+        deprecated: metric.common.deprecated.map(Into::into),
         attributes: attribute_refs,
         span_kind: None,
         events: Default::default(),
@@ -657,7 +658,7 @@ pub(crate) fn v2_metric_refinement_to_v1(r: MetricRefinement) -> V1GroupSpec {
         include_groups,
         attribute_unrefs,
         stability: r.stability.map(v2_stability_to_v1),
-        deprecated: r.deprecated,
+        deprecated: r.deprecated.map(Into::into),
         attributes: attribute_refs,
         span_kind: None,
         events: Default::default(),
@@ -700,7 +701,7 @@ pub(crate) fn v2_span_to_v1(span: Span) -> V1GroupSpec {
         include_groups,
         attribute_unrefs: vec![],
         stability: Some(v2_stability_to_v1(span.common.stability)),
-        deprecated: span.common.deprecated,
+        deprecated: span.common.deprecated.map(Into::into),
         attributes: attribute_refs,
         span_kind: Some(v2_span_kind_to_v1(span.kind)),
         events: vec![],
@@ -745,7 +746,7 @@ pub(crate) fn v2_span_refinement_to_v1(r: SpanRefinement) -> V1GroupSpec {
         include_groups,
         attribute_unrefs,
         stability: r.stability.map(v2_stability_to_v1),
-        deprecated: r.deprecated,
+        deprecated: r.deprecated.map(Into::into),
         attributes: attribute_refs,
         span_kind: None,
         events: vec![],
@@ -788,7 +789,7 @@ pub(crate) fn v2_event_to_v1(event: Event) -> V1GroupSpec {
         include_groups,
         attribute_unrefs: vec![],
         stability: Some(v2_stability_to_v1(event.common.stability)),
-        deprecated: event.common.deprecated,
+        deprecated: event.common.deprecated.map(Into::into),
         attributes: attribute_refs,
         span_kind: None,
         events: Default::default(),
@@ -833,7 +834,7 @@ pub(crate) fn v2_event_refinement_to_v1(r: EventRefinement) -> V1GroupSpec {
         include_groups,
         attribute_unrefs,
         stability: r.stability.map(v2_stability_to_v1),
-        deprecated: r.deprecated,
+        deprecated: r.deprecated.map(Into::into),
         attributes: attribute_refs,
         span_kind: None,
         events: vec![],
@@ -887,7 +888,7 @@ pub(crate) fn v2_entity_to_v1(entity: Entity) -> V1GroupSpec {
         include_groups: vec![],
         attribute_unrefs: vec![],
         stability: Some(v2_stability_to_v1(entity.common.stability)),
-        deprecated: entity.common.deprecated,
+        deprecated: entity.common.deprecated.map(Into::into),
         attributes,
         span_kind: None,
         events: Default::default(),
@@ -941,7 +942,7 @@ pub(crate) fn v2_entity_refinement_to_v1(r: EntityRefinement) -> V1GroupSpec {
         include_groups: vec![],
         attribute_unrefs,
         stability: r.stability.map(v2_stability_to_v1),
-        deprecated: r.deprecated,
+        deprecated: r.deprecated.map(Into::into),
         attributes,
         span_kind: None,
         events: Default::default(),
@@ -1015,7 +1016,7 @@ pub(crate) fn v2_attribute_group_to_v1(ag: AttributeGroup) -> V1GroupSpec {
                 include_groups,
                 attribute_unrefs: vec![],
                 stability: Some(v2_stability_to_v1(public.common.stability)),
-                deprecated: public.common.deprecated,
+                deprecated: public.common.deprecated.map(Into::into),
                 attributes,
                 span_kind: None,
                 events: vec![],
@@ -1304,19 +1305,22 @@ pub fn v1_span_name_to_v2(s: V1SpanName) -> V2SpanName {
 ///
 /// In V1, `stability: deprecated` was valid, whereas in V2 `Deprecated` is no longer a stability level.
 /// When encountering `V1Stability::Deprecated`, its V2 stability is set to `V2Stability::Development`
-/// ("experimental") and its `deprecated` field defaults to `Deprecated::Unspecified` if not already set.
+/// ("experimental") and its `deprecated` field defaults to `Uncategorized` if not already set.
 /// This matches the state of semantic conventions when Stability::Deprecated was first removed.
+///
+/// v1 plain string deprecations become `Uncategorized`.
 #[must_use]
 pub fn v1_stability_and_deprecated_to_v2(
     stability: Option<V1Stability>,
     deprecated: Option<Deprecated>,
-) -> (Option<V2Stability>, Option<Deprecated>) {
+) -> (Option<V2Stability>, Option<V2Deprecated>) {
+    let deprecated = deprecated.map(V2Deprecated::from);
     match stability {
         #[allow(deprecated)]
         Some(V1Stability::Deprecated) => (
             Some(V2Stability::Development),
             deprecated.or_else(|| {
-                Some(Deprecated::Unspecified {
+                Some(V2Deprecated::Uncategorized {
                     note: "converted from no-note legacy V1 deprecation".to_owned(),
                 })
             }),
@@ -1572,7 +1576,7 @@ mod tests {
             brief: Some("Success status".to_owned()),
             note: Some("Detailed status note".to_owned()),
             stability: V2Stability::Stable,
-            deprecated: Some(Deprecated::Renamed {
+            deprecated: Some(V2Deprecated::Renamed {
                 renamed_to: "new_ok".to_owned(),
                 note: Some("Use new_ok instead".to_owned()),
             }),
@@ -1809,7 +1813,7 @@ mod tests {
                 brief: "HTTP response status code".to_owned(),
                 note: Some("Note text".to_owned()),
                 stability: V2Stability::Stable,
-                deprecated: Some(Deprecated::Renamed {
+                deprecated: Some(V2Deprecated::Renamed {
                     renamed_to: "response.status_code".to_owned(),
                     note: Some("Use response.status_code".to_owned()),
                 }),
@@ -2416,7 +2420,7 @@ stability: stable
         assert_eq!(stab, Some(V2Stability::Development));
         assert_eq!(
             dep,
-            Some(Deprecated::Unspecified {
+            Some(V2Deprecated::Uncategorized {
                 note: "converted from no-note legacy V1 deprecation".to_owned()
             })
         );
@@ -2430,7 +2434,7 @@ stability: stable
             Some(existing_dep.clone()),
         );
         assert_eq!(stab, Some(V2Stability::Development));
-        assert_eq!(dep, Some(existing_dep));
+        assert_eq!(dep, Some(existing_dep.into()));
 
         // Test v1_enum_entry_to_v2 with deprecated stability
         let v1_entry = V1EnumEntriesSpec {
@@ -2460,7 +2464,7 @@ stability: stable
         );
         assert_eq!(
             v2_entry.deprecated,
-            Some(Deprecated::Unspecified {
+            Some(V2Deprecated::Uncategorized {
                 note: "converted from no-note legacy V1 deprecation".to_owned()
             })
         );

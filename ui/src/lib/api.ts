@@ -108,7 +108,7 @@ export interface RegistryStats {
 }
 
 export interface DeprecatedInfo {
-  reason?: 'renamed' | 'obsoleted' | 'uncategorized' | 'unspecified' | string;
+  reason?: 'renamed' | 'obsoleted' | 'uncategorized' | string;
   note?: string;
   renamed_to?: string;
 }

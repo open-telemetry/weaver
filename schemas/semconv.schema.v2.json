@@ -109,7 +109,7 @@
           "type": "string"
         },
         "deprecated": {
-          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "description": "Specifies if the semantic convention is deprecated and why.\nSee also stability.",
           "anyOf": [
             {
               "$ref": "#/$defs/Deprecated"
@@ -207,7 +207,7 @@
               "type": "string"
             },
             "deprecated": {
-              "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+              "description": "Specifies if the semantic convention is deprecated and why.\nSee also stability.",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Deprecated"
@@ -378,39 +378,37 @@
       ]
     },
     "Deprecated": {
-      "description": "The different ways to deprecate an attribute, a metric, ...",
+      "description": "Why an attribute, signal or enum member is deprecated.",
       "oneOf": [
         {
-          "description": "The telemetry object containing the deprecated field has been renamed to an\nexisting or a new telemetry object.",
+          "description": "Replaced by `renamed_to`, with the same semantics.",
           "type": "object",
           "properties": {
             "note": {
-              "description": "The note to provide more context about the deprecation.\nWhen not provided, it is inferred from `renamed_to`.",
-              "type": [
-                "string",
-                "null"
-              ]
+              "description": "Extra context.",
+              "type": "string"
             },
             "reason": {
               "type": "string",
               "const": "renamed"
             },
             "renamed_to": {
-              "description": "The new name of the telemetry object.",
+              "description": "Name of the replacement.",
               "type": "string"
             }
           },
+          "additionalProperties": false,
           "required": [
             "reason",
             "renamed_to"
           ]
         },
         {
-          "description": "The telemetry object containing the deprecated field has been obsoleted\nbecause it no longer exists and has no valid replacement.\n\nThe `brief` field should contain the reason why the field has been obsoleted.",
+          "description": "Removed, with no replacement.",
           "type": "object",
           "properties": {
             "note": {
-              "description": "The note to provide more context about the deprecation.",
+              "description": "Why it was removed.",
               "type": "string"
             },
             "reason": {
@@ -418,17 +416,18 @@
               "const": "obsoleted"
             }
           },
+          "additionalProperties": false,
           "required": [
             "reason",
             "note"
           ]
         },
         {
-          "description": "The telemetry object containing the deprecated field has been deprecated for\ncomplex reasons (split, merge, ...) which are currently not precisely defined\nin the supported deprecation reasons.\n\nThe `brief` field should contain the reason for this uncategorized deprecation.",
+          "description": "Deprecated for another reason, such as a split or a merge.",
           "type": "object",
           "properties": {
             "note": {
-              "description": "The note to provide more context about the deprecation.",
+              "description": "What happened and what to use instead.",
               "type": "string"
             },
             "reason": {
@@ -436,24 +435,7 @@
               "const": "uncategorized"
             }
           },
-          "required": [
-            "reason",
-            "note"
-          ]
-        },
-        {
-          "description": "This variant is used to capture old, unstructured deprecated \"string\".\nUsed for backward-compatibility only.",
-          "type": "object",
-          "properties": {
-            "note": {
-              "description": "The note to provide more context about the deprecation.",
-              "type": "string"
-            },
-            "reason": {
-              "type": "string",
-              "const": "unspecified"
-            }
-          },
+          "additionalProperties": false,
           "required": [
             "reason",
             "note"
@@ -477,7 +459,7 @@
           "type": "string"
         },
         "deprecated": {
-          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "description": "Specifies if the semantic convention is deprecated and why.\nSee also stability.",
           "anyOf": [
             {
               "$ref": "#/$defs/Deprecated"
@@ -748,7 +730,7 @@
           "type": "string"
         },
         "deprecated": {
-          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "description": "Specifies if the semantic convention is deprecated and why.\nSee also stability.",
           "anyOf": [
             {
               "$ref": "#/$defs/Deprecated"
@@ -1221,7 +1203,7 @@
           "type": "string"
         },
         "deprecated": {
-          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "description": "Specifies if the semantic convention is deprecated and why.\nSee also stability.",
           "anyOf": [
             {
               "$ref": "#/$defs/Deprecated"
@@ -1512,7 +1494,7 @@
           "type": "string"
         },
         "deprecated": {
-          "description": "Specifies if the semantic convention is deprecated. The string\nprovided as description MUST specify why it's deprecated and/or what\nto use instead. See also stability.",
+          "description": "Specifies if the semantic convention is deprecated and why.\nSee also stability.",
           "anyOf": [
             {
               "$ref": "#/$defs/Deprecated"

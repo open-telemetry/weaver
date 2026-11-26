@@ -1,3 +1,4 @@
+> import "_macros.j2" as macros <
 # Attributes: `{{ ctx.root_namespace }}`
 
 This document describes the `{{ ctx.root_namespace }}` attributes.
@@ -31,7 +32,7 @@ This document describes the `{{ ctx.root_namespace }}` attributes.
 | Stability | {{ attribute.stability | capitalize }} |
 > endif <
 > if attribute.deprecated <
-| Deprecated | {{ attribute.deprecated.note }} |
+| Deprecated | {{ macros.deprecated_note(attribute.deprecated) }} |
 > endif <
 > if attribute.examples <
 > if attribute.examples is sequence <

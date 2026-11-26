@@ -2,6 +2,7 @@
 
 //! This crate provides the weaver_live_check library
 
+use std::borrow::Cow;
 use std::rc::Rc;
 
 use finding_modifier::FindingModifier;
@@ -29,8 +30,8 @@ use weaver_forge::{
     v2::registry::ForgeResolvedRegistry,
 };
 use weaver_semconv::{
-    deprecated::Deprecated,
     v1::{attribute::AttributeType, group::InstrumentSpec, stability::Stability},
+    v2::deprecated::Deprecated,
 };
 
 /// Serializes an enum value to its serde name, for example `internal`.
@@ -92,10 +93,8 @@ pub const ATTRIBUTE_KEY_ADVICE_CONTEXT_KEY: &str = "attribute_key";
 pub const ATTRIBUTE_VALUE_ADVICE_CONTEXT_KEY: &str = "attribute_value";
 ///Attribute type key in advice context
 pub const ATTRIBUTE_TYPE_ADVICE_CONTEXT_KEY: &str = "attribute_type";
-/// Deprecation reason key in advice context
-pub const DEPRECATION_REASON_ADVICE_CONTEXT_KEY: &str = "deprecation_reason";
-/// Deprecation note key in advice context
-pub const DEPRECATION_NOTE_ADVICE_CONTEXT_KEY: &str = "deprecation_note";
+/// Deprecation key in advice context, holds the structured `deprecated` value
+pub const DEPRECATED_ADVICE_CONTEXT_KEY: &str = "deprecated";
 /// Stability key in advice context
 pub const STABILITY_ADVICE_CONTEXT_KEY: &str = "stability";
 /// Unit key in advice context
@@ -166,10 +165,10 @@ impl VersionedAttribute {
 
     /// Get the type of the attribute
     #[must_use]
-    pub fn r#type(&self) -> std::borrow::Cow<'_, AttributeType> {
+    pub fn r#type(&self) -> Cow<'_, AttributeType> {
         match self {
-            VersionedAttribute::V1(attr) => std::borrow::Cow::Borrowed(&attr.r#type),
-            VersionedAttribute::V2(attr) => std::borrow::Cow::Owned(
+            VersionedAttribute::V1(attr) => Cow::Borrowed(&attr.r#type),
+            VersionedAttribute::V2(attr) => Cow::Owned(
                 weaver_semconv::convert::v2_attribute_type_to_v1(attr.r#type.clone()),
             ),
         }
@@ -177,10 +176,10 @@ impl VersionedAttribute {
 
     /// Get the deprecated field of the attribute
     #[must_use]
-    pub fn deprecated(&self) -> &Option<Deprecated> {
+    pub fn deprecated(&self) -> Option<Cow<'_, Deprecated>> {
         match self {
-            VersionedAttribute::V1(attr) => &attr.deprecated,
-            VersionedAttribute::V2(attr) => &attr.common.deprecated,
+            VersionedAttribute::V1(attr) => attr.deprecated.clone().map(|d| Cow::Owned(d.into())),
+            VersionedAttribute::V2(attr) => attr.common.deprecated.as_ref().map(Cow::Borrowed),
         }
     }
 
@@ -223,12 +222,12 @@ impl VersionedSignal {
 
     /// Get the deprecated field of the signal
     #[must_use]
-    pub fn deprecated(&self) -> &Option<Deprecated> {
+    pub fn deprecated(&self) -> Option<Cow<'_, Deprecated>> {
         match self {
-            VersionedSignal::Group(group) => &group.as_ref().deprecated,
-            VersionedSignal::Metric(metric) => &metric.common.deprecated,
-            VersionedSignal::Span(span) => &span.common.deprecated,
-            VersionedSignal::Event(event) => &event.common.deprecated,
+            VersionedSignal::Group(group) => group.deprecated.clone().map(|d| Cow::Owned(d.into())),
+            VersionedSignal::Metric(metric) => metric.common.deprecated.as_ref().map(Cow::Borrowed),
+            VersionedSignal::Span(span) => span.common.deprecated.as_ref().map(Cow::Borrowed),
+            VersionedSignal::Event(event) => event.common.deprecated.as_ref().map(Cow::Borrowed),
         }
     }
 
