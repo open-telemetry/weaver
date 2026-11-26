@@ -1233,10 +1233,18 @@ spans:
         root.parent().unwrap().to_str().unwrap(),
         ResolutionTarget::V2,
     ) {
-        WResult::FatalErr(Error::SpanLinkTargetNotFound { link_ref, .. }) => {
-            assert_eq!(link_ref, "c.target");
+        WResult::FatalErr(Error::GroupNotFoundInUpgradedSchema {
+            group_id,
+            original_url,
+            upgraded_url,
+        }) => {
+            assert_eq!(group_id, "c.target");
+            assert_eq!(original_url, c1_url);
+            assert_eq!(upgraded_url, c2_url);
         }
-        WResult::FatalErr(other) => panic!("Expected SpanLinkTargetNotFound, got: {other}"),
+        WResult::FatalErr(other) => {
+            panic!("Expected GroupNotFoundInUpgradedSchema, got: {other}")
+        }
         WResult::Ok(_) | WResult::OkWithNFEs(..) => panic!("Expected FatalErr, got Ok"),
     }
 }

@@ -245,23 +245,27 @@ pub(crate) fn validate_span_link_targets<C: SchemaCacheLookup>(
             // Same lookup as refinement parents, including chosen-version upgrades. It also
             // matches refinement ids, which are not link targets: a refinement resolves to
             // its parent's type, so only accept a span whose type is the requested id.
-            let found = deps
-                .lookup_signal(
-                    SignalKind::Span,
-                    link.r#ref.as_ref(),
-                    span.r#type.as_ref(),
-                    None,
-                    cache_lookup,
-                )
-                .is_ok_and(|s| {
-                    matches!(&s.payload, DepSignalPayload::Span { r#type, .. } if *r#type == link.r#ref)
-                });
-            if !found {
-                errors.push(Error::SpanLinkTargetNotFound {
-                    span_id: span.r#type.to_string(),
-                    link_ref: link.r#ref.to_string(),
-                    provenance: provenance(),
-                });
+            // Missing and wrong-kind targets are reported as link errors; ambiguity and
+            // upgrade failures keep their own, more specific errors.
+            match deps.lookup_signal(
+                SignalKind::Span,
+                link.r#ref.as_ref(),
+                span.r#type.as_ref(),
+                None,
+                cache_lookup,
+            ) {
+                Ok(s) if matches!(&s.payload, DepSignalPayload::Span { r#type, .. } if *r#type == link.r#ref) =>
+                    {}
+                Ok(_)
+                | Err(Error::UnresolvedRefinementParent { .. })
+                | Err(Error::InvalidRefinement { .. }) => {
+                    errors.push(Error::SpanLinkTargetNotFound {
+                        span_id: span.r#type.to_string(),
+                        link_ref: link.r#ref.to_string(),
+                        provenance: provenance(),
+                    });
+                }
+                Err(e) => errors.push(e),
             }
         }
     }
