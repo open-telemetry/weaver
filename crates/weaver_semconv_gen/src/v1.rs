@@ -206,7 +206,11 @@ mod tests {
         // Now we should check a snippet.
         let test = "data/templates.md";
         println!("--- Running template engine test: {test} ---");
-        force_print_error(generator.update_markdown(test, true, Some(attribute_registry_url)));
+        force_print_error(
+            generator
+                .update_markdown(test, true, Some(attribute_registry_url))
+                .into_result_failing_non_fatal(),
+        );
         Ok(())
     }
 
@@ -232,7 +236,11 @@ mod tests {
         let attribute_registry_url = "/docs/attributes-registry";
         let test = "data_v2_to_v1/templates.md";
         println!("--- Running template engine test for V2 to V1 refinements: {test} ---");
-        force_print_error(generator.update_markdown(test, true, Some(attribute_registry_url)));
+        force_print_error(
+            generator
+                .update_markdown(test, true, Some(attribute_registry_url))
+                .into_result_failing_non_fatal(),
+        );
         Ok(())
     }
 }
