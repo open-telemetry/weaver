@@ -215,14 +215,32 @@ pub(crate) fn validate_span_link_targets(
     imported_span_types: impl IntoIterator<Item = SignalId>,
     deps: &V2Dependencies,
 ) -> Result<(), Error> {
-    let mut known: HashSet<SignalId> = index.spans().keys().cloned().collect();
-    known.extend(imported_span_types);
+    let imported: HashSet<SignalId> = imported_span_types.into_iter().collect();
     // Base spans only: refinement ids are not link targets.
     let mut dep_spans: Option<HashSet<SignalId>> = None;
     let mut errors = Vec::new();
     for span in &signals.spans {
+        let provenance = || {
+            index
+                .spans()
+                .get(&span.r#type)
+                .map(|s| Box::new(s.provenance.clone()))
+        };
         for link in &span.links {
-            if known.contains(&link.r#ref) {
+            if let Some(target) = index.spans().get(&link.r#ref) {
+                if is_excluded(&target.item.common.annotations)
+                    && !is_excluded(&span.common.annotations)
+                {
+                    errors.push(Error::ExcludedFromDependencyResolution {
+                        id: link.r#ref.to_string(),
+                        r#type: SignalKind::Span.as_str().to_owned(),
+                        used_in: span.r#type.to_string(),
+                        provenance: provenance(),
+                    });
+                }
+                continue;
+            }
+            if imported.contains(&link.r#ref) {
                 continue;
             }
             let dep_spans = dep_spans.get_or_insert_with(|| {
@@ -237,10 +255,7 @@ pub(crate) fn validate_span_link_targets(
                 errors.push(Error::SpanLinkTargetNotFound {
                     span_id: span.r#type.to_string(),
                     link_ref: link.r#ref.to_string(),
-                    provenance: index
-                        .spans()
-                        .get(&span.r#type)
-                        .map(|s| Box::new(s.provenance.clone())),
+                    provenance: provenance(),
                 });
             }
         }

@@ -1117,6 +1117,53 @@ spans:
 }
 
 #[test]
+fn test_span_link_to_excluded_span() {
+    let yaml = |source_excluded: bool| {
+        let source_annotations = if source_excluded {
+            "\n    annotations:\n      dependency_resolution:\n        exclude: true"
+        } else {
+            ""
+        };
+        format!(
+            r#"file_format: definition/2
+spans:
+  - type: internal.batch
+    kind: internal
+    name:
+      note: batch
+    brief: Internal batching span.
+    stability: development
+    annotations:
+      dependency_resolution:
+        exclude: true
+  - type: messaging.process
+    kind: consumer
+    name:
+      note: process
+    brief: Processes messages.
+    stability: stable{source_annotations}
+    links:
+      - ref: internal.batch
+"#
+        )
+    };
+    match resolve_from_yaml(&yaml(false), ResolutionTarget::V2) {
+        WResult::FatalErr(Error::ExcludedFromDependencyResolution { id, used_in, .. }) => {
+            assert_eq!(id, "internal.batch");
+            assert_eq!(used_in, "messaging.process");
+        }
+        WResult::FatalErr(other) => {
+            panic!("Expected ExcludedFromDependencyResolution, got: {other}")
+        }
+        WResult::Ok(_) | WResult::OkWithNFEs(..) => panic!("Expected FatalErr, got Ok"),
+    }
+    assert!(matches!(
+        resolve_from_yaml(&yaml(true), ResolutionTarget::V2),
+        WResult::Ok(_) | WResult::OkWithNFEs(..)
+    ));
+}
+
+#[test]
 fn test_imported_span_link_attribute_upgraded() {
     let dir = tempfile::tempdir().expect("tempdir");
     let c1_dir = dir.path().join("c_1_1").join("registry");
