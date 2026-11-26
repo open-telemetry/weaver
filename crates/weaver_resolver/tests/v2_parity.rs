@@ -2457,6 +2457,7 @@ description: V1 Dependency
     attributes:
       - id: device.id
         type: string
+        role: identifying
         brief: Device ID
         stability: stable
   - id: metric.device.boot

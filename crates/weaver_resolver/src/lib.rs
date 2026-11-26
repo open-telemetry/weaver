@@ -3448,4 +3448,137 @@ groups:
             }
         }
     }
+
+    fn resolve_without_identity_fixture(
+        name: &str,
+        target: ResolutionTarget,
+    ) -> WResult<WeaverResolvedSchema, Error> {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: format!("data/v2-entity-without-identity/{name}"),
+        };
+        let registry_repo = RegistryRepo::try_new(None, &registry_path, &mut vec![])
+            .expect("Failed to load the registry");
+        WeaverResolver::new(WeaverResolverConfig::default().with_target(target))
+            .load_and_resolve_schema(registry_repo, DefaultSchemaVisitor)
+            .ignore(is_unstable_format_warning)
+    }
+
+    fn is_converted_warning(nfes: &[Error]) -> bool {
+        matches!(nfes, [Error::EntityConvertedToAttributeGroup { group_id, .. }] if group_id == "entity.legacy")
+    }
+
+    /// Resolved for V2, a V1 entity without identity becomes a public attribute
+    /// group, with a warning. Resolved for V1, it stays an entity.
+    #[test]
+    fn test_entity_without_identity_becomes_attribute_group() {
+        let (v1, nfes) = resolve_without_identity_fixture("local", ResolutionTarget::V1)
+            .into_result_with_non_fatal()
+            .expect("Failed to resolve");
+        assert_eq!(
+            v1.as_v1().unwrap().group("entity.legacy").unwrap().r#type,
+            GroupType::Entity
+        );
+        assert!(nfes.is_empty(), "unexpected warnings: {nfes:?}");
+
+        let (v2, nfes) = resolve_without_identity_fixture("local", ResolutionTarget::V2)
+            .into_result_with_non_fatal()
+            .expect("Failed to resolve");
+        let registry = &v2.as_v2().unwrap().registry;
+        assert!(registry.entities.is_empty());
+        assert!(registry
+            .attribute_groups
+            .iter()
+            .any(|g| &*g.id == "entity.legacy"));
+        assert!(is_converted_warning(&nfes), "unexpected warnings: {nfes:?}");
+    }
+
+    /// Once converted, the entity can't be associated with, whether it is
+    /// defined locally or in a dependency.
+    #[test]
+    fn test_entity_without_identity_cannot_be_associated() {
+        for name in ["local_assoc", "consumer"] {
+            assert!(
+                resolve_without_identity_fixture(name, ResolutionTarget::V1)
+                    .into_result_failing_non_fatal()
+                    .is_ok(),
+                "{name} must resolve for V1"
+            );
+            let error = resolve_without_identity_fixture(name, ResolutionTarget::V2)
+                .into_result_with_non_fatal()
+                .expect_err("association to a converted entity must fail");
+            // A local association fails when converting to V2, a dependency one during resolution.
+            let message = format!("{error:?}");
+            assert!(
+                (message.contains("UnresolvedEntityAssociation")
+                    || message.contains("is associated with entity legacy"))
+                    && message.contains("legacy"),
+                "{name}: {message}"
+            );
+        }
+    }
+
+    /// Refining a converted entity fails, whether resolved from source or from a pre-resolved
+    /// registry.
+    #[test]
+    fn test_entity_without_identity_cannot_be_refined() {
+        let v1 = resolve_without_identity_fixture("refinement", ResolutionTarget::V1)
+            .into_result_failing_non_fatal()
+            .expect("Failed to resolve")
+            .as_v1()
+            .unwrap()
+            .clone();
+        let mut resolver =
+            WeaverResolver::new(WeaverResolverConfig::default().with_target(ResolutionTarget::V2));
+        let pre_resolved = resolver
+            .resolve_loaded(LoadedSemconvRegistry::Resolved {
+                schema: v1,
+                direct_dependencies: vec![],
+            })
+            .into_result_with_non_fatal()
+            .map(|_| ());
+        let from_source = resolve_without_identity_fixture("refinement", ResolutionTarget::V2)
+            .into_result_with_non_fatal()
+            .map(|_| ());
+        for result in [pre_resolved, from_source] {
+            let message = result
+                .expect_err("refining a converted entity must fail")
+                .to_string();
+            assert!(message.contains("entity.legacy.child"), "{message}");
+        }
+    }
+
+    /// A converted entity takes its group id in the attribute group namespace,
+    /// so it can't share that id with an existing public attribute group.
+    #[test]
+    fn test_entity_without_identity_collides_with_attribute_group() {
+        let (_, nfes) = resolve_without_identity_fixture("collision", ResolutionTarget::V2)
+            .into_result_with_non_fatal()
+            .expect("Failed to resolve");
+        assert!(
+            nfes.iter().any(|e| matches!(e, Error::CollidingV2SignalId { signal_id, .. } if signal_id == "entity.legacy")),
+            "unexpected errors: {nfes:?}"
+        );
+    }
+
+    /// A V1 registry that was resolved before loading converts the same way.
+    #[test]
+    fn test_entity_without_identity_in_pre_resolved_registry() {
+        let schema = resolve_without_identity_fixture("local", ResolutionTarget::V1)
+            .into_result_failing_non_fatal()
+            .expect("Failed to resolve")
+            .as_v1()
+            .unwrap()
+            .clone();
+        let mut resolver =
+            WeaverResolver::new(WeaverResolverConfig::default().with_target(ResolutionTarget::V2));
+        let (resolved, nfes) = resolver
+            .resolve_loaded(LoadedSemconvRegistry::Resolved {
+                schema,
+                direct_dependencies: vec![],
+            })
+            .into_result_with_non_fatal()
+            .expect("Failed to load");
+        assert!(resolved.as_v2().unwrap().registry.entities.is_empty());
+        assert!(is_converted_warning(&nfes), "unexpected warnings: {nfes:?}");
+    }
 }

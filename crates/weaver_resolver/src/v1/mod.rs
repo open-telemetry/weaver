@@ -19,6 +19,7 @@ use crate::WeaverResolver;
 
 pub(crate) mod attribute;
 pub(crate) mod dependency;
+pub(crate) mod entity_identity;
 pub(crate) mod exclusion;
 pub(crate) mod imports;
 pub(crate) mod registry;

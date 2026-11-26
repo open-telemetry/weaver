@@ -1,0 +1,24 @@
+groups:
+  - id: entity.legacy
+    type: entity
+    name: legacy
+    brief: Legacy entity without identity.
+    stability: development
+    attributes:
+      - id: legacy.name
+        type: string
+        brief: Legacy name.
+        stability: development
+        examples: [x]
+  - id: entity.legacy.child
+    type: entity
+    extends: entity.legacy
+    brief: Child with its own identity.
+    stability: development
+    attributes:
+      - id: legacy.child.id
+        type: string
+        role: identifying
+        brief: Child id.
+        stability: development
+        examples: [x]

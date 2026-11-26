@@ -472,11 +472,15 @@ pub fn convert_v1_to_v2(
                     group_id: g.id.clone(),
                 });
             };
-            r.groups
-                .iter()
-                .find(|base| &base.id == extends_group)
-                .map(entity_type_of)
-                .unwrap_or_else(|| fix_group_id("entity.", extends_group))
+            match r.groups.iter().find(|base| &base.id == extends_group) {
+                Some(base) if base.r#type != GroupType::Entity => {
+                    return Err(crate::error::Error::RefinementBaseNotFound {
+                        group_id: g.id.clone(),
+                    });
+                }
+                Some(base) => entity_type_of(base),
+                None => fix_group_id("entity.", extends_group),
+            }
         } else {
             entity_type_of(g)
         };

@@ -563,12 +563,17 @@ impl WeaverResolver {
                     };
                 }
 
-                let (resolved, mut all_nfes) =
+                let (mut resolved, mut all_nfes) =
                     match v1::resolve_registry_internal(self, repo, specs, dependencies) {
                         WResult::Ok(resolved) => (resolved, Vec::new()),
                         WResult::OkWithNFEs(resolved, nfes) => (resolved, nfes),
                         WResult::FatalErr(e) => return WResult::FatalErr(e),
                     };
+                if self.config.target == ResolutionTarget::V2 {
+                    all_nfes.extend(v1::entity_identity::convert_entities_without_identity(
+                        &mut resolved,
+                    ));
+                }
 
                 let bundle = match self.finalize_v1_bundle(resolved, is_root) {
                     Ok(b) => b,
@@ -582,9 +587,14 @@ impl WeaverResolver {
                 WResult::with_non_fatal_errors(arc, all_nfes)
             }
             LoadedSemconvRegistry::Resolved {
-                schema,
+                mut schema,
                 direct_dependencies,
             } => {
+                let nfes = if self.config.target == ResolutionTarget::V2 {
+                    v1::entity_identity::convert_entities_without_identity(&mut schema)
+                } else {
+                    Vec::new()
+                };
                 let bundle = match self.finalize_v1_bundle(schema, is_root) {
                     Ok(b) => b,
                     Err(e) => return WResult::FatalErr(e),
@@ -594,7 +604,7 @@ impl WeaverResolver {
                     self.record_direct_dependencies(&url, direct_dependencies);
                     self.record_cached_schema(url, arc.clone());
                 }
-                WResult::Ok(arc)
+                WResult::with_non_fatal_errors(arc, nfes)
             }
             LoadedSemconvRegistry::ResolvedV2 {
                 schema,
