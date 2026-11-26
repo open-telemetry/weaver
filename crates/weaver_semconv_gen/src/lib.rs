@@ -305,6 +305,28 @@ mod tests {
         }
     }
 
+    /// A generator whose snippets always fail.
+    struct FailingGenerator;
+
+    impl MarkdownSnippetGenerator for FailingGenerator {
+        fn generate_markdown_snippet(
+            &self,
+            _args: GenerateMarkdownArgs,
+            _attribute_registry_base_url: Option<&str>,
+        ) -> Result<String, Error> {
+            Err(Error::GroupNotFound {
+                id: "metric.test".to_owned(),
+            })
+        }
+
+        fn generate_weaver_snippet(
+            &self,
+            _args: WeaverGenerateMarkdownArgs,
+        ) -> Result<String, Error> {
+            Err(Error::WeaverSnippetNotSupported)
+        }
+    }
+
     /// Returns the line of each marker warning, checking it names `file`.
     fn marker_lines(file: &str, warnings: &[Error]) -> Vec<usize> {
         warnings
@@ -383,5 +405,35 @@ mod tests {
             WResult::FatalErr(error) => panic!("unexpected error: {error}"),
         }
         assert_eq!(fs::read_to_string(&path).expect("read markdown"), current);
+    }
+
+    #[test]
+    fn update_markdown_fatal_errors() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = dir.path().join("markers.md");
+        let file = path.to_str().expect("UTF-8 path");
+
+        // A file that can't be read is an error.
+        assert!(matches!(
+            TestGenerator.update_markdown(file, true, None),
+            WResult::FatalErr(Error::StdIoError(_))
+        ));
+
+        // So is a snippet that can't be generated, even next to a marker warning.
+        for markdown in [
+            "<!-- endweaverded -->\n<!--semconv metric.test-->\n<!--endsemconv-->\n",
+            "<!-- endweaverded -->\n<!--weaver .registry.metrics-->\n<!--endweaver-->\n",
+        ] {
+            fs::write(&path, markdown).expect("write markdown");
+            for dry_run in [true, false] {
+                match FailingGenerator.update_markdown(file, dry_run, None) {
+                    WResult::FatalErr(Error::GroupNotFound { .. })
+                    | WResult::FatalErr(Error::WeaverSnippetNotSupported) => {}
+                    WResult::FatalErr(error) => panic!("unexpected error: {error}"),
+                    _ => panic!("expected the snippet to fail"),
+                }
+                assert_eq!(fs::read_to_string(&path).expect("read markdown"), markdown);
+            }
+        }
     }
 }
