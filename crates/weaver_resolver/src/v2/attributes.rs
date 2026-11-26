@@ -85,6 +85,34 @@ impl<'a, C: SchemaCacheLookup> Catalog<'a, C> {
         self.resolve_attribute_ref(&item.aref, consumer_id, consumer_excluded, provenance)
     }
 
+    /// Validates that an expanded internal group attribute item resolves to an existing
+    /// local or dependency attribute without inserting anything into the finalized catalog.
+    /// Exclusion rules are enforced when a public group or signal consumes the attribute.
+    pub fn validate_internal_group_item(
+        &self,
+        item: &GroupAttributeItem,
+        consumer_id: &str,
+        provenance: Option<&SemconvProvenance>,
+    ) -> Result<(), Error> {
+        if item.dep_base.is_some() {
+            return Ok(());
+        }
+        let key = &item.aref.r#ref;
+        if self.local_defs.contains_key(key)
+            || self
+                .deps
+                .lookup_attribute(key, self.cache_lookup)?
+                .is_some()
+        {
+            return Ok(());
+        }
+        Err(Error::UnresolvedAttributeRef {
+            group_id: consumer_id.to_owned(),
+            attribute_ref: key.clone(),
+            provenance: provenance.cloned().map(Box::new),
+        })
+    }
+
     /// Registers all local attribute definitions from the symbol table.
     pub fn define_local(&mut self, index: &Index) -> Result<(), Error> {
         for (key, indexed_def) in index.attributes() {

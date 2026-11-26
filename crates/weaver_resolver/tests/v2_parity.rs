@@ -4423,3 +4423,84 @@ spans:
         }
     }
 }
+
+/// Regression test for #1930: an unused *internal* attribute group that references a
+/// nonexistent attribute must still fail V2 resolution with `UnresolvedAttributeRef`,
+/// even though internal groups are not emitted into the public resolved schema.
+#[test]
+fn test_v2_unused_internal_group_unresolved_attr_ref_is_fatal() {
+    let yaml = r#"file_format: definition/2
+attribute_groups:
+  - id: unused.internal
+    visibility: internal
+    attributes:
+      - ref: does.not.exist
+"#;
+
+    // Native V2 resolution must reject the dangling ref with group id & provenance.
+    let res = resolve_from_yaml(yaml, ResolutionTarget::V2);
+    match res {
+        WResult::FatalErr(Error::UnresolvedAttributeRef {
+            group_id,
+            attribute_ref,
+            provenance,
+        }) => {
+            assert_eq!(group_id, "unused.internal");
+            assert_eq!(attribute_ref, "does.not.exist");
+            assert!(provenance.is_some());
+        }
+        WResult::FatalErr(other) => {
+            panic!("Expected FatalErr(UnresolvedAttributeRef), got FatalErr({other})")
+        }
+        WResult::Ok(_) | WResult::OkWithNFEs(..) => {
+            panic!("Expected FatalErr(UnresolvedAttributeRef), got Ok")
+        }
+    }
+}
+
+/// Companion to the regression above: a *valid* but unused internal attribute group
+/// (even with an inline brief override) resolves successfully and must NOT leak into
+/// the public resolved output or insert overridden attributes into the catalog.
+#[test]
+fn test_v2_valid_unused_internal_group_does_not_leak_into_resolved_output() {
+    let yaml = r#"file_format: definition/2
+attributes:
+  - key: valid.local.attr
+    type: string
+    stability: stable
+    brief: A locally defined attribute.
+attribute_groups:
+  - id: unused.internal
+    visibility: internal
+    attributes:
+      - ref: valid.local.attr
+        brief: Override on unused internal group.
+"#;
+
+    let res = match resolve_from_yaml(yaml, ResolutionTarget::V2) {
+        WResult::Ok(r) | WResult::OkWithNFEs(r, _) => r,
+        WResult::FatalErr(e) => panic!("Resolution failed: {e}"),
+    };
+    let v2 = res.as_v2().expect("V2 schema");
+
+    // Unused internal groups are never emitted as public attribute groups.
+    assert!(
+        !v2.registry
+            .attribute_groups
+            .iter()
+            .any(|g| &*g.id == "unused.internal"),
+        "unused internal group leaked into registry.attribute_groups"
+    );
+
+    // Must contain ONLY the single local definition (no extra entry from the brief override).
+    assert_eq!(
+        v2.attribute_catalog.len(),
+        1,
+        "unused internal group override must not pollute attribute_catalog"
+    );
+    assert_eq!(v2.attribute_catalog[0].key, "valid.local.attr");
+    assert_eq!(
+        v2.attribute_catalog[0].common.brief,
+        "A locally defined attribute."
+    );
+}

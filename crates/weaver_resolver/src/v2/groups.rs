@@ -625,36 +625,49 @@ pub(crate) fn expand<'a, C: SchemaCacheLookup>(
     let expanded = expander.expanded;
     let mut public_groups = Vec::new();
     for (id, indexed_group) in index.attribute_groups() {
-        if let AttributeGroup::Public(p) = &indexed_group.item {
-            let items = expanded
-                .get(&ExpandKey::Group(id.clone()))
-                .map(|g| g.items.clone())
-                .unwrap_or_default();
-            let is_group_excluded = is_excluded(&p.common.annotations);
-            let mut resolved_attributes = Vec::new();
+        match &indexed_group.item {
+            AttributeGroup::Public(p) => {
+                let items = expanded
+                    .get(&ExpandKey::Group(id.clone()))
+                    .map(|g| g.items.clone())
+                    .unwrap_or_default();
+                let is_group_excluded = is_excluded(&p.common.annotations);
+                let mut resolved_attributes = Vec::new();
 
-            for item in items {
-                let resolved_attr = catalog.resolve_group_item(
-                    &item,
-                    id.as_ref(),
-                    is_group_excluded,
-                    Some(&indexed_group.provenance),
-                )?;
-                let req_level = rules::resolve_requirement_level(&item.aref);
-                resolved_attributes.push((resolved_attr, req_level));
+                for item in items {
+                    let resolved_attr = catalog.resolve_group_item(
+                        &item,
+                        id.as_ref(),
+                        is_group_excluded,
+                        Some(&indexed_group.provenance),
+                    )?;
+                    let req_level = rules::resolve_requirement_level(&item.aref);
+                    resolved_attributes.push((resolved_attr, req_level));
+                }
+
+                resolved_attributes.sort_by(|(a, _), (b, _)| a.key.cmp(&b.key));
+
+                public_groups.push(ResolvedPublicGroup {
+                    id: id.clone(),
+                    attributes: resolved_attributes,
+                    common: p.common.clone(),
+                    provenance: SchemaProvenance {
+                        source: None,
+                        path: indexed_group.provenance.path.clone(),
+                    },
+                });
             }
-
-            resolved_attributes.sort_by(|(a, _), (b, _)| a.key.cmp(&b.key));
-
-            public_groups.push(ResolvedPublicGroup {
-                id: id.clone(),
-                attributes: resolved_attributes,
-                common: p.common.clone(),
-                provenance: SchemaProvenance {
-                    source: None,
-                    path: indexed_group.provenance.path.clone(),
-                },
-            });
+            AttributeGroup::Internal(_) => {
+                if let Some(group) = expanded.get(&ExpandKey::Group(id.clone())) {
+                    for item in &group.items {
+                        catalog.validate_internal_group_item(
+                            item,
+                            id.as_ref(),
+                            Some(&indexed_group.provenance),
+                        )?;
+                    }
+                }
+            }
         }
     }
 
