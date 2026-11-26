@@ -186,11 +186,14 @@ pub(crate) fn command(
         })
     {
         log_info(format!("{}: ${}", operation, entry.path().display()));
-        if let Err(error) = generator.update_markdown(
-            &entry.path().display().to_string(),
-            dry_run,
-            attribute_registry_base_url.as_deref(),
-        ) {
+        if let Err(error) = generator
+            .update_markdown(
+                &entry.path().display().to_string(),
+                dry_run,
+                attribute_registry_base_url.as_deref(),
+            )
+            .capture_non_fatal_errors(&mut diag_msgs)
+        {
             has_error = true;
             log_error(error);
         }
@@ -201,7 +204,8 @@ pub(crate) fn command(
         } else {
             UpdateMarkdownError::MarkdownUpdateFailed
         };
-        return Err(error.into());
+        diag_msgs.extend(error.into());
+        return Err(diag_msgs);
     }
 
     if !diag_msgs.is_empty() {
@@ -224,11 +228,13 @@ impl From<UpdateMarkdownError> for DiagnosticMessages {
 #[cfg(test)]
 mod tests {
     use crate::cli::{Cli, Commands};
-    use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
+    use crate::registry::update_markdown::{command, RegistryUpdateMarkdownArgs};
     use crate::registry::{RegistryArgs, RegistryCommand, RegistrySubCommand};
     use crate::run_command;
     use clap::Parser;
     use std::io::Write;
+    use weaver_common::diagnostic::DiagnosticMessages;
+    use weaver_common::http_auth::HttpAuthResolver;
     use weaver_common::vdir::VirtualDirectoryPath;
     use zip::write::FileOptions;
 
@@ -319,6 +325,89 @@ mod tests {
         let exit_directive = run_command(&cli);
         // The command should succeed.
         assert_eq!(exit_directive.exit_code, 0);
+    }
+
+    /// Runs update-markdown on `markdown_dir` and returns its diagnostics.
+    fn update_markdown_diagnostics(
+        markdown_dir: &std::path::Path,
+        dry_run: bool,
+    ) -> DiagnosticMessages {
+        let args = RegistryUpdateMarkdownArgs {
+            markdown_dir: Some(markdown_dir.to_str().expect("valid UTF-8 path").to_owned()),
+            registry: RegistryArgs {
+                registry: Some(VirtualDirectoryPath::LocalFolder {
+                    path: "data/update_markdown/registry".to_owned(),
+                }),
+                ..Default::default()
+            },
+            dry_run: Some(dry_run),
+            attribute_registry_base_url: None,
+            templates: Some("data/update_markdown/templates".to_owned()),
+            diagnostic: Default::default(),
+            target: Some("markdown".to_owned()),
+            param: None,
+            params: None,
+        };
+        match command(&args, None, &HttpAuthResolver::empty()) {
+            Ok(_) => DiagnosticMessages::empty(),
+            Err(diag_msgs) => diag_msgs,
+        }
+    }
+
+    /// Returns the (path, line) of each marker warning in `diag_msgs`.
+    fn marker_warnings(diag_msgs: &DiagnosticMessages) -> Vec<(String, u64)> {
+        let diag_msgs = serde_json::to_value(diag_msgs).expect("serializable diagnostics");
+        diag_msgs
+            .as_array()
+            .expect("diagnostics array")
+            .iter()
+            .filter_map(|msg| msg["error"].get("InvalidSnippetMarker"))
+            .map(|warning| {
+                (
+                    warning["path"].as_str().expect("path").to_owned(),
+                    warning["line"].as_u64().expect("line"),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_registry_update_markdown_marker_warnings() {
+        let markdown_dir = tempfile::TempDir::new().expect("failed to create temp dir");
+        let markers_path = markdown_dir.path().join("markers.md");
+        let markers = markers_path.to_str().expect("valid UTF-8 path").to_owned();
+        let markdown = "# Markers\n<!-- semconv metric.test(bad) -->\n<!-- endweaverded -->\n<!-- other semconv stuff -->\n";
+        std::fs::write(&markers_path, markdown).expect("failed to write markdown");
+        let expected = vec![(markers.clone(), 2), (markers, 3)];
+
+        // Marker warnings reach the result in both modes, without failing it.
+        for dry_run in [true, false] {
+            let diag_msgs = update_markdown_diagnostics(markdown_dir.path(), dry_run);
+            assert!(!diag_msgs.has_error(), "{diag_msgs:?}");
+            assert_eq!(marker_warnings(&diag_msgs), expected);
+            assert_eq!(
+                std::fs::read_to_string(&markers_path).expect("read markdown"),
+                markdown
+            );
+        }
+
+        // A dry run still fails on stale markdown, and keeps the other file's warnings.
+        let stale_path = markdown_dir.path().join("stale.md");
+        let stale = "<!-- semconv registry.user_agent -->\nstale\n<!-- endsemconv -->\n";
+        std::fs::write(&stale_path, stale).expect("failed to write markdown");
+        let diag_msgs = update_markdown_diagnostics(markdown_dir.path(), true);
+        assert!(diag_msgs.has_error(), "{diag_msgs:?}");
+        assert_eq!(marker_warnings(&diag_msgs), expected);
+        let errors = serde_json::to_value(&diag_msgs).expect("serializable diagnostics");
+        assert!(errors
+            .as_array()
+            .expect("diagnostics array")
+            .iter()
+            .any(|msg| msg["error"] == "MarkdownNotUpToDate"));
+        assert_eq!(
+            std::fs::read_to_string(&stale_path).expect("read markdown"),
+            stale
+        );
     }
 
     #[test]

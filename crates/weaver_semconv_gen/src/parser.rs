@@ -258,6 +258,30 @@ fn parse_semconv_trailer(input: &str) -> IResult<&str, ()> {
     }
 }
 
+/// Returns true for a comment starting with a snippet marker keyword.
+pub fn looks_like_snippet_marker(line: &str) -> bool {
+    let Some(comment) = line.strip_prefix("<!--") else {
+        return false;
+    };
+    let comment = comment.trim_start();
+    [
+        SEMCONV_HEADER,
+        SEMCONV_TRAILER,
+        WEAVER_HEADER,
+        WEAVER_TRAILER,
+    ]
+    .iter()
+    .any(|keyword| comment.starts_with(keyword))
+}
+
+/// Returns true if the line is a supported snippet marker.
+pub fn is_valid_snippet_marker(line: &str) -> bool {
+    is_markdown_snippet_directive(line)
+        || is_semconv_trailer(line)
+        || is_weaver_directive(line)
+        || is_weaver_trailer(line)
+}
+
 /// Returns true if the line is the <!-- endsemconv --> marker for markdown snippets.
 pub fn is_semconv_trailer(line: &str) -> bool {
     matches!(parse_semconv_trailer(line), Ok((rest, _)) if rest.trim().is_empty())
@@ -546,6 +570,41 @@ mod tests {
     fn parse_weaver_trailer() {
         assert!(is_weaver_trailer("<!-- endweaver -->"));
         assert!(!is_weaver_trailer("<!-- endweaverded -->"));
+    }
+
+    #[test]
+    fn malformed_snippet_markers() {
+        for line in [
+            "<!-- semconv metric.test(bad) -->",
+            "<!-- semconv -->",
+            "<!-- endsemconvded -->",
+            "<!-- endweaverded -->",
+            "<!-- semconv metric.test",
+            "<!-- weaver .registry.metrics --!>",
+            "<!-- endweaver --> extra",
+        ] {
+            assert!(super::looks_like_snippet_marker(line), "{line}");
+            assert!(!super::is_valid_snippet_marker(line), "{line}");
+        }
+        for line in [
+            "<!-- semconv metric.k8s.hpa.min_pods-->",
+            "<!--semconvmetric.test-->",
+            "<!-- semconv metric.test(metric_table) -->",
+            "<!--endsemconv-->",
+            "<!--weaver .registry.metrics-->",
+            "<!-- weaver template:test.j2 .registry.spans[] -->",
+            "<!--endweaver-->",
+        ] {
+            assert!(super::is_valid_snippet_marker(line), "{line}");
+        }
+        for line in [
+            "<!-- other semconv stuff -->",
+            "<!-- ordinary comment -->",
+            "<!-- ordinary unfinished comment",
+            "plain text",
+        ] {
+            assert!(!super::looks_like_snippet_marker(line), "{line}");
+        }
     }
 
     #[test]
