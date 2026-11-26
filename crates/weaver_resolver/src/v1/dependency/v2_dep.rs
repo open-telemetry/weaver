@@ -102,6 +102,7 @@ fn signal_summary(
         requirement_level: requirement_level.map(Into::into),
         span_kind: None,
         span_name: None,
+        span_links: Vec::new(),
         attributes,
         annotations: Some(common.annotations.clone()),
         entity_associations: vec![],
@@ -328,6 +329,19 @@ pub(crate) fn example_v2_schema() -> V2Schema {
                 },
                 attributes: vec![],
                 entity_associations: vec![],
+                // A link with a link attribute; both the normal import
+                // path and the upgrade path must carry it over.
+                links: vec![weaver_resolved_schema::v2::span::SpanLink {
+                    r#ref: "span.d".to_owned().into(),
+                    brief: Some("test link".to_owned()),
+                    note: None,
+                    attributes: vec![weaver_resolved_schema::v2::span::LinkAttributeRef {
+                        base: V2AttributeRef(3),
+                        requirement_level: V2RequirementLevel::Basic(
+                            V2BasicRequirementLevelSpec::Required,
+                        ),
+                    }],
+                }],
                 requirement_level: None,
                 common: Default::default(),
                 provenance: Default::default(),
@@ -367,6 +381,18 @@ pub(crate) fn example_v2_schema() -> V2Schema {
                 r#type: V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
                 examples: None,
                 common: Default::default(),
+                provenance: Default::default(),
+            },
+            // An overridden variant of attr.in.group, referenced by the
+            // span link; importing must preserve the override.
+            V2Attribute {
+                key: "attr.in.group".to_owned(),
+                r#type: V2AttributeType::PrimitiveOrArray(V2PrimitiveOrArrayTypeSpec::String),
+                examples: None,
+                common: CommonFields {
+                    brief: "the id, as carried on the link".to_owned(),
+                    ..Default::default()
+                },
                 provenance: Default::default(),
             },
         ],

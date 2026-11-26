@@ -57,6 +57,15 @@ pub(crate) struct DepImportedMetric {
     pub match_keys: Vec<String>,
 }
 
+/// Span link declared on a dependency span, with its attributes resolved from the dependency catalog.
+#[derive(Debug, Clone)]
+pub(crate) struct DepSpanLink {
+    pub r#ref: SignalId,
+    pub brief: Option<String>,
+    pub note: Option<String>,
+    pub attributes: Vec<(Attribute, RequirementLevel, SchemaUrl)>,
+}
+
 /// Span definition imported from a dependency schema.
 #[derive(Debug, Clone)]
 pub(crate) struct DepImportedSpan {
@@ -65,6 +74,7 @@ pub(crate) struct DepImportedSpan {
     pub name: SpanName,
     pub requirement_level: Option<SignalRequirementLevel>,
     pub attributes: Vec<(Attribute, RequirementLevel, Option<bool>, SchemaUrl, bool)>,
+    pub links: Vec<DepSpanLink>,
     pub entity_associations: EntityAssociations,
     pub association_origins: BTreeMap<String, SchemaUrl>,
     pub common: CommonFields,
@@ -132,6 +142,7 @@ pub(crate) enum DepSignalPayload {
         name: SpanName,
         requirement_level: Option<SignalRequirementLevel>,
         attributes: Vec<(Attribute, RequirementLevel, Option<bool>, SchemaUrl)>,
+        links: Vec<DepSpanLink>,
     },
     Event {
         name: SignalId,

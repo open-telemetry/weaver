@@ -150,6 +150,16 @@ pub(crate) fn resolve(
     };
     non_fatal_errors.extend(import_warnings);
 
+    if let Err(e) = signals::validate_span_link_targets(
+        &local_index,
+        &resolved_signals,
+        imported_items.spans.iter().map(|s| s.item.r#type.clone()),
+        &v2_deps,
+        &lookup_ctx,
+    ) {
+        return WResult::FatalErr(e);
+    }
+
     if let Err(e) = entities::resolve_associations(
         &schema_url,
         &mut resolved_signals,

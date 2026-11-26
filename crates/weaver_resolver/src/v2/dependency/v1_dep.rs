@@ -386,6 +386,8 @@ impl V1Dependency {
                         .into_iter()
                         .map(|a| (a.attr, a.req, a.sampling_relevant, a.origin))
                         .collect(),
+                    // V1 resolved schemas do not carry span links.
+                    links: Vec::new(),
                 }
             }
             SignalKind::Event => DepSignalPayload::Event {
@@ -538,6 +540,7 @@ impl V1Dependency {
                     name,
                     requirement_level: g.requirement_level.clone().map(Into::into),
                     attributes,
+                    links: Vec::new(),
                     entity_associations,
                     association_origins,
                     common: meta.common,
@@ -811,6 +814,7 @@ mod tests {
             attributes: vec![weaver_resolved_schema::v1::attribute::AttributeRef(0)],
             span_kind: None,
             span_name: None,
+            span_links: Vec::new(),
             events: vec![],
             metric_name: None,
             instrument: None,
@@ -868,6 +872,7 @@ mod tests {
             attributes: vec![],
             span_kind: None,
             span_name: None,
+            span_links: Vec::new(),
             events: vec![],
             metric_name: Some("hw.errors".to_owned()),
             instrument: Some(weaver_semconv::v1::group::InstrumentSpec::Counter),
@@ -933,6 +938,7 @@ mod tests {
             attributes: vec![],
             span_kind: Some(weaver_semconv::v1::group::SpanKindSpec::Client),
             span_name: None,
+            span_links: Vec::new(),
             events: vec![],
             metric_name: None,
             instrument: None,

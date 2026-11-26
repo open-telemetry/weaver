@@ -1024,6 +1024,7 @@ pub(crate) mod tests {
             registry: v2::registry::Registry {
                 attributes: vec![AttributeRef(0), AttributeRef(1)],
                 spans: vec![span::Span {
+                    links: vec![],
                     r#type: SignalId::from("my-span".to_owned()),
                     kind: SpanKindSpec::Internal,
                     name: SpanName {
@@ -1122,6 +1123,7 @@ pub(crate) mod tests {
                             sampling_relevant: Some(false),
                         }],
                         entity_associations: vec![],
+                        links: vec![],
                         requirement_level: None,
                         common: CommonFields::default(),
                         provenance: Default::default(),
@@ -1397,6 +1399,7 @@ pub(crate) mod tests {
                 attributes: vec![AttributeRef(0), AttributeRef(1), AttributeRef(2)],
                 spans: vec![
                     span::Span {
+                        links: vec![],
                         r#type: SignalId::from("z-span".to_owned()),
                         kind: SpanKindSpec::Internal,
                         name: SpanName {
@@ -1410,6 +1413,7 @@ pub(crate) mod tests {
                         provenance: Default::default(),
                     },
                     span::Span {
+                        links: vec![],
                         r#type: SignalId::from("a-span".to_owned()),
                         kind: SpanKindSpec::Internal,
                         name: SpanName {
@@ -1488,6 +1492,7 @@ pub(crate) mod tests {
                     span::SpanRefinement {
                         id: SignalId::from("z-span-ref".to_owned()),
                         span: span::Span {
+                            links: vec![],
                             r#type: SignalId::from("z-span".to_owned()),
                             kind: SpanKindSpec::Internal,
                             name: SpanName {
@@ -1504,6 +1509,7 @@ pub(crate) mod tests {
                     span::SpanRefinement {
                         id: SignalId::from("a-span-ref".to_owned()),
                         span: span::Span {
+                            links: vec![],
                             r#type: SignalId::from("a-span".to_owned()),
                             kind: SpanKindSpec::Internal,
                             name: SpanName {
@@ -1797,6 +1803,7 @@ pub(crate) mod tests {
             registry: v2::registry::Registry {
                 attributes: vec![],
                 spans: vec![span::Span {
+                    links: vec![],
                     r#type: SignalId::from("my-span".to_owned()),
                     kind: SpanKindSpec::Internal,
                     name: SpanName {
@@ -1872,6 +1879,7 @@ pub(crate) mod tests {
                 spans: vec![span::SpanRefinement {
                     id: SignalId::from("refined-span".to_owned()),
                     span: span::Span {
+                        links: vec![],
                         r#type: SignalId::from("my-span".to_owned()),
                         kind: SpanKindSpec::Internal,
                         name: SpanName {
@@ -2373,6 +2381,7 @@ pub(crate) mod tests {
                         sampling_relevant: None,
                     }],
                     entity_associations: vec![],
+                    links: vec![],
                     requirement_level: None,
                     common: CommonFields::default(),
                     provenance: Default::default(),
@@ -2898,6 +2907,7 @@ pub(crate) mod tests {
             registry: v2::registry::Registry {
                 attributes: vec![],
                 spans: vec![span::Span {
+                    links: vec![],
                     r#type: "my-span".to_owned().into(),
                     kind: SpanKindSpec::Internal,
                     name: SpanName {
@@ -3083,6 +3093,7 @@ pub(crate) mod tests {
             registry: v2::registry::Registry {
                 attributes: vec![],
                 spans: vec![span::Span {
+                    links: vec![],
                     r#type: "root-span".to_owned().into(),
                     kind: SpanKindSpec::Internal,
                     name: SpanName {

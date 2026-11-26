@@ -173,6 +173,7 @@ pub(crate) fn example_v1_schema() -> V1Schema {
                     visibility: Default::default(),
                     is_v2: Default::default(),
                     span_name: None,
+                    span_links: Vec::new(),
                 },
                 Group {
                     id: "span.v1".to_owned(),
@@ -199,6 +200,7 @@ pub(crate) fn example_v1_schema() -> V1Schema {
                     visibility: Default::default(),
                     is_v2: Default::default(),
                     span_name: None,
+                    span_links: Vec::new(),
                 },
             ],
         },

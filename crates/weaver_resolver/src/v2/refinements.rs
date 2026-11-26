@@ -30,7 +30,7 @@ use super::index::{Index, Indexed};
 use super::rules;
 use super::signals::{
     entity_identity_to_attr_ref, EntityAssociations, ResolvedEntity, ResolvedEvent, ResolvedMetric,
-    ResolvedSignals, ResolvedSpan, SignalKind,
+    ResolvedSignals, ResolvedSpan, ResolvedSpanLink, SignalKind,
 };
 use crate::error::Error;
 use crate::graph::chosen_versions::SchemaCacheLookup;
@@ -826,6 +826,7 @@ impl RefinementKindSpec for SpanRefinementSpec {
             name,
             requirement_level,
             attributes,
+            links,
         } = dep_signal.payload
         else {
             return Ok(None);
@@ -835,12 +836,29 @@ impl RefinementKindSpec for SpanRefinementSpec {
             let mapped_attr = catalog.register_inherited_dep_attribute(attr, &origin)?;
             resolved_attrs.push((mapped_attr, req, samp));
         }
+        let mut resolved_links = Vec::with_capacity(links.len());
+        for link in links {
+            let mut link_attributes = Vec::with_capacity(link.attributes.len());
+            for (attr, req, origin) in link.attributes {
+                let mapped_attr = catalog.register_inherited_dep_attribute(attr, &origin)?;
+                // Nothing else references link attributes, so register them here.
+                catalog.register_attribute(mapped_attr.clone());
+                link_attributes.push((mapped_attr, req));
+            }
+            resolved_links.push(ResolvedSpanLink {
+                r#ref: link.r#ref,
+                brief: link.brief,
+                note: link.note,
+                attributes: link_attributes,
+            });
+        }
         Ok(Some(ParentSnapshot {
             signal: ResolvedSpan {
                 r#type,
                 kind,
                 name,
                 attributes: resolved_attrs,
+                links: resolved_links,
                 entity_associations: dep_signal.entity_associations,
                 association_origins: dep_signal.association_origins,
                 requirement_level,
@@ -912,6 +930,8 @@ impl RefinementKindSpec for SpanRefinementSpec {
             kind: parent.kind,
             name,
             attributes,
+            // Refinements cannot declare links; they inherit the parent's.
+            links: parent.links,
             entity_associations,
             association_origins,
             requirement_level: parent.requirement_level,

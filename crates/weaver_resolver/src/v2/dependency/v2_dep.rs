@@ -8,13 +8,14 @@ use weaver_resolved_schema::v2::attribute::{Attribute, AttributeRef};
 use weaver_resolved_schema::v2::catalog::AttributeCatalog;
 use weaver_resolved_schema::v2::entity::EntityAssociation;
 use weaver_resolved_schema::v2::provenance::DependencyRef;
+use weaver_resolved_schema::v2::span::SpanLink;
 use weaver_resolved_schema::v2::ResolvedTelemetrySchema as V2Schema;
 use weaver_semconv::schema_url::SchemaUrl;
 use weaver_semconv::v2::attribute::RequirementLevel;
 
 use super::{
     DepAttribute, DepImportedAttributeGroup, DepImportedEntity, DepImportedEvent,
-    DepImportedMetric, DepImportedSpan, DepSignal, DepSignalPayload,
+    DepImportedMetric, DepImportedSpan, DepSignal, DepSignalPayload, DepSpanLink,
 };
 use crate::error::Error;
 use crate::graph::entity_lookup::{
@@ -148,6 +149,26 @@ impl V2Dependency {
             .expect("V2Dependency bundle must hold a V2 schema")
     }
 
+    /// Resolves span links' catalog references against this dependency's catalog.
+    fn resolve_span_links(&self, links: &[SpanLink]) -> Vec<DepSpanLink> {
+        links
+            .iter()
+            .map(|link| DepSpanLink {
+                r#ref: link.r#ref.clone(),
+                brief: link.brief.clone(),
+                note: link.note.clone(),
+                attributes: link
+                    .attributes
+                    .iter()
+                    .filter_map(|la| {
+                        let (attr, origin) = self.resolve_catalog_attr(&la.base)?;
+                        Some((attr, la.requirement_level.clone(), origin))
+                    })
+                    .collect(),
+            })
+            .collect()
+    }
+
     /// Looks up an attribute definition by key.
     pub fn lookup_attribute(&self, key: &str) -> Result<Option<DepAttribute>, Error> {
         let Some(&idx) = self.exported_attrs.get(key) else {
@@ -195,6 +216,7 @@ impl V2Dependency {
                         name: span.name.clone(),
                         requirement_level: span.requirement_level.clone(),
                         attributes,
+                        links: self.resolve_span_links(&span.links),
                     },
                     common: span.common.clone(),
                     origin: self.source_url(span.provenance.source),
@@ -347,6 +369,7 @@ impl V2Dependency {
                     name: s.name.clone(),
                     requirement_level: s.requirement_level.clone(),
                     attributes,
+                    links: self.resolve_span_links(&s.links),
                     entity_associations: EntityAssociations::Resolved(
                         s.entity_associations.clone(),
                     ),

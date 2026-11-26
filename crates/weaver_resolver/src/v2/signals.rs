@@ -19,6 +19,7 @@ use weaver_semconv::v2::span::{SpanKindSpec, SpanName};
 use weaver_semconv::v2::CommonFields;
 
 use super::attributes::Catalog;
+use super::dependency::{DepSignalPayload, V2Dependencies};
 use super::groups::{ExpandKey, ExpandedGroups, GroupAttributeItem};
 use super::index::Index;
 use super::rules;
@@ -130,6 +131,15 @@ pub(crate) struct ResolvedMetric {
     pub provenance: Provenance,
 }
 
+/// Resolved span link with catalog-resolved attributes prior to final emission.
+#[derive(Debug, Clone)]
+pub(crate) struct ResolvedSpanLink {
+    pub r#ref: SignalId,
+    pub brief: Option<String>,
+    pub note: Option<String>,
+    pub attributes: Vec<(Attribute, RequirementLevel)>,
+}
+
 /// Resolved span signal with expanded attributes prior to final emission.
 #[derive(Debug, Clone)]
 pub(crate) struct ResolvedSpan {
@@ -137,6 +147,7 @@ pub(crate) struct ResolvedSpan {
     pub kind: SpanKindSpec,
     pub name: SpanName,
     pub attributes: Vec<(Attribute, RequirementLevel, Option<bool>)>,
+    pub links: Vec<ResolvedSpanLink>,
     pub entity_associations: EntityAssociations,
     pub association_origins: BTreeMap<String, SchemaUrl>,
     pub requirement_level: Option<SignalRequirementLevel>,
@@ -193,6 +204,72 @@ fn resolve_expanded_attributes<C: SchemaCacheLookup>(
     }
     attributes.sort_by(|(a, _), (b, _)| a.key.cmp(&b.key));
     Ok(attributes)
+}
+
+/// Checks that every link on a locally defined span targets a local, imported, or dependency span type.
+///
+/// Imported spans are not checked: their targets may live in a transitive dependency.
+pub(crate) fn validate_span_link_targets<C: SchemaCacheLookup>(
+    index: &Index,
+    signals: &ResolvedSignals,
+    imported_span_types: impl IntoIterator<Item = SignalId>,
+    deps: &V2Dependencies,
+    cache_lookup: &C,
+) -> Result<(), Error> {
+    let imported: HashSet<SignalId> = imported_span_types.into_iter().collect();
+    let mut errors = Vec::new();
+    for span in &signals.spans {
+        let provenance = || {
+            index
+                .spans()
+                .get(&span.r#type)
+                .map(|s| Box::new(s.provenance.clone()))
+        };
+        for link in &span.links {
+            if let Some(target) = index.spans().get(&link.r#ref) {
+                if is_excluded(&target.item.common.annotations)
+                    && !is_excluded(&span.common.annotations)
+                {
+                    errors.push(Error::ExcludedFromDependencyResolution {
+                        id: link.r#ref.to_string(),
+                        r#type: SignalKind::Span.as_str().to_owned(),
+                        used_in: span.r#type.to_string(),
+                        provenance: provenance(),
+                    });
+                }
+                continue;
+            }
+            if imported.contains(&link.r#ref) {
+                continue;
+            }
+            // Same lookup as refinement parents, including chosen-version upgrades. It also
+            // matches refinement ids, which are not link targets: a refinement resolves to
+            // its parent's type, so only accept a span whose type is the requested id.
+            // Missing and wrong-kind targets are reported as link errors; ambiguity and
+            // upgrade failures keep their own, more specific errors.
+            match deps.lookup_signal(
+                SignalKind::Span,
+                link.r#ref.as_ref(),
+                span.r#type.as_ref(),
+                None,
+                cache_lookup,
+            ) {
+                Ok(s) if matches!(&s.payload, DepSignalPayload::Span { r#type, .. } if *r#type == link.r#ref) =>
+                    {}
+                Ok(_)
+                | Err(Error::UnresolvedRefinementParent { .. })
+                | Err(Error::InvalidRefinement { .. }) => {
+                    errors.push(Error::SpanLinkTargetNotFound {
+                        span_id: span.r#type.to_string(),
+                        link_ref: link.r#ref.to_string(),
+                        provenance: provenance(),
+                    });
+                }
+                Err(e) => errors.push(e),
+            }
+        }
+    }
+    handle_errors(errors)
 }
 
 /// Resolves all base signals in the index against expanded groups and catalog.
@@ -273,11 +350,32 @@ pub(crate) fn resolve_bases<'a, C: SchemaCacheLookup>(
             }
         }
 
+        let mut links = Vec::with_capacity(s.links.len());
+        for link in &s.links {
+            let mut link_attributes = Vec::with_capacity(link.attributes.len());
+            for la in &link.attributes {
+                let resolved_attr = catalog.resolve_attribute_ref(
+                    &la.base,
+                    &used_in,
+                    s_excluded,
+                    Some(&indexed_s.provenance),
+                )?;
+                link_attributes.push((resolved_attr, rules::resolve_requirement_level(&la.base)));
+            }
+            links.push(ResolvedSpanLink {
+                r#ref: link.r#ref.clone(),
+                brief: link.brief.clone(),
+                note: link.note.clone(),
+                attributes: link_attributes,
+            });
+        }
+
         spans.push(ResolvedSpan {
             r#type: type_id.clone(),
             kind: s.kind,
             name: s.name.clone(),
             attributes,
+            links,
             entity_associations: EntityAssociations::Raw(s.entity_associations.clone()),
             association_origins: BTreeMap::new(),
             requirement_level: s.requirement_level.clone(),

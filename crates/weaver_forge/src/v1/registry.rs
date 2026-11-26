@@ -331,6 +331,7 @@ mod tests {
                     visibility: None,
                     is_v2: false,
                     span_name: None,
+                    span_links: Vec::new(),
                 },
                 Group {
                     id: "apple.group".to_owned(),
@@ -357,6 +358,7 @@ mod tests {
                     visibility: None,
                     is_v2: false,
                     span_name: None,
+                    span_links: Vec::new(),
                 },
                 Group {
                     id: "middle.group".to_owned(),
@@ -383,6 +385,7 @@ mod tests {
                     visibility: None,
                     is_v2: false,
                     span_name: None,
+                    span_links: Vec::new(),
                 },
             ],
         };
@@ -437,6 +440,7 @@ mod tests {
                 visibility: None,
                 is_v2,
                 span_name: None,
+                span_links: Vec::new(),
             }
         }
 
@@ -472,6 +476,7 @@ mod tests {
         use weaver_resolved_schema::v1::attribute::AttributeRef;
 
         let group = Group {
+            span_links: Vec::new(),
             id: "group.missing_attr".to_owned(),
             r#type: GroupType::AttributeGroup,
             brief: "test".to_owned(),

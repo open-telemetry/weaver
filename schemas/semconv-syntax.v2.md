@@ -355,6 +355,7 @@ The spans section contains a list of span definitions. A span definition consist
 - `name` - Required. Specification of how the [span name](#span-name) should be formatted.
 - `deprecated` - Optional. When present, marks the span as deprecated. See [deprecated](#deprecated-structure) for details
 - `attributes` - Optional. List of [attribute references](#attribute-reference) applicable to this span.
+- `links` - Optional. List of [span links](#span-links) expected on this span.
 - `entity_associations` - Optional. List of [entity association expressions](#entity-associations) describing which entities this span type can be associated with.
 - `annotations` - Optional. Map of annotations. Annotations are key-value pairs that provide additional information about the span. See [annotations](#annotations) for details
 
@@ -406,6 +407,35 @@ The `name` field specifies how the span name should be formatted. It supports:
 OpenTelemetry semantic conventions use `{action} {target}` format where action and target match attributes on that span. For example, HTTP client span names match `{http.request.method} {url.template}` falling back to `{http.request.method}` and finally `HTTP` if `{http.request.method}` resolves to `_OTHER`.
 
 For enum attributes, `_OTHER` is treated in the same way as a missing value.
+
+#### Span links
+
+The `links` field lists the links expected on spans of this type. Each entry consists of the following properties:
+
+- `ref` - Required. The span type the link points to. The target must be a span defined in the registry or one of its dependencies.
+- `brief` - Optional. A short description of the link.
+- `note` - Optional. A more elaborate description of the link.
+- `attributes` - Optional. List of attributes expected on the link itself. Each entry is a single [attribute reference](#attribute-reference) and supports the same overrides. Attribute group references are not supported on links. `requirement_level` defaults to `recommended`.
+
+Example:
+
+```yaml
+spans:
+  - type: messaging.process
+    kind: consumer
+    brief: Represents the processing of a batch of messages
+    stability: stable
+    name:
+      note: "{messaging.operation.name}"
+    links:
+      - ref: messaging.produce
+        brief: Links to the produce span that created each processed message.
+        attributes:
+          - ref: messaging.message.id
+            requirement_level: required
+```
+
+Span refinements inherit the base span's links; they cannot declare, replace, or extend links.
 
 ### `entities` definition
 

@@ -21,7 +21,7 @@ use super::dependency::{
 use super::groups::{ExpandedGroups, ResolvedPublicGroup};
 use super::index::{Index, Indexed, IndexedImports};
 use super::signals::{
-    ResolvedEntity, ResolvedEvent, ResolvedMetric, ResolvedSignals, ResolvedSpan,
+    ResolvedEntity, ResolvedEvent, ResolvedMetric, ResolvedSignals, ResolvedSpan, ResolvedSpanLink,
 };
 use crate::error::Error;
 use crate::graph::chosen_versions::{
@@ -204,6 +204,11 @@ impl ImportableDepItem for DepImportedSpan {
     ) -> Result<(), Error> {
         for (attr, _, _, attr_origin, is_v1_def) in &mut self.attributes {
             register_imported_attr(deps, cache_lookup, catalog, attr, attr_origin, *is_v1_def)?;
+        }
+        for link in &mut self.links {
+            for (attr, _, attr_origin) in &mut link.attributes {
+                register_imported_attr(deps, cache_lookup, catalog, attr, attr_origin, false)?;
+            }
         }
         Ok(())
     }
@@ -752,6 +757,20 @@ pub(crate) fn resolve<'a, C: SchemaCacheLookup>(
                             .attributes
                             .into_iter()
                             .map(|(a, req, samp, _, _)| (a, req, samp))
+                            .collect(),
+                        links: s
+                            .links
+                            .into_iter()
+                            .map(|l| ResolvedSpanLink {
+                                r#ref: l.r#ref,
+                                brief: l.brief,
+                                note: l.note,
+                                attributes: l
+                                    .attributes
+                                    .into_iter()
+                                    .map(|(a, req, _)| (a, req))
+                                    .collect(),
+                            })
                             .collect(),
                         entity_associations: s.entity_associations,
                         association_origins: s.association_origins,

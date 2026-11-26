@@ -577,6 +577,13 @@ fn load_resolved_repository(
                 return WResult::FatalErr(e);
             }
         }
+        for link in &span.links {
+            for attr in &link.attributes {
+                if let Err(e) = check_attr_ref(attr.base.0) {
+                    return WResult::FatalErr(e);
+                }
+            }
+        }
         for assoc in &span.entity_associations {
             for eref in assoc.refs() {
                 if let Some(src) = eref.provenance.source {
@@ -659,6 +666,13 @@ fn load_resolved_repository(
         for attr in &span_ref.span.attributes {
             if let Err(e) = check_attr_ref(attr.base.0) {
                 return WResult::FatalErr(e);
+            }
+        }
+        for link in &span_ref.span.links {
+            for attr in &link.attributes {
+                if let Err(e) = check_attr_ref(attr.base.0) {
+                    return WResult::FatalErr(e);
+                }
             }
         }
         for assoc in &span_ref.span.entity_associations {
@@ -1204,6 +1218,36 @@ mod tests {
             dependencies: vec![],
         };
         assert_eq!(empty_unresolved.source_format(), None);
+    }
+
+    #[test]
+    fn test_load_resolved_repository_oob_link_attribute_ref_is_fatal() {
+        let span = r#"{"type":"s","kind":"internal","name":{"note":"s"},"brief":"s","stability":"stable",
+            "links":[{"ref":"s","attributes":[{"base":999,"requirement_level":"required"}]}]"#;
+        for (spans, refinements) in [
+            (format!("[{span}}}]"), "[]".to_owned()),
+            ("[]".to_owned(), format!(r#"[{{"id":"r",{}}}]"#, &span[1..])),
+        ] {
+            let schema = format!(
+                r#"{{"file_format":"resolved/2.0","schema_url":"https://example.com/v2","attribute_catalog":[],
+                "registry":{{"attributes":[],"attribute_groups":[],"spans":{spans},"metrics":[],"events":[],"entities":[]}},
+                "refinements":{{"spans":{refinements},"metrics":[],"events":[],"entities":[]}}}}"#
+            );
+            let temp_dir = tempfile::tempdir().unwrap();
+            let file_path = temp_dir.path().join("schema.json");
+            std::fs::write(&file_path, schema).unwrap();
+            let path = VirtualDirectoryPath::LocalFolder {
+                path: file_path.to_str().unwrap().to_owned(),
+            };
+            let auth = weaver_common::http_auth::HttpAuthResolver::empty();
+            match load_resolved_repository(&path, &auth, vec![]) {
+                WResult::FatalErr(Error::InvalidRegistryAttributeRef { attribute_ref, .. }) => {
+                    assert_eq!(attribute_ref, 999);
+                }
+                WResult::FatalErr(e) => panic!("Expected InvalidRegistryAttributeRef, got {e:?}"),
+                _ => panic!("Expected FatalErr, got Ok"),
+            }
+        }
     }
 
     #[test]
