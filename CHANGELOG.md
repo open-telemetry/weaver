@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # Unreleased
 
+- Fix the Prometheus unit suffix for `TiBy`, which read `tibibytes`, to `tebibytes`, and add `kBy` as `kilobytes`, following the unit table of the Prometheus compatibility spec. Names generated for `TiBy` change. Fixes [#1892](https://github.com/open-telemetry/weaver/issues/1892) - ([#1899](https://github.com/open-telemetry/weaver/pull/1899) by @chrikrah)
 - 💥 BREAKING CHANGE 💥 v2: `stability` is required on enum members, in both the parser and the JSON schemas. v1 members without `stability` convert to `development`. Fixes [#1146](https://github.com/open-telemetry/weaver/issues/1146)
 - Resolve pure `definition/2` registries directly into V2 schemas under `--v2` without lowering through V1.
   - 💥 BREAKING CHANGE 💥 Reject duplicate inline `- ref:` entries for the same attribute within a single V2 signal, attribute group, entity, or refinement (`DuplicateAttributeRef`).

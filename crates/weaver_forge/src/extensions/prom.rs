@@ -172,7 +172,8 @@ pub(crate) fn get_prom_units(unit: &str) -> Option<&'static str> {
         "KiBy" => Some("kibibytes"),
         "MiBy" => Some("mebibytes"),
         "GiBy" => Some("gibibytes"),
-        "TiBy" => Some("tibibytes"),
+        "TiBy" => Some("tebibytes"),
+        "kBy" => Some("kilobytes"),
         "KBy" => Some("kilobytes"),
         "MBy" => Some("megabytes"),
         "GBy" => Some("gigabytes"),
@@ -284,6 +285,9 @@ mod tests {
         let test_cases = vec![
             // Direct match
             ("g", Some(Cow::Borrowed("grams"))),
+            ("TiBy", Some(Cow::Borrowed("tebibytes"))),
+            ("kBy", Some(Cow::Borrowed("kilobytes"))),
+            ("KBy", Some(Cow::Borrowed("kilobytes"))),
             // Per unit
             ("test/y", Some(Cow::Owned("per_year".into()))),
             ("1/y", Some(Cow::Owned("per_year".into()))),
