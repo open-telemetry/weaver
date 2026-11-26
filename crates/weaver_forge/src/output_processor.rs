@@ -13,6 +13,7 @@ use serde::Serialize;
 use crate::config::{Params, WeaverConfig};
 use crate::error::Error;
 use crate::file_loader::{EmbeddedFileLoader, FileLoader};
+use crate::jq::JqInput;
 use crate::v2::registry::ForgeResolvedRegistry;
 use crate::{OutputDirective, TemplateEngine};
 
@@ -266,9 +267,9 @@ impl OutputProcessor {
     /// Generate a template snippet from serializable context and a snippet identifier.
     ///
     /// Only valid for `Template` variants. Returns an error for `Builtin` and `Mute`.
-    pub fn generate_snippet<T: Serialize>(
+    pub fn generate_snippet(
         &self,
-        context: &T,
+        context: &JqInput,
         filter: &str,
         snippet_id: String,
     ) -> Result<String, Error> {

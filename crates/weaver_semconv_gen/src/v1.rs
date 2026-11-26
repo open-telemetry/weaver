@@ -7,7 +7,7 @@ use weaver_common::{
     diagnostic::{DiagnosticMessage, DiagnosticMessages},
     result::WResult,
 };
-use weaver_forge::{v1::registry::ResolvedGroup, OutputProcessor};
+use weaver_forge::{jq::JqInput, v1::registry::ResolvedGroup, OutputProcessor};
 use weaver_resolved_schema::v1::{catalog::Catalog, registry::Group, ResolvedTelemetrySchema};
 use weaver_resolver::{DefaultSchemaVisitor, WeaverResolver, WeaverResolverConfig};
 use weaver_semconv::registry_repo::RegistryRepo;
@@ -124,9 +124,11 @@ impl MarkdownSnippetGenerator for SnippetGenerator {
         };
         // We automatically default to specific file for the snippet types.
         let snippet_template_file = "snippet.md.j2";
-        let mut result =
-            self.output
-                .generate_snippet(&context, ".", snippet_template_file.to_owned())?;
+        let mut result = self.output.generate_snippet(
+            &JqInput::new(&context)?,
+            ".",
+            snippet_template_file.to_owned(),
+        )?;
         result.push('\n');
         Ok(result)
     }

@@ -31,6 +31,7 @@ use crate::error::Error::{InvalidConfigFile, InvalidFilePath};
 use crate::extensions::{ansi, case, code, otel, util};
 use crate::file_loader::FileLoader;
 use crate::filter::Filter;
+use crate::jq::{execute_jq_input, JqInput};
 use crate::v1::registry::{ResolvedGroup, ResolvedRegistry};
 use crate::v2::registry::ForgeResolvedRegistry;
 
@@ -297,19 +298,12 @@ impl TemplateEngine {
     /// * `context` - The context to use when generating snippets.
     /// * `filter` - The jq filter expression to use.
     /// * `snippet_id` - The template to use when rendering the snippet.
-    pub(crate) fn generate_snippet<T: Serialize>(
+    pub(crate) fn generate_snippet(
         &self,
-        context: &T,
+        context: &JqInput,
         filter: &str,
         snippet_id: String,
     ) -> Result<String, Error> {
-        // TODO - find the snippet by id.
-
-        // Create a read-only context for the filter evaluations
-        let context = serde_json::to_value(context).map_err(|e| ContextSerializationFailed {
-            error: e.to_string(),
-        })?;
-
         let mut engine = self.template_engine(&AutoEscapeMode::None)?;
         // Create snippet parameters
         let mut params = self
@@ -324,10 +318,14 @@ impl TemplateEngine {
             // the previous value of the param.
             _ = params.insert(name.clone(), value.clone());
         }
-        // Apply the filter
-        let filter = Filter::new(filter);
         let filter_params = Self::prepare_jq_context(&params)?;
-        let filtered_context = self.apply_filter(filter, &context, &filter_params)?;
+        let filtered_context = execute_jq_input(
+            context,
+            filter,
+            &filter_params,
+            self.file_loader.root(),
+            self.target_config.jq_modules.as_deref().unwrap_or_default(),
+        )?;
         engine.add_global("params", Value::from_object(ParamsObject::new(params)));
         let template = engine
             .get_template(&snippet_id)
