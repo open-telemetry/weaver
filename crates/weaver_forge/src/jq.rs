@@ -437,7 +437,24 @@ mod tests {
     use serde_json::json;
     use std::{collections::BTreeMap, fs};
 
-    use super::{execute_jq, execute_jq_with_modules};
+    use super::{execute_jq, execute_jq_input, execute_jq_with_modules, JqInput};
+
+    #[test]
+    fn updating_filter_leaves_reused_input_unchanged() {
+        let original = json!({"x": 1, "y": [1]});
+        let input = JqInput::new(&original).unwrap();
+        let run = |filter| execute_jq_input(&input, filter, &BTreeMap::new(), ".".as_ref(), &[]);
+
+        assert_eq!(
+            run(".x = 2 | .y += [2]").unwrap(),
+            json!({"x": 2, "y": [1, 2]})
+        );
+        assert_eq!(run(".").unwrap(), original);
+        assert_eq!(
+            run(".").unwrap(),
+            execute_jq(&original, ".", &BTreeMap::new()).unwrap()
+        );
+    }
 
     #[test]
     fn default_jq_execution_is_unchanged() {
