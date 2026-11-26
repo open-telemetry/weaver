@@ -401,7 +401,7 @@ pub enum Error {
     },
 
     /// A V1 entity without identity attributes, resolved for V2, becomes a public attribute group.
-    #[error("Entity `{group_id}` has no identity attributes and becomes a public attribute group in the v2 schema. It can't be used in entity associations, and entities extending it become standalone entities.{provenance}", provenance = format_provenance(.provenance))]
+    #[error("Entity `{group_id}` has no identity attributes and becomes a public attribute group in the v2 schema. It can't be refined or used in entity associations.{provenance}", provenance = format_provenance(.provenance))]
     #[diagnostic(
         severity(Warning),
         help("Add at least one identifying attribute to keep it an entity.")
