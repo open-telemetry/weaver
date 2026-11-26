@@ -155,6 +155,7 @@ pub(crate) fn resolve(
         &resolved_signals,
         imported_items.spans.iter().map(|s| s.item.r#type.clone()),
         &v2_deps,
+        &lookup_ctx,
     ) {
         return WResult::FatalErr(e);
     }

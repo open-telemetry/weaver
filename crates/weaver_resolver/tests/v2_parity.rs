@@ -1164,6 +1164,84 @@ spans:
 }
 
 #[test]
+fn test_span_link_target_removed_in_chosen_dependency_version() {
+    // A re-exports c.target from C 1.1.0; root selects C 1.2.0, which dropped it.
+    let dir = tempfile::tempdir().expect("tempdir");
+    let c1 = dir.path().join("c1").join("registry");
+    let c2 = dir.path().join("c2").join("registry");
+    let a = dir.path().join("a").join("registry");
+    let root = dir.path().join("root").join("registry");
+    for d in [&c1, &c2, &a, &root] {
+        std::fs::create_dir_all(d).expect("create dir");
+    }
+    let span = |ty: &str| {
+        format!(
+            "file_format: definition/2\nspans:\n  - type: {ty}\n    kind: producer\n    name:\n      note: {ty}\n    brief: {ty}\n    stability: stable\n"
+        )
+    };
+    let manifest = |url: &str, deps: &[(&str, &Path)]| {
+        let mut m = format!("file_format: definition_manifest/2.0\nschema_url: {url}\n");
+        if !deps.is_empty() {
+            m.push_str("dependencies:\n");
+            for (dep_url, path) in deps {
+                m.push_str(&format!(
+                    "  - schema_url: {dep_url}\n    registry_path: {}\n",
+                    path.display()
+                ));
+            }
+        }
+        m
+    };
+    let c1_url = "https://example.com/c/1.1.0";
+    let c2_url = "https://example.com/c/1.2.0";
+    let a_url = "https://example.com/a/0.1.0";
+    std::fs::write(c1.join("manifest.yaml"), manifest(c1_url, &[])).expect("write");
+    std::fs::write(c1.join("schema.yaml"), span("c.target")).expect("write");
+    std::fs::write(c2.join("manifest.yaml"), manifest(c2_url, &[])).expect("write");
+    std::fs::write(c2.join("schema.yaml"), span("c.other")).expect("write");
+    std::fs::write(a.join("manifest.yaml"), manifest(a_url, &[(c1_url, &c1)])).expect("write");
+    std::fs::write(
+        a.join("schema.yaml"),
+        "file_format: definition/2\nimports:\n  spans:\n    - c.target\n",
+    )
+    .expect("write");
+    std::fs::write(
+        root.join("manifest.yaml"),
+        manifest(
+            "https://example.com/root/0.1.0",
+            &[(a_url, &a), (c2_url, &c2)],
+        ),
+    )
+    .expect("write");
+    std::fs::write(
+        root.join("schema.yaml"),
+        r#"file_format: definition/2
+spans:
+  - type: my.span
+    kind: consumer
+    name:
+      note: my span
+    brief: Links to c.target
+    stability: stable
+    links:
+      - ref: c.target
+"#,
+    )
+    .expect("write");
+
+    match resolve_fixture_raw(
+        root.parent().unwrap().to_str().unwrap(),
+        ResolutionTarget::V2,
+    ) {
+        WResult::FatalErr(Error::SpanLinkTargetNotFound { link_ref, .. }) => {
+            assert_eq!(link_ref, "c.target");
+        }
+        WResult::FatalErr(other) => panic!("Expected SpanLinkTargetNotFound, got: {other}"),
+        WResult::Ok(_) | WResult::OkWithNFEs(..) => panic!("Expected FatalErr, got Ok"),
+    }
+}
+
+#[test]
 fn test_imported_span_link_attribute_upgraded() {
     let dir = tempfile::tempdir().expect("tempdir");
     let c1_dir = dir.path().join("c_1_1").join("registry");

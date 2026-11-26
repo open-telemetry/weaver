@@ -19,7 +19,7 @@ use weaver_semconv::v2::span::{SpanKindSpec, SpanName};
 use weaver_semconv::v2::CommonFields;
 
 use super::attributes::Catalog;
-use super::dependency::V2Dependencies;
+use super::dependency::{DepSignalPayload, V2Dependencies};
 use super::groups::{ExpandKey, ExpandedGroups, GroupAttributeItem};
 use super::index::Index;
 use super::rules;
@@ -209,15 +209,14 @@ fn resolve_expanded_attributes<C: SchemaCacheLookup>(
 /// Checks that every link on a locally defined span targets a local, imported, or dependency span type.
 ///
 /// Imported spans are not checked: their targets may live in a transitive dependency.
-pub(crate) fn validate_span_link_targets(
+pub(crate) fn validate_span_link_targets<C: SchemaCacheLookup>(
     index: &Index,
     signals: &ResolvedSignals,
     imported_span_types: impl IntoIterator<Item = SignalId>,
     deps: &V2Dependencies,
+    cache_lookup: &C,
 ) -> Result<(), Error> {
     let imported: HashSet<SignalId> = imported_span_types.into_iter().collect();
-    // Base spans only: refinement ids are not link targets.
-    let mut dep_spans: Option<HashSet<SignalId>> = None;
     let mut errors = Vec::new();
     for span in &signals.spans {
         let provenance = || {
@@ -243,15 +242,21 @@ pub(crate) fn validate_span_link_targets(
             if imported.contains(&link.r#ref) {
                 continue;
             }
-            let dep_spans = dep_spans.get_or_insert_with(|| {
-                deps.adapters()
-                    .iter()
-                    .flat_map(|d| d.importable_spans())
-                    .filter(|s| !s.excluded)
-                    .map(|s| s.r#type)
-                    .collect()
-            });
-            if !dep_spans.contains(&link.r#ref) {
+            // Same lookup as refinement parents, including chosen-version upgrades. It also
+            // matches refinement ids, which are not link targets: a refinement resolves to
+            // its parent's type, so only accept a span whose type is the requested id.
+            let found = deps
+                .lookup_signal(
+                    SignalKind::Span,
+                    link.r#ref.as_ref(),
+                    span.r#type.as_ref(),
+                    None,
+                    cache_lookup,
+                )
+                .is_ok_and(|s| {
+                    matches!(&s.payload, DepSignalPayload::Span { r#type, .. } if *r#type == link.r#ref)
+                });
+            if !found {
                 errors.push(Error::SpanLinkTargetNotFound {
                     span_id: span.r#type.to_string(),
                     link_ref: link.r#ref.to_string(),
