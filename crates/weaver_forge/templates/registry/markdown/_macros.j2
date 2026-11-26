@@ -14,3 +14,8 @@
 > macro attribute_type(attr) <
 > if attr.type is mapping <Enum> else <`{{ attr.type }}`> endif <
 > endmacro <
+
+{#- Formats the deprecation note, `renamed` can omit it -#}
+> macro deprecated_note(deprecated) <
+> if deprecated.note is defined <{{ deprecated.note }}> else <Replaced by `{{ deprecated.renamed_to }}`.> endif <
+> endmacro <

@@ -20,7 +20,7 @@ Head: {{ ctx.head.semconv_version }}
 {% if attributes -%}    
 ### Renamed
     {% for renamed in attributes %}
-- {{ renamed.old_name }} --> {{ renamed.new_name }} (Note: {{ renamed.note }})
+- {{ renamed.old_name }} --> {{ renamed.new_name }}{{ " (Note: " ~ renamed.note ~ ")" if renamed.note else "" }}
     {% endfor %}
 
 {% endif %}
