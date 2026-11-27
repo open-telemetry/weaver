@@ -16,6 +16,7 @@ use jaq_core::{
     Ctx, Vars,
 };
 use jaq_json::Val;
+use serde::Serialize;
 
 type JqFileType = PathBuf;
 
@@ -44,6 +45,21 @@ fn prepare_jq_context(
         .map(|pairs: Vec<_>| pairs.into_iter().unzip())
 }
 
+/// A JSON value converted to jq's representation once, so many filters can
+/// run on it without converting it again. Cloning is cheap.
+#[derive(Clone)]
+pub struct JqInput(Val);
+
+impl JqInput {
+    /// Converts a serializable value to jq input.
+    pub fn new<T: Serialize>(value: &T) -> Result<Self, Error> {
+        let json = serde_json::to_value(value).map_err(|e| Error::ContextSerializationFailed {
+            error: e.to_string(),
+        })?;
+        serde_to_val(json).map(Self)
+    }
+}
+
 /// This is our single entry point for calling into the jaq library to run jq filters.
 pub fn execute_jq(
     // The JSON input to JQ.
@@ -69,8 +85,23 @@ pub fn execute_jq_with_modules(
     module_base: &Path,
     modules: &[PathBuf],
 ) -> Result<serde_json::Value, Error> {
+    let input = JqInput(serde_to_val(input.clone())?);
+    execute_jq_input(&input, filter_expr, params, module_base, modules)
+}
+
+/// Same as [`execute_jq_with_modules`], for input already converted with [`JqInput::new`].
+pub fn execute_jq_input(
+    input: &JqInput,
+    filter_expr: &str,
+    params: &BTreeMap<String, serde_json::Value>,
+    module_base: &Path,
+    modules: &[PathBuf],
+) -> Result<serde_json::Value, Error> {
     if log::log_enabled!(log::Level::Trace) {
-        log::trace!("Executing JQ filter: {filter_expr} with params {params:#?}, input {input:#?}");
+        log::trace!(
+            "Executing JQ filter: {filter_expr} with params {params:#?}, input {}",
+            input.0
+        );
     } else if log::log_enabled!(log::Level::Debug) {
         log::debug!("Executing JQ filter: {filter_expr} with params {params:#?}");
     }
@@ -137,11 +168,7 @@ pub fn execute_jq_with_modules(
     // Bundle Results
     let mut errs = Vec::new();
     let mut values = Vec::new();
-    for r in filter
-        .id
-        .run((ctx, serde_to_val(input.clone())?))
-        .map(unwrap_valr)
-    {
+    for r in filter.id.run((ctx, input.0.clone())).map(unwrap_valr) {
         match r {
             Ok(v) => values.push(val_to_serde(v)),
             Err(e) => errs.push(e),
@@ -410,7 +437,24 @@ mod tests {
     use serde_json::json;
     use std::{collections::BTreeMap, fs};
 
-    use super::{execute_jq, execute_jq_with_modules};
+    use super::{execute_jq, execute_jq_input, execute_jq_with_modules, JqInput};
+
+    #[test]
+    fn updating_filter_leaves_reused_input_unchanged() {
+        let original = json!({"x": 1, "y": [1]});
+        let input = JqInput::new(&original).unwrap();
+        let run = |filter| execute_jq_input(&input, filter, &BTreeMap::new(), ".".as_ref(), &[]);
+
+        assert_eq!(
+            run(".x = 2 | .y += [2]").unwrap(),
+            json!({"x": 2, "y": [1, 2]})
+        );
+        assert_eq!(run(".").unwrap(), original);
+        assert_eq!(
+            run(".").unwrap(),
+            execute_jq(&original, ".", &BTreeMap::new()).unwrap()
+        );
+    }
 
     #[test]
     fn default_jq_execution_is_unchanged() {

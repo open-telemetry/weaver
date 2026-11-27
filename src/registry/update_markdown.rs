@@ -161,7 +161,7 @@ pub(crate) fn command(
                 resolved_v2.into_resolved_schema(),
                 template_schema,
                 output,
-            ))
+            )?)
         }
         crate::weaver::Resolved::V1(resolved_v1) => Box::new(SnippetGenerator::new(
             resolved_v1.into_resolved_schema(),
