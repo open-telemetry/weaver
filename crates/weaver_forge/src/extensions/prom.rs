@@ -99,7 +99,14 @@ pub(crate) fn get_name<'a>(
 fn with_suffixes<'a>(name: &Cow<'a, str>, unit: &str, instrument: &str) -> Cow<'a, str> {
     get_suffixes(unit, instrument)
         .into_iter()
-        .fold(name.clone(), |acc, suffix| format!("{acc}_{suffix}").into())
+        .fold(name.clone(), |acc, suffix| {
+            let decorated = format!("_{suffix}");
+            if acc.ends_with(&decorated) {
+                acc
+            } else {
+                format!("{acc}{decorated}").into()
+            }
+        })
 }
 
 pub(crate) fn get_suffixes(unit: &str, instrument: &str) -> Vec<Cow<'static, str>> {
@@ -607,5 +614,56 @@ mod tests {
                 name, unit, instrument
             );
         }
+    }
+
+    #[test]
+    fn no_duplicate_suffix_when_name_already_ends_with_it() {
+        // Issue #1827: a Prometheus-style metric name that already carries the
+        // unit or `_total` suffix must not have that suffix appended a second
+        // time by prometheus_metric_name / prometheus_metric_names.
+        // Counter named `*_total`; unit "{request}" is an ignored annotation,
+        // so the only candidate suffix is `total`.
+        let counter = Cow::Borrowed("http_requests_total");
+        assert_eq!(
+            get_name(
+                &counter,
+                "{request}",
+                "counter",
+                &TranslationStrategy::UnderscoreEscapingWithSuffixes,
+            ),
+            "http_requests_total",
+            "`_total` must not be doubled for a counter already ending in _total",
+        );
+        // Histogram named `*_seconds`; unit "s" maps to the `seconds` suffix.
+        let hist = Cow::Borrowed("job_duration_seconds");
+        assert_eq!(
+            get_name(
+                &hist,
+                "s",
+                "histogram",
+                &TranslationStrategy::UnderscoreEscapingWithSuffixes,
+            ),
+            "job_duration_seconds",
+            "unit suffix must not be doubled when the name already ends with it",
+        );
+        // The plural filter must not emit a doubled variant either.
+        let variants = get_names(&counter, "{request}", "counter", None, false);
+        assert_eq!(
+            variants,
+            vec!["http_requests_total"],
+            "prometheus_metric_names must not contain a doubled _total variant",
+        );
+        // Guard: a plain name WITHOUT the suffix still gains it (no regression).
+        let plain = Cow::Borrowed("http_requests");
+        assert_eq!(
+            get_name(
+                &plain,
+                "{request}",
+                "counter",
+                &TranslationStrategy::UnderscoreEscapingWithSuffixes,
+            ),
+            "http_requests_total",
+            "plain counter names must still gain _total",
+        );
     }
 }
