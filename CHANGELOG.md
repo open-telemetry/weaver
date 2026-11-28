@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 # Unreleased
 
 - Optimize `registry update-markdown --v2` by caching the registry. Fixes [#1938](https://github.com/open-telemetry/weaver/issues/1938)
+- Fix the Prometheus name filters keeping a non-ASCII letter that comes before the first character they replace. Names holding a non-ASCII letter now sanitize each such character to `_` (`naïve.x` gives `na_ve_x`, was `naïve_x`). Fixes [#1893](https://github.com/open-telemetry/weaver/issues/1893) - ([#1894](https://github.com/open-telemetry/weaver/pull/1894) by @chrikrah)
 - 💥 BREAKING CHANGE 💥 v2: `stability` is required on enum members, in both the parser and the JSON schemas. v1 members without `stability` convert to `development`. Fixes [#1146](https://github.com/open-telemetry/weaver/issues/1146)
 - Resolve pure `definition/2` registries directly into V2 schemas under `--v2` without lowering through V1.
   - 💥 BREAKING CHANGE 💥 Reject duplicate inline `- ref:` entries for the same attribute within a single V2 signal, attribute group, entity, or refinement (`DuplicateAttributeRef`).
